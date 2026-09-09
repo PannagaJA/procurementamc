@@ -36,7 +36,7 @@ const Books = () => {
   const { data: booksData, isLoading } = useQuery({
     queryKey: ['books', q, page],
     queryFn: () => libraryApi.getBooks({ limit, offset: (page - 1) * limit, search: q }),
-    keepPreviousData: true,
+    placeholderData: (previousData: any) => previousData,
   });
 
   const books = booksData?.data || [];
@@ -156,7 +156,11 @@ const Books = () => {
       <PaginationControls
         currentPage={page}
         totalPages={totalPages}
+        pageSize={limit}
+        totalItems={totalCount}
         onPageChange={setPage}
+        onPageSizeChange={() => {}}
+        showPageSizeSelector={false}
       />
 
       <Dialog open={open} onOpenChange={setOpen}>

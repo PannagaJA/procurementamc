@@ -6,14 +6,19 @@ import libraryApi from '@/lib/libraryApi';
 const ReturnBook = () => {
   const [issues, setIssues] = useState<any[]>([]);
   const [books, setBooks] = useState<any[]>([]);
+  const [members, setMembers] = useState<any[]>([]);
 
   const load = async () => {
-    const [iRes, bRes] = await Promise.all([libraryApi.getIssues(), libraryApi.getBooks()]);
+    const [iRes, bRes, mRes] = await Promise.all([libraryApi.getIssues(), libraryApi.getBooks(), libraryApi.getMembers()]);
     const i = iRes.data || [];
     const b = bRes.data || [];
     setIssues(i);
     setBooks(b);
+    setMembers(mRes || []);
   };
+
+  const membersMap = Object.fromEntries(members.map((m: any) => [m.id, m.name]));
+  const booksMap = Object.fromEntries(books.map((b: any) => [b.id, b.title]));
 
   useEffect(() => { load(); }, []);
 

@@ -98,9 +98,12 @@ const InventoryList = () => {
       locationId: locationFilter,
       departmentId: departmentFilter,
     }),
-    onSuccess: (data) => setTotal(data.count),
-    keepPreviousData: true,
+    placeholderData: (previousData: any) => previousData,
   });
+
+  useEffect(() => {
+    if (inventoryData?.count != null) setTotal(inventoryData.count);
+  }, [inventoryData]);
 
   const { data: categories = [] } = useQuery({
     queryKey: ['categories'],
