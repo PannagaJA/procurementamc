@@ -10,33 +10,426 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AddRouteImport } from './routes/add'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as CategoriesRouteImport } from './routes/categories'
+import { Route as DepartmentsRouteImport } from './routes/departments'
+import { Route as MyTicketsRouteImport } from './routes/my-tickets'
+import { Route as ProcureRequestRouteImport } from './routes/procure-request'
+import { Route as RaiseTicketRouteImport } from './routes/raise-ticket'
+import { Route as RequestQuotationRouteImport } from './routes/request-quotation'
+import { Route as UserDashboardRouteImport } from './routes/user-dashboard'
+import { Route as UsersRouteImport } from './routes/users'
+import { Route as AdminTicketsRouteImport } from './routes/admin.tickets'
+import { Route as HodIndexRouteImport } from './routes/hod.index'
+import { Route as InventoryIndexRouteImport } from './routes/inventory.index'
+import { Route as InventoryIdRouteImport } from './routes/inventory.$id'
+import { Route as LibrarianIndexRouteImport } from './routes/librarian.index'
+import { Route as LibrarianBooksRouteImport } from './routes/librarian.books'
+import { Route as LibrarianIssueRouteImport } from './routes/librarian.issue'
+import { Route as LibrarianMembersRouteImport } from './routes/librarian.members'
+import { Route as LibrarianReturnRouteImport } from './routes/librarian.return'
+import { Route as PrincipalIndexRouteImport } from './routes/principal.index'
+import { Route as PrincipalApprovalsRouteImport } from './routes/principal.approvals'
+import { Route as QuotationIdRouteImport } from './routes/quotation.$id'
+import { Route as ViewerIndexRouteImport } from './routes/viewer.index'
+import { Route as ViewerQuotationsRouteImport } from './routes/viewer.quotations'
+import { Route as HodInventoryIndexRouteImport } from './routes/hod.inventory.index'
+import { Route as HodInventoryIdRouteImport } from './routes/hod.inventory.$id'
+import { Route as InventoryIdHistoryRouteImport } from './routes/inventory.$id.history'
+import { Route as LibrarianReportsTypeRouteImport } from './routes/librarian.reports.$type'
+import { Route as ViewerInventoryIndexRouteImport } from './routes/viewer.inventory.index'
+import { Route as ViewerInventoryIdRouteImport } from './routes/viewer.inventory.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AddRoute = AddRouteImport.update({
+  id: '/add',
+  path: '/add',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CategoriesRoute = CategoriesRouteImport.update({
+  id: '/categories',
+  path: '/categories',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DepartmentsRoute = DepartmentsRouteImport.update({
+  id: '/departments',
+  path: '/departments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MyTicketsRoute = MyTicketsRouteImport.update({
+  id: '/my-tickets',
+  path: '/my-tickets',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProcureRequestRoute = ProcureRequestRouteImport.update({
+  id: '/procure-request',
+  path: '/procure-request',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RaiseTicketRoute = RaiseTicketRouteImport.update({
+  id: '/raise-ticket',
+  path: '/raise-ticket',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RequestQuotationRoute = RequestQuotationRouteImport.update({
+  id: '/request-quotation',
+  path: '/request-quotation',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UserDashboardRoute = UserDashboardRouteImport.update({
+  id: '/user-dashboard',
+  path: '/user-dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UsersRoute = UsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminTicketsRoute = AdminTicketsRouteImport.update({
+  id: '/admin/tickets',
+  path: '/admin/tickets',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HodIndexRoute = HodIndexRouteImport.update({
+  id: '/hod/',
+  path: '/hod/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InventoryIndexRoute = InventoryIndexRouteImport.update({
+  id: '/inventory/',
+  path: '/inventory/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InventoryIdRoute = InventoryIdRouteImport.update({
+  id: '/inventory/$id',
+  path: '/inventory/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LibrarianIndexRoute = LibrarianIndexRouteImport.update({
+  id: '/librarian/',
+  path: '/librarian/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LibrarianBooksRoute = LibrarianBooksRouteImport.update({
+  id: '/librarian/books',
+  path: '/librarian/books',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LibrarianIssueRoute = LibrarianIssueRouteImport.update({
+  id: '/librarian/issue',
+  path: '/librarian/issue',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LibrarianMembersRoute = LibrarianMembersRouteImport.update({
+  id: '/librarian/members',
+  path: '/librarian/members',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LibrarianReturnRoute = LibrarianReturnRouteImport.update({
+  id: '/librarian/return',
+  path: '/librarian/return',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrincipalIndexRoute = PrincipalIndexRouteImport.update({
+  id: '/principal/',
+  path: '/principal/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrincipalApprovalsRoute = PrincipalApprovalsRouteImport.update({
+  id: '/principal/approvals',
+  path: '/principal/approvals',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QuotationIdRoute = QuotationIdRouteImport.update({
+  id: '/quotation/$id',
+  path: '/quotation/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ViewerIndexRoute = ViewerIndexRouteImport.update({
+  id: '/viewer/',
+  path: '/viewer/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ViewerQuotationsRoute = ViewerQuotationsRouteImport.update({
+  id: '/viewer/quotations',
+  path: '/viewer/quotations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HodInventoryIndexRoute = HodInventoryIndexRouteImport.update({
+  id: '/hod/inventory/',
+  path: '/hod/inventory/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HodInventoryIdRoute = HodInventoryIdRouteImport.update({
+  id: '/hod/inventory/$id',
+  path: '/hod/inventory/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InventoryIdHistoryRoute = InventoryIdHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => InventoryIdRoute,
+} as any)
+const LibrarianReportsTypeRoute = LibrarianReportsTypeRouteImport.update({
+  id: '/librarian/reports/$type',
+  path: '/librarian/reports/$type',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ViewerInventoryIndexRoute = ViewerInventoryIndexRouteImport.update({
+  id: '/viewer/inventory/',
+  path: '/viewer/inventory/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ViewerInventoryIdRoute = ViewerInventoryIdRouteImport.update({
+  id: '/viewer/inventory/$id',
+  path: '/viewer/inventory/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/add': typeof AddRoute
+  '/auth': typeof AuthRoute
+  '/categories': typeof CategoriesRoute
+  '/departments': typeof DepartmentsRoute
+  '/my-tickets': typeof MyTicketsRoute
+  '/procure-request': typeof ProcureRequestRoute
+  '/raise-ticket': typeof RaiseTicketRoute
+  '/request-quotation': typeof RequestQuotationRoute
+  '/user-dashboard': typeof UserDashboardRoute
+  '/users': typeof UsersRoute
+  '/admin/tickets': typeof AdminTicketsRoute
+  '/inventory/$id': typeof InventoryIdRouteWithChildren
+  '/librarian/books': typeof LibrarianBooksRoute
+  '/librarian/issue': typeof LibrarianIssueRoute
+  '/librarian/members': typeof LibrarianMembersRoute
+  '/librarian/return': typeof LibrarianReturnRoute
+  '/principal/approvals': typeof PrincipalApprovalsRoute
+  '/quotation/$id': typeof QuotationIdRoute
+  '/viewer/quotations': typeof ViewerQuotationsRoute
+  '/hod/': typeof HodIndexRoute
+  '/inventory/': typeof InventoryIndexRoute
+  '/librarian/': typeof LibrarianIndexRoute
+  '/principal/': typeof PrincipalIndexRoute
+  '/viewer/': typeof ViewerIndexRoute
+  '/hod/inventory/$id': typeof HodInventoryIdRoute
+  '/inventory/$id/history': typeof InventoryIdHistoryRoute
+  '/librarian/reports/$type': typeof LibrarianReportsTypeRoute
+  '/viewer/inventory/$id': typeof ViewerInventoryIdRoute
+  '/hod/inventory/': typeof HodInventoryIndexRoute
+  '/viewer/inventory/': typeof ViewerInventoryIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/add': typeof AddRoute
+  '/auth': typeof AuthRoute
+  '/categories': typeof CategoriesRoute
+  '/departments': typeof DepartmentsRoute
+  '/my-tickets': typeof MyTicketsRoute
+  '/procure-request': typeof ProcureRequestRoute
+  '/raise-ticket': typeof RaiseTicketRoute
+  '/request-quotation': typeof RequestQuotationRoute
+  '/user-dashboard': typeof UserDashboardRoute
+  '/users': typeof UsersRoute
+  '/admin/tickets': typeof AdminTicketsRoute
+  '/inventory/$id': typeof InventoryIdRouteWithChildren
+  '/librarian/books': typeof LibrarianBooksRoute
+  '/librarian/issue': typeof LibrarianIssueRoute
+  '/librarian/members': typeof LibrarianMembersRoute
+  '/librarian/return': typeof LibrarianReturnRoute
+  '/principal/approvals': typeof PrincipalApprovalsRoute
+  '/quotation/$id': typeof QuotationIdRoute
+  '/viewer/quotations': typeof ViewerQuotationsRoute
+  '/hod': typeof HodIndexRoute
+  '/inventory': typeof InventoryIndexRoute
+  '/librarian': typeof LibrarianIndexRoute
+  '/principal': typeof PrincipalIndexRoute
+  '/viewer': typeof ViewerIndexRoute
+  '/hod/inventory/$id': typeof HodInventoryIdRoute
+  '/inventory/$id/history': typeof InventoryIdHistoryRoute
+  '/librarian/reports/$type': typeof LibrarianReportsTypeRoute
+  '/viewer/inventory/$id': typeof ViewerInventoryIdRoute
+  '/hod/inventory': typeof HodInventoryIndexRoute
+  '/viewer/inventory': typeof ViewerInventoryIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/add': typeof AddRoute
+  '/auth': typeof AuthRoute
+  '/categories': typeof CategoriesRoute
+  '/departments': typeof DepartmentsRoute
+  '/my-tickets': typeof MyTicketsRoute
+  '/procure-request': typeof ProcureRequestRoute
+  '/raise-ticket': typeof RaiseTicketRoute
+  '/request-quotation': typeof RequestQuotationRoute
+  '/user-dashboard': typeof UserDashboardRoute
+  '/users': typeof UsersRoute
+  '/admin/tickets': typeof AdminTicketsRoute
+  '/inventory/$id': typeof InventoryIdRouteWithChildren
+  '/librarian/books': typeof LibrarianBooksRoute
+  '/librarian/issue': typeof LibrarianIssueRoute
+  '/librarian/members': typeof LibrarianMembersRoute
+  '/librarian/return': typeof LibrarianReturnRoute
+  '/principal/approvals': typeof PrincipalApprovalsRoute
+  '/quotation/$id': typeof QuotationIdRoute
+  '/viewer/quotations': typeof ViewerQuotationsRoute
+  '/hod/': typeof HodIndexRoute
+  '/inventory/': typeof InventoryIndexRoute
+  '/librarian/': typeof LibrarianIndexRoute
+  '/principal/': typeof PrincipalIndexRoute
+  '/viewer/': typeof ViewerIndexRoute
+  '/hod/inventory/$id': typeof HodInventoryIdRoute
+  '/inventory/$id/history': typeof InventoryIdHistoryRoute
+  '/librarian/reports/$type': typeof LibrarianReportsTypeRoute
+  '/viewer/inventory/$id': typeof ViewerInventoryIdRoute
+  '/hod/inventory/': typeof HodInventoryIndexRoute
+  '/viewer/inventory/': typeof ViewerInventoryIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/add'
+    | '/auth'
+    | '/categories'
+    | '/departments'
+    | '/my-tickets'
+    | '/procure-request'
+    | '/raise-ticket'
+    | '/request-quotation'
+    | '/user-dashboard'
+    | '/users'
+    | '/admin/tickets'
+    | '/inventory/$id'
+    | '/librarian/books'
+    | '/librarian/issue'
+    | '/librarian/members'
+    | '/librarian/return'
+    | '/principal/approvals'
+    | '/quotation/$id'
+    | '/viewer/quotations'
+    | '/hod/'
+    | '/inventory/'
+    | '/librarian/'
+    | '/principal/'
+    | '/viewer/'
+    | '/hod/inventory/$id'
+    | '/inventory/$id/history'
+    | '/librarian/reports/$type'
+    | '/viewer/inventory/$id'
+    | '/hod/inventory/'
+    | '/viewer/inventory/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/add'
+    | '/auth'
+    | '/categories'
+    | '/departments'
+    | '/my-tickets'
+    | '/procure-request'
+    | '/raise-ticket'
+    | '/request-quotation'
+    | '/user-dashboard'
+    | '/users'
+    | '/admin/tickets'
+    | '/inventory/$id'
+    | '/librarian/books'
+    | '/librarian/issue'
+    | '/librarian/members'
+    | '/librarian/return'
+    | '/principal/approvals'
+    | '/quotation/$id'
+    | '/viewer/quotations'
+    | '/hod'
+    | '/inventory'
+    | '/librarian'
+    | '/principal'
+    | '/viewer'
+    | '/hod/inventory/$id'
+    | '/inventory/$id/history'
+    | '/librarian/reports/$type'
+    | '/viewer/inventory/$id'
+    | '/hod/inventory'
+    | '/viewer/inventory'
+  id:
+    | '__root__'
+    | '/'
+    | '/add'
+    | '/auth'
+    | '/categories'
+    | '/departments'
+    | '/my-tickets'
+    | '/procure-request'
+    | '/raise-ticket'
+    | '/request-quotation'
+    | '/user-dashboard'
+    | '/users'
+    | '/admin/tickets'
+    | '/inventory/$id'
+    | '/librarian/books'
+    | '/librarian/issue'
+    | '/librarian/members'
+    | '/librarian/return'
+    | '/principal/approvals'
+    | '/quotation/$id'
+    | '/viewer/quotations'
+    | '/hod/'
+    | '/inventory/'
+    | '/librarian/'
+    | '/principal/'
+    | '/viewer/'
+    | '/hod/inventory/$id'
+    | '/inventory/$id/history'
+    | '/librarian/reports/$type'
+    | '/viewer/inventory/$id'
+    | '/hod/inventory/'
+    | '/viewer/inventory/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AddRoute: typeof AddRoute
+  AuthRoute: typeof AuthRoute
+  CategoriesRoute: typeof CategoriesRoute
+  DepartmentsRoute: typeof DepartmentsRoute
+  MyTicketsRoute: typeof MyTicketsRoute
+  ProcureRequestRoute: typeof ProcureRequestRoute
+  RaiseTicketRoute: typeof RaiseTicketRoute
+  RequestQuotationRoute: typeof RequestQuotationRoute
+  UserDashboardRoute: typeof UserDashboardRoute
+  UsersRoute: typeof UsersRoute
+  AdminTicketsRoute: typeof AdminTicketsRoute
+  InventoryIdRoute: typeof InventoryIdRouteWithChildren
+  LibrarianBooksRoute: typeof LibrarianBooksRoute
+  LibrarianIssueRoute: typeof LibrarianIssueRoute
+  LibrarianMembersRoute: typeof LibrarianMembersRoute
+  LibrarianReturnRoute: typeof LibrarianReturnRoute
+  PrincipalApprovalsRoute: typeof PrincipalApprovalsRoute
+  QuotationIdRoute: typeof QuotationIdRoute
+  ViewerQuotationsRoute: typeof ViewerQuotationsRoute
+  HodIndexRoute: typeof HodIndexRoute
+  InventoryIndexRoute: typeof InventoryIndexRoute
+  LibrarianIndexRoute: typeof LibrarianIndexRoute
+  PrincipalIndexRoute: typeof PrincipalIndexRoute
+  ViewerIndexRoute: typeof ViewerIndexRoute
+  HodInventoryIdRoute: typeof HodInventoryIdRoute
+  LibrarianReportsTypeRoute: typeof LibrarianReportsTypeRoute
+  ViewerInventoryIdRoute: typeof ViewerInventoryIdRoute
+  HodInventoryIndexRoute: typeof HodInventoryIndexRoute
+  ViewerInventoryIndexRoute: typeof ViewerInventoryIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +441,262 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/add': {
+      id: '/add'
+      path: '/add'
+      fullPath: '/add'
+      preLoaderRoute: typeof AddRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/categories': {
+      id: '/categories'
+      path: '/categories'
+      fullPath: '/categories'
+      preLoaderRoute: typeof CategoriesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/departments': {
+      id: '/departments'
+      path: '/departments'
+      fullPath: '/departments'
+      preLoaderRoute: typeof DepartmentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/my-tickets': {
+      id: '/my-tickets'
+      path: '/my-tickets'
+      fullPath: '/my-tickets'
+      preLoaderRoute: typeof MyTicketsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/procure-request': {
+      id: '/procure-request'
+      path: '/procure-request'
+      fullPath: '/procure-request'
+      preLoaderRoute: typeof ProcureRequestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/raise-ticket': {
+      id: '/raise-ticket'
+      path: '/raise-ticket'
+      fullPath: '/raise-ticket'
+      preLoaderRoute: typeof RaiseTicketRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/request-quotation': {
+      id: '/request-quotation'
+      path: '/request-quotation'
+      fullPath: '/request-quotation'
+      preLoaderRoute: typeof RequestQuotationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/user-dashboard': {
+      id: '/user-dashboard'
+      path: '/user-dashboard'
+      fullPath: '/user-dashboard'
+      preLoaderRoute: typeof UserDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/users': {
+      id: '/users'
+      path: '/users'
+      fullPath: '/users'
+      preLoaderRoute: typeof UsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/tickets': {
+      id: '/admin/tickets'
+      path: '/admin/tickets'
+      fullPath: '/admin/tickets'
+      preLoaderRoute: typeof AdminTicketsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/hod/': {
+      id: '/hod/'
+      path: '/hod'
+      fullPath: '/hod/'
+      preLoaderRoute: typeof HodIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inventory/': {
+      id: '/inventory/'
+      path: '/inventory'
+      fullPath: '/inventory/'
+      preLoaderRoute: typeof InventoryIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inventory/$id': {
+      id: '/inventory/$id'
+      path: '/inventory/$id'
+      fullPath: '/inventory/$id'
+      preLoaderRoute: typeof InventoryIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/librarian/': {
+      id: '/librarian/'
+      path: '/librarian'
+      fullPath: '/librarian/'
+      preLoaderRoute: typeof LibrarianIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/librarian/books': {
+      id: '/librarian/books'
+      path: '/librarian/books'
+      fullPath: '/librarian/books'
+      preLoaderRoute: typeof LibrarianBooksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/librarian/issue': {
+      id: '/librarian/issue'
+      path: '/librarian/issue'
+      fullPath: '/librarian/issue'
+      preLoaderRoute: typeof LibrarianIssueRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/librarian/members': {
+      id: '/librarian/members'
+      path: '/librarian/members'
+      fullPath: '/librarian/members'
+      preLoaderRoute: typeof LibrarianMembersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/librarian/return': {
+      id: '/librarian/return'
+      path: '/librarian/return'
+      fullPath: '/librarian/return'
+      preLoaderRoute: typeof LibrarianReturnRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/principal/': {
+      id: '/principal/'
+      path: '/principal'
+      fullPath: '/principal/'
+      preLoaderRoute: typeof PrincipalIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/principal/approvals': {
+      id: '/principal/approvals'
+      path: '/principal/approvals'
+      fullPath: '/principal/approvals'
+      preLoaderRoute: typeof PrincipalApprovalsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/quotation/$id': {
+      id: '/quotation/$id'
+      path: '/quotation/$id'
+      fullPath: '/quotation/$id'
+      preLoaderRoute: typeof QuotationIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/viewer/': {
+      id: '/viewer/'
+      path: '/viewer'
+      fullPath: '/viewer/'
+      preLoaderRoute: typeof ViewerIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/viewer/quotations': {
+      id: '/viewer/quotations'
+      path: '/viewer/quotations'
+      fullPath: '/viewer/quotations'
+      preLoaderRoute: typeof ViewerQuotationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/hod/inventory/': {
+      id: '/hod/inventory/'
+      path: '/hod/inventory'
+      fullPath: '/hod/inventory/'
+      preLoaderRoute: typeof HodInventoryIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/hod/inventory/$id': {
+      id: '/hod/inventory/$id'
+      path: '/hod/inventory/$id'
+      fullPath: '/hod/inventory/$id'
+      preLoaderRoute: typeof HodInventoryIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/inventory/$id/history': {
+      id: '/inventory/$id/history'
+      path: '/history'
+      fullPath: '/inventory/$id/history'
+      preLoaderRoute: typeof InventoryIdHistoryRouteImport
+      parentRoute: typeof InventoryIdRoute
+    }
+    '/librarian/reports/$type': {
+      id: '/librarian/reports/$type'
+      path: '/librarian/reports/$type'
+      fullPath: '/librarian/reports/$type'
+      preLoaderRoute: typeof LibrarianReportsTypeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/viewer/inventory/': {
+      id: '/viewer/inventory/'
+      path: '/viewer/inventory'
+      fullPath: '/viewer/inventory/'
+      preLoaderRoute: typeof ViewerInventoryIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/viewer/inventory/$id': {
+      id: '/viewer/inventory/$id'
+      path: '/viewer/inventory/$id'
+      fullPath: '/viewer/inventory/$id'
+      preLoaderRoute: typeof ViewerInventoryIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
+interface InventoryIdRouteChildren {
+  InventoryIdHistoryRoute: typeof InventoryIdHistoryRoute
+}
+
+const InventoryIdRouteChildren: InventoryIdRouteChildren = {
+  InventoryIdHistoryRoute: InventoryIdHistoryRoute,
+}
+
+const InventoryIdRouteWithChildren = InventoryIdRoute._addFileChildren(
+  InventoryIdRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AddRoute: AddRoute,
+  AuthRoute: AuthRoute,
+  CategoriesRoute: CategoriesRoute,
+  DepartmentsRoute: DepartmentsRoute,
+  MyTicketsRoute: MyTicketsRoute,
+  ProcureRequestRoute: ProcureRequestRoute,
+  RaiseTicketRoute: RaiseTicketRoute,
+  RequestQuotationRoute: RequestQuotationRoute,
+  UserDashboardRoute: UserDashboardRoute,
+  UsersRoute: UsersRoute,
+  AdminTicketsRoute: AdminTicketsRoute,
+  InventoryIdRoute: InventoryIdRouteWithChildren,
+  LibrarianBooksRoute: LibrarianBooksRoute,
+  LibrarianIssueRoute: LibrarianIssueRoute,
+  LibrarianMembersRoute: LibrarianMembersRoute,
+  LibrarianReturnRoute: LibrarianReturnRoute,
+  PrincipalApprovalsRoute: PrincipalApprovalsRoute,
+  QuotationIdRoute: QuotationIdRoute,
+  ViewerQuotationsRoute: ViewerQuotationsRoute,
+  HodIndexRoute: HodIndexRoute,
+  InventoryIndexRoute: InventoryIndexRoute,
+  LibrarianIndexRoute: LibrarianIndexRoute,
+  PrincipalIndexRoute: PrincipalIndexRoute,
+  ViewerIndexRoute: ViewerIndexRoute,
+  HodInventoryIdRoute: HodInventoryIdRoute,
+  LibrarianReportsTypeRoute: LibrarianReportsTypeRoute,
+  ViewerInventoryIdRoute: ViewerInventoryIdRoute,
+  HodInventoryIndexRoute: HodInventoryIndexRoute,
+  ViewerInventoryIndexRoute: ViewerInventoryIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
