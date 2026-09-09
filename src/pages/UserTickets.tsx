@@ -382,7 +382,7 @@ const UserTickets = () => {
                                     <p className="text-sm text-muted-foreground">{viewTicket?.name}</p>
                                   </div>
                                   <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${getSLAColor(viewTicket)}`}>
-                                    {viewTicket?.priority?.charAt(0).toUpperCase() + viewTicket?.priority?.slice(1)}
+                                    {((viewTicket?.priority ?? '').charAt(0).toUpperCase() + (viewTicket?.priority ?? '').slice(1))}
                                   </span>
                                 </div>
 

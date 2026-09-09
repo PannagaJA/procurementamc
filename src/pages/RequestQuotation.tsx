@@ -399,7 +399,7 @@ export default function RequestQuotation() {
                                               <h5 className="font-medium">Response Details</h5>
                                               <div className="mt-2 p-3 bg-gray-50 rounded border text-sm whitespace-pre-line max-h-60 overflow-y-auto">
                                                 <div className="space-y-2">
-                                                  {quotation.quotation_responses[0].description.split('\n\n').map((section, index) => {
+                                                  {quotation.quotation_responses[0].description.split('\n\n').map((section: string, index: number) => {
                                                     if (section.startsWith('Delivery Time:')) {
                                                       return <p key={index}><strong>Delivery Time:</strong> {section.replace('Delivery Time: ', '')}</p>
                                                     } else if (section.startsWith('Contact Person:')) {
