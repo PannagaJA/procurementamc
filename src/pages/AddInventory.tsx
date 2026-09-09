@@ -661,7 +661,7 @@ const AddInventory = () => {
                 <Select
                   value={formData.status}
                   onValueChange={(value: string) =>
-                    setFormData((prev) => ({ ...prev, status: value }))
+                    setFormData((prev) => ({ ...prev, status: value as "in-use" }))
                   }
                 >
                   <SelectTrigger className="h-12 text-base">

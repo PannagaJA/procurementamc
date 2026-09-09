@@ -99,7 +99,7 @@ const Dashboard = () => {
       // Category breakdown
       const categoryMap = new Map<string, { count: number; value: number }>();
       inventoryResult.data?.forEach((item) => {
-        const category = item.categories?.name || "Unassigned";
+        const category = (item.categories as any)?.name || "Unassigned";
         const existing = categoryMap.get(category) || { count: 0, value: 0 };
         categoryMap.set(category, {
           count: existing.count + (item.quantity_available || 0),
@@ -115,8 +115,8 @@ const Dashboard = () => {
       // Location breakdown
       const locationMap = new Map<string, { count: number; value: number; building: string }>();
       inventoryResult.data?.forEach((item) => {
-        const locName = item.locations?.name || "Unassigned";
-        const locPrefix = item.locations?.prefix ? ` (${item.locations.prefix})` : '';
+        const locName = (item.locations as any)?.name || "Unassigned";
+        const locPrefix = (item.locations as any)?.prefix ? ` (${(item.locations as any).prefix})` : '';
         const location = `${locName}${locPrefix}`;
         // Access building safely, defaulting to Unknown if not available
         const building = item.locations && typeof item.locations === 'object' && 'building' in item.locations 

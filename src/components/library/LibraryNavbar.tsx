@@ -35,10 +35,10 @@ const LibraryNavbar = ({ onLogout }: { onLogout?: () => void }) => {
           </DropdownMenuTrigger>
           <DropdownMenuContent>
             <DropdownMenuItem asChild>
-              <Link to="/librarian/reports/issued">Issued Books</Link>
+              <Link to="/librarian/reports/$type" params={{ type: 'issued' }}>Issued Books</Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link to="/librarian/reports/overdue">Overdue Books</Link>
+              <Link to="/librarian/reports/$type" params={{ type: 'overdue' }}>Overdue Books</Link>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -50,8 +50,8 @@ const LibraryNavbar = ({ onLogout }: { onLogout?: () => void }) => {
         <Link to="/librarian/members" className="block px-3 py-2 rounded">Members</Link>
         <Link to="/librarian/issue" className="block px-3 py-2 rounded">Issue Book</Link>
         <Link to="/librarian/return" className="block px-3 py-2 rounded">Return Book</Link>
-        <Link to="/librarian/reports/issued" className="block px-3 py-2 rounded">Issued Books</Link>
-        <Link to="/librarian/reports/overdue" className="block px-3 py-2 rounded">Overdue Books</Link>
+        <Link to="/librarian/reports/$type" params={{ type: 'issued' }} className="block px-3 py-2 rounded">Issued Books</Link>
+        <Link to="/librarian/reports/$type" params={{ type: 'overdue' }} className="block px-3 py-2 rounded">Overdue Books</Link>
         <button onClick={() => onLogout && onLogout()} className="w-full text-left px-3 py-2">Logout</button>
       </div>
     </>

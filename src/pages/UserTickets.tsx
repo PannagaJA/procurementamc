@@ -388,7 +388,7 @@ const UserTickets = () => {
 
                                 <div>
                                   <p className="text-sm font-medium">Device</p>
-                                  <p className="text-sm text-muted-foreground">{viewTicket && viewTicket.issue_category === 'procure' ? formatProcureDescription(viewTicket.issue_description)['Device Name'] : viewTicket?.issue_description}</p>
+                                  <p className="text-sm text-muted-foreground">{viewTicket && viewTicket.issue_category === 'procure' ? (formatProcureDescription(viewTicket.issue_description) as any)['Device Name'] : viewTicket?.issue_description}</p>
                                 </div>
 
                                 {viewTicket && viewTicket.issue_category === 'procure' && (

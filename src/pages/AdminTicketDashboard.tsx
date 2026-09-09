@@ -25,6 +25,8 @@ interface Ticket {
   name: string;
   email: string;
   contact_number: string | null;
+  phone?: string | null;
+  attachment_url?: string | null;
   department: string | null;
   issue_category: string;
   issue_description: string;

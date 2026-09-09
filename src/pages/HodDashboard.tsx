@@ -152,7 +152,7 @@ const HodDashboard = () => {
   const computeSLAForTicket = (ticket: any) => {
     try {
       const now = new Date();
-      const rule = { high: { respondHours: 1, resolveHours: 8 }, medium: { respondHours: 4, resolveHours: 48 }, low: { respondHours: 24, resolveHours: 168 } }[ticket.priority] || { respondHours: 24, resolveHours: 168 };
+      const rule = { high: { respondHours: 1, resolveHours: 8 }, medium: { respondHours: 4, resolveHours: 48 }, low: { respondHours: 24, resolveHours: 168 } }[ticket.priority as 'high' | 'medium' | 'low'] || { respondHours: 24, resolveHours: 168 };
       const created = new Date(ticket.created_at);
       const respondBy = new Date(created.getTime() + rule.respondHours * 60 * 60 * 1000);
       const respondDiff = now.getTime() - respondBy.getTime();
@@ -347,7 +347,7 @@ const HodDashboard = () => {
                           <td className="px-2 py-2 align-middle"><div className="truncate max-w-full">{(it.categories && it.categories.name) || it.category_name || '-'}</div></td>
                           <td className="px-2 py-2 align-middle"><div className="truncate max-w-full">{it.department || '-'}</div></td>
                           <td className="px-2 py-2 align-middle"><div className="truncate max-w-full">{(it.locations && it.locations.name) || it.location_name || '-'}</div></td>
-                          <td className="px-2 py-2 align-middle text-right"><Button size="sm" onClick={() => navigate({ to: `/hod/inventory/${it.id}`, state: { from: 'hod-dashboard' } })}>View</Button></td>
+                          <td className="px-2 py-2 align-middle text-right"><Button size="sm" onClick={() => navigate({ to: `/hod/inventory/${it.id}`, state: { from: 'hod-dashboard' } as any })}>View</Button></td>
                         </tr>
                       ))}
                       {inventoryItems.length === 0 && (

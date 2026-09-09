@@ -26,7 +26,8 @@ interface InventoryItem {
   item_name: string;
   status: string;
   categories: { name: string } | null;
-  locations: { name: string } | null;
+  locations: { name: string; prefix?: string } | null;
+  asset_type?: string;
 }
 
 const ItemHistory = () => {
@@ -61,7 +62,7 @@ const ItemHistory = () => {
         .single();
 
       if (itemError) throw itemError;
-      setItem(itemData);
+      setItem(itemData as any);
 
       // Fetch history
       const { data: historyData, error: historyError } = await supabase

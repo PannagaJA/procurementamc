@@ -123,7 +123,7 @@ const InventoryList = () => {
     },
   });
 
-  const items = inventoryData?.data || [];
+  const items = (inventoryData?.data || []) as any[];
 
   useEffect(() => {
     checkUserRole();

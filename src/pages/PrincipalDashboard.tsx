@@ -379,7 +379,7 @@ const PrincipalDashboard = () => {
                 <p className="text-sm text-muted-foreground">System overview · pending approvals</p>
               </div>
               <div className="flex items-center gap-3">
-                <Input placeholder="Search ticket # or requester" value={searchInput} onChange={(e) => setSearchInput((e.target as HTMLInputElement).value)} onKeyDown={(e) => { if ((e as KeyboardEvent).key === 'Enter') e.preventDefault(); }} />
+                <Input placeholder="Search ticket # or requester" value={searchInput} onChange={(e) => setSearchInput((e.target as HTMLInputElement).value)} onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }} />
                 <Button size="sm" onClick={() => { setPage(1); setFilters((p) => ({ ...p, search: searchInput })); fetchTickets(); }}>Apply</Button>
                 <Button size="sm" onClick={() => navigate({ to: '/principal/approvals' })}>Approve Requests</Button>
               </div>

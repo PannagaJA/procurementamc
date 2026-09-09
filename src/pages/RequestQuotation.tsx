@@ -363,7 +363,7 @@ export default function RequestQuotation() {
               </CardHeader>
               <CardContent>
                 <Accordion type="single" collapsible className="w-full">
-                  {Object.entries(groupedQuotations).map(([catId, { category, quotations: catQuotations }]) => (
+                  {Object.entries(groupedQuotations as Record<string, { category: any; quotations: any[] }>).map(([catId, { category, quotations: catQuotations }]) => (
                     <AccordionItem key={catId} value={catId}>
                       <AccordionTrigger>
                         {category?.name || 'Unknown Category'} ({catQuotations.length} quotations)

@@ -79,7 +79,7 @@ const ViewerInventory = () => {
                       <td className="px-2 py-2 align-middle">{(it.categories && it.categories.name) || it.category_name || '-'}</td>
                       <td className="px-2 py-2 align-middle">{it.department || '-'}</td>
                       <td className="px-2 py-2 align-middle">{(it.locations && it.locations.name) || it.location_name || '-'}</td>
-                      <td className="px-2 py-2 align-middle text-right"><Button size="sm" onClick={() => navigate({ to: `/viewer/inventory/${it.id}`, state: { from: 'viewer-inventory' } })}>View</Button></td>
+                      <td className="px-2 py-2 align-middle text-right"><Button size="sm" onClick={() => navigate({ to: `/viewer/inventory/${it.id}`, state: { from: 'viewer-inventory' } as any })}>View</Button></td>
                     </tr>
                   ))}
                   {items.length === 0 && (
