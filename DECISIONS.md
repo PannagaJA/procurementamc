@@ -1,0 +1,29 @@
+# DECISIONS.md — Resolved assumptions for the P2P build
+
+Every entry below is an **ASSUMPTION — confirm with SOP owner before production**.
+They are the answers the build currently relies on. Where a decision is data-driven,
+the storage location is named so the decision can be changed without a code deploy.
+
+| # | Question | Resolution |
+|---|---|---|
+| Q1 | Equipment / Asset / Software / Academic / Services-AMC / Maintenance per-transaction cap of ₹10,000 (§6, §13) looks unusually low | **ASSUMPTION — confirm with SOP owner before production.** Implemented **literally as written**: `per_txn_limit = 10000`, `per_month_limit = 50000`, approver `purchase_committee`, else escalate to `evp`. Stored as rows in `public.approval_matrix_rules`, so the value is edited in data, never in code. |
+| Q2 | Principal and Procurement Officer both hold the ≤₹5,000 txn / ≤₹30,000 month small-value authority | **ASSUMPTION — confirm with SOP owner before production.** **First-approver-wins**: either role may approve independently; no sequencing, no co-sign. Both roles are seeded as separate `approval_matrix_rules` rows for the same band, and every action (by either role) is written to `pr_approvals`. |
+| Q3 | Are the monthly aggregate caps per department or institution-wide? | **ASSUMPTION — confirm with SOP owner before production.** Scoped **per requesting department**, since HOD/department is the natural spending unit in the SOP. The aggregation dimension is a config row (`procurement_config.key = 'monthly_aggregation_dimension'`, value `department`), switchable to `institution` without a code change. |
+| Q4 | Relationship between Director–Admin & Finance and the Purchase Committee | **ASSUMPTION — confirm with SOP owner before production.** Two **sequential checkpoints**: (a) Director / Purchase Committee reviews the **PR** (§8.3); (b) the Purchase Committee evaluates the **Comparative Statement** (§8.4) for items requiring committee approval. Modeled as distinct `pr_approvals.stage` values (`director_pc_review`, later `cs_committee_approval`). |
+| Q5 | Existing role value is spelled `principle` | **ASSUMPTION — confirm with SOP owner before production.** Canonical value migrates to **`principal`**. `principle` is retained in the role enum as a **read-only deprecated alias** during transition: existing rows are rewritten to `principal`, the authority matrix treats `principle` as `principal`, and no new code path writes `principle`. |
+| Q6 | Legacy `tickets` rows with `issue_category = 'procure'` | **ASSUMPTION — confirm with SOP owner before production.** Copied into `purchase_requisitions` with `source = 'legacy_ticket'` and `status = 'archived'`. They are **not re-actioned**, do not enter approval routing, and are excluded from monthly spend aggregates. |
+| Q7 | Are payments recorded here? | **ASSUMPTION — confirm with SOP owner before production.** Yes — Invoice → Payment is in scope per §8.7. Posting to an external general ledger is **out of scope**; a nullable `external_ref` text field is carried on payment-bearing records for the GL reference only. |
+| Q8 | Rate-contract validity (6 months) vs vendor empanelment validity (1 year) | **ASSUMPTION — confirm with SOP owner before production.** Two **independent** date fields (`vendors.empanelled_on` / `vendors.empanelment_expiry`; rate contracts carry their own validity dates). Neither is ever derived from the other. |
+| Q9 | RFQ dispatch mechanism | **ASSUMPTION — confirm with SOP owner before production.** Keep invoking the existing `send-quotation-email` function; its call payload is extended with an `rfq_id`. No replacement mail path is introduced. |
+| Q10 | EVP "1st & 3rd Monday" review cadence (§8.3) | **ASSUMPTION — confirm with SOP owner before production.** Advisory only — implemented as a dashboard grouping/filter. It is **not** a hard gate; an EVP may approve on any day. |
+
+## Additional standing decisions
+
+- **Server-enforced only.** From Day 1, no procurement write happens from a React
+  component. Every write goes through a server function that re-derives the caller's
+  roles from the verified session, and every table denies by default in RLS so a
+  bypassed server function still cannot write.
+- **Multi-role users.** A user may hold several roles at once; there is no single
+  `primaryRole` in the new procurement code.
+- **Table-driven thresholds.** No monetary threshold is hardcoded in TypeScript. The
+  authority-matrix resolver is a pure function that receives rules + spend as arguments.
