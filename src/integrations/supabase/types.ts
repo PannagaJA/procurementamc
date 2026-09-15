@@ -99,57 +99,102 @@ export type Database = {
       }
       inventory: {
         Row: {
+          approval_letter_date: string | null
+          approval_letter_photo_url: string | null
+          approval_letter_ref: string | null
+          asset_type: string | null
           category_id: string | null
           cost_per_unit: number | null
           created_at: string
           created_by: string | null
           department: string | null
           department_id: string | null
+          gps_latitude: number | null
+          gps_longitude: number | null
           id: string
+          invoice_date: string | null
+          invoice_no: string | null
+          invoice_photo_url: string | null
           item_code: string | null
           item_name: string
+          item_photo_url: string | null
           location_id: string | null
           qr_code_url: string | null
           quantity_available: number
+          remarks: string | null
+          room_no: string | null
+          sl_no: number
+          specifications: string | null
           status: string
+          total_cost: number | null
           updated_at: string
           vendor_address: string | null
           vendor_contact: string | null
           vendor_name: string | null
         }
         Insert: {
+          approval_letter_date?: string | null
+          approval_letter_photo_url?: string | null
+          approval_letter_ref?: string | null
+          asset_type?: string | null
           category_id?: string | null
           cost_per_unit?: number | null
           created_at?: string
           created_by?: string | null
           department?: string | null
           department_id?: string | null
+          gps_latitude?: number | null
+          gps_longitude?: number | null
           id?: string
+          invoice_date?: string | null
+          invoice_no?: string | null
+          invoice_photo_url?: string | null
           item_code?: string | null
           item_name: string
+          item_photo_url?: string | null
           location_id?: string | null
           qr_code_url?: string | null
           quantity_available?: number
+          remarks?: string | null
+          room_no?: string | null
+          sl_no?: number
+          specifications?: string | null
           status?: string
+          total_cost?: number | null
           updated_at?: string
           vendor_address?: string | null
           vendor_contact?: string | null
           vendor_name?: string | null
         }
         Update: {
+          approval_letter_date?: string | null
+          approval_letter_photo_url?: string | null
+          approval_letter_ref?: string | null
+          asset_type?: string | null
           category_id?: string | null
           cost_per_unit?: number | null
           created_at?: string
           created_by?: string | null
           department?: string | null
           department_id?: string | null
+          gps_latitude?: number | null
+          gps_longitude?: number | null
           id?: string
+          invoice_date?: string | null
+          invoice_no?: string | null
+          invoice_photo_url?: string | null
           item_code?: string | null
           item_name?: string
+          item_photo_url?: string | null
           location_id?: string | null
           qr_code_url?: string | null
           quantity_available?: number
+          remarks?: string | null
+          room_no?: string | null
+          sl_no?: number
+          specifications?: string | null
           status?: string
+          total_cost?: number | null
           updated_at?: string
           vendor_address?: string | null
           vendor_contact?: string | null
@@ -535,6 +580,7 @@ export type Database = {
       tickets: {
         Row: {
           assigned_to: string | null
+          category: string | null
           contact_number: string | null
           created_at: string
           created_by: string | null
@@ -551,6 +597,7 @@ export type Database = {
         }
         Insert: {
           assigned_to?: string | null
+          category?: string | null
           contact_number?: string | null
           created_at?: string
           created_by?: string | null
@@ -567,6 +614,7 @@ export type Database = {
         }
         Update: {
           assigned_to?: string | null
+          category?: string | null
           contact_number?: string | null
           created_at?: string
           created_by?: string | null
