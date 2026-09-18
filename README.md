@@ -120,40 +120,40 @@ The following flowchart illustrates the complete procure-to-pay lifecycle across
 ```mermaid
 flowchart TD
     subgraph Sourcing ["1. Requisition & Sourcing"]
-        PR_Draft["PR: draft / pending_approval"] -->|resolveApprover| PR_Approved["PR: approved"]
-        PR_Approved -->|SOP §8.4 min 3 quotes| RFQ_Sent["RFQ: sent"]
-        RFQ_Sent -->|quotation_responses| CS_Sub["CS: submitted"]
-        CS_Sub -->|CS Evaluation & 4-Pillar Scoring| CS_App["CS: approved"]
+        PR_Draft["PR: draft / pending_approval"] -->|"resolveApprover"| PR_Approved["PR: approved"]
+        PR_Approved -->|"SOP §8.4: Min 3 Quotes"| RFQ_Sent["RFQ: sent"]
+        RFQ_Sent -->|"quotation_responses"| CS_Sub["CS: submitted"]
+        CS_Sub -->|"CS Evaluation & 4-Pillar Scoring"| CS_App["CS: approved"]
     end
 
     subgraph Emergency ["Emergency Fast-Track (§9)"]
-        PR_Emergency["Emergency Requisition (§9)"] -->|Cap Check ≤ ₹10L| EP_Pending["Emergency Procurement: pending"]
-        EP_Pending -->|EVP Authorization / 48h Ratification| EP_Approved["Emergency Procurement: approved"]
-        EP_Pending -->|Cap Exceeded > ₹10L| EP_Blocked["Hard Block: EMERGENCY_CAP_EXCEEDED"]
+        PR_Emergency["Emergency Requisition (§9)"] -->|"Cap Check <= ₹10L"| EP_Pending["Emergency Procurement: pending"]
+        EP_Pending -->|"EVP Authorization / 48h Ratification"| EP_Approved["Emergency Procurement: approved"]
+        EP_Pending -->|"Cap Exceeded > ₹10L"| EP_Blocked["Hard Block: EMERGENCY_CAP_EXCEEDED"]
     end
 
     subgraph Commitment ["2. PO Commitment"]
-        CS_App -->|createPo| PO_Pending["PO: pending_approval"]
-        EP_Approved -->|createPo| PO_Pending
-        PO_Pending -->|Authority Matrix Approval| PO_Approved["PO: approved"]
-        PO_Approved -->|issuePo & Vendor Notification| PO_Issued["PO: issued"]
-        PO_Issued -.->|amendPo (Value Increase)| PO_Amended["PO: amended"]
-        PO_Amended -.->|Crosses Tier Limit| PO_Pending
+        CS_App -->|"createPo"| PO_Pending["PO: pending_approval"]
+        EP_Approved -->|"createPo"| PO_Pending
+        PO_Pending -->|"Authority Matrix Approval"| PO_Approved["PO: approved"]
+        PO_Approved -->|"issuePo & Vendor Notification"| PO_Issued["PO: issued"]
+        PO_Issued -.->|"amendPo: Value Increase"| PO_Amended["PO: amended"]
+        PO_Amended -.->|"Crosses Tier Limit"| PO_Pending
     end
 
     subgraph Fulfilment ["3. Goods Receipt & Inspection"]
-        PO_Issued -->|recordDelivery| DC_Rec["Delivery Challan: recorded"]
-        DC_Rec -->|createGrn & Stores Check| GRN_Pending["GRN: pending"]
-        GRN_Pending -->|technicalVerify (Inspecting HOD)| GRN_Accepted["GRN: accepted"]
+        PO_Issued -->|"recordDelivery"| DC_Rec["Delivery Challan: recorded"]
+        DC_Rec -->|"createGrn & Stores Check"| GRN_Pending["GRN: pending"]
+        GRN_Pending -->|"technicalVerify: Inspecting HOD"| GRN_Accepted["GRN: accepted"]
     end
 
     subgraph Settlement ["4. Three-Way Match & Settlement"]
-        GRN_Accepted -->|submitInvoice| Inv_Match["3-Way Match Validation"]
-        Inv_Match -->|PO == GRN == Invoice| Inv_Matched["Invoice: matched"]
-        Inv_Match -->|Discrepancy / Over-Billing| Inv_Hold["Invoice: on_hold"]
-        Inv_Matched -->|Finance Approval| Inv_Approved["Invoice: approved"]
-        Inv_Approved -->|recordPayment & UTR| Inv_Paid["Invoice: paid"]
-        Inv_Paid -->|Auto PO Closure| PO_Closed["PO: closed"]
+        GRN_Accepted -->|"submitInvoice"| Inv_Match["3-Way Match Validation"]
+        Inv_Match -->|"PO == GRN == Invoice"| Inv_Matched["Invoice: matched"]
+        Inv_Match -->|"Discrepancy / Over-Billing"| Inv_Hold["Invoice: on_hold"]
+        Inv_Matched -->|"Finance Approval"| Inv_Approved["Invoice: approved"]
+        Inv_Approved -->|"recordPayment & UTR"| Inv_Paid["Invoice: paid"]
+        Inv_Paid -->|"Auto PO Closure"| PO_Closed["PO: closed"]
     end
 ```
 *Derived from `supabase/migrations/` schema definitions, `src/server/procurement/*.functions.ts`, and Starlight P2P SOP §8.*
@@ -167,10 +167,10 @@ The following decision tree shows how `resolveApprover` evaluates transaction ca
 flowchart TD
     Start(["Input: category, totalValue, monthlySpent, matrixRules"]) --> Norm["Normalize Category"]
     Norm --> MatchRules{"Find Active Rule in approval_matrix_rules"}
-    MatchRules -->|Rule Found| CheckTxn{"totalValue ≤ single_transaction_limit?"}
+    MatchRules -->|Rule Found| CheckTxn{"totalValue <= single_transaction_limit?"}
     MatchRules -->|No Rule| FallbackEVP["Role: evp (Fallback Safety)"]
 
-    CheckTxn -->|Yes| CheckMonthly{"(monthlySpent + totalValue) ≤ monthly_budget_cap?"}
+    CheckTxn -->|Yes| CheckMonthly{"monthlySpent + totalValue <= monthly_budget_cap?"}
     CheckTxn -->|No| CheckUpper{"Next Tier Available?"}
 
     CheckMonthly -->|Yes| AssignRole["Role: rule.approver_role<br/>Escalate: false<br/>Min Quotes: rule.min_quotations"]
@@ -267,12 +267,12 @@ sequenceDiagram
     participant Server as Server RPC (emergency.functions.ts)
     participant DB as PostgreSQL Database
 
-    Requester->>Server: requestEmergencyProcurement(cost=₹4,50,00, reason_failed, is_post_facto=true)
+    Requester->>Server: requestEmergencyProcurement(cost=₹4,50,000, reason_failed, is_post_facto=true)
     Server->>DB: SELECT running_total, cap_limit FROM emergency_procurement_ledger FOR UPDATE
     
-    alt If (running_total + cost) > ₹10,00,000
+    alt Cap Exceeded: running_total + cost > 10,00,000
         Server-->>Requester: Hard Block: EMERGENCY_CAP_EXCEEDED (Ceiling Reached)
-    else If (running_total + cost) <= ₹10,00,000
+    else Spend within Headroom: running_total + cost <= 10,00,000
         Server->>DB: INSERT INTO emergency_procurements (status='pending', is_post_facto=true)
         Server-->>Requester: Emergency Request EP-2026-0001 Created (48h Window Active)
     end
@@ -380,21 +380,19 @@ The following state transition diagram depicts the lifecycle states of a Purchas
 
 ```mermaid
 stateDiagram-v2
-    [*] --> draft: Sourcing prepares PO
-    draft --> pending_approval: createPo (Calculates Authority Tier)
-    pending_approval --> approved: approvePo (Assigned Approver / EVP)
-    pending_approval --> cancelled: rejectPo (Approver Rejection)
-    approved --> issued: issuePo (Dispatched to Vendor, Stores & Finance)
+    [*] --> draft: Prepare PO
+    draft --> pending_approval: createPo
+    pending_approval --> approved: approvePo
+    pending_approval --> cancelled: rejectPo
+    approved --> issued: issuePo
     
-    issued --> amended: amendPo (Value or Terms Modification)
-    state amended_fork <<choice>>
-    amended --> amended_fork: Evaluate New Value vs Authority Band
-    amended_fork --> issued: Within Same Tier (Immediate Issue)
-    amended_fork --> pending_approval: Exceeds Tier (Re-Approval Required)
+    issued --> amended: amendPo
+    amended --> issued: Within Same Tier
+    amended --> pending_approval: Exceeds Tier Limit
 
-    issued --> partially_closed: Partial GRN / Partial Delivery
-    partially_closed --> closed: Full GRN Accepted & Invoice Settled
-    issued --> closed: Full GRN Accepted & recordPayment Completed
+    issued --> partially_closed: Partial GRN Delivery
+    partially_closed --> closed: Full GRN Accepted and Paid
+    issued --> closed: Full GRN Accepted and Paid
     issued --> cancelled: Cancelled by Institution
     closed --> [*]
     cancelled --> [*]
