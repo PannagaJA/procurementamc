@@ -39,8 +39,8 @@ import { createPaginatedQuery } from "@/lib/utils";
 
 interface UserProfile {
   id: string;
-  email: string;
-  full_name: string;
+  email: string | null;
+  full_name: string | null;
   created_at: string;
   user_roles: { role: string; department_id?: string | null }[];
 }
@@ -147,7 +147,7 @@ const UserManagement = () => {
     }
   };
 
-  const promoteToAdmin = async (userId: string, email: string) => {
+  const promoteToAdmin = async (userId: string, email?: string | null) => {
     try {
 
       // Ensure roles are exclusive: remove principle/viewer/librarian then add admin
@@ -190,7 +190,7 @@ const UserManagement = () => {
     }
   };
 
-  const setUserRole = async (userId: string, email: string, newRole: string, departmentId?: string) => {
+  const setUserRole = async (userId: string, email: string | null | undefined, newRole: string, departmentId?: string) => {
     try {
       const user = users.find(u => u.id === userId);
       
@@ -405,7 +405,7 @@ const UserManagement = () => {
     }
   };
 
-  const deleteUser = async (userId: string, email: string) => {
+  const deleteUser = async (userId: string, email?: string | null) => {
     try {
       // Delete from user_roles first
       const { error: rolesError } = await supabase

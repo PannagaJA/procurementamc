@@ -52,23 +52,23 @@ export default function QuotationResponse() {
   const { primaryRole } = useAuth()
   const [quotation, setQuotation] = useState<{
     id: string;
-    category_id: string;
-    company_email: string;
-    description: string;
-    product_name: string;
-    quantity: number;
-    last_reply_date: string;
-    status: string;
-    admin_status: string;
-    categories?: { name: string };
+    category_id?: string | null;
+    company_email?: string | null;
+    description?: string | null;
+    product_name?: string | null;
+    quantity?: number | null;
+    last_reply_date?: string | null;
+    status?: string | null;
+    admin_status?: string | null;
+    categories?: { name: string } | null;
   } | null>(null)
   const [existingResponse, setExistingResponse] = useState<{
     id: string;
     quotation_id: string;
-    company_email: string;
-    description: string;
-    total_amount: number;
-    submitted_at: string;
+    company_email?: string | null;
+    description?: string | null;
+    total_amount?: number | null;
+    submitted_at?: string | null;
   } | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -161,7 +161,7 @@ export default function QuotationResponse() {
     }
 
     // Check if quotation has expired
-    const deadline = new Date(quotation.last_reply_date)
+    const deadline = quotation.last_reply_date ? new Date(quotation.last_reply_date) : new Date(8640000000000000)
     const now = new Date()
     if (now > deadline) {
       toast({
@@ -278,7 +278,7 @@ export default function QuotationResponse() {
     )
   }
 
-  const isExpired = quotation ? new Date() > new Date(quotation.last_reply_date) : false
+  const isExpired = quotation?.last_reply_date ? new Date() > new Date(quotation.last_reply_date) : false
   const hasResponded = quotation ? quotation.status === 'responded' && !!existingResponse : false
 
   console.log('UI State:', {
@@ -348,7 +348,7 @@ export default function QuotationResponse() {
                 <div>
                   <label className="text-sm font-medium">Response Deadline</label>
                   <p className="text-sm text-muted-foreground">
-                    {new Date(quotation.last_reply_date).toLocaleDateString()}
+                    {quotation.last_reply_date ? new Date(quotation.last_reply_date).toLocaleDateString() : 'N/A'}
                   </p>
                 </div>
               </div>
@@ -509,7 +509,7 @@ export default function QuotationResponse() {
                       </div>
                       <div>
                         <label className="text-sm font-medium">Submitted</label>
-                        <p className="text-sm text-muted-foreground">{new Date(existingResponse.submitted_at).toLocaleString()}</p>
+                        <p className="text-sm text-muted-foreground">{existingResponse.submitted_at ? new Date(existingResponse.submitted_at).toLocaleString() : 'N/A'}</p>
                       </div>
                       <div>
                         <label className="text-sm font-medium">Response Details</label>

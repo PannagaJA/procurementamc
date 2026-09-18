@@ -12,9 +12,9 @@ import { PaginationControls } from '@/components/PaginationControls';
 interface Book {
   id: string;
   title: string;
-  author: string;
-  category: string;
-  isbn: string;
+  author: string | null;
+  category: string | null;
+  isbn: string | null;
   quantity: number;
   available: number;
 }
@@ -78,7 +78,7 @@ const Books = () => {
 
   const openNew = () => { setEditing(null); setForm({ title: '', author: '', category: '', isbn: '', quantity: 1 }); setOpen(true); };
 
-  const openEdit = (b: Book) => { setEditing(b); setForm({ ...b }); setOpen(true); };
+  const openEdit = (b: Book) => { setEditing(b); setForm({ title: b.title, author: b.author || '', category: b.category || '', isbn: b.isbn || '', quantity: b.quantity, available: b.available }); setOpen(true); };
 
   const save = async () => {
     try {

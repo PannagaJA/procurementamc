@@ -58,23 +58,36 @@ export async function assertVendorEmpanelled(db: Db, vendorId: string): Promise<
 
 /**
  * Prevents splitting a requirement across multiple POs to stay under a
- * threshold: the sum of all POs raised against a PR may not exceed the
- * approved PR value.
+ * threshold:
+ * 1. The sum of all POs raised against a PR may not exceed the approved PR value.
+ * 2. 30-day rolling window check: If this vendor already has another PO from the same
+ *    PR/department within 30 days whose combined value would require a higher
+ *    approval tier than either PO individually received, it is BLOCKED unless a deviation
+ *    approval exists (§7.5, Day 2 DoD).
  */
-export async function assertNoPoSplitting(db: Db, prId: string, newValue: number): Promise<void> {
+export async function assertNoPoSplitting(
+  db: Db,
+  prId: string,
+  newValue: number,
+  vendorId?: string,
+  departmentId?: string,
+): Promise<void> {
   const { data: pr, error: prErr } = await db
     .from('purchase_requisitions')
-    .select('id, pr_number, estimated_value')
+    .select('id, pr_number, estimated_value, department_id, category')
     .eq('id', prId)
     .maybeSingle();
   if (prErr) throw ruleError('pr_lookup_failed', `Could not read the purchase requisition: ${prErr.message}`);
   if (!pr) throw ruleError('pr_not_found', 'The purchase requisition does not exist.');
 
+  const effectiveDeptId = departmentId ?? pr.department_id;
+
   const { data: pos, error: poErr } = await db
     .from('purchase_orders')
-    .select('total_value')
-    .eq('pr_id', prId);
-  // purchase_orders arrives in a later phase; absence must not weaken the guard silently.
+    .select('id, total_value, vendor_id, pr_id, department_id, created_at, status')
+    .eq('pr_id', prId)
+    .neq('status', 'cancelled');
+  
   if (poErr && !/does not exist|schema cache/i.test(poErr.message ?? '')) {
     throw ruleError('po_lookup_failed', `Could not read existing purchase orders: ${poErr.message}`);
   }
@@ -90,6 +103,66 @@ export async function assertNoPoSplitting(db: Db, prId: string, newValue: number
         `above the approved requisition value of ₹${approved.toLocaleString('en-IN')}. ` +
         `Splitting a requirement across orders is not permitted — raise a deviation approval instead.`,
     );
+  }
+
+  // 30-day rolling window check for the same vendor
+  if (vendorId) {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: recentVendorPos, error: rErr } = await db
+      .from('purchase_orders')
+      .select('id, po_number, total_value, created_at, status, pr_id, department_id')
+      .eq('vendor_id', vendorId)
+      .gte('created_at', thirtyDaysAgo)
+      .neq('status', 'cancelled');
+
+    if (!rErr && recentVendorPos && recentVendorPos.length > 0) {
+      // Filter to same PR or same Department
+      const relatedPos = recentVendorPos.filter(
+        (p: any) => p.pr_id === prId || (effectiveDeptId && p.department_id === effectiveDeptId),
+      );
+
+      if (relatedPos.length > 0) {
+        const pastSum = relatedPos.reduce((sum: number, p: any) => sum + Number(p.total_value ?? 0), 0);
+        const combinedSum = pastSum + Number(newValue);
+
+        // Fetch matrix rules to check tier escalation
+        const { data: matrixRules } = await db
+          .from('approval_matrix_rules')
+          .select('*')
+          .eq('active', true);
+
+        if (matrixRules && matrixRules.length > 0) {
+          const { resolveApprover } = await import('@/lib/procurement/authorityMatrix');
+          const category = pr.category ?? 'routine_consumable';
+          const singleTier = resolveApprover(category, Number(newValue), 0, matrixRules);
+          const combinedTier = resolveApprover(category, combinedSum, 0, matrixRules);
+
+          // Check if combined total escalates to a higher authority role than the individual PO
+          const roleHierarchy = ['hod', 'principal', 'procurement_officer', 'purchase_committee', 'director_admin_finance', 'evp'];
+          const singleRank = roleHierarchy.indexOf(singleTier.role.toLowerCase());
+          const combinedRank = roleHierarchy.indexOf(combinedTier.role.toLowerCase());
+
+          if (combinedRank > singleRank || (combinedTier.escalate && !singleTier.escalate)) {
+            // Check if deviation approval exists
+            const { data: dev } = await db
+              .from('deviation_approvals')
+              .select('id, status')
+              .eq('pr_id', prId)
+              .eq('status', 'approved')
+              .maybeSingle();
+
+            if (!dev) {
+              throw ruleError(
+                'po_splitting_window',
+                `PO-splitting detected: Vendor has existing orders totaling ₹${pastSum.toLocaleString('en-IN')} within 30 days. ` +
+                  `Combined total of ₹${combinedSum.toLocaleString('en-IN')} requires "${combinedTier.role}" approval (individual PO requires "${singleTier.role}"). ` +
+                  `Requires deviation approval before proceeding.`,
+              );
+            }
+          }
+        }
+      }
+    }
   }
 }
 

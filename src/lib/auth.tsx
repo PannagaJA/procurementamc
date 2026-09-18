@@ -8,6 +8,7 @@ export type AuthContextValue = {
   roles: RoleEntry[];
   primaryRole: string | null;
   departmentId?: string | null;
+  hasRole: (role: string) => boolean;
   refresh: () => Promise<void>;
 };
 
@@ -28,7 +29,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const { data: roleData } = await supabase.from('user_roles').select('role,department_id').eq('user_id', user.id);
       setRoles((roleData as RoleEntry[]) || []);
-      // cache in localStorage for quick access
       try { localStorage.setItem('amc_roles', JSON.stringify(roleData || [])); } catch (e) { }
     } catch (err) {
       console.error('AuthProvider load failed', err);
@@ -49,11 +49,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, []);
 
-  const primaryRole = roles.find(r => r.role === 'admin') ? 'admin' : roles.find(r => r.role === 'principle') ? 'principle' : roles.find(r => r.role === 'hod') ? 'hod' : roles.find(r => r.role === 'librarian') ? 'librarian' : roles.find(r => r.role === 'viewer') ? 'viewer' : null;
+  const hasRole = (role: string) => {
+    const target = role === 'principle' ? 'principal' : role;
+    return roles.some(r => {
+      const canonical = r.role === 'principle' ? 'principal' : r.role;
+      return canonical === target;
+    });
+  };
+
+  const primaryRole =
+    roles.find(r => r.role === 'admin')?.role ||
+    roles.find(r => r.role === 'evp')?.role ||
+    roles.find(r => r.role === 'director_admin_finance')?.role ||
+    roles.find(r => r.role === 'purchase_committee')?.role ||
+    roles.find(r => r.role === 'principal' || r.role === 'principle')?.role ||
+    roles.find(r => r.role === 'procurement_officer')?.role ||
+    roles.find(r => r.role === 'procurement_executive')?.role ||
+    roles.find(r => r.role === 'hod')?.role ||
+    roles.find(r => r.role === 'stores')?.role ||
+    roles.find(r => r.role === 'finance')?.role ||
+    roles.find(r => r.role === 'librarian')?.role ||
+    roles.find(r => r.role === 'viewer')?.role ||
+    null;
+
   const departmentId = roles.find(r => r.role === 'hod')?.department_id ?? undefined;
 
   return (
-    <AuthContext.Provider value={{ userId, roles, primaryRole, departmentId, refresh: load }}>
+    <AuthContext.Provider value={{ userId, roles, primaryRole, departmentId, hasRole, refresh: load }}>
       {children}
     </AuthContext.Provider>
   );

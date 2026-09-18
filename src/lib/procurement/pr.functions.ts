@@ -35,7 +35,8 @@ function monthKey(d = new Date()) {
 
 /** Load matrix rules + month-to-date spend and resolve the approver. */
 async function resolve(db: any, category: string, departmentId: string | null, value: number) {
-  const { resolveApprover } = await import('@/server/procurement/authorityMatrix');
+  const { resolveApprover, normalizeCategory } = await import('@/lib/procurement/authorityMatrix');
+  const canonicalCat = normalizeCategory(category);
   const { data: rules } = await db
     .from('approval_matrix_rules')
     .select('*')
@@ -48,7 +49,7 @@ async function resolve(db: any, category: string, departmentId: string | null, v
       .select('total_spent')
       .eq('department_id', departmentId)
       .eq('month', monthKey())
-      .eq('category', category);
+      .eq('category', canonicalCat);
     spend = (rows ?? []).reduce((s: number, r: any) => s + Number(r.total_spent ?? 0), 0);
   }
   return resolveApprover(category, value, spend, (rules ?? []) as any);
@@ -56,14 +57,16 @@ async function resolve(db: any, category: string, departmentId: string | null, v
 
 export const createPr = createServerFn({ method: 'POST' })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: CreatePrInput) => input)
+  .validator((input: CreatePrInput) => input)
   .handler(async ({ data, context }) => {
     const db = context.supabase as any;
     const { getCallerRoles } = await import('@/server/procurement/roles');
+    const { normalizeCategory } = await import('@/lib/procurement/authorityMatrix');
     const { ProcurementRuleError } = await import('@/server/procurement/errors');
     const roles = await getCallerRoles(db, context.userId);
 
     const value = Number(data.estimated_value) || 0;
+    const canonicalCat = normalizeCategory(data.category);
 
     if (data.is_emergency) {
       const { assertEmergencyCapNotExceeded } = await import('@/server/procurement/guards');
@@ -75,14 +78,14 @@ export const createPr = createServerFn({ method: 'POST' })
       }
     }
 
-    const resolved = await resolve(db, data.category, data.department_id, value);
+    const resolved = await resolve(db, canonicalCat, data.department_id, value);
 
     const { data: pr, error } = await db
       .from('purchase_requisitions')
       .insert({
         department_id: data.department_id,
         requested_by: context.userId,
-        category: data.category,
+        category: canonicalCat,
         scope: data.scope,
         status: 'submitted',
         budget_head: data.budget_head,
@@ -144,11 +147,11 @@ export const createPr = createServerFn({ method: 'POST' })
 /** Preview routing without writing anything — used by the PR form. */
 export const previewRouting = createServerFn({ method: 'POST' })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { category: string; department_id: string | null; estimated_value: number }) => input)
+  .validator((input: { category: string; department_id: string | null; estimated_value: number }) => input)
   .handler(async ({ data, context }) => {
     const db = context.supabase as any;
     const r = await resolve(db, data.category, data.department_id, Number(data.estimated_value) || 0);
-    return { role: r.role, escalate: r.escalate, reason: r.reason, minQuotations: r.minQuotations };
+    return { role: r.role, escalate: r.escalate, reason: r.reason, minQuotations: r.minQuotations, requiresRateContract: r.requiresRateContract };
   });
 
 type DecisionInput = { pr_id: string; remarks?: string | null };
@@ -215,20 +218,20 @@ async function decide(
 
 export const reviewPr = createServerFn({ method: 'POST' })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: DecisionInput) => input)
+  .validator((input: DecisionInput) => input)
   .handler(({ data, context }) => decide(context, data, 'director_pc_review', 'reviewed', 'under_review'));
 
 export const approvePr = createServerFn({ method: 'POST' })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: DecisionInput) => input)
+  .validator((input: DecisionInput) => input)
   .handler(({ data, context }) => decide(context, data, 'authority_approval', 'approved', 'approved'));
 
 export const rejectPr = createServerFn({ method: 'POST' })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: DecisionInput) => input)
+  .validator((input: DecisionInput) => input)
   .handler(({ data, context }) => decide(context, data, 'authority_approval', 'rejected', 'rejected'));
 
 export const escalateToEvp = createServerFn({ method: 'POST' })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: DecisionInput) => input)
+  .validator((input: DecisionInput) => input)
   .handler(({ data, context }) => decide(context, data, 'evp_escalation', 'escalated', 'escalated_to_evp'));

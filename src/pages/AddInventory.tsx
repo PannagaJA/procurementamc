@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from '@tanstack/react-router';
 import { supabase } from "@/integrations/supabase/client";
-import { uploadImage, generateItemCode, generateQRCode } from "@/lib/supabase";
+import { uploadImage, generateItemCode, generateQRCode } from "@/lib/inventoryApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -99,7 +99,7 @@ const AddInventory = () => {
     setLocations(data || []);
   };
 
-  const [departments, setDepartments] = useState<Array<{ id: string; name: string; prefix?: string }>>([]);
+  const [departments, setDepartments] = useState<Array<{ id: string; name: string; prefix?: string | null }>>([]);
 
   const fetchDepartmentsByLocation = async (locationId: string) => {
     if (!locationId) {
@@ -300,7 +300,7 @@ const AddInventory = () => {
 
       // Generate QR codes for each item
       for (const item of insertedItems || []) {
-        const qrCodeUrl = await generateQRCode(item.item_code, item.id);
+        const qrCodeUrl = await generateQRCode(item.item_code || '', item.id);
         if (qrCodeUrl) {
           await supabase
             .from("inventory")

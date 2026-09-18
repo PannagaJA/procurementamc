@@ -75,7 +75,7 @@ const ItemHistory = () => {
         .order("created_at", { ascending: false });
 
       if (historyError) throw historyError;
-      setHistory(historyData || []);
+      setHistory((historyData as any) || []);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {

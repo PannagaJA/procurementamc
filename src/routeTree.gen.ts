@@ -31,6 +31,17 @@ import { Route as LibrarianMembersRouteImport } from './routes/librarian.members
 import { Route as LibrarianReturnRouteImport } from './routes/librarian.return'
 import { Route as PrincipalIndexRouteImport } from './routes/principal.index'
 import { Route as PrincipalApprovalsRouteImport } from './routes/principal.approvals'
+import { Route as ProcurementIndexRouteImport } from './routes/procurement.index'
+import { Route as ProcurementApprovalsRouteImport } from './routes/procurement.approvals'
+import { Route as ProcurementCsRouteImport } from './routes/procurement.cs'
+import { Route as ProcurementEmergencyRouteImport } from './routes/procurement.emergency'
+import { Route as ProcurementGrnsRouteImport } from './routes/procurement.grns'
+import { Route as ProcurementInvoicesRouteImport } from './routes/procurement.invoices'
+import { Route as ProcurementOrdersRouteImport } from './routes/procurement.orders'
+import { Route as ProcurementRaisePrRouteImport } from './routes/procurement.raise-pr'
+import { Route as ProcurementRfqsRouteImport } from './routes/procurement.rfqs'
+import { Route as ProcurementVendorRatingsRouteImport } from './routes/procurement.vendor-ratings'
+import { Route as ProcurementVendorsRouteImport } from './routes/procurement.vendors'
 import { Route as QuotationIdRouteImport } from './routes/quotation.$id'
 import { Route as ViewerIndexRouteImport } from './routes/viewer.index'
 import { Route as ViewerQuotationsRouteImport } from './routes/viewer.quotations'
@@ -151,6 +162,62 @@ const PrincipalApprovalsRoute = PrincipalApprovalsRouteImport.update({
   path: '/principal/approvals',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProcurementIndexRoute = ProcurementIndexRouteImport.update({
+  id: '/procurement/',
+  path: '/procurement/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProcurementApprovalsRoute = ProcurementApprovalsRouteImport.update({
+  id: '/procurement/approvals',
+  path: '/procurement/approvals',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProcurementCsRoute = ProcurementCsRouteImport.update({
+  id: '/procurement/cs',
+  path: '/procurement/cs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProcurementEmergencyRoute = ProcurementEmergencyRouteImport.update({
+  id: '/procurement/emergency',
+  path: '/procurement/emergency',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProcurementGrnsRoute = ProcurementGrnsRouteImport.update({
+  id: '/procurement/grns',
+  path: '/procurement/grns',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProcurementInvoicesRoute = ProcurementInvoicesRouteImport.update({
+  id: '/procurement/invoices',
+  path: '/procurement/invoices',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProcurementOrdersRoute = ProcurementOrdersRouteImport.update({
+  id: '/procurement/orders',
+  path: '/procurement/orders',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProcurementRaisePrRoute = ProcurementRaisePrRouteImport.update({
+  id: '/procurement/raise-pr',
+  path: '/procurement/raise-pr',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProcurementRfqsRoute = ProcurementRfqsRouteImport.update({
+  id: '/procurement/rfqs',
+  path: '/procurement/rfqs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProcurementVendorRatingsRoute =
+  ProcurementVendorRatingsRouteImport.update({
+    id: '/procurement/vendor-ratings',
+    path: '/procurement/vendor-ratings',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ProcurementVendorsRoute = ProcurementVendorsRouteImport.update({
+  id: '/procurement/vendors',
+  path: '/procurement/vendors',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const QuotationIdRoute = QuotationIdRouteImport.update({
   id: '/quotation/$id',
   path: '/quotation/$id',
@@ -216,12 +283,23 @@ export interface FileRoutesByFullPath {
   '/librarian/members': typeof LibrarianMembersRoute
   '/librarian/return': typeof LibrarianReturnRoute
   '/principal/approvals': typeof PrincipalApprovalsRoute
+  '/procurement/approvals': typeof ProcurementApprovalsRoute
+  '/procurement/cs': typeof ProcurementCsRoute
+  '/procurement/emergency': typeof ProcurementEmergencyRoute
+  '/procurement/grns': typeof ProcurementGrnsRoute
+  '/procurement/invoices': typeof ProcurementInvoicesRoute
+  '/procurement/orders': typeof ProcurementOrdersRoute
+  '/procurement/raise-pr': typeof ProcurementRaisePrRoute
+  '/procurement/rfqs': typeof ProcurementRfqsRoute
+  '/procurement/vendor-ratings': typeof ProcurementVendorRatingsRoute
+  '/procurement/vendors': typeof ProcurementVendorsRoute
   '/quotation/$id': typeof QuotationIdRoute
   '/viewer/quotations': typeof ViewerQuotationsRoute
   '/hod/': typeof HodIndexRoute
   '/inventory/': typeof InventoryIndexRoute
   '/librarian/': typeof LibrarianIndexRoute
   '/principal/': typeof PrincipalIndexRoute
+  '/procurement/': typeof ProcurementIndexRoute
   '/viewer/': typeof ViewerIndexRoute
   '/hod/inventory/$id': typeof HodInventoryIdRoute
   '/inventory/$id/history': typeof InventoryIdHistoryRoute
@@ -249,12 +327,23 @@ export interface FileRoutesByTo {
   '/librarian/members': typeof LibrarianMembersRoute
   '/librarian/return': typeof LibrarianReturnRoute
   '/principal/approvals': typeof PrincipalApprovalsRoute
+  '/procurement/approvals': typeof ProcurementApprovalsRoute
+  '/procurement/cs': typeof ProcurementCsRoute
+  '/procurement/emergency': typeof ProcurementEmergencyRoute
+  '/procurement/grns': typeof ProcurementGrnsRoute
+  '/procurement/invoices': typeof ProcurementInvoicesRoute
+  '/procurement/orders': typeof ProcurementOrdersRoute
+  '/procurement/raise-pr': typeof ProcurementRaisePrRoute
+  '/procurement/rfqs': typeof ProcurementRfqsRoute
+  '/procurement/vendor-ratings': typeof ProcurementVendorRatingsRoute
+  '/procurement/vendors': typeof ProcurementVendorsRoute
   '/quotation/$id': typeof QuotationIdRoute
   '/viewer/quotations': typeof ViewerQuotationsRoute
   '/hod': typeof HodIndexRoute
   '/inventory': typeof InventoryIndexRoute
   '/librarian': typeof LibrarianIndexRoute
   '/principal': typeof PrincipalIndexRoute
+  '/procurement': typeof ProcurementIndexRoute
   '/viewer': typeof ViewerIndexRoute
   '/hod/inventory/$id': typeof HodInventoryIdRoute
   '/inventory/$id/history': typeof InventoryIdHistoryRoute
@@ -283,12 +372,23 @@ export interface FileRoutesById {
   '/librarian/members': typeof LibrarianMembersRoute
   '/librarian/return': typeof LibrarianReturnRoute
   '/principal/approvals': typeof PrincipalApprovalsRoute
+  '/procurement/approvals': typeof ProcurementApprovalsRoute
+  '/procurement/cs': typeof ProcurementCsRoute
+  '/procurement/emergency': typeof ProcurementEmergencyRoute
+  '/procurement/grns': typeof ProcurementGrnsRoute
+  '/procurement/invoices': typeof ProcurementInvoicesRoute
+  '/procurement/orders': typeof ProcurementOrdersRoute
+  '/procurement/raise-pr': typeof ProcurementRaisePrRoute
+  '/procurement/rfqs': typeof ProcurementRfqsRoute
+  '/procurement/vendor-ratings': typeof ProcurementVendorRatingsRoute
+  '/procurement/vendors': typeof ProcurementVendorsRoute
   '/quotation/$id': typeof QuotationIdRoute
   '/viewer/quotations': typeof ViewerQuotationsRoute
   '/hod/': typeof HodIndexRoute
   '/inventory/': typeof InventoryIndexRoute
   '/librarian/': typeof LibrarianIndexRoute
   '/principal/': typeof PrincipalIndexRoute
+  '/procurement/': typeof ProcurementIndexRoute
   '/viewer/': typeof ViewerIndexRoute
   '/hod/inventory/$id': typeof HodInventoryIdRoute
   '/inventory/$id/history': typeof InventoryIdHistoryRoute
@@ -318,12 +418,23 @@ export interface FileRouteTypes {
     | '/librarian/members'
     | '/librarian/return'
     | '/principal/approvals'
+    | '/procurement/approvals'
+    | '/procurement/cs'
+    | '/procurement/emergency'
+    | '/procurement/grns'
+    | '/procurement/invoices'
+    | '/procurement/orders'
+    | '/procurement/raise-pr'
+    | '/procurement/rfqs'
+    | '/procurement/vendor-ratings'
+    | '/procurement/vendors'
     | '/quotation/$id'
     | '/viewer/quotations'
     | '/hod/'
     | '/inventory/'
     | '/librarian/'
     | '/principal/'
+    | '/procurement/'
     | '/viewer/'
     | '/hod/inventory/$id'
     | '/inventory/$id/history'
@@ -351,12 +462,23 @@ export interface FileRouteTypes {
     | '/librarian/members'
     | '/librarian/return'
     | '/principal/approvals'
+    | '/procurement/approvals'
+    | '/procurement/cs'
+    | '/procurement/emergency'
+    | '/procurement/grns'
+    | '/procurement/invoices'
+    | '/procurement/orders'
+    | '/procurement/raise-pr'
+    | '/procurement/rfqs'
+    | '/procurement/vendor-ratings'
+    | '/procurement/vendors'
     | '/quotation/$id'
     | '/viewer/quotations'
     | '/hod'
     | '/inventory'
     | '/librarian'
     | '/principal'
+    | '/procurement'
     | '/viewer'
     | '/hod/inventory/$id'
     | '/inventory/$id/history'
@@ -384,12 +506,23 @@ export interface FileRouteTypes {
     | '/librarian/members'
     | '/librarian/return'
     | '/principal/approvals'
+    | '/procurement/approvals'
+    | '/procurement/cs'
+    | '/procurement/emergency'
+    | '/procurement/grns'
+    | '/procurement/invoices'
+    | '/procurement/orders'
+    | '/procurement/raise-pr'
+    | '/procurement/rfqs'
+    | '/procurement/vendor-ratings'
+    | '/procurement/vendors'
     | '/quotation/$id'
     | '/viewer/quotations'
     | '/hod/'
     | '/inventory/'
     | '/librarian/'
     | '/principal/'
+    | '/procurement/'
     | '/viewer/'
     | '/hod/inventory/$id'
     | '/inventory/$id/history'
@@ -418,12 +551,23 @@ export interface RootRouteChildren {
   LibrarianMembersRoute: typeof LibrarianMembersRoute
   LibrarianReturnRoute: typeof LibrarianReturnRoute
   PrincipalApprovalsRoute: typeof PrincipalApprovalsRoute
+  ProcurementApprovalsRoute: typeof ProcurementApprovalsRoute
+  ProcurementCsRoute: typeof ProcurementCsRoute
+  ProcurementEmergencyRoute: typeof ProcurementEmergencyRoute
+  ProcurementGrnsRoute: typeof ProcurementGrnsRoute
+  ProcurementInvoicesRoute: typeof ProcurementInvoicesRoute
+  ProcurementOrdersRoute: typeof ProcurementOrdersRoute
+  ProcurementRaisePrRoute: typeof ProcurementRaisePrRoute
+  ProcurementRfqsRoute: typeof ProcurementRfqsRoute
+  ProcurementVendorRatingsRoute: typeof ProcurementVendorRatingsRoute
+  ProcurementVendorsRoute: typeof ProcurementVendorsRoute
   QuotationIdRoute: typeof QuotationIdRoute
   ViewerQuotationsRoute: typeof ViewerQuotationsRoute
   HodIndexRoute: typeof HodIndexRoute
   InventoryIndexRoute: typeof InventoryIndexRoute
   LibrarianIndexRoute: typeof LibrarianIndexRoute
   PrincipalIndexRoute: typeof PrincipalIndexRoute
+  ProcurementIndexRoute: typeof ProcurementIndexRoute
   ViewerIndexRoute: typeof ViewerIndexRoute
   HodInventoryIdRoute: typeof HodInventoryIdRoute
   LibrarianReportsTypeRoute: typeof LibrarianReportsTypeRoute
@@ -588,6 +732,83 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PrincipalApprovalsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/procurement/': {
+      id: '/procurement/'
+      path: '/procurement'
+      fullPath: '/procurement/'
+      preLoaderRoute: typeof ProcurementIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/procurement/approvals': {
+      id: '/procurement/approvals'
+      path: '/procurement/approvals'
+      fullPath: '/procurement/approvals'
+      preLoaderRoute: typeof ProcurementApprovalsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/procurement/cs': {
+      id: '/procurement/cs'
+      path: '/procurement/cs'
+      fullPath: '/procurement/cs'
+      preLoaderRoute: typeof ProcurementCsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/procurement/emergency': {
+      id: '/procurement/emergency'
+      path: '/procurement/emergency'
+      fullPath: '/procurement/emergency'
+      preLoaderRoute: typeof ProcurementEmergencyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/procurement/grns': {
+      id: '/procurement/grns'
+      path: '/procurement/grns'
+      fullPath: '/procurement/grns'
+      preLoaderRoute: typeof ProcurementGrnsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/procurement/invoices': {
+      id: '/procurement/invoices'
+      path: '/procurement/invoices'
+      fullPath: '/procurement/invoices'
+      preLoaderRoute: typeof ProcurementInvoicesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/procurement/orders': {
+      id: '/procurement/orders'
+      path: '/procurement/orders'
+      fullPath: '/procurement/orders'
+      preLoaderRoute: typeof ProcurementOrdersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/procurement/raise-pr': {
+      id: '/procurement/raise-pr'
+      path: '/procurement/raise-pr'
+      fullPath: '/procurement/raise-pr'
+      preLoaderRoute: typeof ProcurementRaisePrRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/procurement/rfqs': {
+      id: '/procurement/rfqs'
+      path: '/procurement/rfqs'
+      fullPath: '/procurement/rfqs'
+      preLoaderRoute: typeof ProcurementRfqsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/procurement/vendor-ratings': {
+      id: '/procurement/vendor-ratings'
+      path: '/procurement/vendor-ratings'
+      fullPath: '/procurement/vendor-ratings'
+      preLoaderRoute: typeof ProcurementVendorRatingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/procurement/vendors': {
+      id: '/procurement/vendors'
+      path: '/procurement/vendors'
+      fullPath: '/procurement/vendors'
+      preLoaderRoute: typeof ProcurementVendorsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/quotation/$id': {
       id: '/quotation/$id'
       path: '/quotation/$id'
@@ -685,12 +906,23 @@ const rootRouteChildren: RootRouteChildren = {
   LibrarianMembersRoute: LibrarianMembersRoute,
   LibrarianReturnRoute: LibrarianReturnRoute,
   PrincipalApprovalsRoute: PrincipalApprovalsRoute,
+  ProcurementApprovalsRoute: ProcurementApprovalsRoute,
+  ProcurementCsRoute: ProcurementCsRoute,
+  ProcurementEmergencyRoute: ProcurementEmergencyRoute,
+  ProcurementGrnsRoute: ProcurementGrnsRoute,
+  ProcurementInvoicesRoute: ProcurementInvoicesRoute,
+  ProcurementOrdersRoute: ProcurementOrdersRoute,
+  ProcurementRaisePrRoute: ProcurementRaisePrRoute,
+  ProcurementRfqsRoute: ProcurementRfqsRoute,
+  ProcurementVendorRatingsRoute: ProcurementVendorRatingsRoute,
+  ProcurementVendorsRoute: ProcurementVendorsRoute,
   QuotationIdRoute: QuotationIdRoute,
   ViewerQuotationsRoute: ViewerQuotationsRoute,
   HodIndexRoute: HodIndexRoute,
   InventoryIndexRoute: InventoryIndexRoute,
   LibrarianIndexRoute: LibrarianIndexRoute,
   PrincipalIndexRoute: PrincipalIndexRoute,
+  ProcurementIndexRoute: ProcurementIndexRoute,
   ViewerIndexRoute: ViewerIndexRoute,
   HodInventoryIdRoute: HodInventoryIdRoute,
   LibrarianReportsTypeRoute: LibrarianReportsTypeRoute,

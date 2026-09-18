@@ -16,6 +16,13 @@ import {
   Box,
   Ticket,
   LogOut,
+  Scale,
+  ShoppingBag,
+  UserCheck,
+  Truck,
+  Receipt,
+  Zap,
+  Award,
 } from "lucide-react";
 
 interface LayoutProps {
@@ -317,7 +324,133 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
                 </button>
               </li>
             )}
-            {/* Role-specific dashboard links removed — use single Dashboard button above which routes by role */}
+            {/* SOP Procurement Foundation Links */}
+            <li className="pt-3 pb-1 border-t border-slate-200 dark:border-slate-800">
+              <span className="px-3 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                Procurement (SOP)
+              </span>
+            </li>
+            <li>
+              <button
+                onClick={() => navigate({ to: '/procurement' })}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 ${
+                  location.pathname === '/procurement' ? 'bg-gray-100 dark:bg-slate-800 font-medium text-blue-600 dark:text-blue-400' : ''
+                }`}
+              >
+                <Home className="w-4 h-4" />
+                Procurement Hub
+              </button>
+            </li>
+            <li>
+              <button
+                onClick={() => navigate({ to: '/procurement/approvals' })}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 ${
+                  location.pathname === '/procurement/approvals' ? 'bg-gray-100 dark:bg-slate-800 font-medium text-purple-600 dark:text-purple-400' : ''
+                }`}
+              >
+                <UserCheck className="w-4 h-4" />
+                My Approvals
+              </button>
+            </li>
+            <li>
+              <button
+                onClick={() => navigate({ to: '/procurement/raise-pr' })}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 ${
+                  location.pathname === '/procurement/raise-pr' ? 'bg-gray-100 dark:bg-slate-800 font-medium text-blue-600 dark:text-blue-400' : ''
+                }`}
+              >
+                <PlusSquare className="w-4 h-4" />
+                Requisitions (PR)
+              </button>
+            </li>
+            <li>
+              <button
+                onClick={() => navigate({ to: '/procurement/rfqs' })}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 ${
+                  location.pathname === '/procurement/rfqs' ? 'bg-gray-100 dark:bg-slate-800 font-medium text-sky-600 dark:text-sky-400' : ''
+                }`}
+              >
+                <FileText className="w-4 h-4" />
+                RFQs & Quotes
+              </button>
+            </li>
+            <li>
+              <button
+                onClick={() => navigate({ to: '/procurement/cs' })}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 ${
+                  location.pathname === '/procurement/cs' ? 'bg-gray-100 dark:bg-slate-800 font-medium text-emerald-600 dark:text-emerald-400' : ''
+                }`}
+              >
+                <Scale className="w-4 h-4" />
+                Comparative (CS)
+              </button>
+            </li>
+            <li>
+              <button
+                onClick={() => navigate({ to: '/procurement/orders' })}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 ${
+                  location.pathname === '/procurement/orders' ? 'bg-gray-100 dark:bg-slate-800 font-medium text-indigo-600 dark:text-indigo-400' : ''
+                }`}
+              >
+                <ShoppingBag className="w-4 h-4" />
+                Purchase Orders
+              </button>
+            </li>
+            <li>
+              <button
+                onClick={() => navigate({ to: '/procurement/grns' })}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 ${
+                  location.pathname === '/procurement/grns' ? 'bg-gray-100 dark:bg-slate-800 font-medium text-emerald-600 dark:text-emerald-400' : ''
+                }`}
+              >
+                <Truck className="w-4 h-4" />
+                Goods Receipt (GRN)
+              </button>
+            </li>
+            <li>
+              <button
+                onClick={() => navigate({ to: '/procurement/invoices' })}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 ${
+                  location.pathname === '/procurement/invoices' ? 'bg-gray-100 dark:bg-slate-800 font-medium text-emerald-600 dark:text-emerald-400' : ''
+                }`}
+              >
+                <Receipt className="w-4 h-4" />
+                Invoices & Match
+              </button>
+            </li>
+            <li>
+              <button
+                onClick={() => navigate({ to: '/procurement/emergency' })}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 ${
+                  location.pathname === '/procurement/emergency' ? 'bg-gray-100 dark:bg-slate-800 font-medium text-amber-600 dark:text-amber-400' : ''
+                }`}
+              >
+                <Zap className="w-4 h-4" />
+                Emergency (§9)
+              </button>
+            </li>
+            <li>
+              <button
+                onClick={() => navigate({ to: '/procurement/vendor-ratings' })}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 ${
+                  location.pathname === '/procurement/vendor-ratings' ? 'bg-gray-100 dark:bg-slate-800 font-medium text-purple-600 dark:text-purple-400' : ''
+                }`}
+              >
+                <Award className="w-4 h-4" />
+                Vendor Ratings
+              </button>
+            </li>
+            <li>
+              <button
+                onClick={() => navigate({ to: '/procurement/vendors' })}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 ${
+                  location.pathname === '/procurement/vendors' ? 'bg-gray-100 dark:bg-slate-800 font-medium text-slate-700 dark:text-slate-300' : ''
+                }`}
+              >
+                <Users className="w-4 h-4" />
+                Vendor Master
+              </button>
+            </li>
           </ul>
         </nav>
       </aside>

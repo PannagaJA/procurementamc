@@ -73,7 +73,7 @@ const ProcureRequest = () => {
 
         const hodRole = (roles || []).find((r: any) => r.role === 'hod');
         if (hodRole && hodRole.department_id) {
-          setFormData(prev => ({ ...prev, department: hodRole.department_id }));
+          setFormData(prev => ({ ...prev, department: hodRole.department_id || '' }));
         }
       } catch (e) {
         // ignore role lookup errors

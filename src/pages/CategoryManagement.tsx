@@ -40,9 +40,9 @@ import { PaginationControls } from "@/components/PaginationControls";
 import { createPaginatedQuery } from "@/lib/utils";
 
 interface Category {
-  id: number;
+  id: string;
   name: string;
-  prefix?: string;
+  prefix?: string | null;
   created_at: string;
 }
 
@@ -150,7 +150,7 @@ const CategoryManagement = () => {
     }
   };
 
-  const deleteCategory = async (categoryId: number, categoryName: string) => {
+  const deleteCategory = async (categoryId: string, categoryName: string) => {
     try {
       // Check if category is being used by any inventory items
       const { data: items, error: checkError } = await supabase

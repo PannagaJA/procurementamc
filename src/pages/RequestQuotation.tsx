@@ -86,7 +86,7 @@ export default function RequestQuotation() {
   const groupedQuotations = useMemo(() => {
     if (!quotations) return {}
     return quotations.reduce((acc, q) => {
-      const catId = q.category_id
+      const catId = q.category_id || 'uncategorized'
       if (!acc[catId]) {
         acc[catId] = { category: q.categories, quotations: [] }
       }

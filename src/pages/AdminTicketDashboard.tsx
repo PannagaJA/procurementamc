@@ -21,21 +21,21 @@ import { createPaginatedQuery } from '@/lib/utils';
 
 interface Ticket {
   id: string;
-  ticket_number: string;
-  name: string;
-  email: string;
+  ticket_number: string | null;
+  name: string | null;
+  email: string | null;
   contact_number: string | null;
   phone?: string | null;
   attachment_url?: string | null;
   department: string | null;
-  issue_category: string;
-  issue_description: string;
-  priority: 'low' | 'medium' | 'high';
+  issue_category: string | null;
+  issue_description: string | null;
+  priority: 'low' | 'medium' | 'high' | string;
   // added service-approved/service-rejected
-  status: 'pending' | 'in-progress' | 'waiting-for-user' | 'resolved' | 'completed' | 'procure-in-progress' | 'procure-completed' | 'procure-approved' | 'procure-rejected' | 'pending_principal' | 'service-approved' | 'service-rejected';
+  status: string;
   created_at: string;
   updated_at: string;
-  created_by: string;
+  created_by: string | null;
   // computed SLA fields (not stored in DB)
   sla?: {
     respondByISO?: string;
@@ -148,7 +148,7 @@ const AdminTicketDashboard = () => {
   // Function to render ticket description
   const renderTicketDescription = (ticket: Ticket) => {
     if (ticket.issue_category === 'procure') {
-      const procureData = formatProcureDescription(ticket.issue_description);
+      const procureData = formatProcureDescription(ticket.issue_description || '');
       return (
         <div className="space-y-1 text-sm">
           <div><strong>Device:</strong> {procureData['Device Name']}</div>
@@ -286,7 +286,8 @@ const AdminTicketDashboard = () => {
       }, {} as Record<string, number>);
 
       const categoryBreakdown = tickets.reduce((acc, ticket) => {
-        acc[ticket.category] = (acc[ticket.category] || 0) + 1;
+        const cat = (ticket as any).category || ticket.issue_category || 'general';
+        acc[cat] = (acc[cat] || 0) + 1;
         return acc;
       }, {} as Record<string, number>);
 

@@ -91,7 +91,7 @@ export const populateCategories = async () => {
     }
 
     const existingNames = new Set(existingCategories?.map(cat => cat.name.toLowerCase()) || []);
-    const existingPrefixes = new Set(existingCategories?.map(cat => cat.prefix.toLowerCase()) || []);
+    const existingPrefixes = new Set(existingCategories?.map(cat => (cat.prefix || '').toLowerCase()).filter(Boolean) || []);
 
     // Filter out categories that already exist (by name or prefix)
     const newCategories = categories.filter(cat =>
