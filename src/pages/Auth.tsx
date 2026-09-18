@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { SystemReadmeModal } from "@/components/SystemReadmeModal";
+import { BookOpen, ShieldCheck } from "lucide-react";
 
 const authSchema = z.object({
   email: z.string().email("Invalid email address").max(255, "Email must be less than 255 characters"),
@@ -21,8 +23,10 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [readmeOpen, setReadmeOpen] = useState(false);
   const [forgotOpen, setForgotOpen] = useState(false);
   const [forgotStep, setForgotStep] = useState<'enterEmail' | 'enterOtp' | 'setPassword'>('enterEmail');
+
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotOtp, setForgotOtp] = useState('');
   const [forgotNewPassword, setForgotNewPassword] = useState('');
@@ -413,8 +417,27 @@ const Auth = () => {
           </DialogContent>
         </Dialog>
       </Card>
+
+      {/* Floating trigger button at bottom right corner */}
+      <div className="fixed bottom-6 right-6 z-40">
+        <Button
+          onClick={() => setReadmeOpen(true)}
+          className="bg-slate-900 hover:bg-slate-800 text-white dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100 shadow-2xl border border-slate-700/50 dark:border-slate-300 rounded-full px-4 py-2.5 h-auto text-xs font-bold flex items-center gap-2.5 transition-all duration-300 hover:scale-105 active:scale-95 group"
+        >
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+          </span>
+          <BookOpen className="w-4 h-4 text-indigo-400 dark:text-indigo-600 group-hover:rotate-12 transition-transform duration-300" />
+          <span>System Architecture & README</span>
+        </Button>
+      </div>
+
+      {/* In-place UI README Dialog */}
+      <SystemReadmeModal open={readmeOpen} onOpenChange={setReadmeOpen} />
     </div>
   );
 };
 
 export default Auth;
+
