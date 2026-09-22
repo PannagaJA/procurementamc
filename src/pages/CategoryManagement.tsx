@@ -59,12 +59,7 @@ const CategoryManagement = () => {
   const [showWarningDialog, setShowWarningDialog] = useState(false);
   const { toast } = useToast();
 
-  const {
-    pagination,
-    setPage,
-    setPageSize,
-    setTotal,
-  } = usePagination(10, 1);
+  const { pagination, setPage, setPageSize, setTotal } = usePagination(10, 1);
 
   useEffect(() => {
     fetchCategories();
@@ -75,9 +70,12 @@ const CategoryManagement = () => {
     try {
       const { data, error, count } = await supabase
         .from("categories")
-        .select("*", { count: 'exact' })
+        .select("*", { count: "exact" })
         .order("name")
-        .range((pagination.page - 1) * pagination.pageSize, pagination.page * pagination.pageSize - 1);
+        .range(
+          (pagination.page - 1) * pagination.pageSize,
+          pagination.page * pagination.pageSize - 1,
+        );
 
       if (error) throw error;
       setCategories(data || []);
@@ -115,7 +113,7 @@ const CategoryManagement = () => {
 
     setAddingCategory(true);
     try {
-      const prefix = (newCategoryPrefix || '').trim().toUpperCase();
+      const prefix = (newCategoryPrefix || "").trim().toUpperCase();
 
       const { data, error } = await supabase
         .from("categories")
@@ -125,7 +123,7 @@ const CategoryManagement = () => {
 
       if (error) throw error;
 
-      setCategories(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
+      setCategories((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)));
       setNewCategoryName("");
       setNewCategoryPrefix("");
       toast({
@@ -136,8 +134,11 @@ const CategoryManagement = () => {
       console.error("Error adding category:", error);
       // Friendly handling for unique constraint (duplicate prefix/name)
       let description = error.message || "Failed to add category.";
-      if (error?.code === '23505' || (typeof description === 'string' && description.toLowerCase().includes('duplicate key'))) {
-        description = 'A category with the same name or prefix already exists.';
+      if (
+        error?.code === "23505" ||
+        (typeof description === "string" && description.toLowerCase().includes("duplicate key"))
+      ) {
+        description = "A category with the same name or prefix already exists.";
       }
 
       toast({
@@ -170,14 +171,11 @@ const CategoryManagement = () => {
         return;
       }
 
-      const { error } = await supabase
-        .from("categories")
-        .delete()
-        .eq("id", categoryId);
+      const { error } = await supabase.from("categories").delete().eq("id", categoryId);
 
       if (error) throw error;
 
-      setCategories(prev => prev.filter(cat => cat.id !== categoryId));
+      setCategories((prev) => prev.filter((cat) => cat.id !== categoryId));
       toast({
         title: "Category deleted",
         description: `"${categoryName}" has been deleted successfully.`,
@@ -212,7 +210,7 @@ const CategoryManagement = () => {
     }
 
     try {
-      const prefix = (editPrefix || '').trim().toUpperCase();
+      const prefix = (editPrefix || "").trim().toUpperCase();
 
       const { data, error } = await supabase
         .from("categories")
@@ -223,7 +221,11 @@ const CategoryManagement = () => {
 
       if (error) throw error;
 
-      setCategories(prev => prev.map(cat => cat.id === editingCategory.id ? data : cat).sort((a, b) => a.name.localeCompare(b.name)));
+      setCategories((prev) =>
+        prev
+          .map((cat) => (cat.id === editingCategory.id ? data : cat))
+          .sort((a, b) => a.name.localeCompare(b.name)),
+      );
       setEditingCategory(null);
       setEditName("");
       setEditPrefix("");
@@ -234,8 +236,11 @@ const CategoryManagement = () => {
     } catch (error: any) {
       console.error("Error updating category:", error);
       let description = error.message || "Failed to update category.";
-      if (error?.code === '23505' || (typeof description === 'string' && description.toLowerCase().includes('duplicate key'))) {
-        description = 'A category with the same name or prefix already exists.';
+      if (
+        error?.code === "23505" ||
+        (typeof description === "string" && description.toLowerCase().includes("duplicate key"))
+      ) {
+        description = "A category with the same name or prefix already exists.";
       }
 
       toast({
@@ -299,7 +304,7 @@ const CategoryManagement = () => {
                     const val = e.target.value;
                     setNewCategoryName(val);
                     // live-generate prefix: first 3 chars of name without spaces
-                    const prefix = val.replace(/\s+/g, '').slice(0, 3).toUpperCase();
+                    const prefix = val.replace(/\s+/g, "").slice(0, 3).toUpperCase();
                     setNewCategoryPrefix(prefix);
                   }}
                   onKeyPress={(e) => e.key === "Enter" && setShowConfirmDialog(true)}
@@ -319,7 +324,7 @@ const CategoryManagement = () => {
               </div>
 
               <div className="flex items-end">
-                <Button 
+                <Button
                   disabled={addingCategory || !newCategoryName.trim()}
                   onClick={() => {
                     if (newCategoryPrefix.length !== 3) {
@@ -338,7 +343,8 @@ const CategoryManagement = () => {
                     <AlertDialogHeader>
                       <AlertDialogTitle>Invalid Prefix</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Prefix must be exactly 3 characters (letters). Please correct the prefix before adding the category.
+                        Prefix must be exactly 3 characters (letters). Please correct the prefix
+                        before adding the category.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -352,13 +358,16 @@ const CategoryManagement = () => {
                     <AlertDialogHeader>
                       <AlertDialogTitle>Confirm Add Category</AlertDialogTitle>
                       <AlertDialogDescription>
-                        You're about to add the category <strong>{newCategoryName}</strong> with prefix <strong>{newCategoryPrefix}</strong>.
-                        Proceed?
+                        You're about to add the category <strong>{newCategoryName}</strong> with
+                        prefix <strong>{newCategoryPrefix}</strong>. Proceed?
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={addCategory} className="bg-primary text-primary-foreground">
+                      <AlertDialogAction
+                        onClick={addCategory}
+                        className="bg-primary text-primary-foreground"
+                      >
                         Confirm
                       </AlertDialogAction>
                     </AlertDialogFooter>
@@ -394,15 +403,9 @@ const CategoryManagement = () => {
                   ) : (
                     categories.map((category) => (
                       <TableRow key={category.id}>
-                            <TableCell className="font-medium">
-                              {category.name}
-                            </TableCell>
-                            <TableCell className="font-medium">
-                              {category.prefix || '-'}
-                            </TableCell>
-                            <TableCell>
-                              {new Date(category.created_at).toLocaleDateString()}
-                            </TableCell>
+                        <TableCell className="font-medium">{category.name}</TableCell>
+                        <TableCell className="font-medium">{category.prefix || "-"}</TableCell>
+                        <TableCell>{new Date(category.created_at).toLocaleDateString()}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
                             <Button
@@ -428,8 +431,9 @@ const CategoryManagement = () => {
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>Delete Category</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    Are you sure you want to delete "{category.name}"? This action cannot be undone.
-                                    The category must not be used by any inventory items.
+                                    Are you sure you want to delete "{category.name}"? This action
+                                    cannot be undone. The category must not be used by any inventory
+                                    items.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
@@ -468,9 +472,7 @@ const CategoryManagement = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Category</DialogTitle>
-            <DialogDescription>
-              Update the category name and prefix.
-            </DialogDescription>
+            <DialogDescription>Update the category name and prefix.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -497,9 +499,7 @@ const CategoryManagement = () => {
             <Button variant="outline" onClick={() => setEditingCategory(null)}>
               Cancel
             </Button>
-            <Button onClick={editCategory}>
-              Update Category
-            </Button>
+            <Button onClick={editCategory}>Update Category</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -1,24 +1,24 @@
-import React, { useEffect, useRef, useState } from 'react';
-import mermaid from 'mermaid';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Copy, Check, Eye, Code, RefreshCw } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import React, { useEffect, useRef, useState } from "react";
+import mermaid from "mermaid";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Copy, Check, Eye, Code, RefreshCw } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 // Initialize mermaid once
 mermaid.initialize({
   startOnLoad: false,
-  theme: 'default',
-  securityLevel: 'loose',
-  fontFamily: 'Inter, system-ui, sans-serif',
+  theme: "default",
+  securityLevel: "loose",
+  fontFamily: "Inter, system-ui, sans-serif",
   themeVariables: {
-    primaryColor: '#6366f1',
-    primaryTextColor: '#ffffff',
-    primaryBorderColor: '#4f46e5',
-    lineColor: '#64748b',
-    secondaryColor: '#f1f5f9',
-    tertiaryColor: '#ffffff',
+    primaryColor: "#6366f1",
+    primaryTextColor: "#ffffff",
+    primaryBorderColor: "#4f46e5",
+    lineColor: "#64748b",
+    secondaryColor: "#f1f5f9",
+    tertiaryColor: "#ffffff",
   },
 });
 
@@ -38,17 +38,17 @@ export const MermaidViewer: React.FC<MermaidViewerProps> = ({
   code,
   title,
   description,
-  badgeText = 'Mermaid Diagram',
+  badgeText = "Mermaid Diagram",
   sourceFile,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [svgContent, setSvgContent] = useState<string>('');
+  const [svgContent, setSvgContent] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [showCode, setShowCode] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
   const { toast } = useToast();
 
-  const chartDefinition = (chart || code || '').trim();
+  const chartDefinition = (chart || code || "").trim();
 
   useEffect(() => {
     let isMounted = true;
@@ -63,9 +63,9 @@ export const MermaidViewer: React.FC<MermaidViewerProps> = ({
           setSvgContent(svg);
         }
       } catch (err: any) {
-        console.error('Mermaid render error for ' + id, err);
+        console.error("Mermaid render error for " + id, err);
         if (isMounted) {
-          setError(err.message || 'Failed to render Mermaid diagram');
+          setError(err.message || "Failed to render Mermaid diagram");
         }
       }
     };
@@ -81,7 +81,7 @@ export const MermaidViewer: React.FC<MermaidViewerProps> = ({
     if (!chartDefinition) return;
     navigator.clipboard.writeText(chartDefinition);
     setCopied(true);
-    toast({ title: 'Copied to Clipboard', description: 'Mermaid source code copied.' });
+    toast({ title: "Copied to Clipboard", description: "Mermaid source code copied." });
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -92,7 +92,9 @@ export const MermaidViewer: React.FC<MermaidViewerProps> = ({
         <div className="p-3 sm:p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="space-y-0.5">
             <div className="flex items-center gap-2">
-              {badgeText && <Badge className="bg-indigo-600 text-white text-[10px]">{badgeText}</Badge>}
+              {badgeText && (
+                <Badge className="bg-indigo-600 text-white text-[10px]">{badgeText}</Badge>
+              )}
               <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">{title}</h3>
             </div>
             {description && <p className="text-xs text-slate-500">{description}</p>}
@@ -106,7 +108,7 @@ export const MermaidViewer: React.FC<MermaidViewerProps> = ({
               className="h-7 px-2 text-xs gap-1"
             >
               {showCode ? <Eye className="w-3.5 h-3.5" /> : <Code className="w-3.5 h-3.5" />}
-              {showCode ? 'Diagram' : 'Code'}
+              {showCode ? "Diagram" : "Code"}
             </Button>
             <Button
               size="sm"
@@ -114,8 +116,12 @@ export const MermaidViewer: React.FC<MermaidViewerProps> = ({
               onClick={handleCopy}
               className="h-7 px-2 text-xs gap-1"
             >
-              {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-              {copied ? 'Copied' : 'Copy'}
+              {copied ? (
+                <Check className="w-3.5 h-3.5 text-emerald-600" />
+              ) : (
+                <Copy className="w-3.5 h-3.5" />
+              )}
+              {copied ? "Copied" : "Copy"}
             </Button>
           </div>
         </div>
@@ -144,7 +150,9 @@ export const MermaidViewer: React.FC<MermaidViewerProps> = ({
         ) : error ? (
           <div className="p-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-lg text-xs text-amber-900 dark:text-amber-200 space-y-2">
             <div className="font-semibold">Mermaid Source Fallback:</div>
-            <pre className="p-2 bg-slate-900 text-slate-100 rounded overflow-x-auto">{chartDefinition}</pre>
+            <pre className="p-2 bg-slate-900 text-slate-100 rounded overflow-x-auto">
+              {chartDefinition}
+            </pre>
           </div>
         ) : (
           <div className="w-full overflow-x-auto overflow-y-hidden scrollbar-thin py-2 rounded-lg flex justify-start sm:justify-center">

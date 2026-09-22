@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
-import Layout from '@/components/Layout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
+import { useState, useEffect } from "react";
+import Layout from "@/components/Layout";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -13,26 +13,26 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import {
   submitInvoice,
   runThreeWayMatch,
   approveInvoice,
   recordPayment,
   listInvoices,
-} from '@/lib/procurement/invoice.functions';
-import { listPurchaseOrders } from '@/lib/procurement/po.functions';
-import { listGrns } from '@/lib/procurement/grn.functions';
+} from "@/lib/procurement/invoice.functions";
+import { listPurchaseOrders } from "@/lib/procurement/po.functions";
+import { listGrns } from "@/lib/procurement/grn.functions";
 import {
   Receipt,
   PlusCircle,
@@ -45,7 +45,7 @@ import {
   Scale,
   DollarSign,
   ArrowRight,
-} from 'lucide-react';
+} from "lucide-react";
 
 export default function InvoiceManagement() {
   const { toast } = useToast();
@@ -56,21 +56,23 @@ export default function InvoiceManagement() {
 
   // Submit Invoice Modal
   const [submitOpen, setSubmitOpen] = useState(false);
-  const [selectedPoId, setSelectedPoId] = useState('');
-  const [selectedGrnId, setSelectedGrnId] = useState('');
-  const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [selectedPoId, setSelectedPoId] = useState("");
+  const [selectedGrnId, setSelectedGrnId] = useState("");
+  const [invoiceNumber, setInvoiceNumber] = useState("");
   const [invoiceAmount, setInvoiceAmount] = useState<number>(0);
   const [isServicePo, setIsServicePo] = useState(false);
-  const [serviceCertUrl, setServiceCertUrl] = useState('');
+  const [serviceCertUrl, setServiceCertUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   // Payment Modal
   const [payOpen, setPayOpen] = useState(false);
   const [activeInvoice, setActiveInvoice] = useState<any>(null);
   const [payAmount, setPayAmount] = useState<number>(0);
-  const [paymentMode, setPaymentMode] = useState<'bank_transfer' | 'neft' | 'rtgs' | 'cheque' | 'upi'>('bank_transfer');
-  const [externalRef, setExternalRef] = useState('');
-  const [paymentTermsRef, setPaymentTermsRef] = useState('Immediate RTGS');
+  const [paymentMode, setPaymentMode] = useState<
+    "bank_transfer" | "neft" | "rtgs" | "cheque" | "upi"
+  >("bank_transfer");
+  const [externalRef, setExternalRef] = useState("");
+  const [paymentTermsRef, setPaymentTermsRef] = useState("Immediate RTGS");
   const [paying, setPaying] = useState(false);
 
   // Action state
@@ -89,7 +91,7 @@ export default function InvoiceManagement() {
       if (poRes?.ok) setPos(poRes.purchaseOrders || []);
       if (grnRes?.ok) setGrns(grnRes.grns || []);
     } catch (e: any) {
-      toast({ title: 'Error loading data', description: e.message, variant: 'destructive' });
+      toast({ title: "Error loading data", description: e.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -104,7 +106,7 @@ export default function InvoiceManagement() {
     if (!selectedPoId) return;
     const po = pos.find((p) => p.id === selectedPoId);
     if (po) {
-      const matchedGrn = grns.find((g) => g.po_id === selectedPoId && g.status === 'accepted');
+      const matchedGrn = grns.find((g) => g.po_id === selectedPoId && g.status === "accepted");
       if (matchedGrn) {
         setSelectedGrnId(matchedGrn.id);
         setInvoiceAmount(Number(matchedGrn.accepted_value || po.total_value || 0));
@@ -116,7 +118,11 @@ export default function InvoiceManagement() {
 
   const handleSubmitInvoice = async () => {
     if (!selectedPoId || !invoiceNumber.trim() || invoiceAmount <= 0) {
-      toast({ title: 'Validation Error', description: 'Please complete all required fields.', variant: 'destructive' });
+      toast({
+        title: "Validation Error",
+        description: "Please complete all required fields.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -125,7 +131,7 @@ export default function InvoiceManagement() {
       const res = await (submitInvoice as any)({
         data: {
           po_id: selectedPoId,
-          grn_id: isServicePo ? null : (selectedGrnId || null),
+          grn_id: isServicePo ? null : selectedGrnId || null,
           invoice_number: invoiceNumber,
           invoice_amount: invoiceAmount,
           is_service_po: isServicePo,
@@ -134,28 +140,32 @@ export default function InvoiceManagement() {
       });
 
       if (!res.ok) {
-        toast({ title: 'Invoice Submission Blocked', description: res.error, variant: 'destructive' });
+        toast({
+          title: "Invoice Submission Blocked",
+          description: res.error,
+          variant: "destructive",
+        });
         return;
       }
 
-      if (res.matchStatus === 'matched') {
+      if (res.matchStatus === "matched") {
         toast({
-          title: 'Three-Way Match Passed',
+          title: "Three-Way Match Passed",
           description: `Invoice ${res.invoice.invoice_number} matched PO and GRN values. Ready for approval.`,
         });
       } else {
         toast({
-          title: 'Invoice Placed On Hold',
+          title: "Invoice Placed On Hold",
           description: `Discrepancy detected: ${res.holdReason}`,
-          variant: 'destructive',
+          variant: "destructive",
         });
       }
 
       setSubmitOpen(false);
-      setInvoiceNumber('');
+      setInvoiceNumber("");
       loadData();
     } catch (e: any) {
-      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+      toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
@@ -169,14 +179,17 @@ export default function InvoiceManagement() {
       });
 
       if (!res.ok) {
-        toast({ title: 'Approval Blocked', description: res.error, variant: 'destructive' });
+        toast({ title: "Approval Blocked", description: res.error, variant: "destructive" });
         return;
       }
 
-      toast({ title: 'Invoice Approved', description: `Invoice ${inv.invoice_number} approved for payment.` });
+      toast({
+        title: "Invoice Approved",
+        description: `Invoice ${inv.invoice_number} approved for payment.`,
+      });
       loadData();
     } catch (e: any) {
-      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+      toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
       setActing(false);
     }
@@ -204,18 +217,22 @@ export default function InvoiceManagement() {
       });
 
       if (!res.ok) {
-        toast({ title: 'Payment Recording Failed', description: res.error, variant: 'destructive' });
+        toast({
+          title: "Payment Recording Failed",
+          description: res.error,
+          variant: "destructive",
+        });
         return;
       }
 
       toast({
-        title: 'Payment Recorded & Settled',
-        description: `Payment of ₹${Number(payAmount).toLocaleString('en-IN')} logged. PO settlement status updated.`,
+        title: "Payment Recorded & Settled",
+        description: `Payment of ₹${Number(payAmount).toLocaleString("en-IN")} logged. PO settlement status updated.`,
       });
       setPayOpen(false);
       loadData();
     } catch (e: any) {
-      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+      toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
       setPaying(false);
     }
@@ -234,12 +251,16 @@ export default function InvoiceManagement() {
               Invoices & Three-Way Match Verification
             </h1>
             <p className="text-slate-600 dark:text-slate-400 mt-1">
-              Verify Purchase Order (PO) ↔ Goods Receipt Note (GRN) ↔ Invoice agreement before payment release.
+              Verify Purchase Order (PO) ↔ Goods Receipt Note (GRN) ↔ Invoice agreement before
+              payment release.
             </p>
           </div>
 
           <div className="flex items-center gap-2">
-            <Button onClick={() => setSubmitOpen(true)} className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm">
+            <Button
+              onClick={() => setSubmitOpen(true)}
+              className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+            >
               <PlusCircle className="w-4 h-4" /> Submit Invoice
             </Button>
           </div>
@@ -251,22 +272,27 @@ export default function InvoiceManagement() {
             <div className="p-8 text-center text-slate-500">Loading invoices...</div>
           ) : invoices.length === 0 ? (
             <Card className="text-center p-8">
-              <p className="text-slate-500">No invoices submitted yet. Submit an invoice against an issued Purchase Order.</p>
+              <p className="text-slate-500">
+                No invoices submitted yet. Submit an invoice against an issued Purchase Order.
+              </p>
             </Card>
           ) : (
             invoices.map((inv) => {
               const po = inv.purchase_orders;
               const grn = inv.grns;
-              const isMatched = inv.match_status === 'matched';
-              const isOnHold = inv.match_status === 'on_hold';
-              const isApproved = inv.match_status === 'approved';
-              const isPaid = inv.match_status === 'paid';
+              const isMatched = inv.match_status === "matched";
+              const isOnHold = inv.match_status === "on_hold";
+              const isApproved = inv.match_status === "approved";
+              const isPaid = inv.match_status === "paid";
               const poVal = Number(po?.total_value || 0);
               const grnVal = Number(grn?.accepted_value || 0);
               const invVal = Number(inv.invoice_amount || 0);
 
               return (
-                <Card key={inv.id} className="overflow-hidden border border-slate-200 dark:border-slate-800 hover:border-slate-300">
+                <Card
+                  key={inv.id}
+                  className="overflow-hidden border border-slate-200 dark:border-slate-800 hover:border-slate-300"
+                >
                   <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 pb-3">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div className="space-y-1">
@@ -277,24 +303,31 @@ export default function InvoiceManagement() {
                           <Badge
                             variant={
                               isPaid
-                                ? 'default'
+                                ? "default"
                                 : isApproved
-                                ? 'secondary'
-                                : isMatched
-                                ? 'outline'
-                                : 'destructive'
+                                  ? "secondary"
+                                  : isMatched
+                                    ? "outline"
+                                    : "destructive"
                             }
                           >
                             {inv.match_status.toUpperCase()}
                           </Badge>
                           {inv.is_service_po && (
-                            <Badge variant="outline" className="text-xs text-blue-600 border-blue-400">
+                            <Badge
+                              variant="outline"
+                              className="text-xs text-blue-600 border-blue-400"
+                            >
                               Service PO (Completion Certificate)
                             </Badge>
                           )}
                         </div>
                         <p className="text-xs text-slate-500">
-                          Vendor: <span className="font-semibold text-slate-700 dark:text-slate-300">{inv.vendors?.name}</span> • PO: {po?.po_number} • PR: {po?.purchase_requisitions?.pr_number}
+                          Vendor:{" "}
+                          <span className="font-semibold text-slate-700 dark:text-slate-300">
+                            {inv.vendors?.name}
+                          </span>{" "}
+                          • PO: {po?.po_number} • PR: {po?.purchase_requisitions?.pr_number}
                         </p>
                       </div>
 
@@ -326,36 +359,59 @@ export default function InvoiceManagement() {
                     {/* Visual Three-Way Match Comparator */}
                     <div className="p-3.5 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2.5">
                       <div className="flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        <span className="flex items-center gap-1.5"><Scale className="w-4 h-4 text-indigo-500" /> Three-Way Verification Matrix</span>
-                        <span>{isMatched ? '✅ Fully Reconciled' : isOnHold ? '⚠️ Verification Hold' : '⚡ Approved for Payment'}</span>
+                        <span className="flex items-center gap-1.5">
+                          <Scale className="w-4 h-4 text-indigo-500" /> Three-Way Verification
+                          Matrix
+                        </span>
+                        <span>
+                          {isMatched
+                            ? "✅ Fully Reconciled"
+                            : isOnHold
+                              ? "⚠️ Verification Hold"
+                              : "⚡ Approved for Payment"}
+                        </span>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                         {/* 1. PO */}
                         <div className="p-2.5 bg-white dark:bg-slate-900 rounded-lg border">
-                          <span className="text-slate-400 block text-[11px]">1. Purchase Order Value</span>
-                          <span className="font-mono font-bold text-sm text-slate-800 dark:text-slate-100">
-                            ₹{poVal.toLocaleString('en-IN')}
+                          <span className="text-slate-400 block text-[11px]">
+                            1. Purchase Order Value
                           </span>
-                          <span className="text-[10px] text-slate-500 block mt-0.5">PO: {po?.po_number}</span>
+                          <span className="font-mono font-bold text-sm text-slate-800 dark:text-slate-100">
+                            ₹{poVal.toLocaleString("en-IN")}
+                          </span>
+                          <span className="text-[10px] text-slate-500 block mt-0.5">
+                            PO: {po?.po_number}
+                          </span>
                         </div>
 
                         {/* 2. GRN */}
                         <div className="p-2.5 bg-white dark:bg-slate-900 rounded-lg border">
-                          <span className="text-slate-400 block text-[11px]">2. GRN Accepted Value</span>
-                          <span className="font-mono font-bold text-sm text-slate-800 dark:text-slate-100">
-                            {inv.is_service_po ? 'N/A (Service)' : `₹${grnVal.toLocaleString('en-IN')}`}
+                          <span className="text-slate-400 block text-[11px]">
+                            2. GRN Accepted Value
                           </span>
-                          <span className="text-[10px] text-slate-500 block mt-0.5">GRN: {grn?.grn_number || 'None'} ({grn?.status || 'unlinked'})</span>
+                          <span className="font-mono font-bold text-sm text-slate-800 dark:text-slate-100">
+                            {inv.is_service_po
+                              ? "N/A (Service)"
+                              : `₹${grnVal.toLocaleString("en-IN")}`}
+                          </span>
+                          <span className="text-[10px] text-slate-500 block mt-0.5">
+                            GRN: {grn?.grn_number || "None"} ({grn?.status || "unlinked"})
+                          </span>
                         </div>
 
                         {/* 3. Invoice */}
                         <div className="p-2.5 bg-white dark:bg-slate-900 rounded-lg border">
-                          <span className="text-slate-400 block text-[11px]">3. Claimed Invoice Amount</span>
-                          <span className="font-mono font-bold text-sm text-slate-800 dark:text-slate-100">
-                            ₹{invVal.toLocaleString('en-IN')}
+                          <span className="text-slate-400 block text-[11px]">
+                            3. Claimed Invoice Amount
                           </span>
-                          <span className="text-[10px] text-slate-500 block mt-0.5">Invoice: {inv.invoice_number}</span>
+                          <span className="font-mono font-bold text-sm text-slate-800 dark:text-slate-100">
+                            ₹{invVal.toLocaleString("en-IN")}
+                          </span>
+                          <span className="text-[10px] text-slate-500 block mt-0.5">
+                            Invoice: {inv.invoice_number}
+                          </span>
                         </div>
                       </div>
 
@@ -391,11 +447,14 @@ export default function InvoiceManagement() {
               <div className="space-y-1">
                 <Label>Issued Purchase Order</Label>
                 <Select value={selectedPoId} onValueChange={setSelectedPoId}>
-                  <SelectTrigger><SelectValue placeholder="Select PO..." /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select PO..." />
+                  </SelectTrigger>
                   <SelectContent>
                     {pos.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
-                        {p.po_number} — {p.vendors?.name} (₹{Number(p.total_value).toLocaleString('en-IN')})
+                        {p.po_number} — {p.vendors?.name} (₹
+                        {Number(p.total_value).toLocaleString("en-IN")})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -444,13 +503,15 @@ export default function InvoiceManagement() {
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setSubmitOpen(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setSubmitOpen(false)}>
+                Cancel
+              </Button>
               <Button
                 onClick={handleSubmitInvoice}
                 disabled={submitting || !selectedPoId || !invoiceNumber.trim()}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white"
               >
-                {submitting ? 'Verifying...' : 'Submit & Run 3-Way Match'}
+                {submitting ? "Verifying..." : "Submit & Run 3-Way Match"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -470,7 +531,7 @@ export default function InvoiceManagement() {
               <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded text-xs flex justify-between items-center">
                 <span className="text-slate-500">Approved Invoice Amount:</span>
                 <span className="font-mono font-bold text-sm text-slate-800 dark:text-slate-100">
-                  ₹{Number(activeInvoice?.invoice_amount || 0).toLocaleString('en-IN')}
+                  ₹{Number(activeInvoice?.invoice_amount || 0).toLocaleString("en-IN")}
                 </span>
               </div>
 
@@ -478,7 +539,9 @@ export default function InvoiceManagement() {
                 <div className="space-y-1">
                   <Label>Payment Mode</Label>
                   <Select value={paymentMode} onValueChange={(v: any) => setPaymentMode(v)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="bank_transfer">Bank Transfer / NEFT</SelectItem>
                       <SelectItem value="rtgs">RTGS</SelectItem>
@@ -508,13 +571,15 @@ export default function InvoiceManagement() {
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setPayOpen(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setPayOpen(false)}>
+                Cancel
+              </Button>
               <Button
                 onClick={handleRecordPayment}
                 disabled={paying || payAmount <= 0}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white"
               >
-                {paying ? 'Releasing...' : 'Confirm Payment Release'}
+                {paying ? "Releasing..." : "Confirm Payment Release"}
               </Button>
             </DialogFooter>
           </DialogContent>

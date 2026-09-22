@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from '@tanstack/react-router';
-import { supabase } from '../integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
-import { User } from '@supabase/supabase-js';
-import { PlusCircle, ListOrdered, Clock, CheckCircle } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { supabase } from "../integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { User } from "@supabase/supabase-js";
+import { PlusCircle, ListOrdered, Clock, CheckCircle } from "lucide-react";
 
 interface Ticket {
   id: string;
@@ -26,7 +26,7 @@ const UserDashboard = () => {
     total: 0,
     pending: 0,
     resolved: 0,
-    inProgress: 0
+    inProgress: 0,
   });
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -35,15 +35,18 @@ const UserDashboard = () => {
   useEffect(() => {
     const initDashboard = async () => {
       try {
-        const { data: { user }, error } = await supabase.auth.getUser();
-        
+        const {
+          data: { user },
+          error,
+        } = await supabase.auth.getUser();
+
         if (error || !user) {
           toast({
             title: "Error",
             description: "Please log in to access the dashboard",
             variant: "destructive",
           });
-          navigate({ to: '/auth' });
+          navigate({ to: "/auth" });
           return;
         }
 
@@ -51,10 +54,10 @@ const UserDashboard = () => {
 
         // Check if user has admin role
         const { data: roleData, error: roleError } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', user.id)
-          .eq('role', 'admin')
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .eq("role", "admin")
           .maybeSingle();
 
         const isAdminUser = !!roleData;
@@ -62,15 +65,15 @@ const UserDashboard = () => {
 
         // If user is admin, redirect to main dashboard
         if (isAdminUser) {
-          navigate({ to: '/' });
+          navigate({ to: "/" });
           return;
         }
 
         // Viewers now use the main dashboard, redirect them too
-        navigate({ to: '/' });
+        navigate({ to: "/" });
         return;
       } catch (error: any) {
-        console.error('Error initializing dashboard:', error);
+        console.error("Error initializing dashboard:", error);
         toast({
           title: "Error",
           description: error.message || "Failed to initialize dashboard",
@@ -88,51 +91,54 @@ const UserDashboard = () => {
     try {
       // Fetch user's tickets
       const { data: tickets, error }: { data: any[] | null; error: any } = await supabase
-        .from('tickets')
-        .select('id, ticket_number, issue_category, issue_description, priority, status, created_at')
-        .eq('created_by', userId)
-        .order('created_at', { ascending: false })
+        .from("tickets")
+        .select(
+          "id, ticket_number, issue_category, issue_description, priority, status, created_at",
+        )
+        .eq("created_by", userId)
+        .order("created_at", { ascending: false })
         .limit(5);
 
       // Check if the error is due to missing table
-      if (error && error.code === 'PGRST205') {
+      if (error && error.code === "PGRST205") {
         // Table doesn't exist yet, set default empty state
         setRecentTickets([]);
         setStats({
           total: 0,
           pending: 0,
           inProgress: 0,
-          resolved: 0
+          resolved: 0,
         });
         return;
       }
-      
+
       if (error) throw error;
 
       setRecentTickets(tickets || []);
 
       // Calculate stats
       const total = tickets?.length || 0;
-      const pending = tickets?.filter(t => t.status === 'pending').length || 0;
-      const inProgress = tickets?.filter(t => t.status === 'in-progress').length || 0;
-      const resolved = tickets?.filter(t => ['resolved', 'completed'].includes(t.status)).length || 0;
+      const pending = tickets?.filter((t) => t.status === "pending").length || 0;
+      const inProgress = tickets?.filter((t) => t.status === "in-progress").length || 0;
+      const resolved =
+        tickets?.filter((t) => ["resolved", "completed"].includes(t.status)).length || 0;
 
       setStats({
         total,
         pending,
         inProgress,
-        resolved
+        resolved,
       });
     } catch (error: any) {
-      console.error('Error fetching tickets:', error);
+      console.error("Error fetching tickets:", error);
       // Check if it's the missing table error
-      if (error.code === 'PGRST205') {
+      if (error.code === "PGRST205") {
         setRecentTickets([]);
         setStats({
           total: 0,
           pending: 0,
           inProgress: 0,
-          resolved: 0
+          resolved: 0,
         });
       } else {
         toast({
@@ -146,31 +152,31 @@ const UserDashboard = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'in-progress':
-        return 'bg-blue-100 text-blue-800';
-      case 'waiting-for-user':
-        return 'bg-orange-100 text-orange-800';
-      case 'resolved':
-        return 'bg-green-100 text-green-800';
-      case 'completed':
-        return 'bg-purple-100 text-purple-800';
+      case "pending":
+        return "bg-yellow-100 text-yellow-800";
+      case "in-progress":
+        return "bg-blue-100 text-blue-800";
+      case "waiting-for-user":
+        return "bg-orange-100 text-orange-800";
+      case "resolved":
+        return "bg-green-100 text-green-800";
+      case "completed":
+        return "bg-purple-100 text-purple-800";
       default:
-        return 'bg-gray-100 text-gray-800';
+        return "bg-gray-100 text-gray-800";
     }
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'low':
-        return 'bg-green-100 text-green-800';
-      case 'medium':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'high':
-        return 'bg-red-100 text-red-800';
+      case "low":
+        return "bg-green-100 text-green-800";
+      case "medium":
+        return "bg-yellow-100 text-yellow-800";
+      case "high":
+        return "bg-red-100 text-red-800";
       default:
-        return 'bg-gray-100 text-gray-800';
+        return "bg-gray-100 text-gray-800";
     }
   };
 
@@ -248,16 +254,16 @@ const UserDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-4">
-              <Button 
-                onClick={() => navigate({ to: '/raise-ticket' })} 
+              <Button
+                onClick={() => navigate({ to: "/raise-ticket" })}
                 className="flex items-center gap-2"
               >
                 <PlusCircle className="h-4 w-4" />
                 Raise Ticket
               </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => navigate({ to: '/my-tickets' })}
+              <Button
+                variant="outline"
+                onClick={() => navigate({ to: "/my-tickets" })}
                 className="flex items-center gap-2"
               >
                 <ListOrdered className="h-4 w-4" />
@@ -273,7 +279,7 @@ const UserDashboard = () => {
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle>Recent Tickets</CardTitle>
-            <Button variant="outline" onClick={() => navigate({ to: '/my-tickets' })}>
+            <Button variant="outline" onClick={() => navigate({ to: "/my-tickets" })}>
               View All
             </Button>
           </div>
@@ -282,18 +288,15 @@ const UserDashboard = () => {
           {recentTickets.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-muted-foreground">You haven't raised any tickets yet.</p>
-              <Button 
-                className="mt-4" 
-                onClick={() => navigate({ to: '/raise-ticket' })}
-              >
+              <Button className="mt-4" onClick={() => navigate({ to: "/raise-ticket" })}>
                 Raise Your First Ticket
               </Button>
             </div>
           ) : (
             <div className="space-y-4">
-              {recentTickets.map(ticket => (
-                <div 
-                  key={ticket.id} 
+              {recentTickets.map((ticket) => (
+                <div
+                  key={ticket.id}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
                   onClick={() => navigate({ to: `/my-tickets` })}
                 >
@@ -310,7 +313,7 @@ const UserDashboard = () => {
                   </div>
                   <div className="flex items-center gap-3">
                     <Badge className={getStatusColor(ticket.status)}>
-                      {ticket.status.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      {ticket.status.replace("-", " ").replace(/\b\w/g, (l) => l.toUpperCase())}
                     </Badge>
                     <span className="text-sm text-muted-foreground">
                       {new Date(ticket.created_at).toLocaleDateString()}

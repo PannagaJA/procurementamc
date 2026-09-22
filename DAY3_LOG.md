@@ -1,11 +1,13 @@
 # Day 3 Execution Log — Fulfilment, Payment Gate, Emergency Procurement, Vendor Rating
 
 ## Overview
+
 Day 3 closes the end-to-end procurement loop from approved Purchase Orders to Delivery, Inspection, Invoice Three-Way Matching, and Payment Gate. It also implements the statutory Emergency Procurement track with a hard ₹10,00,000 annual cap ledger, and the 6-pillar Vendor Performance Rating system with automated outcome band derivation and debarment enforcement (SOP §8.6, §8.7, §9, Annexure 4).
 
 ---
 
 ## 1. Database Migrations
+
 Created `supabase/migrations/20260918000003_day3_fulfilment_payment_emergency_ratings.sql` establishing 8 core tables with Default-DENY Row Level Security (RLS) policies and number generation sequences:
 
 1. `delivery_challans`: Tracks gate receipt, challan number, carrier info, package count, condition, and received timestamp.
@@ -22,6 +24,7 @@ Created `supabase/migrations/20260918000003_day3_fulfilment_payment_emergency_ra
 ## 2. Server Functions & Enforcement Gates
 
 ### Goods Receipt Note (GRN) Engine (`src/lib/procurement/grn.functions.ts` & `src/server/procurement/grn.functions.ts`)
+
 - `recordDelivery`: Records delivery challan from carrier/vendor at the security gate.
 - `securityVerify`: Records gate security verification sign-off on package count and seal condition.
 - `technicalVerify`: Records inspecting engineer technical verification sign-off for technical/asset categories.
@@ -33,6 +36,7 @@ Created `supabase/migrations/20260918000003_day3_fulfilment_payment_emergency_ra
 - `listGrns`: Queries GRN records with joined PO, vendor, and challan metadata.
 
 ### Invoice & Three-Way Match Engine (`src/lib/procurement/invoice.functions.ts` & `src/server/procurement/invoice.functions.ts`)
+
 - `submitInvoice`:
   - Enforces duplicate invoice check (`invoice_number + vendor_id`).
   - Automatically runs `runThreeWayMatch` upon receipt.
@@ -50,6 +54,7 @@ Created `supabase/migrations/20260918000003_day3_fulfilment_payment_emergency_ra
 - `listInvoices`: Lists all invoices with match status, hold reasons, and payment status.
 
 ### Emergency Procurement Engine (`src/lib/procurement/emergency.functions.ts` & `src/server/procurement/emergency.functions.ts`)
+
 - `checkAnnualCap`: Computes current FY running total against ₹10,00,000 statutory cap and returns headroom.
 - `requestEmergencyProcurement`:
   - **Hard Annual Cap Gate**: Calls `checkAnnualCap` and **HARD BLOCKS** if `running_total + estimated_cost > 10,00,000` with explicit headroom details.
@@ -61,6 +66,7 @@ Created `supabase/migrations/20260918000003_day3_fulfilment_payment_emergency_ra
 - `listEmergencyProcurements`: Queries emergency requests and FY ledger headroom.
 
 ### Vendor Performance Rating Engine (`src/lib/procurement/vendorRating.functions.ts` & `src/server/procurement/vendorRating.functions.ts`)
+
 - `computeWeightedScore`:
   - Multiplies Section A (Quality - 25%), Section B (Delivery - 20%), Section C (Price - 15%), Section D (Service - 20%), Section E (AMC - 10%), Section F (Statutory - 10%).
   - **Section E N/A Proportional Redistribution**: If Section E is N/A (`null`), automatically redistributes weights proportionally over the remaining 90% (`unscaled / 0.90`).
@@ -117,17 +123,18 @@ Created `supabase/migrations/20260918000003_day3_fulfilment_payment_emergency_ra
 
 All 7 required scenarios were verified using automated script `scripts/verify_day3.mjs`:
 
-| # | Requirement | Implementation / Gate | Test Result |
-|---|-------------|-----------------------|-------------|
-| 1 | Cannot create GRN for PO with no delivery challan | `validateGrnCreation` checks `delivery_challan_id` and blocks | `PASS` |
-| 2 | Cannot approve invoice whose amount doesn't match PO+GRN | `runThreeWayMatch` flags `on_hold` with legible reason; `approveInvoice` blocks | `PASS` |
-| 3 | Cannot record payment on an unapproved invoice | `recordPayment` blocks unless status is `approved` | `PASS` |
-| 4 | Emergency request pushing annual ledger past ₹10L is hard-blocked | `checkAnnualCap` strictly rejects > ₹10,00,000 with headroom message | `PASS` |
-| 5 | Non-EVP cannot approve emergency; Post-facto > 48h rejected | `approveEmergency` enforces EVP role & 48h post-facto validation | `PASS` |
-| 6 | Vendor ratings compute score & right outcome for all 5 bands | `computeWeightedScore` & `deriveOutcome` tested for Preferred, Active, Active Notice, Suspended, Debarred + Section E N/A | `PASS` |
-| 7 | Debarred/suspended vendor cannot be selected in RFQ | `validateVendorSelectionForRfq` actively blocks non-active vendors | `PASS` |
+| #   | Requirement                                                       | Implementation / Gate                                                                                                     | Test Result |
+| --- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| 1   | Cannot create GRN for PO with no delivery challan                 | `validateGrnCreation` checks `delivery_challan_id` and blocks                                                             | `PASS`      |
+| 2   | Cannot approve invoice whose amount doesn't match PO+GRN          | `runThreeWayMatch` flags `on_hold` with legible reason; `approveInvoice` blocks                                           | `PASS`      |
+| 3   | Cannot record payment on an unapproved invoice                    | `recordPayment` blocks unless status is `approved`                                                                        | `PASS`      |
+| 4   | Emergency request pushing annual ledger past ₹10L is hard-blocked | `checkAnnualCap` strictly rejects > ₹10,00,000 with headroom message                                                      | `PASS`      |
+| 5   | Non-EVP cannot approve emergency; Post-facto > 48h rejected       | `approveEmergency` enforces EVP role & 48h post-facto validation                                                          | `PASS`      |
+| 6   | Vendor ratings compute score & right outcome for all 5 bands      | `computeWeightedScore` & `deriveOutcome` tested for Preferred, Active, Active Notice, Suspended, Debarred + Section E N/A | `PASS`      |
+| 7   | Debarred/suspended vendor cannot be selected in RFQ               | `validateVendorSelectionForRfq` actively blocks non-active vendors                                                        | `PASS`      |
 
 ### Test Run Output
+
 ```
 ====================================================
 🧪 RUNNING DAY 3 VERIFICATION TESTS (SOP §8.6, §8.7, §9, Annexure 4)
@@ -182,6 +189,7 @@ DAY 3 VERIFICATION SUMMARY: 24 passed, 0 failed.
 ## 5. P2 / "If Time Remains" Status (Honest Audit)
 
 Per the prompt's prioritization order:
+
 1. **GRN Engine & Delivery Challans** — ✅ COMPLETED
 2. **Invoice & Three-Way Match & Payment Gate** — ✅ COMPLETED
 3. **Emergency Procurement & ₹10L Hard Annual Cap Ledger** — ✅ COMPLETED
@@ -193,5 +201,6 @@ Per the prompt's prioritization order:
 ---
 
 ## 6. Build & Type Safety Status
+
 - `npx tsc --noEmit`: Exited with code `0` (0 errors).
 - `npm run build`: Production client and SSR server bundles compiled successfully in 1.28s.

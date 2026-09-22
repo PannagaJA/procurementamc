@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
-import { useNavigate } from '@tanstack/react-router';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { MermaidViewer } from '@/components/MermaidViewer';
-import { ThemeToggle } from '@/components/theme-toggle';
+import React, { useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { MermaidViewer } from "@/components/MermaidViewer";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   ShieldCheck,
   Building2,
@@ -36,7 +36,7 @@ import {
   ExternalLink,
   Home,
   AlertOctagon,
-} from 'lucide-react';
+} from "lucide-react";
 
 const DIAGRAM_1_P2P = `flowchart TD
     subgraph Sourcing ["1. Requisition & Sourcing"]
@@ -133,7 +133,7 @@ const DIAGRAM_4_EMERGENCY = `flowchart TD
 
 export default function Architecture() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('p2p');
+  const [activeTab, setActiveTab] = useState("p2p");
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col w-full overflow-x-hidden">
@@ -142,7 +142,7 @@ export default function Architecture() {
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 min-h-[56px] sm:min-h-[64px] py-2 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <button
-              onClick={() => navigate({ to: '/' })}
+              onClick={() => navigate({ to: "/" })}
               className="p-1.5 sm:p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
               title="Return to App"
             >
@@ -167,7 +167,7 @@ export default function Architecture() {
             <ThemeToggle />
             <Button
               size="sm"
-              onClick={() => navigate({ to: '/procurement' })}
+              onClick={() => navigate({ to: "/procurement" })}
               className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5 text-xs font-semibold rounded-lg shadow-sm h-8 sm:h-9 px-2.5 sm:px-3.5"
             >
               <Home className="w-3.5 h-3.5 shrink-0" />
@@ -190,7 +190,9 @@ export default function Architecture() {
             Institutional Procurement Architecture
           </h2>
           <p className="text-xs sm:text-sm text-slate-300 max-w-4xl leading-relaxed">
-            Comprehensive system documentation covering the server-side approval matrix, minimum 3-quotation multi-vendor solicitations, three-way match payment gate, ₹10 Lakh emergency budget ledger, and 6-pillar vendor evaluation scorecard.
+            Comprehensive system documentation covering the server-side approval matrix, minimum
+            3-quotation multi-vendor solicitations, three-way match payment gate, ₹10 Lakh emergency
+            budget ledger, and 6-pillar vendor evaluation scorecard.
           </p>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3 pt-3 sm:pt-4 border-t border-slate-700/60 text-[11px] sm:text-xs">
@@ -217,19 +219,34 @@ export default function Architecture() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <div className="w-full overflow-x-auto pb-1 scrollbar-thin">
             <TabsList className="inline-flex w-max min-w-full md:w-full md:grid md:grid-cols-5 h-auto p-1.5 gap-1.5 bg-slate-200/80 dark:bg-slate-800/80 rounded-xl">
-              <TabsTrigger value="p2p" className="font-semibold text-xs sm:text-sm py-2 px-3 whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm">
+              <TabsTrigger
+                value="p2p"
+                className="font-semibold text-xs sm:text-sm py-2 px-3 whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm"
+              >
                 1. P2P Lifecycle
               </TabsTrigger>
-              <TabsTrigger value="matrix" className="font-semibold text-xs sm:text-sm py-2 px-3 whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm">
+              <TabsTrigger
+                value="matrix"
+                className="font-semibold text-xs sm:text-sm py-2 px-3 whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm"
+              >
                 2. Approval Matrix
               </TabsTrigger>
-              <TabsTrigger value="match" className="font-semibold text-xs sm:text-sm py-2 px-3 whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm">
+              <TabsTrigger
+                value="match"
+                className="font-semibold text-xs sm:text-sm py-2 px-3 whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm"
+              >
                 3. Three-Way Match
               </TabsTrigger>
-              <TabsTrigger value="emergency" className="font-semibold text-xs sm:text-sm py-2 px-3 whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm">
+              <TabsTrigger
+                value="emergency"
+                className="font-semibold text-xs sm:text-sm py-2 px-3 whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm"
+              >
                 4. Emergency Cap
               </TabsTrigger>
-              <TabsTrigger value="accounts" className="font-semibold text-xs sm:text-sm py-2 px-3 whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm">
+              <TabsTrigger
+                value="accounts"
+                className="font-semibold text-xs sm:text-sm py-2 px-3 whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm"
+              >
                 5. Demo Accounts
               </TabsTrigger>
             </TabsList>
@@ -241,10 +258,14 @@ export default function Architecture() {
               <CardHeader className="p-4 sm:p-6">
                 <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
                   <Workflow className="w-5 h-5" />
-                  <CardTitle className="text-base sm:text-lg">End-to-End Procure-to-Pay (P2P) Flowchart</CardTitle>
+                  <CardTitle className="text-base sm:text-lg">
+                    End-to-End Procure-to-Pay (P2P) Flowchart
+                  </CardTitle>
                 </div>
                 <CardDescription className="text-xs sm:text-sm">
-                  State transitions from requisition creation, multi-vendor solicitations, and comparative statement evaluation through purchase order issuance, inward goods receipt, and payment settlement.
+                  State transitions from requisition creation, multi-vendor solicitations, and
+                  comparative statement evaluation through purchase order issuance, inward goods
+                  receipt, and payment settlement.
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-4 sm:p-6 pt-0 space-y-6">
@@ -254,27 +275,39 @@ export default function Architecture() {
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
                   <div className="p-3.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 space-y-1">
-                    <span className="font-bold text-blue-900 dark:text-blue-200 block text-sm">1. Sourcing Gate</span>
+                    <span className="font-bold text-blue-900 dark:text-blue-200 block text-sm">
+                      1. Sourcing Gate
+                    </span>
                     <p className="text-slate-600 dark:text-slate-400">
-                      Requisitions check current stock availability to compute net purchase quantities. Solicitations enforce a minimum of 3 empanelled vendor bids.
+                      Requisitions check current stock availability to compute net purchase
+                      quantities. Solicitations enforce a minimum of 3 empanelled vendor bids.
                     </p>
                   </div>
                   <div className="p-3.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-900 space-y-1">
-                    <span className="font-bold text-purple-900 dark:text-purple-200 block text-sm">2. PO Commitment</span>
+                    <span className="font-bold text-purple-900 dark:text-purple-200 block text-sm">
+                      2. PO Commitment
+                    </span>
                     <p className="text-slate-600 dark:text-slate-400">
-                      POs inherit vendor rates from Comparative Statements. Scope alterations and cost variations trigger re-approval routing.
+                      POs inherit vendor rates from Comparative Statements. Scope alterations and
+                      cost variations trigger re-approval routing.
                     </p>
                   </div>
                   <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 space-y-1">
-                    <span className="font-bold text-emerald-900 dark:text-emerald-200 block text-sm">3. Goods Receipt</span>
+                    <span className="font-bold text-emerald-900 dark:text-emerald-200 block text-sm">
+                      3. Goods Receipt
+                    </span>
                     <p className="text-slate-600 dark:text-slate-400">
-                      Two-step verification: Central Stores physical gate inwarding (Delivery Challan) followed by inspecting department technical verification (GRN).
+                      Two-step verification: Central Stores physical gate inwarding (Delivery
+                      Challan) followed by inspecting department technical verification (GRN).
                     </p>
                   </div>
                   <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 space-y-1">
-                    <span className="font-bold text-amber-900 dark:text-amber-200 block text-sm">4. 3-Way Match</span>
+                    <span className="font-bold text-amber-900 dark:text-amber-200 block text-sm">
+                      4. 3-Way Match
+                    </span>
                     <p className="text-slate-600 dark:text-slate-400">
-                      Finance payment gate verifies that invoiced item pricing and billed quantities match accepted GRNs and issued PO lines before payout.
+                      Finance payment gate verifies that invoiced item pricing and billed quantities
+                      match accepted GRNs and issued PO lines before payout.
                     </p>
                   </div>
                 </div>
@@ -288,10 +321,13 @@ export default function Architecture() {
               <CardHeader className="p-4 sm:p-6">
                 <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400">
                   <Activity className="w-5 h-5 shrink-0" />
-                  <CardTitle className="text-base sm:text-lg">Delegated Authority Matrix & Escalation Engine</CardTitle>
+                  <CardTitle className="text-base sm:text-lg">
+                    Delegated Authority Matrix & Escalation Engine
+                  </CardTitle>
                 </div>
                 <CardDescription className="text-xs sm:text-sm">
-                  Server-side deterministic rule resolution based on item category, single transaction ceilings, and departmental monthly budget caps.
+                  Server-side deterministic rule resolution based on item category, single
+                  transaction ceilings, and departmental monthly budget caps.
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-4 sm:p-6 pt-0 space-y-6">
@@ -361,7 +397,9 @@ export default function Architecture() {
                 <div className="sm:hidden space-y-2.5">
                   <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 space-y-1.5 text-xs">
                     <div className="flex items-center justify-between font-bold">
-                      <span className="text-slate-900 dark:text-white">Petty Cash (small_value)</span>
+                      <span className="text-slate-900 dark:text-white">
+                        Petty Cash (small_value)
+                      </span>
                       <Badge className="bg-blue-600 text-white text-[10px]">HOD</Badge>
                     </div>
                     <div className="flex justify-between text-slate-500 text-[11px]">
@@ -371,7 +409,9 @@ export default function Architecture() {
                   </div>
                   <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 space-y-1.5 text-xs">
                     <div className="flex items-center justify-between font-bold">
-                      <span className="text-slate-900 dark:text-white">Direct Purchase (small_value)</span>
+                      <span className="text-slate-900 dark:text-white">
+                        Direct Purchase (small_value)
+                      </span>
                       <Badge className="bg-indigo-600 text-white text-[10px]">Principal</Badge>
                     </div>
                     <div className="flex justify-between text-slate-500 text-[11px]">
@@ -381,7 +421,9 @@ export default function Architecture() {
                   </div>
                   <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 space-y-1.5 text-xs">
                     <div className="flex items-center justify-between font-bold">
-                      <span className="text-slate-900 dark:text-white">Rate Contract (Consumables)</span>
+                      <span className="text-slate-900 dark:text-white">
+                        Rate Contract (Consumables)
+                      </span>
                       <Badge className="bg-blue-600 text-white text-[10px]">HOD</Badge>
                     </div>
                     <div className="flex justify-between text-slate-500 text-[11px]">
@@ -391,7 +433,9 @@ export default function Architecture() {
                   </div>
                   <div className="p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 space-y-1.5 text-xs">
                     <div className="flex items-center justify-between font-bold">
-                      <span className="text-slate-900 dark:text-white">Limited Tender (Assets)</span>
+                      <span className="text-slate-900 dark:text-white">
+                        Limited Tender (Assets)
+                      </span>
                       <Badge className="bg-purple-600 text-white text-[10px]">Purchase Comm.</Badge>
                     </div>
                     <div className="flex justify-between text-slate-500 text-[11px]">
@@ -420,10 +464,13 @@ export default function Architecture() {
               <CardHeader className="p-4 sm:p-6">
                 <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
                   <Receipt className="w-5 h-5 shrink-0" />
-                  <CardTitle className="text-base sm:text-lg">Three-Way Match Payment Validation Gate</CardTitle>
+                  <CardTitle className="text-base sm:text-lg">
+                    Three-Way Match Payment Validation Gate
+                  </CardTitle>
                 </div>
                 <CardDescription className="text-xs sm:text-sm">
-                  Automated financial security gate cross-checking Purchase Order lines, Goods Receipt Notes, and Vendor Invoices before funds disbursement.
+                  Automated financial security gate cross-checking Purchase Order lines, Goods
+                  Receipt Notes, and Vendor Invoices before funds disbursement.
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-4 sm:p-6 pt-0 space-y-6">
@@ -433,21 +480,33 @@ export default function Architecture() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 text-xs">
                   <div className="p-3.5 sm:p-4 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1.5">
-                    <span className="font-bold text-slate-900 dark:text-white block text-sm">1. Quantity Tolerance</span>
+                    <span className="font-bold text-slate-900 dark:text-white block text-sm">
+                      1. Quantity Tolerance
+                    </span>
                     <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
-                      Billed invoice quantity must be less than or equal to the accepted goods quantity recorded on the technical GRN.
+                      Billed invoice quantity must be less than or equal to the accepted goods
+                      quantity recorded on the technical GRN.
                     </p>
                   </div>
                   <div className="p-3.5 sm:p-4 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1.5">
-                    <span className="font-bold text-slate-900 dark:text-white block text-sm">2. Rate Verification</span>
+                    <span className="font-bold text-slate-900 dark:text-white block text-sm">
+                      2. Rate Verification
+                    </span>
                     <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
-                      Unit price billed on the vendor invoice cannot exceed the agreed contractual purchase order rate.
+                      Unit price billed on the vendor invoice cannot exceed the agreed contractual
+                      purchase order rate.
                     </p>
                   </div>
                   <div className="p-3.5 sm:p-4 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-1.5">
-                    <span className="font-bold text-slate-900 dark:text-white block text-sm">3. Duplicate Protection</span>
+                    <span className="font-bold text-slate-900 dark:text-white block text-sm">
+                      3. Duplicate Protection
+                    </span>
                     <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
-                      Unique database constraint on <code className="text-blue-600 dark:text-blue-400 font-mono font-semibold">(vendor_id, invoice_number)</code> blocks duplicate submissions.
+                      Unique database constraint on{" "}
+                      <code className="text-blue-600 dark:text-blue-400 font-mono font-semibold">
+                        (vendor_id, invoice_number)
+                      </code>{" "}
+                      blocks duplicate submissions.
                     </p>
                   </div>
                 </div>
@@ -461,10 +520,13 @@ export default function Architecture() {
               <CardHeader className="p-4 sm:p-6">
                 <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
                   <Zap className="w-5 h-5 shrink-0" />
-                  <CardTitle className="text-base sm:text-lg">Emergency Fast-Track & Annual Cap Ledger</CardTitle>
+                  <CardTitle className="text-base sm:text-lg">
+                    Emergency Fast-Track & Annual Cap Ledger
+                  </CardTitle>
                 </div>
                 <CardDescription className="text-xs sm:text-sm">
-                  Emergency procurement workflow with hard annual spending limits (₹10,00,000 per financial year) and EVP authorization.
+                  Emergency procurement workflow with hard annual spending limits (₹10,00,000 per
+                  financial year) and EVP authorization.
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-4 sm:p-6 pt-0 space-y-6">
@@ -477,9 +539,19 @@ export default function Architecture() {
                     <AlertOctagon className="w-4 h-4 shrink-0" /> Statutory Emergency Rules
                   </div>
                   <ul className="list-disc list-inside space-y-1 text-slate-700 dark:text-slate-300 leading-relaxed">
-                    <li>Emergency procedures are restricted to sudden failures threatening campus safety, academic continuity, or major infrastructure breakdown.</li>
-                    <li>All emergency procurements deduct from the annual ledger in real-time. Any transaction exceeding the ₹10 Lakh cap is strictly rejected by server triggers.</li>
-                    <li>Requires EVP written authorization or formal ratification within 48 hours of emergency engagement.</li>
+                    <li>
+                      Emergency procedures are restricted to sudden failures threatening campus
+                      safety, academic continuity, or major infrastructure breakdown.
+                    </li>
+                    <li>
+                      All emergency procurements deduct from the annual ledger in real-time. Any
+                      transaction exceeding the ₹10 Lakh cap is strictly rejected by server
+                      triggers.
+                    </li>
+                    <li>
+                      Requires EVP written authorization or formal ratification within 48 hours of
+                      emergency engagement.
+                    </li>
                   </ul>
                 </div>
               </CardContent>
@@ -492,10 +564,16 @@ export default function Architecture() {
               <CardHeader className="p-4 sm:p-6">
                 <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
                   <Users className="w-5 h-5 shrink-0" />
-                  <CardTitle className="text-base sm:text-lg">Demo Accounts & Pre-Configured Test Personas</CardTitle>
+                  <CardTitle className="text-base sm:text-lg">
+                    Demo Accounts & Pre-Configured Test Personas
+                  </CardTitle>
                 </div>
                 <CardDescription className="text-xs sm:text-sm">
-                  All accounts use default password <code className="bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono font-bold text-slate-900 dark:text-white">Password@123</code>.
+                  All accounts use default password{" "}
+                  <code className="bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono font-bold text-slate-900 dark:text-white">
+                    Password@123
+                  </code>
+                  .
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-4 sm:p-6 pt-0 space-y-4">
@@ -542,14 +620,18 @@ export default function Architecture() {
                       </tr>
                       <tr>
                         <td className="p-3 font-bold text-purple-600">Purchase Committee</td>
-                        <td className="p-3 font-mono font-medium">purchase.committee@institution.edu</td>
+                        <td className="p-3 font-mono font-medium">
+                          purchase.committee@institution.edu
+                        </td>
                         <td className="p-3">Prof. Sunita Rao</td>
                         <td className="p-3">Central Admin</td>
                         <td className="p-3 text-slate-500">RFQ & CS evaluations</td>
                       </tr>
                       <tr>
                         <td className="p-3 font-bold text-sky-600">Procurement Officer</td>
-                        <td className="p-3 font-mono font-medium">procurement.officer@institution.edu</td>
+                        <td className="p-3 font-mono font-medium">
+                          procurement.officer@institution.edu
+                        </td>
                         <td className="p-3">Suresh Menon</td>
                         <td className="p-3">Central Admin</td>
                         <td className="p-3 text-slate-500">RFQ creation & PO issuance</td>
@@ -582,24 +664,85 @@ export default function Architecture() {
                 {/* Mobile Responsive Persona Cards */}
                 <div className="md:hidden grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {[
-                    { role: 'Admin', email: 'admin@institution.edu', name: 'Dr. System Administrator', dept: 'Central Admin', color: 'bg-blue-600' },
-                    { role: 'EVP', email: 'evp@institution.edu', name: 'Dr. Rajesh Sharma', dept: 'Central Admin', color: 'bg-amber-600' },
-                    { role: 'Principal', email: 'principal@institution.edu', name: 'Dr. Anand Kumar', dept: 'Central Admin', color: 'bg-indigo-600' },
-                    { role: 'HOD (CSE)', email: 'hod.cse@institution.edu', name: 'Prof. Vikram Seth', dept: 'Computer Science', color: 'bg-purple-600' },
-                    { role: 'Purchase Committee', email: 'purchase.committee@institution.edu', name: 'Prof. Sunita Rao', dept: 'Central Admin', color: 'bg-purple-600' },
-                    { role: 'Procurement Officer', email: 'procurement.officer@institution.edu', name: 'Suresh Menon', dept: 'Central Admin', color: 'bg-sky-600' },
-                    { role: 'Finance Officer', email: 'finance@institution.edu', name: 'Priya Nambiar', dept: 'Central Admin', color: 'bg-emerald-600' },
-                    { role: 'Stores Keeper', email: 'stores@institution.edu', name: 'Manoj Kumar', dept: 'Central Stores', color: 'bg-teal-600' },
-                    { role: 'Faculty', email: 'faculty.cse@institution.edu', name: 'Dr. Ananya Roy', dept: 'CSE Dept', color: 'bg-slate-600' },
+                    {
+                      role: "Admin",
+                      email: "admin@institution.edu",
+                      name: "Dr. System Administrator",
+                      dept: "Central Admin",
+                      color: "bg-blue-600",
+                    },
+                    {
+                      role: "EVP",
+                      email: "evp@institution.edu",
+                      name: "Dr. Rajesh Sharma",
+                      dept: "Central Admin",
+                      color: "bg-amber-600",
+                    },
+                    {
+                      role: "Principal",
+                      email: "principal@institution.edu",
+                      name: "Dr. Anand Kumar",
+                      dept: "Central Admin",
+                      color: "bg-indigo-600",
+                    },
+                    {
+                      role: "HOD (CSE)",
+                      email: "hod.cse@institution.edu",
+                      name: "Prof. Vikram Seth",
+                      dept: "Computer Science",
+                      color: "bg-purple-600",
+                    },
+                    {
+                      role: "Purchase Committee",
+                      email: "purchase.committee@institution.edu",
+                      name: "Prof. Sunita Rao",
+                      dept: "Central Admin",
+                      color: "bg-purple-600",
+                    },
+                    {
+                      role: "Procurement Officer",
+                      email: "procurement.officer@institution.edu",
+                      name: "Suresh Menon",
+                      dept: "Central Admin",
+                      color: "bg-sky-600",
+                    },
+                    {
+                      role: "Finance Officer",
+                      email: "finance@institution.edu",
+                      name: "Priya Nambiar",
+                      dept: "Central Admin",
+                      color: "bg-emerald-600",
+                    },
+                    {
+                      role: "Stores Keeper",
+                      email: "stores@institution.edu",
+                      name: "Manoj Kumar",
+                      dept: "Central Stores",
+                      color: "bg-teal-600",
+                    },
+                    {
+                      role: "Faculty",
+                      email: "faculty.cse@institution.edu",
+                      name: "Dr. Ananya Roy",
+                      dept: "CSE Dept",
+                      color: "bg-slate-600",
+                    },
                   ].map((p) => (
-                    <div key={p.email} className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 space-y-2">
+                    <div
+                      key={p.email}
+                      className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 space-y-2"
+                    >
                       <div className="flex items-center justify-between gap-2">
                         <Badge className={`${p.color} text-white text-[10px]`}>{p.role}</Badge>
                         <span className="text-[11px] text-slate-500 truncate">{p.dept}</span>
                       </div>
                       <div>
-                        <div className="font-semibold text-xs text-slate-900 dark:text-slate-100">{p.name}</div>
-                        <div className="font-mono text-[11px] text-slate-600 dark:text-slate-400 break-all">{p.email}</div>
+                        <div className="font-semibold text-xs text-slate-900 dark:text-slate-100">
+                          {p.name}
+                        </div>
+                        <div className="font-mono text-[11px] text-slate-600 dark:text-slate-400 break-all">
+                          {p.email}
+                        </div>
                       </div>
                       <button
                         onClick={() => {

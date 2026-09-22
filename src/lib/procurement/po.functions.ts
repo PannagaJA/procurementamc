@@ -8,14 +8,14 @@
  * - PO Amendments: If amended value breaches original approver's tier limit (e.g. ₹8k -> ₹15k crossing ₹10k),
  *   requires_reapproval=true and routes to the higher authority tier.
  */
-import { createServerFn } from '@tanstack/react-start';
-import { requireSupabaseAuth } from '@/integrations/supabase/auth-middleware';
+import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export type CreatePoInput = {
   pr_id: string;
   cs_id?: string | null;
   rate_contract_id?: string | null;
-  type: 'regular' | 'rate_contract';
+  type: "regular" | "rate_contract";
   vendor_id: string;
   scope_of_supply: string;
   price: number;
@@ -48,72 +48,80 @@ export type ClosePoInput = {
 };
 
 function monthKey(d = new Date()) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
 }
 
-export const createPo = createServerFn({ method: 'POST' })
+export const createPo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: CreatePoInput) => input)
   .handler(async ({ data, context }) => {
     const db = context.supabase as any;
-    const { assertPrApproved, assertVendorEmpanelled, assertNoPoSplitting } = await import(
-      '@/server/procurement/guards'
-    );
-    const { ProcurementRuleError } = await import('@/server/procurement/errors');
-    const { resolveApprover, normalizeCategory } = await import('@/lib/procurement/authorityMatrix');
+    const { assertPrApproved, assertVendorEmpanelled, assertNoPoSplitting } =
+      await import("@/server/procurement/guards");
+    const { ProcurementRuleError } = await import("@/server/procurement/errors");
+    const { resolveApprover, normalizeCategory } =
+      await import("@/lib/procurement/authorityMatrix");
 
     // 1. Guard: Requisition must be approved
     try {
       await assertPrApproved(db, data.pr_id);
     } catch (e) {
-      if (e instanceof ProcurementRuleError) return { ok: false as const, error: e.message, code: e.code };
+      if (e instanceof ProcurementRuleError)
+        return { ok: false as const, error: e.message, code: e.code };
       throw e;
     }
 
     // 2. Guard: Must have approved CS OR active Rate Contract
-    if (data.type === 'regular') {
+    if (data.type === "regular") {
       if (!data.cs_id) {
         return {
           ok: false as const,
-          error: 'A Comparative Statement (CS) ID is required for regular purchase orders (SOP §8.5).',
-          code: 'cs_required',
+          error:
+            "A Comparative Statement (CS) ID is required for regular purchase orders (SOP §8.5).",
+          code: "cs_required",
         };
       }
       const { data: cs, error: csErr } = await db
-        .from('comparative_statements')
-        .select('id, status, recommended_vendor_id')
-        .eq('id', data.cs_id)
+        .from("comparative_statements")
+        .select("id, status, recommended_vendor_id")
+        .eq("id", data.cs_id)
         .single();
 
-      if (csErr || !cs) return { ok: false as const, error: 'Comparative Statement not found', code: 'cs_not_found' };
-      if (cs.status !== 'approved') {
+      if (csErr || !cs)
+        return {
+          ok: false as const,
+          error: "Comparative Statement not found",
+          code: "cs_not_found",
+        };
+      if (cs.status !== "approved") {
         return {
           ok: false as const,
           error: `Cannot create PO: Comparative Statement is "${cs.status}", not approved (SOP §8.4, §8.5).`,
-          code: 'cs_not_approved',
+          code: "cs_not_approved",
         };
       }
-    } else if (data.type === 'rate_contract') {
+    } else if (data.type === "rate_contract") {
       if (!data.rate_contract_id) {
         return {
           ok: false as const,
-          error: 'A Rate Contract ID is required for rate contract purchase orders (SOP §8.2).',
-          code: 'rc_required',
+          error: "A Rate Contract ID is required for rate contract purchase orders (SOP §8.2).",
+          code: "rc_required",
         };
       }
-      const today = new Date().toISOString().split('T')[0];
+      const today = new Date().toISOString().split("T")[0];
       const { data: rc, error: rcErr } = await db
-        .from('rate_contracts')
-        .select('id, vendor_id, valid_from, valid_to')
-        .eq('id', data.rate_contract_id)
+        .from("rate_contracts")
+        .select("id, vendor_id, valid_from, valid_to")
+        .eq("id", data.rate_contract_id)
         .single();
 
-      if (rcErr || !rc) return { ok: false as const, error: 'Rate contract not found', code: 'rc_not_found' };
+      if (rcErr || !rc)
+        return { ok: false as const, error: "Rate contract not found", code: "rc_not_found" };
       if (rc.valid_from > today || rc.valid_to < today) {
         return {
           ok: false as const,
           error: `Rate contract is not active (valid: ${rc.valid_from} to ${rc.valid_to}).`,
-          code: 'rc_expired',
+          code: "rc_expired",
         };
       }
     }
@@ -122,7 +130,8 @@ export const createPo = createServerFn({ method: 'POST' })
     try {
       await assertVendorEmpanelled(db, data.vendor_id);
     } catch (e) {
-      if (e instanceof ProcurementRuleError) return { ok: false as const, error: e.message, code: e.code };
+      if (e instanceof ProcurementRuleError)
+        return { ok: false as const, error: e.message, code: e.code };
       throw e;
     }
 
@@ -134,31 +143,29 @@ export const createPo = createServerFn({ method: 'POST' })
     try {
       await assertNoPoSplitting(db, data.pr_id, totalValue, data.vendor_id);
     } catch (e) {
-      if (e instanceof ProcurementRuleError) return { ok: false as const, error: e.message, code: e.code };
+      if (e instanceof ProcurementRuleError)
+        return { ok: false as const, error: e.message, code: e.code };
       throw e;
     }
 
     // 5. Authority Matrix routing for PO approval
     const { data: pr } = await db
-      .from('purchase_requisitions')
-      .select('id, category, department_id, pr_number')
-      .eq('id', data.pr_id)
+      .from("purchase_requisitions")
+      .select("id, category, department_id, pr_number")
+      .eq("id", data.pr_id)
       .single();
 
-    const canonicalCat = normalizeCategory(pr?.category ?? 'routine_consumable');
-    const { data: rules } = await db
-      .from('approval_matrix_rules')
-      .select('*')
-      .eq('active', true);
+    const canonicalCat = normalizeCategory(pr?.category ?? "routine_consumable");
+    const { data: rules } = await db.from("approval_matrix_rules").select("*").eq("active", true);
 
     let spend = 0;
     if (pr?.department_id) {
       const { data: rows } = await db
-        .from('department_monthly_spend')
-        .select('total_spent')
-        .eq('department_id', pr.department_id)
-        .eq('month', monthKey())
-        .eq('category', canonicalCat);
+        .from("department_monthly_spend")
+        .select("total_spent")
+        .eq("department_id", pr.department_id)
+        .eq("month", monthKey())
+        .eq("category", canonicalCat);
       spend = (rows ?? []).reduce((s: number, r: any) => s + Number(r.total_spent ?? 0), 0);
     }
 
@@ -166,7 +173,7 @@ export const createPo = createServerFn({ method: 'POST' })
 
     // 6. Insert Purchase Order
     const { data: po, error: poErr } = await db
-      .from('purchase_orders')
+      .from("purchase_orders")
       .insert({
         pr_id: data.pr_id,
         cs_id: data.cs_id ?? null,
@@ -179,16 +186,16 @@ export const createPo = createServerFn({ method: 'POST' })
         taxes,
         delivery_timeline: data.delivery_timeline ?? null,
         payment_terms: data.payment_terms ?? null,
-        status: 'pending_approval',
+        status: "pending_approval",
         original_approver_role: resolved.role,
         current_approver_role: resolved.role,
         routing_reason: resolved.reason,
         created_by: context.userId,
       })
-      .select('*')
+      .select("*")
       .single();
 
-    if (poErr) return { ok: false as const, error: poErr.message, code: 'insert_po_failed' };
+    if (poErr) return { ok: false as const, error: poErr.message, code: "insert_po_failed" };
 
     return {
       ok: true as const,
@@ -201,61 +208,61 @@ export const createPo = createServerFn({ method: 'POST' })
     };
   });
 
-export const approvePo = createServerFn({ method: 'POST' })
+export const approvePo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: ApprovePoInput) => input)
   .handler(async ({ data, context }) => {
     const db = context.supabase as any;
-    const { getCallerRoles } = await import('@/server/procurement/roles');
-    const { ForbiddenError } = await import('@/server/procurement/errors');
+    const { getCallerRoles } = await import("@/server/procurement/roles");
+    const { ForbiddenError } = await import("@/server/procurement/errors");
 
     const roles = await getCallerRoles(db, context.userId);
     const held = roles.map((r) => r.role);
 
     const { data: po, error } = await db
-      .from('purchase_orders')
-      .select('id, status, current_approver_role, po_number')
-      .eq('id', data.po_id)
+      .from("purchase_orders")
+      .select("id, status, current_approver_role, po_number")
+      .eq("id", data.po_id)
       .maybeSingle();
 
-    if (error || !po) return { ok: false as const, error: 'Purchase Order not found' };
+    if (error || !po) return { ok: false as const, error: "Purchase Order not found" };
 
     const requiredRole = po.current_approver_role;
-    if (!held.includes('admin') && requiredRole && !held.includes(requiredRole)) {
+    if (!held.includes("admin") && requiredRole && !held.includes(requiredRole)) {
       throw new ForbiddenError(
-        `This Purchase Order requires "${requiredRole}" approval. You hold: ${held.join(', ') || 'none'}.`,
+        `This Purchase Order requires "${requiredRole}" approval. You hold: ${held.join(", ") || "none"}.`,
       );
     }
 
     const { error: upErr } = await db
-      .from('purchase_orders')
+      .from("purchase_orders")
       .update({
-        status: 'approved',
+        status: "approved",
         approved_by: context.userId,
         approved_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
-      .eq('id', po.id);
+      .eq("id", po.id);
 
     if (upErr) return { ok: false as const, error: upErr.message };
-    return { ok: true as const, poId: po.id, status: 'approved' };
+    return { ok: true as const, poId: po.id, status: "approved" };
   });
 
-export const issuePo = createServerFn({ method: 'POST' })
+export const issuePo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: IssuePoInput) => input)
   .handler(async ({ data, context }) => {
     const db = context.supabase as any;
 
     const { data: po, error } = await db
-      .from('purchase_orders')
-      .select('id, status, po_number, vendor_id, pr_id')
-      .eq('id', data.po_id)
+      .from("purchase_orders")
+      .select("id, status, po_number, vendor_id, pr_id")
+      .eq("id", data.po_id)
       .maybeSingle();
 
-    if (error || !po) return { ok: false as const, error: 'Purchase Order not found' };
+    if (error || !po) return { ok: false as const, error: "Purchase Order not found" };
 
-    if (po.status !== 'approved' && po.status !== 'amended') {
+    if (po.status !== "approved" && po.status !== "amended") {
       return {
         ok: false as const,
         error: `Cannot issue PO: Order is in "${po.status}" status, must be approved first (SOP §8.5).`,
@@ -263,38 +270,41 @@ export const issuePo = createServerFn({ method: 'POST' })
     }
 
     const { error: upErr } = await db
-      .from('purchase_orders')
+      .from("purchase_orders")
       .update({
-        status: 'issued',
+        status: "issued",
         issued_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
-      .eq('id', po.id);
+      .eq("id", po.id);
 
     if (upErr) return { ok: false as const, error: upErr.message };
 
-    return { ok: true as const, poId: po.id, status: 'issued', poNumber: po.po_number };
+    return { ok: true as const, poId: po.id, status: "issued", poNumber: po.po_number };
   });
 
-export const amendPo = createServerFn({ method: 'POST' })
+export const amendPo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: AmendPoInput) => input)
   .handler(async ({ data, context }) => {
     const db = context.supabase as any;
-    const { resolveApprover, normalizeCategory } = await import('@/lib/procurement/authorityMatrix');
-    const { assertNoPoSplitting } = await import('@/server/procurement/guards');
-    const { ProcurementRuleError } = await import('@/server/procurement/errors');
+    const { resolveApprover, normalizeCategory } =
+      await import("@/lib/procurement/authorityMatrix");
+    const { assertNoPoSplitting } = await import("@/server/procurement/guards");
+    const { ProcurementRuleError } = await import("@/server/procurement/errors");
 
     const { data: po, error: poErr } = await db
-      .from('purchase_orders')
-      .select(`
+      .from("purchase_orders")
+      .select(
+        `
         *,
         purchase_requisitions (id, category, department_id, estimated_value)
-      `)
-      .eq('id', data.po_id)
+      `,
+      )
+      .eq("id", data.po_id)
       .single();
 
-    if (poErr || !po) return { ok: false as const, error: 'Purchase Order not found' };
+    if (poErr || !po) return { ok: false as const, error: "Purchase Order not found" };
 
     const oldTotal = Number(po.price || 0) + Number(po.taxes || 0);
     const newPrice = Number(data.new_price) || 0;
@@ -307,26 +317,26 @@ export const amendPo = createServerFn({ method: 'POST' })
       try {
         await assertNoPoSplitting(db, po.pr_id, delta, po.vendor_id);
       } catch (e) {
-        if (e instanceof ProcurementRuleError) return { ok: false as const, error: e.message, code: e.code };
+        if (e instanceof ProcurementRuleError)
+          return { ok: false as const, error: e.message, code: e.code };
         throw e;
       }
     }
 
     // Check authority matrix tier escalation
-    const canonicalCat = normalizeCategory(po.purchase_requisitions?.category ?? 'routine_consumable');
-    const { data: rules } = await db
-      .from('approval_matrix_rules')
-      .select('*')
-      .eq('active', true);
+    const canonicalCat = normalizeCategory(
+      po.purchase_requisitions?.category ?? "routine_consumable",
+    );
+    const { data: rules } = await db.from("approval_matrix_rules").select("*").eq("active", true);
 
     let spend = 0;
     if (po.purchase_requisitions?.department_id) {
       const { data: rows } = await db
-        .from('department_monthly_spend')
-        .select('total_spent')
-        .eq('department_id', po.purchase_requisitions.department_id)
-        .eq('month', monthKey())
-        .eq('category', canonicalCat);
+        .from("department_monthly_spend")
+        .select("total_spent")
+        .eq("department_id", po.purchase_requisitions.department_id)
+        .eq("month", monthKey())
+        .eq("category", canonicalCat);
       spend = (rows ?? []).reduce((s: number, r: any) => s + Number(r.total_spent ?? 0), 0);
     }
 
@@ -334,16 +344,26 @@ export const amendPo = createServerFn({ method: 'POST' })
     const resolvedOld = resolveApprover(canonicalCat, oldTotal, spend, rules ?? []);
 
     // Check if new total exceeds original approver's tier
-    const roleHierarchy = ['hod', 'principal', 'procurement_officer', 'purchase_committee', 'director_admin_finance', 'evp'];
+    const roleHierarchy = [
+      "hod",
+      "principal",
+      "procurement_officer",
+      "purchase_committee",
+      "director_admin_finance",
+      "evp",
+    ];
     const originalRole = po.original_approver_role || resolvedOld.role;
     const originalRank = roleHierarchy.indexOf(originalRole.toLowerCase());
     const newRank = roleHierarchy.indexOf(resolvedNew.role.toLowerCase());
 
-    const requiresReapproval = newRank > originalRank || (resolvedNew.escalate && !resolvedOld.escalate) || newTotal > oldTotal * 1.1;
+    const requiresReapproval =
+      newRank > originalRank ||
+      (resolvedNew.escalate && !resolvedOld.escalate) ||
+      newTotal > oldTotal * 1.1;
 
     // Record Amendment
     const { data: amendment, error: amErr } = await db
-      .from('po_amendments')
+      .from("po_amendments")
       .insert({
         po_id: po.id,
         old_value_total: oldTotal,
@@ -352,19 +372,19 @@ export const amendPo = createServerFn({ method: 'POST' })
         requires_reapproval: requiresReapproval,
         original_approver_role: originalRole,
         new_approver_role: resolvedNew.role,
-        status: requiresReapproval ? 'pending' : 'approved',
+        status: requiresReapproval ? "pending" : "approved",
         changed_fields_json: data.changed_fields ?? {},
         created_by: context.userId,
       })
-      .select('*')
+      .select("*")
       .single();
 
-    if (amErr) return { ok: false as const, error: amErr.message, code: 'amendment_insert_failed' };
+    if (amErr) return { ok: false as const, error: amErr.message, code: "amendment_insert_failed" };
 
     // Update PO
-    const nextStatus = requiresReapproval ? 'pending_approval' : 'amended';
+    const nextStatus = requiresReapproval ? "pending_approval" : "amended";
     const { error: upErr } = await db
-      .from('purchase_orders')
+      .from("purchase_orders")
       .update({
         price: newPrice,
         taxes: newTaxes,
@@ -373,7 +393,7 @@ export const amendPo = createServerFn({ method: 'POST' })
         routing_reason: resolvedNew.reason,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', po.id);
+      .eq("id", po.id);
 
     if (upErr) return { ok: false as const, error: upErr.message };
 
@@ -386,34 +406,35 @@ export const amendPo = createServerFn({ method: 'POST' })
     };
   });
 
-export const closePo = createServerFn({ method: 'POST' })
+export const closePo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: ClosePoInput) => input)
   .handler(async ({ data, context }) => {
     const db = context.supabase as any;
-    const nextStatus = data.partially ? 'partially_closed' : 'closed';
+    const nextStatus = data.partially ? "partially_closed" : "closed";
 
     const { error } = await db
-      .from('purchase_orders')
+      .from("purchase_orders")
       .update({
         status: nextStatus,
         closed_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
-      .eq('id', data.po_id);
+      .eq("id", data.po_id);
 
     if (error) return { ok: false as const, error: error.message };
     return { ok: true as const, status: nextStatus };
   });
 
-export const listPurchaseOrders = createServerFn({ method: 'GET' })
+export const listPurchaseOrders = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input?: { pr_id?: string; vendor_id?: string; status?: string }) => input)
   .handler(async ({ data, context }) => {
     const db = context.supabase as any;
     let query = db
-      .from('purchase_orders')
-      .select(`
+      .from("purchase_orders")
+      .select(
+        `
         *,
         purchase_requisitions (
           id, pr_number, category, scope, estimated_value, justification,
@@ -431,12 +452,13 @@ export const listPurchaseOrders = createServerFn({ method: 'GET' })
         po_amendments (
           id, old_value_total, new_value_total, reason, requires_reapproval, new_approver_role, status, created_at
         )
-      `)
-      .order('created_at', { ascending: false });
+      `,
+      )
+      .order("created_at", { ascending: false });
 
-    if (data?.pr_id) query = query.eq('pr_id', data.pr_id);
-    if (data?.vendor_id) query = query.eq('vendor_id', data.vendor_id);
-    if (data?.status) query = query.eq('status', data.status);
+    if (data?.pr_id) query = query.eq("pr_id", data.pr_id);
+    if (data?.vendor_id) query = query.eq("vendor_id", data.vendor_id);
+    if (data?.status) query = query.eq("status", data.status);
 
     const { data: list, error } = await query;
     if (error) return { ok: false as const, error: error.message };

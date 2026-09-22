@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from '@tanstack/react-router';
+import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,13 +7,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { BookOpen, ShieldCheck } from "lucide-react";
 
 const authSchema = z.object({
-  email: z.string().email("Invalid email address").max(255, "Email must be less than 255 characters"),
-  password: z.string().min(6, "Password must be at least 6 characters").max(100, "Password must be less than 100 characters"),
-  fullName: z.string().min(2, "Name must be at least 2 characters").max(100, "Name must be less than 100 characters").optional(),
+  email: z
+    .string()
+    .email("Invalid email address")
+    .max(255, "Email must be less than 255 characters"),
+  password: z
+    .string()
+    .min(6, "Password must be at least 6 characters")
+    .max(100, "Password must be less than 100 characters"),
+  fullName: z
+    .string()
+    .min(2, "Name must be at least 2 characters")
+    .max(100, "Name must be less than 100 characters")
+    .optional(),
 });
 
 const Auth = () => {
@@ -23,11 +33,13 @@ const Auth = () => {
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
   const [forgotOpen, setForgotOpen] = useState(false);
-  const [forgotStep, setForgotStep] = useState<'enterEmail' | 'enterOtp' | 'setPassword'>('enterEmail');
+  const [forgotStep, setForgotStep] = useState<"enterEmail" | "enterOtp" | "setPassword">(
+    "enterEmail",
+  );
 
-  const [forgotEmail, setForgotEmail] = useState('');
-  const [forgotOtp, setForgotOtp] = useState('');
-  const [forgotNewPassword, setForgotNewPassword] = useState('');
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotOtp, setForgotOtp] = useState("");
+  const [forgotNewPassword, setForgotNewPassword] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -35,35 +47,46 @@ const Auth = () => {
   // Safe edge-function caller: try supabase.functions.invoke, fall back to direct fetch
   const callEdgeFunction = async (name: string, body: any) => {
     try {
-      if ((supabase as any).functions && typeof (supabase as any).functions.invoke === 'function') {
+      if ((supabase as any).functions && typeof (supabase as any).functions.invoke === "function") {
         const res = await (supabase as any).functions.invoke(name, { body });
         return res;
       }
     } catch (err) {
       // swallow and try fetch fallback
-      console.warn('supabase.functions.invoke failed, falling back to fetch', err);
+      console.warn("supabase.functions.invoke failed, falling back to fetch", err);
     }
 
     // Fallback to direct fetch to Supabase Functions endpoint
     try {
-      const base = String(import.meta.env.VITE_SUPABASE_URL || '');
-      const apiKey = String(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || '');
-      if (!base) throw new Error('Supabase URL not configured');
-      const url = `${base.replace(/\/$/, '')}/functions/v1/${name}`;
+      const base = String(import.meta.env.VITE_SUPABASE_URL || "");
+      const apiKey = String(
+        import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+          import.meta.env.VITE_SUPABASE_ANON_KEY ||
+          "",
+      );
+      if (!base) throw new Error("Supabase URL not configured");
+      const url = `${base.replace(/\/$/, "")}/functions/v1/${name}`;
       const res = await fetch(url, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'apikey': apiKey,
-          'Authorization': `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          apikey: apiKey,
+          Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify(body),
       });
       const text = await res.text();
       let parsed: any = { data: null };
-      try { parsed = JSON.parse(text); } catch (e) { parsed = { text }; }
+      try {
+        parsed = JSON.parse(text);
+      } catch (e) {
+        parsed = { text };
+      }
       if (!res.ok) {
-        return { error: new Error(parsed?.message || `Function ${name} returned ${res.status}`), data: parsed };
+        return {
+          error: new Error(parsed?.message || `Function ${name} returned ${res.status}`),
+          data: parsed,
+        };
       }
       return { data: parsed };
     } catch (err) {
@@ -79,7 +102,9 @@ const Auth = () => {
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
         navigate({ to: "/" });
       }
@@ -270,7 +295,15 @@ const Auth = () => {
           </form>
           <div className="mt-4 text-center">
             {isLogin && (
-              <Button variant="link" className="p-0" onClick={() => { setForgotOpen(true); setForgotStep('enterEmail'); setForgotEmail(email); }}>
+              <Button
+                variant="link"
+                className="p-0"
+                onClick={() => {
+                  setForgotOpen(true);
+                  setForgotStep("enterEmail");
+                  setForgotEmail(email);
+                }}
+              >
                 Forgot password?
               </Button>
             )}
@@ -279,28 +312,23 @@ const Auth = () => {
             {isLogin ? (
               <>
                 Don't have an account?{" "}
-                <Button
-                  variant="link"
-                  className="p-0"
-                  onClick={() => setIsLogin(false)}
-                >
+                <Button variant="link" className="p-0" onClick={() => setIsLogin(false)}>
                   Sign up
                 </Button>
               </>
             ) : (
               <>
                 Already have an account?{" "}
-                <Button
-                  variant="link"
-                  className="p-0"
-                  onClick={() => setIsLogin(true)}
-                >
+                <Button variant="link" className="p-0" onClick={() => setIsLogin(true)}>
                   Sign in
                 </Button>
               </>
             )}
           </div>
-          <div className="mt-6 text-center text-xs text-muted-foreground" style={{ opacity: 0.01, userSelect: 'text' }}>
+          <div
+            className="mt-6 text-center text-xs text-muted-foreground"
+            style={{ opacity: 0.01, userSelect: "text" }}
+          >
             <p>
               Developed by{" "}
               <a
@@ -323,91 +351,172 @@ const Auth = () => {
               <DialogTitle>Reset Password</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
-              {forgotStep === 'enterEmail' && (
+              {forgotStep === "enterEmail" && (
                 <div>
                   <Label>Email</Label>
-                  <Input value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} placeholder="your@email.com" />
+                  <Input
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    placeholder="your@email.com"
+                  />
                   <div className="flex justify-end gap-2 mt-3">
-                    <Button variant="outline" onClick={() => setForgotOpen(false)}>Cancel</Button>
-                    <Button onClick={async () => {
-                      try {
-                        setForgotLoading(true);
-                        const emailToUse = String((forgotEmail || '').trim());
-                        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailToUse)) {
-                          toast({ variant: 'destructive', title: 'Invalid email', description: 'Please enter a valid email address' });
+                    <Button variant="outline" onClick={() => setForgotOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={async () => {
+                        try {
+                          setForgotLoading(true);
+                          const emailToUse = String((forgotEmail || "").trim());
+                          if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailToUse)) {
+                            toast({
+                              variant: "destructive",
+                              title: "Invalid email",
+                              description: "Please enter a valid email address",
+                            });
+                            setForgotLoading(false);
+                            return;
+                          }
+                          setForgotEmail(emailToUse);
+                          const res = await callEdgeFunction("send-otp", { email: emailToUse });
+                          if (res?.error) {
+                            // if edge function unavailable, fallback to Supabase email reset
+                            const { data, error } = await supabase.auth.resetPasswordForEmail(
+                              emailToUse,
+                              { redirectTo: window.location.origin + "/auth" },
+                            );
+                            if (error) throw error;
+                            toast({
+                              title: "Reset email sent",
+                              description: "Check your inbox for a password reset link",
+                            });
+                            setForgotOpen(false);
+                          } else {
+                            toast({
+                              title: "OTP sent",
+                              description: "Check your email for the OTP",
+                            });
+                            setForgotStep("enterOtp");
+                          }
+                        } catch (err: any) {
+                          console.error("send-otp error", err);
+                          toast({
+                            variant: "destructive",
+                            title: "Error",
+                            description: err?.message || "Failed to send OTP/reset email",
+                          });
+                        } finally {
                           setForgotLoading(false);
-                          return;
                         }
-                        setForgotEmail(emailToUse);
-                        const res = await callEdgeFunction('send-otp', { email: emailToUse });
-                        if (res?.error) {
-                          // if edge function unavailable, fallback to Supabase email reset
-                          const { data, error } = await supabase.auth.resetPasswordForEmail(emailToUse, { redirectTo: window.location.origin + '/auth' });
-                          if (error) throw error;
-                          toast({ title: 'Reset email sent', description: 'Check your inbox for a password reset link' });
-                          setForgotOpen(false);
-                        } else {
-                          toast({ title: 'OTP sent', description: 'Check your email for the OTP' });
-                          setForgotStep('enterOtp');
-                        }
-                      } catch (err: any) {
-                        console.error('send-otp error', err);
-                        toast({ variant: 'destructive', title: 'Error', description: err?.message || 'Failed to send OTP/reset email' });
-                      } finally { setForgotLoading(false); }
-                    }}>{forgotLoading ? 'Please wait...' : 'Send OTP'}</Button>
+                      }}
+                    >
+                      {forgotLoading ? "Please wait..." : "Send OTP"}
+                    </Button>
                   </div>
                 </div>
               )}
 
-              {forgotStep === 'enterOtp' && (
+              {forgotStep === "enterOtp" && (
                 <div>
                   <Label>Enter OTP</Label>
-                  <Input value={forgotOtp} onChange={(e) => setForgotOtp(e.target.value)} placeholder="123456" />
+                  <Input
+                    value={forgotOtp}
+                    onChange={(e) => setForgotOtp(e.target.value)}
+                    placeholder="123456"
+                  />
                   <div className="flex justify-end gap-2 mt-3">
-                    <Button variant="outline" onClick={() => setForgotStep('enterEmail')}>Back</Button>
-                    <Button onClick={async () => {
-                      try {
-                        setForgotLoading(true);
-                        const emailToUse = String((forgotEmail || '').trim());
-                        const res = await callEdgeFunction('verify-otp', { email: emailToUse, otp: forgotOtp });
-                        if (res?.error) throw res.error;
-                        toast({ title: 'OTP verified', description: 'You can now set a new password' });
-                        setForgotStep('setPassword');
-                      } catch (err: any) {
-                        console.error('verify-otp error', err);
-                        toast({ variant: 'destructive', title: 'Error', description: err?.message || 'OTP verification failed' });
-                      } finally { setForgotLoading(false); }
-                    }}>{forgotLoading ? 'Verifying...' : 'Verify OTP'}</Button>
+                    <Button variant="outline" onClick={() => setForgotStep("enterEmail")}>
+                      Back
+                    </Button>
+                    <Button
+                      onClick={async () => {
+                        try {
+                          setForgotLoading(true);
+                          const emailToUse = String((forgotEmail || "").trim());
+                          const res = await callEdgeFunction("verify-otp", {
+                            email: emailToUse,
+                            otp: forgotOtp,
+                          });
+                          if (res?.error) throw res.error;
+                          toast({
+                            title: "OTP verified",
+                            description: "You can now set a new password",
+                          });
+                          setForgotStep("setPassword");
+                        } catch (err: any) {
+                          console.error("verify-otp error", err);
+                          toast({
+                            variant: "destructive",
+                            title: "Error",
+                            description: err?.message || "OTP verification failed",
+                          });
+                        } finally {
+                          setForgotLoading(false);
+                        }
+                      }}
+                    >
+                      {forgotLoading ? "Verifying..." : "Verify OTP"}
+                    </Button>
                   </div>
                 </div>
               )}
 
-              {forgotStep === 'setPassword' && (
+              {forgotStep === "setPassword" && (
                 <div>
                   <Label>New Password</Label>
-                  <Input type="password" value={forgotNewPassword} onChange={(e) => setForgotNewPassword(e.target.value)} placeholder="New password" />
+                  <Input
+                    type="password"
+                    value={forgotNewPassword}
+                    onChange={(e) => setForgotNewPassword(e.target.value)}
+                    placeholder="New password"
+                  />
                   <div className="flex justify-end gap-2 mt-3">
-                    <Button variant="outline" onClick={() => setForgotStep('enterOtp')}>Back</Button>
-                    <Button onClick={async () => {
-                      try {
-                        setForgotLoading(true);
-                        const emailToUse = String((forgotEmail || '').trim());
-                        const res = await callEdgeFunction('reset-password', { email: emailToUse, otp: forgotOtp, newPassword: forgotNewPassword });
-                        if (res?.error) {
-                          // fallback: send reset link
-                          const { data, error } = await supabase.auth.resetPasswordForEmail(emailToUse, { redirectTo: window.location.origin + '/auth' });
-                          if (error) throw error;
-                          toast({ title: 'Reset email sent', description: 'Check your inbox for a password reset link' });
-                          setForgotOpen(false);
-                        } else {
-                          toast({ title: 'Password changed', description: 'You can now login with your new password' });
-                          setForgotOpen(false);
+                    <Button variant="outline" onClick={() => setForgotStep("enterOtp")}>
+                      Back
+                    </Button>
+                    <Button
+                      onClick={async () => {
+                        try {
+                          setForgotLoading(true);
+                          const emailToUse = String((forgotEmail || "").trim());
+                          const res = await callEdgeFunction("reset-password", {
+                            email: emailToUse,
+                            otp: forgotOtp,
+                            newPassword: forgotNewPassword,
+                          });
+                          if (res?.error) {
+                            // fallback: send reset link
+                            const { data, error } = await supabase.auth.resetPasswordForEmail(
+                              emailToUse,
+                              { redirectTo: window.location.origin + "/auth" },
+                            );
+                            if (error) throw error;
+                            toast({
+                              title: "Reset email sent",
+                              description: "Check your inbox for a password reset link",
+                            });
+                            setForgotOpen(false);
+                          } else {
+                            toast({
+                              title: "Password changed",
+                              description: "You can now login with your new password",
+                            });
+                            setForgotOpen(false);
+                          }
+                        } catch (err: any) {
+                          console.error("reset-password error", err);
+                          toast({
+                            variant: "destructive",
+                            title: "Error",
+                            description: err?.message || "Failed to reset password",
+                          });
+                        } finally {
+                          setForgotLoading(false);
                         }
-                      } catch (err: any) {
-                        console.error('reset-password error', err);
-                        toast({ variant: 'destructive', title: 'Error', description: err?.message || 'Failed to reset password' });
-                      } finally { setForgotLoading(false); }
-                    }}>{forgotLoading ? 'Please wait...' : 'Set Password'}</Button>
+                      }}
+                    >
+                      {forgotLoading ? "Please wait..." : "Set Password"}
+                    </Button>
                   </div>
                 </div>
               )}
@@ -420,4 +529,3 @@ const Auth = () => {
 };
 
 export default Auth;
-

@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
-import Layout from '@/components/Layout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
+import { useState, useEffect } from "react";
+import Layout from "@/components/Layout";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -13,23 +13,23 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import {
   createRfq,
   sendRfq,
   recordQuotationResponse,
   listRfqs,
-} from '@/lib/procurement/rfq.functions';
+} from "@/lib/procurement/rfq.functions";
 import {
   Send,
   PlusCircle,
@@ -40,7 +40,7 @@ import {
   Clock,
   RefreshCw,
   Eye,
-} from 'lucide-react';
+} from "lucide-react";
 
 export default function RfqManagement() {
   const { toast } = useToast();
@@ -51,9 +51,9 @@ export default function RfqManagement() {
 
   // Create RFQ Modal
   const [createOpen, setCreateOpen] = useState(false);
-  const [selectedPrId, setSelectedPrId] = useState('');
-  const [deadline, setDeadline] = useState('');
-  const [notes, setNotes] = useState('');
+  const [selectedPrId, setSelectedPrId] = useState("");
+  const [deadline, setDeadline] = useState("");
+  const [notes, setNotes] = useState("");
   const [creating, setCreating] = useState(false);
 
   // Send RFQ Modal
@@ -65,8 +65,8 @@ export default function RfqManagement() {
   // Record Quote Modal
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [quoteRfq, setQuoteRfq] = useState<any>(null);
-  const [quoteVendorId, setQuoteVendorId] = useState('');
-  const [quotationRef, setQuotationRef] = useState('');
+  const [quoteVendorId, setQuoteVendorId] = useState("");
+  const [quotationRef, setQuotationRef] = useState("");
   const [quoteLines, setQuoteLines] = useState<any[]>([]);
   const [recording, setRecording] = useState(false);
 
@@ -80,19 +80,19 @@ export default function RfqManagement() {
 
       // Fetch approved PRs
       const { data: prData } = await supabase
-        .from('purchase_requisitions')
-        .select('id, pr_number, category, scope, estimated_value, status, justification')
-        .eq('status', 'approved');
+        .from("purchase_requisitions")
+        .select("id, pr_number, category, scope, estimated_value, status, justification")
+        .eq("status", "approved");
       setApprovedPrs(prData || []);
 
       // Fetch empanelled vendors
       const { data: vData } = await supabase
-        .from('vendors')
-        .select('id, name, gst_number, status, empanelment_expiry')
-        .eq('status', 'empanelled');
+        .from("vendors")
+        .select("id, name, gst_number, status, empanelment_expiry")
+        .eq("status", "empanelled");
       setEmpanelledVendors(vData || []);
     } catch (e: any) {
-      toast({ title: 'Error loading data', description: e.message, variant: 'destructive' });
+      toast({ title: "Error loading data", description: e.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -104,7 +104,11 @@ export default function RfqManagement() {
 
   const handleCreateRfq = async () => {
     if (!selectedPrId) {
-      toast({ title: 'Validation Error', description: 'Please select an approved requisition.', variant: 'destructive' });
+      toast({
+        title: "Validation Error",
+        description: "Please select an approved requisition.",
+        variant: "destructive",
+      });
       return;
     }
     setCreating(true);
@@ -118,18 +122,18 @@ export default function RfqManagement() {
       });
 
       if (!res.ok) {
-        toast({ title: 'Failed to create RFQ', description: res.error, variant: 'destructive' });
+        toast({ title: "Failed to create RFQ", description: res.error, variant: "destructive" });
         return;
       }
 
-      toast({ title: 'RFQ Created', description: `RFQ created with status "${res.rfq.status}".` });
+      toast({ title: "RFQ Created", description: `RFQ created with status "${res.rfq.status}".` });
       setCreateOpen(false);
-      setSelectedPrId('');
-      setDeadline('');
-      setNotes('');
+      setSelectedPrId("");
+      setDeadline("");
+      setNotes("");
       loadData();
     } catch (e: any) {
-      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+      toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
       setCreating(false);
     }
@@ -146,9 +150,9 @@ export default function RfqManagement() {
     const minReq = activeRfq.required_min_quotations || 3;
     if (selectedVendorIds.length < minReq) {
       toast({
-        title: 'Insufficient Vendors',
+        title: "Insufficient Vendors",
         description: `Institutional Procurement Rules require at least ${minReq} empanelled vendors (currently selected ${selectedVendorIds.length}).`,
-        variant: 'destructive',
+        variant: "destructive",
       });
       return;
     }
@@ -163,15 +167,18 @@ export default function RfqManagement() {
       });
 
       if (!res.ok) {
-        toast({ title: 'Failed to send RFQ', description: res.error, variant: 'destructive' });
+        toast({ title: "Failed to send RFQ", description: res.error, variant: "destructive" });
         return;
       }
 
-      toast({ title: 'RFQ Sent', description: `Sent to ${res.sentCount} empanelled vendors successfully.` });
+      toast({
+        title: "RFQ Sent",
+        description: `Sent to ${res.sentCount} empanelled vendors successfully.`,
+      });
       setSendOpen(false);
       loadData();
     } catch (e: any) {
-      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+      toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
       setSending(false);
     }
@@ -179,14 +186,11 @@ export default function RfqManagement() {
 
   const handleOpenRecordQuote = async (rfq: any) => {
     setQuoteRfq(rfq);
-    setQuoteVendorId(rfq.rfq_vendors?.[0]?.vendor_id || '');
-    setQuotationRef('');
+    setQuoteVendorId(rfq.rfq_vendors?.[0]?.vendor_id || "");
+    setQuotationRef("");
 
     // Fetch line items for this PR
-    const { data: items } = await supabase
-      .from('pr_line_items')
-      .select('*')
-      .eq('pr_id', rfq.pr_id);
+    const { data: items } = await supabase.from("pr_line_items").select("*").eq("pr_id", rfq.pr_id);
 
     if (items && items.length > 0) {
       setQuoteLines(
@@ -194,27 +198,27 @@ export default function RfqManagement() {
           pr_line_item_id: i.id,
           description: i.description,
           quantity: Number(i.net_qty_to_procure) || 1,
-          unit: i.unit || 'pcs',
+          unit: i.unit || "pcs",
           unit_price: Number(i.est_unit_price) || 0,
           tax_amount: 0,
           delivery_days: 7,
           warranty_months: 12,
           meets_technical_spec: true,
-          technical_remarks: '',
+          technical_remarks: "",
         })),
       );
     } else {
       setQuoteLines([
         {
-          description: rfq.purchase_requisitions?.justification || 'Required items',
+          description: rfq.purchase_requisitions?.justification || "Required items",
           quantity: 1,
-          unit: 'lot',
+          unit: "lot",
           unit_price: Number(rfq.purchase_requisitions?.estimated_value) || 0,
           tax_amount: 0,
           delivery_days: 7,
           warranty_months: 12,
           meets_technical_spec: true,
-          technical_remarks: '',
+          technical_remarks: "",
         },
       ]);
     }
@@ -224,7 +228,11 @@ export default function RfqManagement() {
 
   const handleRecordQuote = async () => {
     if (!quoteRfq || !quoteVendorId) {
-      toast({ title: 'Select Vendor', description: 'Please select an invited vendor.', variant: 'destructive' });
+      toast({
+        title: "Select Vendor",
+        description: "Please select an invited vendor.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -240,15 +248,18 @@ export default function RfqManagement() {
       });
 
       if (!res.ok) {
-        toast({ title: 'Failed to record quote', description: res.error, variant: 'destructive' });
+        toast({ title: "Failed to record quote", description: res.error, variant: "destructive" });
         return;
       }
 
-      toast({ title: 'Quotation Recorded', description: `Saved ${res.linesCount} quotation line items.` });
+      toast({
+        title: "Quotation Recorded",
+        description: `Saved ${res.linesCount} quotation line items.`,
+      });
       setQuoteOpen(false);
       loadData();
     } catch (e: any) {
-      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+      toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
       setRecording(false);
     }
@@ -267,12 +278,16 @@ export default function RfqManagement() {
               RFQ & Vendor Solicitations
             </h1>
             <p className="text-slate-600 dark:text-slate-400 mt-1">
-              Create RFQs against approved PRs, invite empanelled vendors, and capture line-item quotations.
+              Create RFQs against approved PRs, invite empanelled vendors, and capture line-item
+              quotations.
             </p>
           </div>
 
           <div className="flex items-center gap-2">
-            <Button onClick={() => setCreateOpen(true)} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-sm">
+            <Button
+              onClick={() => setCreateOpen(true)}
+              className="gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+            >
               <PlusCircle className="w-4 h-4" /> Create RFQ
             </Button>
           </div>
@@ -284,25 +299,39 @@ export default function RfqManagement() {
             <div className="p-8 text-center text-slate-500">Loading RFQs...</div>
           ) : rfqs.length === 0 ? (
             <Card className="text-center p-8">
-              <p className="text-slate-500">No RFQs created yet. Create one from an approved Purchase Requisition.</p>
+              <p className="text-slate-500">
+                No RFQs created yet. Create one from an approved Purchase Requisition.
+              </p>
             </Card>
           ) : (
             rfqs.map((rfq) => {
               const vendorsCount = rfq.rfq_vendors?.length || 0;
-              const responsesCount = rfq.rfq_vendors?.filter((v: any) => v.response_received_at)?.length || 0;
+              const responsesCount =
+                rfq.rfq_vendors?.filter((v: any) => v.response_received_at)?.length || 0;
               const minReq = rfq.required_min_quotations || 3;
               const pr = rfq.purchase_requisitions;
 
               return (
-                <Card key={rfq.id} className="overflow-hidden border border-slate-200 dark:border-slate-800 hover:border-slate-300">
+                <Card
+                  key={rfq.id}
+                  className="overflow-hidden border border-slate-200 dark:border-slate-800 hover:border-slate-300"
+                >
                   <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 pb-3">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <span className="font-mono font-bold text-base text-slate-900 dark:text-slate-100">
-                            {rfq.rfq_number || 'RFQ-PENDING'}
+                            {rfq.rfq_number || "RFQ-PENDING"}
                           </span>
-                          <Badge variant={rfq.status === 'sent' ? 'default' : rfq.status === 'closed' ? 'secondary' : 'outline'}>
+                          <Badge
+                            variant={
+                              rfq.status === "sent"
+                                ? "default"
+                                : rfq.status === "closed"
+                                  ? "secondary"
+                                  : "outline"
+                            }
+                          >
                             {rfq.status.toUpperCase()}
                           </Badge>
                           <Badge variant="outline" className="text-xs">
@@ -310,18 +339,32 @@ export default function RfqManagement() {
                           </Badge>
                         </div>
                         <p className="text-xs text-slate-500">
-                          PR Ref: <span className="font-semibold text-slate-700 dark:text-slate-300">{pr?.pr_number || 'PR'}</span> • Category: {pr?.category} • Est. Value: ₹{Number(pr?.estimated_value || 0).toLocaleString('en-IN')}
+                          PR Ref:{" "}
+                          <span className="font-semibold text-slate-700 dark:text-slate-300">
+                            {pr?.pr_number || "PR"}
+                          </span>{" "}
+                          • Category: {pr?.category} • Est. Value: ₹
+                          {Number(pr?.estimated_value || 0).toLocaleString("en-IN")}
                         </p>
                       </div>
 
                       <div className="flex items-center gap-2">
-                        {rfq.status === 'draft' && (
-                          <Button size="sm" onClick={() => handleOpenSend(rfq)} className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white">
+                        {rfq.status === "draft" && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleOpenSend(rfq)}
+                            className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                          >
                             <Send className="w-3.5 h-3.5" /> Invite Vendors
                           </Button>
                         )}
-                        {rfq.status === 'sent' && (
-                          <Button size="sm" variant="outline" onClick={() => handleOpenRecordQuote(rfq)} className="gap-1 border-blue-500 text-blue-600 hover:bg-blue-50">
+                        {rfq.status === "sent" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleOpenRecordQuote(rfq)}
+                            className="gap-1 border-blue-500 text-blue-600 hover:bg-blue-50"
+                          >
                             <PlusCircle className="w-3.5 h-3.5" /> Record Quotation
                           </Button>
                         )}
@@ -345,7 +388,9 @@ export default function RfqManagement() {
                       <div>
                         <span className="text-slate-500 block">Response Deadline</span>
                         <span className="font-semibold text-slate-800 dark:text-slate-200">
-                          {rfq.response_deadline ? new Date(rfq.response_deadline).toLocaleDateString() : 'Open / Unset'}
+                          {rfq.response_deadline
+                            ? new Date(rfq.response_deadline).toLocaleDateString()
+                            : "Open / Unset"}
                         </span>
                       </div>
                     </div>
@@ -353,12 +398,14 @@ export default function RfqManagement() {
                     {/* Vendors list chips */}
                     {rfq.rfq_vendors && rfq.rfq_vendors.length > 0 && (
                       <div className="space-y-1">
-                        <span className="text-xs font-medium text-slate-500">Participating Vendors:</span>
+                        <span className="text-xs font-medium text-slate-500">
+                          Participating Vendors:
+                        </span>
                         <div className="flex flex-wrap gap-1.5">
                           {rfq.rfq_vendors.map((rv: any) => (
                             <Badge key={rv.id} variant="secondary" className="gap-1 text-xs py-0.5">
                               <Building2 className="w-3 h-3 text-slate-400" />
-                              {rv.vendors?.name || 'Vendor'}
+                              {rv.vendors?.name || "Vendor"}
                               {rv.response_received_at ? (
                                 <CheckCircle className="w-3 h-3 text-emerald-500" />
                               ) : (
@@ -396,13 +443,16 @@ export default function RfqManagement() {
                   <SelectContent>
                     {approvedPrs.map((pr) => (
                       <SelectItem key={pr.id} value={pr.id}>
-                        {pr.pr_number || pr.id.slice(0, 8)} — {pr.category} (₹{Number(pr.estimated_value).toLocaleString('en-IN')})
+                        {pr.pr_number || pr.id.slice(0, 8)} — {pr.category} (₹
+                        {Number(pr.estimated_value).toLocaleString("en-IN")})
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
                 {approvedPrs.length === 0 && (
-                  <p className="text-xs text-amber-600">No approved PRs available. Raise and approve a PR first.</p>
+                  <p className="text-xs text-amber-600">
+                    No approved PRs available. Raise and approve a PR first.
+                  </p>
                 )}
               </div>
 
@@ -423,9 +473,11 @@ export default function RfqManagement() {
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setCreateOpen(false)}>
+                Cancel
+              </Button>
               <Button onClick={handleCreateRfq} disabled={creating || !selectedPrId}>
-                {creating ? 'Creating...' : 'Create RFQ'}
+                {creating ? "Creating..." : "Create RFQ"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -437,7 +489,8 @@ export default function RfqManagement() {
             <DialogHeader>
               <DialogTitle>Invite Empanelled Vendors</DialogTitle>
               <DialogDescription>
-                Select at least {activeRfq?.required_min_quotations || 3} empanelled vendors. Free-text email input is restricted to empanelled vendors.
+                Select at least {activeRfq?.required_min_quotations || 3} empanelled vendors.
+                Free-text email input is restricted to empanelled vendors.
               </DialogDescription>
             </DialogHeader>
 
@@ -449,7 +502,9 @@ export default function RfqManagement() {
                 </div>
                 {selectedVendorIds.length < (activeRfq?.required_min_quotations || 3) && (
                   <p className="text-amber-700 dark:text-amber-400">
-                    ⚠️ You must select {((activeRfq?.required_min_quotations || 3) - selectedVendorIds.length)} more vendor(s) to meet the minimum quotation rule.
+                    ⚠️ You must select{" "}
+                    {(activeRfq?.required_min_quotations || 3) - selectedVendorIds.length} more
+                    vendor(s) to meet the minimum quotation rule.
                   </p>
                 )}
               </div>
@@ -470,11 +525,18 @@ export default function RfqManagement() {
                       <div className="flex items-center space-x-2">
                         <Checkbox checked={isChecked} />
                         <div>
-                          <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{vendor.name}</p>
-                          <p className="text-xs text-slate-400">GST: {vendor.gst_number || 'N/A'}</p>
+                          <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                            {vendor.name}
+                          </p>
+                          <p className="text-xs text-slate-400">
+                            GST: {vendor.gst_number || "N/A"}
+                          </p>
                         </div>
                       </div>
-                      <Badge variant="outline" className="text-xs text-emerald-600 border-emerald-500">
+                      <Badge
+                        variant="outline"
+                        className="text-xs text-emerald-600 border-emerald-500"
+                      >
                         Empanelled
                       </Badge>
                     </div>
@@ -484,13 +546,17 @@ export default function RfqManagement() {
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setSendOpen(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setSendOpen(false)}>
+                Cancel
+              </Button>
               <Button
                 onClick={handleSendRfq}
-                disabled={sending || selectedVendorIds.length < (activeRfq?.required_min_quotations || 3)}
+                disabled={
+                  sending || selectedVendorIds.length < (activeRfq?.required_min_quotations || 3)
+                }
                 className="bg-emerald-600 hover:bg-emerald-700 text-white"
               >
-                {sending ? 'Sending...' : `Send to ${selectedVendorIds.length} Vendors`}
+                {sending ? "Sending..." : `Send to ${selectedVendorIds.length} Vendors`}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -538,7 +604,10 @@ export default function RfqManagement() {
               <div className="space-y-3">
                 <Label>Line Item Pricing & Technical Compliance</Label>
                 {quoteLines.map((line, idx) => (
-                  <div key={idx} className="p-3 border rounded-lg bg-slate-50 dark:bg-slate-900 space-y-3 text-xs">
+                  <div
+                    key={idx}
+                    className="p-3 border rounded-lg bg-slate-50 dark:bg-slate-900 space-y-3 text-xs"
+                  >
                     <div className="font-semibold text-slate-800 dark:text-slate-200">
                       Item #{idx + 1}: {line.description}
                     </div>
@@ -550,7 +619,9 @@ export default function RfqManagement() {
                           value={line.quantity}
                           onChange={(e) => {
                             const val = Number(e.target.value) || 1;
-                            setQuoteLines((prev) => prev.map((l, i) => (i === idx ? { ...l, quantity: val } : l)));
+                            setQuoteLines((prev) =>
+                              prev.map((l, i) => (i === idx ? { ...l, quantity: val } : l)),
+                            );
                           }}
                         />
                       </div>
@@ -561,7 +632,9 @@ export default function RfqManagement() {
                           value={line.unit_price}
                           onChange={(e) => {
                             const val = Number(e.target.value) || 0;
-                            setQuoteLines((prev) => prev.map((l, i) => (i === idx ? { ...l, unit_price: val } : l)));
+                            setQuoteLines((prev) =>
+                              prev.map((l, i) => (i === idx ? { ...l, unit_price: val } : l)),
+                            );
                           }}
                         />
                       </div>
@@ -572,14 +645,20 @@ export default function RfqManagement() {
                           value={line.tax_amount}
                           onChange={(e) => {
                             const val = Number(e.target.value) || 0;
-                            setQuoteLines((prev) => prev.map((l, i) => (i === idx ? { ...l, tax_amount: val } : l)));
+                            setQuoteLines((prev) =>
+                              prev.map((l, i) => (i === idx ? { ...l, tax_amount: val } : l)),
+                            );
                           }}
                         />
                       </div>
                       <div>
                         <Label className="text-[10px]">Total (₹)</Label>
                         <div className="p-2 font-mono font-bold bg-white dark:bg-slate-950 border rounded text-right">
-                          ₹{((line.quantity * line.unit_price) + Number(line.tax_amount)).toLocaleString('en-IN')}
+                          ₹
+                          {(
+                            line.quantity * line.unit_price +
+                            Number(line.tax_amount)
+                          ).toLocaleString("en-IN")}
                         </div>
                       </div>
                     </div>
@@ -592,7 +671,9 @@ export default function RfqManagement() {
                           value={line.delivery_days}
                           onChange={(e) => {
                             const val = Number(e.target.value) || 7;
-                            setQuoteLines((prev) => prev.map((l, i) => (i === idx ? { ...l, delivery_days: val } : l)));
+                            setQuoteLines((prev) =>
+                              prev.map((l, i) => (i === idx ? { ...l, delivery_days: val } : l)),
+                            );
                           }}
                         />
                       </div>
@@ -603,7 +684,9 @@ export default function RfqManagement() {
                           value={line.warranty_months}
                           onChange={(e) => {
                             const val = Number(e.target.value) || 12;
-                            setQuoteLines((prev) => prev.map((l, i) => (i === idx ? { ...l, warranty_months: val } : l)));
+                            setQuoteLines((prev) =>
+                              prev.map((l, i) => (i === idx ? { ...l, warranty_months: val } : l)),
+                            );
                           }}
                         />
                       </div>
@@ -613,11 +696,16 @@ export default function RfqManagement() {
                           checked={line.meets_technical_spec}
                           onCheckedChange={(checked) => {
                             setQuoteLines((prev) =>
-                              prev.map((l, i) => (i === idx ? { ...l, meets_technical_spec: !!checked } : l)),
+                              prev.map((l, i) =>
+                                i === idx ? { ...l, meets_technical_spec: !!checked } : l,
+                              ),
                             );
                           }}
                         />
-                        <Label htmlFor={`spec-${idx}`} className="text-xs cursor-pointer font-medium">
+                        <Label
+                          htmlFor={`spec-${idx}`}
+                          className="text-xs cursor-pointer font-medium"
+                        >
                           Meets Spec
                         </Label>
                       </div>
@@ -628,9 +716,11 @@ export default function RfqManagement() {
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setQuoteOpen(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setQuoteOpen(false)}>
+                Cancel
+              </Button>
               <Button onClick={handleRecordQuote} disabled={recording || !quoteVendorId}>
-                {recording ? 'Saving...' : 'Save Quotation Response'}
+                {recording ? "Saving..." : "Save Quotation Response"}
               </Button>
             </DialogFooter>
           </DialogContent>

@@ -1,8 +1,14 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import imageCompression from 'browser-image-compression';
+import imageCompression from "browser-image-compression";
 
 interface PhotoUploadProps {
   value: File | null;
@@ -20,25 +26,28 @@ export const PhotoUpload = ({ value, onChange, label, accept = "image/*" }: Phot
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  const compressImage = useCallback(async (file: File): Promise<File> => {
-    try {
-      const options = {
-        maxSizeMB: 2,
-        maxWidthOrHeight: 1920,
-        useWebWorker: true,
-      };
-      const compressedFile = await imageCompression(file, options);
-      return compressedFile;
-    } catch (error) {
-      console.error('Error compressing image:', error);
-      toast({
-        variant: "destructive",
-        title: "Compression Error",
-        description: "Failed to compress image. Using original.",
-      });
-      return file;
-    }
-  }, [toast]);
+  const compressImage = useCallback(
+    async (file: File): Promise<File> => {
+      try {
+        const options = {
+          maxSizeMB: 2,
+          maxWidthOrHeight: 1920,
+          useWebWorker: true,
+        };
+        const compressedFile = await imageCompression(file, options);
+        return compressedFile;
+      } catch (error) {
+        console.error("Error compressing image:", error);
+        toast({
+          variant: "destructive",
+          title: "Compression Error",
+          description: "Failed to compress image. Using original.",
+        });
+        return file;
+      }
+    },
+    [toast],
+  );
 
   // Create preview URL when file changes
   useEffect(() => {
@@ -54,14 +63,14 @@ export const PhotoUpload = ({ value, onChange, label, accept = "image/*" }: Phot
   const startCamera = useCallback(async () => {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' } // Use back camera if available
+        video: { facingMode: "environment" }, // Use back camera if available
       });
       setStream(mediaStream);
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
       }
     } catch (error) {
-      console.error('Error accessing camera:', error);
+      console.error("Error accessing camera:", error);
       toast({
         variant: "destructive",
         title: "Camera Error",
@@ -72,7 +81,7 @@ export const PhotoUpload = ({ value, onChange, label, accept = "image/*" }: Phot
 
   const stopCamera = useCallback(() => {
     if (stream) {
-      stream.getTracks().forEach(track => track.stop());
+      stream.getTracks().forEach((track) => track.stop());
       setStream(null);
     }
   }, [stream]);
@@ -81,26 +90,30 @@ export const PhotoUpload = ({ value, onChange, label, accept = "image/*" }: Phot
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
-      const context = canvas.getContext('2d');
+      const context = canvas.getContext("2d");
 
       if (context) {
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         context.drawImage(video, 0, 0);
 
-        canvas.toBlob(async (blob) => {
-          if (blob) {
-            const file = new File([blob], `photo-${Date.now()}.jpg`, { type: 'image/jpeg' });
-            const compressedFile = await compressImage(file);
-            onChange(compressedFile);
-            setIsCameraOpen(false);
-            stopCamera();
-            toast({
-              title: "Photo captured",
-              description: "Photo has been captured and compressed successfully.",
-            });
-          }
-        }, 'image/jpeg', 0.8);
+        canvas.toBlob(
+          async (blob) => {
+            if (blob) {
+              const file = new File([blob], `photo-${Date.now()}.jpg`, { type: "image/jpeg" });
+              const compressedFile = await compressImage(file);
+              onChange(compressedFile);
+              setIsCameraOpen(false);
+              stopCamera();
+              toast({
+                title: "Photo captured",
+                description: "Photo has been captured and compressed successfully.",
+              });
+            }
+          },
+          "image/jpeg",
+          0.8,
+        );
       }
     }
   }, [onChange, stopCamera, toast, compressImage]);
@@ -128,15 +141,13 @@ export const PhotoUpload = ({ value, onChange, label, accept = "image/*" }: Phot
   const removePhoto = () => {
     onChange(null);
     if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      fileInputRef.current.value = "";
     }
   };
 
   return (
     <div className="space-y-4 p-6 bg-gradient-to-br from-muted/50 to-muted rounded-xl shadow-sm border">
-      <label className="text-lg font-semibold text-foreground block">
-        {label}
-      </label>
+      <label className="text-lg font-semibold text-foreground block">{label}</label>
 
       <div className="flex gap-3">
         <Button
@@ -175,14 +186,14 @@ export const PhotoUpload = ({ value, onChange, label, accept = "image/*" }: Phot
                 <canvas ref={canvasRef} className="hidden" />
               </div>
               <div className="flex gap-3">
-                <Button 
-                  onClick={capturePhoto} 
+                <Button
+                  onClick={capturePhoto}
                   className="flex-1 py-2 bg-primary hover:bg-primary/90 transition-all duration-300 hover:scale-105 rounded-lg font-medium"
                 >
                   Capture
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={handleCameraClose}
                   className="flex-1 py-2 border-border hover:bg-accent transition-all duration-300 hover:scale-105 rounded-lg font-medium"
                 >
@@ -212,12 +223,8 @@ export const PhotoUpload = ({ value, onChange, label, accept = "image/*" }: Phot
             />
           )}
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-card-foreground truncate">
-              {value.name}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {(value.size / 1024).toFixed(1)} KB
-            </p>
+            <p className="text-sm font-semibold text-card-foreground truncate">{value.name}</p>
+            <p className="text-xs text-muted-foreground">{(value.size / 1024).toFixed(1)} KB</p>
           </div>
           <Button
             type="button"

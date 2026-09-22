@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { X, Camera } from 'lucide-react';
+import { useEffect, useRef, useState } from "react";
+import { Html5QrcodeScanner } from "html5-qrcode";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { X, Camera } from "lucide-react";
 
 interface QRScannerProps {
   onScan: (result: string) => void;
@@ -15,13 +15,13 @@ const QRScanner = ({ onScan, onClose }: QRScannerProps) => {
 
   useEffect(() => {
     const scanner = new Html5QrcodeScanner(
-      'qr-reader',
+      "qr-reader",
       {
         fps: 10,
         qrbox: { width: 250, height: 250 },
         aspectRatio: 1.0,
       },
-      false
+      false,
     );
 
     scanner.render(
@@ -30,8 +30,8 @@ const QRScanner = ({ onScan, onClose }: QRScannerProps) => {
         scanner.clear();
       },
       (error) => {
-        console.log('QR scan error:', error);
-      }
+        console.log("QR scan error:", error);
+      },
     );
 
     scannerRef.current = scanner;
@@ -59,12 +59,7 @@ const QRScanner = ({ onScan, onClose }: QRScannerProps) => {
           <Camera className="w-5 h-5" />
           QR Code Scanner
         </CardTitle>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={stopScanning}
-          className="h-8 w-8 p-0"
-        >
+        <Button variant="ghost" size="sm" onClick={stopScanning} className="h-8 w-8 p-0">
           <X className="w-4 h-4" />
         </Button>
       </CardHeader>

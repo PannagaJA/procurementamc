@@ -1,14 +1,14 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from '@tanstack/react-router';
-import Layout from '@/components/Layout';
-import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from '@/hooks/use-toast';
+import { useState, useEffect } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import Layout from "@/components/Layout";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
 import {
   ShieldCheck,
   Building2,
@@ -20,47 +20,47 @@ import {
   ArrowRight,
   UserCheck,
   Calendar,
-} from 'lucide-react';
+} from "lucide-react";
 import {
   applyEmpanelment,
   evaluateVendor,
   approveEmpanelment,
   rejectEmpanelment,
   listVendorsForReview,
-} from '@/lib/procurement/vendors.functions';
-import { useAuth } from '@/lib/auth';
+} from "@/lib/procurement/vendors.functions";
+import { useAuth } from "@/lib/auth";
 
 export default function VendorManagement() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const auth = useAuth();
 
-  const [activeTab, setActiveTab] = useState('apply');
+  const [activeTab, setActiveTab] = useState("apply");
   const [vendors, setVendors] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [userRoles, setUserRoles] = useState<string[]>([]);
 
   // Apply Form State
-  const [name, setName] = useState('');
-  const [address, setAddress] = useState('');
-  const [gstNumber, setGstNumber] = useState('');
-  const [panNumber, setPanNumber] = useState('');
-  const [accountNo, setAccountNo] = useState('');
-  const [ifsc, setIfsc] = useState('');
-  const [bankName, setBankName] = useState('');
+  const [name, setName] = useState("");
+  const [address, setAddress] = useState("");
+  const [gstNumber, setGstNumber] = useState("");
+  const [panNumber, setPanNumber] = useState("");
+  const [accountNo, setAccountNo] = useState("");
+  const [ifsc, setIfsc] = useState("");
+  const [bankName, setBankName] = useState("");
 
   // Evaluation Form State
-  const [evaluatingVendorId, setEvaluatingVendorId] = useState<string>('');
+  const [evaluatingVendorId, setEvaluatingVendorId] = useState<string>("");
   const [techScore, setTechScore] = useState<number>(85);
   const [expScore, setExpScore] = useState<number>(80);
   const [supportScore, setSupportScore] = useState<number>(90);
   const [financialScore, setFinancialScore] = useState<number>(85);
-  const [decision, setDecision] = useState<'recommend' | 'not_recommend'>('recommend');
-  const [evalNotes, setEvalNotes] = useState('');
+  const [decision, setDecision] = useState<"recommend" | "not_recommend">("recommend");
+  const [evalNotes, setEvalNotes] = useState("");
 
   // EVP Approval State
-  const [approvalNotes, setApprovalNotes] = useState('');
-  const [rejectReason, setRejectReason] = useState('');
+  const [approvalNotes, setApprovalNotes] = useState("");
+  const [rejectReason, setRejectReason] = useState("");
 
   const loadVendors = async () => {
     try {
@@ -69,7 +69,7 @@ export default function VendorManagement() {
       setVendors(res.vendors || []);
       setUserRoles(res.roles || []);
     } catch (err) {
-      console.error('Failed to load vendors', err);
+      console.error("Failed to load vendors", err);
     } finally {
       setIsLoading(false);
     }
@@ -82,7 +82,7 @@ export default function VendorManagement() {
   const handleApply = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      toast({ title: 'Vendor name is required', variant: 'destructive' });
+      toast({ title: "Vendor name is required", variant: "destructive" });
       return;
     }
 
@@ -104,30 +104,30 @@ export default function VendorManagement() {
 
       if (!res.ok) {
         toast({
-          title: 'Application Failed',
-          description: (res as any).error || 'Server rejected application',
-          variant: 'destructive',
+          title: "Application Failed",
+          description: (res as any).error || "Server rejected application",
+          variant: "destructive",
         });
         return;
       }
 
       toast({
-        title: 'Vendor Application Submitted!',
+        title: "Vendor Application Submitted!",
         description: `Vendor "${res.vendor.name}" registered in 'applied' status. Proceed to Evaluation.`,
       });
 
-      setName('');
-      setAddress('');
-      setGstNumber('');
-      setPanNumber('');
-      setAccountNo('');
-      setIfsc('');
-      setBankName('');
+      setName("");
+      setAddress("");
+      setGstNumber("");
+      setPanNumber("");
+      setAccountNo("");
+      setIfsc("");
+      setBankName("");
 
       await loadVendors();
-      setActiveTab('evaluate');
+      setActiveTab("evaluate");
     } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+      toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -136,7 +136,7 @@ export default function VendorManagement() {
   const handleEvaluate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!evaluatingVendorId) {
-      toast({ title: 'Please select a vendor to evaluate', variant: 'destructive' });
+      toast({ title: "Please select a vendor to evaluate", variant: "destructive" });
       return;
     }
 
@@ -156,24 +156,24 @@ export default function VendorManagement() {
 
       if (!res.ok) {
         toast({
-          title: 'Evaluation Failed',
+          title: "Evaluation Failed",
           description: (res as any).error,
-          variant: 'destructive',
+          variant: "destructive",
         });
         return;
       }
 
       toast({
-        title: 'Evaluation Recorded!',
+        title: "Evaluation Recorded!",
         description: 'Vendor status changed to "under_review". Ready for EVP Approval.',
       });
 
-      setEvaluatingVendorId('');
-      setEvalNotes('');
+      setEvaluatingVendorId("");
+      setEvalNotes("");
       await loadVendors();
-      setActiveTab('evp_approval');
+      setActiveTab("evp_approval");
     } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+      toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -191,21 +191,21 @@ export default function VendorManagement() {
 
       if (!res.ok) {
         toast({
-          title: 'EVP Approval Rejected',
+          title: "EVP Approval Rejected",
           description: (res as any).error,
-          variant: 'destructive',
+          variant: "destructive",
         });
         return;
       }
 
       toast({
-        title: 'Vendor Empanelled Successfully!',
+        title: "Vendor Empanelled Successfully!",
         description: `Vendor is now empanelled for 1 year (Empanelled on: ${res.empanelled_on}).`,
       });
 
       await loadVendors();
     } catch (err: any) {
-      toast({ title: 'Approval Error', description: err.message, variant: 'destructive' });
+      toast({ title: "Approval Error", description: err.message, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -213,7 +213,7 @@ export default function VendorManagement() {
 
   const handleEvpReject = async (vendorId: string) => {
     if (!rejectReason.trim()) {
-      toast({ title: 'Rejection reason is required', variant: 'destructive' });
+      toast({ title: "Rejection reason is required", variant: "destructive" });
       return;
     }
 
@@ -227,27 +227,31 @@ export default function VendorManagement() {
       });
 
       if (!res.ok) {
-        toast({ title: 'Rejection Failed', description: (res as any).error, variant: 'destructive' });
+        toast({
+          title: "Rejection Failed",
+          description: (res as any).error,
+          variant: "destructive",
+        });
         return;
       }
 
       toast({
-        title: 'Vendor Application Rejected',
-        description: 'Recorded in vendor evaluation history.',
+        title: "Vendor Application Rejected",
+        description: "Recorded in vendor evaluation history.",
       });
 
-      setRejectReason('');
+      setRejectReason("");
       await loadVendors();
     } catch (err: any) {
-      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+      toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const appliedVendors = vendors.filter((v) => v.status === 'applied');
-  const reviewVendors = vendors.filter((v) => v.status === 'under_review');
-  const empanelledVendors = vendors.filter((v) => v.status === 'empanelled');
+  const appliedVendors = vendors.filter((v) => v.status === "applied");
+  const reviewVendors = vendors.filter((v) => v.status === "under_review");
+  const empanelledVendors = vendors.filter((v) => v.status === "empanelled");
 
   return (
     <Layout>
@@ -262,10 +266,15 @@ export default function VendorManagement() {
               Vendor Empanelment & EVP Approval
             </h1>
             <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 mt-1">
-              Multi-stage vendor qualification lifecycle: Application → Technical Evaluation → EVP Approval Gate.
+              Multi-stage vendor qualification lifecycle: Application → Technical Evaluation → EVP
+              Approval Gate.
             </p>
           </div>
-          <Button variant="outline" className="w-full sm:w-auto shrink-0" onClick={() => navigate({ to: '/procurement/raise-pr' })}>
+          <Button
+            variant="outline"
+            className="w-full sm:w-auto shrink-0"
+            onClick={() => navigate({ to: "/procurement/raise-pr" })}
+          >
             Raise Requisition <ArrowRight className="w-4 h-4 ml-1.5" />
           </Button>
         </div>
@@ -276,11 +285,12 @@ export default function VendorManagement() {
             <UserCheck className="w-4 h-4 text-blue-600 shrink-0" />
             <span className="font-medium">Active Session Roles:</span>
             <span className="font-bold text-slate-900 dark:text-white uppercase bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">
-              {userRoles.join(', ') || 'user'}
+              {userRoles.join(", ") || "user"}
             </span>
           </div>
           <div className="text-slate-500 italic text-[11px] sm:text-xs">
-            * Note: Only users with the <strong>EVP</strong> (or Admin) role can approve vendor empanelment. Non-EVP users will be rejected server-side.
+            * Note: Only users with the <strong>EVP</strong> (or Admin) role can approve vendor
+            empanelment. Non-EVP users will be rejected server-side.
           </div>
         </div>
 
@@ -288,13 +298,22 @@ export default function VendorManagement() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <div className="w-full overflow-x-auto pb-1 scrollbar-none">
             <TabsList className="inline-flex w-full sm:w-auto h-auto p-1.5 gap-1.5 bg-slate-200/70 dark:bg-slate-800/80 rounded-xl">
-              <TabsTrigger value="apply" className="font-semibold text-xs sm:text-sm py-2 px-3.5 whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm">
+              <TabsTrigger
+                value="apply"
+                className="font-semibold text-xs sm:text-sm py-2 px-3.5 whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm"
+              >
                 1. Apply for Empanelment
               </TabsTrigger>
-              <TabsTrigger value="evaluate" className="font-semibold text-xs sm:text-sm py-2 px-3.5 whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm">
+              <TabsTrigger
+                value="evaluate"
+                className="font-semibold text-xs sm:text-sm py-2 px-3.5 whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm"
+              >
                 2. Technical Evaluation ({appliedVendors.length})
               </TabsTrigger>
-              <TabsTrigger value="evp_approval" className="font-semibold text-xs sm:text-sm py-2 px-3.5 whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm">
+              <TabsTrigger
+                value="evp_approval"
+                className="font-semibold text-xs sm:text-sm py-2 px-3.5 whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm"
+              >
                 3. EVP Approval Gate ({reviewVendors.length})
               </TabsTrigger>
             </TabsList>
@@ -305,10 +324,12 @@ export default function VendorManagement() {
             <Card className="shadow-sm border-slate-200 dark:border-slate-800">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <Building2 className="w-5 h-5 text-blue-600" /> Vendor Registration & Registration Details
+                  <Building2 className="w-5 h-5 text-blue-600" /> Vendor Registration & Registration
+                  Details
                 </CardTitle>
                 <CardDescription>
-                  Capture vendor statutory identifiers, GST/PAN compliance, and verified bank details.
+                  Capture vendor statutory identifiers, GST/PAN compliance, and verified bank
+                  details.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -389,8 +410,13 @@ export default function VendorManagement() {
                   </div>
 
                   <div className="pt-4 flex justify-end">
-                    <Button type="submit" size="lg" disabled={isLoading} className="font-semibold shadow-md">
-                      {isLoading ? 'Submitting Application...' : 'Submit Vendor Application'}
+                    <Button
+                      type="submit"
+                      size="lg"
+                      disabled={isLoading}
+                      className="font-semibold shadow-md"
+                    >
+                      {isLoading ? "Submitting Application..." : "Submit Vendor Application"}
                     </Button>
                   </div>
                 </form>
@@ -403,16 +429,19 @@ export default function VendorManagement() {
             <Card className="shadow-sm border-slate-200 dark:border-slate-800">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <FileCheck className="w-5 h-5 text-indigo-600" /> Evaluation by Procurement Committee (SOP §8.2)
+                  <FileCheck className="w-5 h-5 text-indigo-600" /> Evaluation by Procurement
+                  Committee (SOP §8.2)
                 </CardTitle>
                 <CardDescription>
-                  Evaluate applied vendors across 4 SOP criteria: Technical capability, Past performance, Service support, and Financial reasonableness.
+                  Evaluate applied vendors across 4 SOP criteria: Technical capability, Past
+                  performance, Service support, and Financial reasonableness.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 {appliedVendors.length === 0 ? (
                   <div className="p-8 text-center text-slate-500 bg-slate-50 dark:bg-slate-900 rounded-lg">
-                    No new vendors currently in 'applied' status. Submit an application in Tab 1 first.
+                    No new vendors currently in 'applied' status. Submit an application in Tab 1
+                    first.
                   </div>
                 ) : (
                   <form onSubmit={handleEvaluate} className="space-y-6">
@@ -428,7 +457,8 @@ export default function VendorManagement() {
                         <option value="">-- Choose Vendor --</option>
                         {appliedVendors.map((v) => (
                           <option key={v.id} value={v.id}>
-                            {v.name} (GST: {v.gst_number || 'N/A'}, Applied: {v.created_at?.slice(0, 10)})
+                            {v.name} (GST: {v.gst_number || "N/A"}, Applied:{" "}
+                            {v.created_at?.slice(0, 10)})
                           </option>
                         ))}
                       </select>
@@ -505,8 +535,8 @@ export default function VendorManagement() {
                               type="radio"
                               name="decision"
                               value="recommend"
-                              checked={decision === 'recommend'}
-                              onChange={() => setDecision('recommend')}
+                              checked={decision === "recommend"}
+                              onChange={() => setDecision("recommend")}
                               className="accent-emerald-600"
                             />
                             Recommend for Empanelment
@@ -516,8 +546,8 @@ export default function VendorManagement() {
                               type="radio"
                               name="decision"
                               value="not_recommend"
-                              checked={decision === 'not_recommend'}
-                              onChange={() => setDecision('not_recommend')}
+                              checked={decision === "not_recommend"}
+                              onChange={() => setDecision("not_recommend")}
                               className="accent-rose-600"
                             />
                             Do Not Recommend
@@ -538,7 +568,9 @@ export default function VendorManagement() {
 
                     <div className="flex justify-end">
                       <Button type="submit" disabled={isLoading} className="font-semibold">
-                        {isLoading ? 'Recording Evaluation...' : 'Submit Evaluation (Move to Under Review)'}
+                        {isLoading
+                          ? "Recording Evaluation..."
+                          : "Submit Evaluation (Move to Under Review)"}
                       </Button>
                     </div>
                   </form>
@@ -554,20 +586,24 @@ export default function VendorManagement() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Award className="w-5 h-5 text-purple-600" />
-                    <CardTitle className="text-lg">Executive Vice President (EVP) Approval Portal</CardTitle>
+                    <CardTitle className="text-lg">
+                      Executive Vice President (EVP) Approval Portal
+                    </CardTitle>
                   </div>
                   <span className="text-xs font-bold uppercase px-2.5 py-1 rounded bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300">
                     SOP §8.2 Mandatory Gate
                   </span>
                 </div>
                 <CardDescription>
-                  Vendors can only enter the Approved Vendor List after EVP-role approval. Server-enforced security rejects non-EVP calls.
+                  Vendors can only enter the Approved Vendor List after EVP-role approval.
+                  Server-enforced security rejects non-EVP calls.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 {reviewVendors.length === 0 ? (
                   <div className="p-8 text-center text-slate-500 bg-slate-50 dark:bg-slate-900 rounded-lg">
-                    No vendors currently awaiting EVP review. Evaluate an applied vendor in Tab 2 first.
+                    No vendors currently awaiting EVP review. Evaluate an applied vendor in Tab 2
+                    first.
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -585,14 +621,17 @@ export default function VendorManagement() {
                               </span>
                             </h3>
                             <p className="text-xs text-slate-500">
-                              GST: {v.gst_number || 'N/A'} | PAN: {v.pan_number || 'N/A'} | Applied on: {v.created_at?.slice(0, 10)}
+                              GST: {v.gst_number || "N/A"} | PAN: {v.pan_number || "N/A"} | Applied
+                              on: {v.created_at?.slice(0, 10)}
                             </p>
                           </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-slate-200 dark:border-slate-800">
                           <div className="space-y-2">
-                            <Label className="text-xs">Approval Observation / Conditions (Optional)</Label>
+                            <Label className="text-xs">
+                              Approval Observation / Conditions (Optional)
+                            </Label>
                             <Input
                               placeholder="e.g. Approved subject to rate contract finalisation..."
                               value={approvalNotes}
@@ -604,7 +643,8 @@ export default function VendorManagement() {
                               disabled={isLoading}
                               className="w-full bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 font-semibold text-xs"
                             >
-                              <CheckCircle className="w-4 h-4" /> Approve Empanelment (1 Year Validity)
+                              <CheckCircle className="w-4 h-4" /> Approve Empanelment (1 Year
+                              Validity)
                             </Button>
                           </div>
 
@@ -638,7 +678,8 @@ export default function VendorManagement() {
               <Card className="mt-8 border-slate-200 dark:border-slate-800">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
-                    <CheckCircle className="w-4 h-4" /> Approved Vendor List ({empanelledVendors.length})
+                    <CheckCircle className="w-4 h-4" /> Approved Vendor List (
+                    {empanelledVendors.length})
                   </CardTitle>
                   <CardDescription className="text-xs">
                     Qualified vendors with valid 1-year empanelment certificates.
@@ -649,8 +690,12 @@ export default function VendorManagement() {
                     {empanelledVendors.map((v) => (
                       <div key={v.id} className="py-3 flex items-center justify-between text-xs">
                         <div>
-                          <span className="font-bold text-slate-800 dark:text-slate-100">{v.name}</span>
-                          <span className="text-slate-500 ml-2">(GST: {v.gst_number || 'N/A'})</span>
+                          <span className="font-bold text-slate-800 dark:text-slate-100">
+                            {v.name}
+                          </span>
+                          <span className="text-slate-500 ml-2">
+                            (GST: {v.gst_number || "N/A"})
+                          </span>
                         </div>
                         <div className="flex items-center gap-4 text-slate-600 dark:text-slate-400">
                           <span className="flex items-center gap-1">

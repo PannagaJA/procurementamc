@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -6,13 +6,13 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { MermaidViewer } from '@/components/MermaidViewer';
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { MermaidViewer } from "@/components/MermaidViewer";
 import {
   ShieldCheck,
   Building2,
@@ -39,7 +39,7 @@ import {
   Activity,
   Workflow,
   Sparkles,
-} from 'lucide-react';
+} from "lucide-react";
 
 const DIAGRAM_1_P2P = `flowchart TD
     subgraph Sourcing ["1. Requisition & Sourcing"]
@@ -286,8 +286,8 @@ interface SystemReadmeModalProps {
 }
 
 export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOpenChange }) => {
-  const [activeTab, setActiveTab] = useState('diagrams');
-  const [diagramSubTab, setDiagramSubTab] = useState('p2p');
+  const [activeTab, setActiveTab] = useState("diagrams");
+  const [diagramSubTab, setDiagramSubTab] = useState("p2p");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -300,7 +300,10 @@ export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOp
                 <Badge className="bg-blue-600 hover:bg-blue-700 text-white gap-1 text-xs">
                   <ShieldCheck className="w-3.5 h-3.5" /> SOP Compliant Enterprise P2P
                 </Badge>
-                <Badge variant="outline" className="text-xs font-mono border-indigo-400 text-indigo-700 dark:text-indigo-300">
+                <Badge
+                  variant="outline"
+                  className="text-xs font-mono border-indigo-400 text-indigo-700 dark:text-indigo-300"
+                >
                   Version 2.4-Production
                 </Badge>
               </div>
@@ -308,17 +311,25 @@ export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOp
                 <Workflow className="w-6 h-6 text-indigo-600" /> System Workflows & Documentation
               </DialogTitle>
               <DialogDescription className="text-xs text-slate-500 dark:text-slate-400">
-                Interactive architecture, live rendered Mermaid workflow diagrams, 10-module lifecycle, and 59/59 compliance tests.
+                Interactive architecture, live rendered Mermaid workflow diagrams, 10-module
+                lifecycle, and 59/59 compliance tests.
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
         {/* Navigation Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
+        <Tabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="flex-1 flex flex-col overflow-hidden"
+        >
           <div className="px-6 pt-3 border-b border-slate-200 dark:border-slate-800 bg-slate-100/60 dark:bg-slate-900/60">
             <TabsList className="grid grid-cols-2 md:grid-cols-4 w-full h-auto p-1 bg-slate-200/70 dark:bg-slate-800/70">
-              <TabsTrigger value="diagrams" className="gap-1.5 py-2 text-xs font-semibold data-[state=active]:bg-indigo-600 data-[state=active]:text-white">
+              <TabsTrigger
+                value="diagrams"
+                className="gap-1.5 py-2 text-xs font-semibold data-[state=active]:bg-indigo-600 data-[state=active]:text-white"
+              >
                 <GitBranch className="w-3.5 h-3.5" /> 1. Workflow Diagrams (6)
               </TabsTrigger>
               <TabsTrigger value="modules" className="gap-1.5 py-2 text-xs font-semibold">
@@ -340,12 +351,24 @@ export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOp
               {/* Secondary sub-tabs for switching diagrams */}
               <Tabs value={diagramSubTab} onValueChange={setDiagramSubTab} className="space-y-4">
                 <TabsList className="grid grid-cols-3 sm:grid-cols-6 w-full h-auto p-1 bg-slate-200 dark:bg-slate-800 text-[11px]">
-                  <TabsTrigger value="p2p" className="py-1.5">1. P2P Lifecycle</TabsTrigger>
-                  <TabsTrigger value="matrix" className="py-1.5">2. Authority Matrix</TabsTrigger>
-                  <TabsTrigger value="cycle1" className="py-1.5">3. Standard Cycle</TabsTrigger>
-                  <TabsTrigger value="emergency" className="py-1.5">4. Emergency (§9)</TabsTrigger>
-                  <TabsTrigger value="erd" className="py-1.5">5. Database ERD</TabsTrigger>
-                  <TabsTrigger value="postate" className="py-1.5">6. PO States</TabsTrigger>
+                  <TabsTrigger value="p2p" className="py-1.5">
+                    1. P2P Lifecycle
+                  </TabsTrigger>
+                  <TabsTrigger value="matrix" className="py-1.5">
+                    2. Authority Matrix
+                  </TabsTrigger>
+                  <TabsTrigger value="cycle1" className="py-1.5">
+                    3. Standard Cycle
+                  </TabsTrigger>
+                  <TabsTrigger value="emergency" className="py-1.5">
+                    4. Emergency (§9)
+                  </TabsTrigger>
+                  <TabsTrigger value="erd" className="py-1.5">
+                    5. Database ERD
+                  </TabsTrigger>
+                  <TabsTrigger value="postate" className="py-1.5">
+                    6. PO States
+                  </TabsTrigger>
                 </TabsList>
 
                 {/* 1. Overall P2P */}
@@ -432,11 +455,16 @@ export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOp
                       <CardTitle className="text-sm flex items-center gap-2 text-blue-600">
                         <FileSpreadsheet className="w-4 h-4" /> 1. Requisitions (PR)
                       </CardTitle>
-                      <Badge variant="outline" className="text-[10px]">/procurement/raise-pr</Badge>
+                      <Badge variant="outline" className="text-[10px]">
+                        /procurement/raise-pr
+                      </Badge>
                     </div>
                   </CardHeader>
                   <CardContent className="p-4 pt-1 text-slate-600 dark:text-slate-400 space-y-1">
-                    <p>Dynamic line items with inventory stock deduction, Annexure-2 due diligence, non-conflict declaration, and live authority matrix preview.</p>
+                    <p>
+                      Dynamic line items with inventory stock deduction, Annexure-2 due diligence,
+                      non-conflict declaration, and live authority matrix preview.
+                    </p>
                   </CardContent>
                 </Card>
 
@@ -447,11 +475,16 @@ export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOp
                       <CardTitle className="text-sm flex items-center gap-2 text-slate-800 dark:text-slate-200">
                         <Users className="w-4 h-4" /> 2. Vendor Empanelment
                       </CardTitle>
-                      <Badge variant="outline" className="text-[10px]">/procurement/vendors</Badge>
+                      <Badge variant="outline" className="text-[10px]">
+                        /procurement/vendors
+                      </Badge>
                     </div>
                   </CardHeader>
                   <CardContent className="p-4 pt-1 text-slate-600 dark:text-slate-400 space-y-1">
-                    <p>Statutory intake (GST, PAN, Bank), 4-pillar committee evaluation (Technical, Experience, Support, Financials), and 1-year EVP approval gate.</p>
+                    <p>
+                      Statutory intake (GST, PAN, Bank), 4-pillar committee evaluation (Technical,
+                      Experience, Support, Financials), and 1-year EVP approval gate.
+                    </p>
                   </CardContent>
                 </Card>
 
@@ -462,11 +495,16 @@ export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOp
                       <CardTitle className="text-sm flex items-center gap-2 text-sky-600">
                         <Building2 className="w-4 h-4" /> 3. Solicitations (RFQ)
                       </CardTitle>
-                      <Badge variant="outline" className="text-[10px]">/procurement/rfqs</Badge>
+                      <Badge variant="outline" className="text-[10px]">
+                        /procurement/rfqs
+                      </Badge>
                     </div>
                   </CardHeader>
                   <CardContent className="p-4 pt-1 text-slate-600 dark:text-slate-400 space-y-1">
-                    <p>Enforces minimum 3 empanelled vendors (§8.4), public quotation portal (<code>/quotation/$id</code>), pricing capture, and specification verification.</p>
+                    <p>
+                      Enforces minimum 3 empanelled vendors (§8.4), public quotation portal (
+                      <code>/quotation/$id</code>), pricing capture, and specification verification.
+                    </p>
                   </CardContent>
                 </Card>
 
@@ -477,11 +515,16 @@ export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOp
                       <CardTitle className="text-sm flex items-center gap-2 text-emerald-600">
                         <Scale className="w-4 h-4" /> 4. Comparative Statements
                       </CardTitle>
-                      <Badge variant="outline" className="text-[10px]">/procurement/cs</Badge>
+                      <Badge variant="outline" className="text-[10px]">
+                        /procurement/cs
+                      </Badge>
                     </div>
                   </CardHeader>
                   <CardContent className="p-4 pt-1 text-slate-600 dark:text-slate-400 space-y-1">
-                    <p>Automated L1 ranking, 4-pillar score matrix, mandatory non-lowest price rationale gate when bypassing L1, and Committee/EVP authority routing.</p>
+                    <p>
+                      Automated L1 ranking, 4-pillar score matrix, mandatory non-lowest price
+                      rationale gate when bypassing L1, and Committee/EVP authority routing.
+                    </p>
                   </CardContent>
                 </Card>
 
@@ -492,11 +535,16 @@ export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOp
                       <CardTitle className="text-sm flex items-center gap-2 text-indigo-600">
                         <ShoppingBag className="w-4 h-4" /> 5. Purchase Orders (PO)
                       </CardTitle>
-                      <Badge variant="outline" className="text-[10px]">/procurement/orders</Badge>
+                      <Badge variant="outline" className="text-[10px]">
+                        /procurement/orders
+                      </Badge>
                     </div>
                   </CardHeader>
                   <CardContent className="p-4 pt-1 text-slate-600 dark:text-slate-400 space-y-1">
-                    <p>Standard and 6-month Rate Contract POs, amendment re-approval loop when value crosses tier limits, and 30-day PO-splitting guards.</p>
+                    <p>
+                      Standard and 6-month Rate Contract POs, amendment re-approval loop when value
+                      crosses tier limits, and 30-day PO-splitting guards.
+                    </p>
                   </CardContent>
                 </Card>
 
@@ -507,11 +555,16 @@ export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOp
                       <CardTitle className="text-sm flex items-center gap-2 text-emerald-600">
                         <Truck className="w-4 h-4" /> 6. Goods Receipt (GRN)
                       </CardTitle>
-                      <Badge variant="outline" className="text-[10px]">/procurement/grns</Badge>
+                      <Badge variant="outline" className="text-[10px]">
+                        /procurement/grns
+                      </Badge>
                     </div>
                   </CardHeader>
                   <CardContent className="p-4 pt-1 text-slate-600 dark:text-slate-400 space-y-1">
-                    <p>Delivery Challan security gate inward entry, dual sign-off (Security + Technical inspection by HOD), and cumulative overdelivery block.</p>
+                    <p>
+                      Delivery Challan security gate inward entry, dual sign-off (Security +
+                      Technical inspection by HOD), and cumulative overdelivery block.
+                    </p>
                   </CardContent>
                 </Card>
 
@@ -522,11 +575,16 @@ export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOp
                       <CardTitle className="text-sm flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
                         <Receipt className="w-4 h-4" /> 7. Invoices & 3-Way Match
                       </CardTitle>
-                      <Badge variant="outline" className="text-[10px]">/procurement/invoices</Badge>
+                      <Badge variant="outline" className="text-[10px]">
+                        /procurement/invoices
+                      </Badge>
                     </div>
                   </CardHeader>
                   <CardContent className="p-4 pt-1 text-slate-600 dark:text-slate-400 space-y-1">
-                    <p>Automated 3-way match (PO ↔ GRN ↔ Invoice), mismatch hold state, Service PO completion certificate exception (§I2), and payment UTR logging.</p>
+                    <p>
+                      Automated 3-way match (PO ↔ GRN ↔ Invoice), mismatch hold state, Service PO
+                      completion certificate exception (§I2), and payment UTR logging.
+                    </p>
                   </CardContent>
                 </Card>
 
@@ -537,11 +595,16 @@ export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOp
                       <CardTitle className="text-sm flex items-center gap-2 text-amber-600">
                         <Zap className="w-4 h-4" /> 8. Emergency Track (§9)
                       </CardTitle>
-                      <Badge variant="outline" className="text-[10px]">/procurement/emergency</Badge>
+                      <Badge variant="outline" className="text-[10px]">
+                        /procurement/emergency
+                      </Badge>
                     </div>
                   </CardHeader>
                   <CardContent className="p-4 pt-1 text-slate-600 dark:text-slate-400 space-y-1">
-                    <p>Hard statutory ceiling of ₹10,00,000 per Indian Financial Year, exclusive EVP authorization, and 48-hour post-facto ratification rule.</p>
+                    <p>
+                      Hard statutory ceiling of ₹10,00,000 per Indian Financial Year, exclusive EVP
+                      authorization, and 48-hour post-facto ratification rule.
+                    </p>
                   </CardContent>
                 </Card>
 
@@ -552,11 +615,16 @@ export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOp
                       <CardTitle className="text-sm flex items-center gap-2 text-purple-600">
                         <Award className="w-4 h-4" /> 9. Vendor Ratings
                       </CardTitle>
-                      <Badge variant="outline" className="text-[10px]">/procurement/vendor-ratings</Badge>
+                      <Badge variant="outline" className="text-[10px]">
+                        /procurement/vendor-ratings
+                      </Badge>
                     </div>
                   </CardHeader>
                   <CardContent className="p-4 pt-1 text-slate-600 dark:text-slate-400 space-y-1">
-                    <p>Annexure 4 6-weighted sections evaluation (A:25%, B:20%, C:15%, D:20%, E:10%, F:10%), Section E N/A scaling, and 5 outcome bands.</p>
+                    <p>
+                      Annexure 4 6-weighted sections evaluation (A:25%, B:20%, C:15%, D:20%, E:10%,
+                      F:10%), Section E N/A scaling, and 5 outcome bands.
+                    </p>
                   </CardContent>
                 </Card>
 
@@ -567,11 +635,16 @@ export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOp
                       <CardTitle className="text-sm flex items-center gap-2 text-purple-700">
                         <UserCheck className="w-4 h-4" /> 10. Unified Approvals
                       </CardTitle>
-                      <Badge variant="outline" className="text-[10px]">/procurement/approvals</Badge>
+                      <Badge variant="outline" className="text-[10px]">
+                        /procurement/approvals
+                      </Badge>
                     </div>
                   </CardHeader>
                   <CardContent className="p-4 pt-1 text-slate-600 dark:text-slate-400 space-y-1">
-                    <p>Centralized authorization inbox for PRs, CSs, POs, Amendments, Invoices, and Emergency Requests matching the logged-in user's roles.</p>
+                    <p>
+                      Centralized authorization inbox for PRs, CSs, POs, Amendments, Invoices, and
+                      Emergency Requests matching the logged-in user's roles.
+                    </p>
                   </CardContent>
                 </Card>
               </div>
@@ -584,41 +657,53 @@ export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOp
                 <CardHeader className="pb-3">
                   <div className="flex items-center gap-2">
                     <Code2 className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                    <CardTitle className="text-base font-bold">Strict Three-Tier Security Architecture</CardTitle>
+                    <CardTitle className="text-base font-bold">
+                      Strict Three-Tier Security Architecture
+                    </CardTitle>
                   </div>
                   <CardDescription className="text-xs">
-                    Client components cannot perform direct database mutations. All writes execute through strongly-typed RPC server functions.
+                    Client components cannot perform direct database mutations. All writes execute
+                    through strongly-typed RPC server functions.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
                     <div className="p-3 rounded-lg border border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/30">
                       <div className="font-bold text-blue-900 dark:text-blue-200 mb-1 flex items-center gap-1.5">
-                        <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">1</span>
+                        <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">
+                          1
+                        </span>
                         React UI Screens (Tier 1)
                       </div>
                       <p className="text-slate-600 dark:text-slate-400">
-                        TanStack Start, React 19, Tailwind CSS. Form validation, live Authority Matrix resolver preview, real-time 3-way match comparator.
+                        TanStack Start, React 19, Tailwind CSS. Form validation, live Authority
+                        Matrix resolver preview, real-time 3-way match comparator.
                       </p>
                     </div>
 
                     <div className="p-3 rounded-lg border border-purple-200 bg-purple-50/50 dark:border-purple-900 dark:bg-purple-950/30">
                       <div className="font-bold text-purple-900 dark:text-purple-200 mb-1 flex items-center gap-1.5">
-                        <span className="w-5 h-5 rounded-full bg-purple-600 text-white flex items-center justify-center text-[10px]">2</span>
+                        <span className="w-5 h-5 rounded-full bg-purple-600 text-white flex items-center justify-center text-[10px]">
+                          2
+                        </span>
                         Server RPC Functions (Tier 2)
                       </div>
                       <p className="text-slate-600 dark:text-slate-400">
-                        <code>src/server/procurement/*</code>. Re-derives user role from verified session, enforces SOP guards, transaction locks, and audit logging.
+                        <code>src/server/procurement/*</code>. Re-derives user role from verified
+                        session, enforces SOP guards, transaction locks, and audit logging.
                       </p>
                     </div>
 
                     <div className="p-3 rounded-lg border border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/30">
                       <div className="font-bold text-emerald-900 dark:text-emerald-200 mb-1 flex items-center gap-1.5">
-                        <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">3</span>
+                        <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">
+                          3
+                        </span>
                         Supabase PostgreSQL (Tier 3)
                       </div>
                       <p className="text-slate-600 dark:text-slate-400">
-                        19 procurement tables with Default-DENY RLS policies. Atomic sequence generators for PR, RFQ, CS, PO, and GRN numbers.
+                        19 procurement tables with Default-DENY RLS policies. Atomic sequence
+                        generators for PR, RFQ, CS, PO, and GRN numbers.
                       </p>
                     </div>
                   </div>
@@ -632,7 +717,8 @@ export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOp
                     <ShieldCheck className="w-4 h-4" /> 1. Server-Side Enforcement
                   </div>
                   <p className="text-xs text-slate-600 dark:text-slate-400">
-                    Zero direct client mutation bypass. All approval state transitions and budget updates are evaluated by server-side domain logic.
+                    Zero direct client mutation bypass. All approval state transitions and budget
+                    updates are evaluated by server-side domain logic.
                   </p>
                 </div>
 
@@ -641,7 +727,8 @@ export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOp
                     <Scale className="w-4 h-4" /> 2. Table-Driven Rules Engine
                   </div>
                   <p className="text-xs text-slate-600 dark:text-slate-400">
-                    <code>authorityMatrix.ts</code> is dynamically driven by <code>approval_matrix_rules</code> without hardcoded monetary amounts.
+                    <code>authorityMatrix.ts</code> is dynamically driven by{" "}
+                    <code>approval_matrix_rules</code> without hardcoded monetary amounts.
                   </p>
                 </div>
 
@@ -650,7 +737,8 @@ export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOp
                     <Lock className="w-4 h-4" /> 3. Default-DENY RLS Policies
                   </div>
                   <p className="text-xs text-slate-600 dark:text-slate-400">
-                    Direct update mutations to approval, status, and financial columns are revoked for clients to prevent RLS bypass attempts.
+                    Direct update mutations to approval, status, and financial columns are revoked
+                    for clients to prevent RLS bypass attempts.
                   </p>
                 </div>
 
@@ -659,7 +747,8 @@ export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOp
                     <UserCheck className="w-4 h-4" /> 4. Segregation of Duties
                   </div>
                   <p className="text-xs text-slate-600 dark:text-slate-400">
-                    Requisition (HOD) ≠ Sourcing (Procurement) ≠ Inspection (Stores/Security) ≠ Payment (Finance).
+                    Requisition (HOD) ≠ Sourcing (Procurement) ≠ Inspection (Stores/Security) ≠
+                    Payment (Finance).
                   </p>
                 </div>
               </div>
@@ -679,7 +768,9 @@ export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOp
                 </CardHeader>
                 <CardContent className="p-4 pt-1 text-xs text-emerald-900 dark:text-emerald-200 space-y-3">
                   <p>
-                    All boundary thresholds, guards, rolling 30-day PO split detection, 3-way match, emergency cap, and 3 complete lifecycle simulations have been verified against active PostgreSQL state.
+                    All boundary thresholds, guards, rolling 30-day PO split detection, 3-way match,
+                    emergency cap, and 3 complete lifecycle simulations have been verified against
+                    active PostgreSQL state.
                   </p>
                   <div className="p-3 bg-slate-900 text-slate-100 rounded-lg font-mono text-[11px] space-y-1">
                     <div className="text-slate-400"># Run comprehensive compliance test suite</div>
@@ -690,19 +781,33 @@ export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOp
 
               {/* Documentation Artifacts List */}
               <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2 text-xs">
-                <span className="font-bold text-slate-900 dark:text-white block">Audit & Reference Documents:</span>
+                <span className="font-bold text-slate-900 dark:text-white block">
+                  Audit & Reference Documents:
+                </span>
                 <ul className="space-y-1.5 text-slate-600 dark:text-slate-400">
                   <li className="flex items-center gap-2">
-                    <span className="font-mono text-blue-600 dark:text-blue-400">docs/UI_WALKTHROUGH.md</span> — 20-step field-level operational walkthrough.
+                    <span className="font-mono text-blue-600 dark:text-blue-400">
+                      docs/UI_WALKTHROUGH.md
+                    </span>{" "}
+                    — 20-step field-level operational walkthrough.
                   </li>
                   <li className="flex items-center gap-2">
-                    <span className="font-mono text-blue-600 dark:text-blue-400">docs/P2P_SOP_Audit_FINAL.md</span> — 42-area traceability scorecard.
+                    <span className="font-mono text-blue-600 dark:text-blue-400">
+                      docs/P2P_SOP_Audit_FINAL.md
+                    </span>{" "}
+                    — 42-area traceability scorecard.
                   </li>
                   <li className="flex items-center gap-2">
-                    <span className="font-mono text-blue-600 dark:text-blue-400">docs/E2E_WALKTHROUGH.md</span> — 3 simulated end-to-end cycles.
+                    <span className="font-mono text-blue-600 dark:text-blue-400">
+                      docs/E2E_WALKTHROUGH.md
+                    </span>{" "}
+                    — 3 simulated end-to-end cycles.
                   </li>
                   <li className="flex items-center gap-2">
-                    <span className="font-mono text-blue-600 dark:text-blue-400">docs/OPEN_DECISIONS_FOR_SIGNOFF.md</span> — Policy questions for SOP owner.
+                    <span className="font-mono text-blue-600 dark:text-blue-400">
+                      docs/OPEN_DECISIONS_FOR_SIGNOFF.md
+                    </span>{" "}
+                    — Policy questions for SOP owner.
                   </li>
                 </ul>
               </div>

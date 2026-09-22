@@ -1,33 +1,38 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from '@tanstack/react-router';
-import { supabase } from '../integrations/supabase/client';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
-import { User } from '@supabase/supabase-js';
-import { useAuth } from '@/lib/auth';
-import { ticketPriorityOptions } from '@/lib/ticketUtils';
-import Layout from '@/components/Layout';
-
+import { useState, useEffect } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { supabase } from "../integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { User } from "@supabase/supabase-js";
+import { useAuth } from "@/lib/auth";
+import { ticketPriorityOptions } from "@/lib/ticketUtils";
+import Layout from "@/components/Layout";
 
 const ProcureRequest = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    contactNumber: '',
-    department: '',
-    deviceName: '',
-    deviceSpecifications: '',
-    quantity: '',
-    estimatedCost: '',
-    justification: '',
-    priority: 'medium',
+    name: "",
+    email: "",
+    contactNumber: "",
+    department: "",
+    deviceName: "",
+    deviceSpecifications: "",
+    quantity: "",
+    estimatedCost: "",
+    justification: "",
+    priority: "medium",
   });
   const [departments, setDepartments] = useState<any[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -37,7 +42,10 @@ const ProcureRequest = () => {
 
   useEffect(() => {
     const getUserInfo = async () => {
-      const { data: { user }, error } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
 
       if (error || !user) {
         toast({
@@ -45,39 +53,39 @@ const ProcureRequest = () => {
           description: "Please log in to raise a procure request",
           variant: "destructive",
         });
-        navigate({ to: '/auth' });
+        navigate({ to: "/auth" });
         return;
       }
 
       // Fetch user profile to get name
       const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('full_name, email')
-        .eq('id', user.id)
+        .from("profiles")
+        .select("full_name, email")
+        .eq("id", user.id)
         .single();
 
       if (profile) {
-        setFormData(prev => ({
+        setFormData((prev) => ({
           ...prev,
-          name: profile.full_name || '',
-          email: profile.email || ''
+          name: profile.full_name || "",
+          email: profile.email || "",
         }));
       }
 
       // load user's roles to find HOD department
       try {
         const { data: roles } = await supabase
-          .from('user_roles')
-          .select('role, department_id')
-          .eq('user_id', user.id);
+          .from("user_roles")
+          .select("role, department_id")
+          .eq("user_id", user.id);
 
-        const hodRole = (roles || []).find((r: any) => r.role === 'hod');
+        const hodRole = (roles || []).find((r: any) => r.role === "hod");
         if (hodRole && hodRole.department_id) {
-          setFormData(prev => ({ ...prev, department: hodRole.department_id || '' }));
+          setFormData((prev) => ({ ...prev, department: hodRole.department_id || "" }));
         }
       } catch (e) {
         // ignore role lookup errors
-        console.error('Failed to load user roles for department default', e);
+        console.error("Failed to load user roles for department default", e);
       }
 
       setUser(user);
@@ -86,11 +94,11 @@ const ProcureRequest = () => {
 
     const fetchDepartments = async () => {
       try {
-        const { data, error } = await supabase.from('departments').select('*').order('name');
+        const { data, error } = await supabase.from("departments").select("*").order("name");
         if (error) throw error;
         setDepartments(data || []);
       } catch (e) {
-        console.error('Failed to load departments', e);
+        console.error("Failed to load departments", e);
       }
     };
 
@@ -98,18 +106,17 @@ const ProcureRequest = () => {
     fetchDepartments();
   }, [navigate, toast]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | { name: string; value: string }) => {
-    if ('target' in e) {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | { name: string; value: string },
+  ) => {
+    if ("target" in e) {
       const { name, value } = e.target;
-      setFormData(prev => ({ ...prev, [name]: value }));
+      setFormData((prev) => ({ ...prev, [name]: value }));
     } else {
       const { name, value } = e;
-      setFormData(prev => ({ ...prev, [name]: value }));
+      setFormData((prev) => ({ ...prev, [name]: value }));
     }
   };
-
-  
-
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,7 +125,7 @@ const ProcureRequest = () => {
     try {
       // Ensure user is authenticated
       if (!user) {
-        throw new Error('User not authenticated');
+        throw new Error("User not authenticated");
       }
 
       // Create issue description
@@ -131,8 +138,7 @@ Justification: ${formData.justification}
       `.trim();
 
       // Generate ticket number first
-      const { data: ticketData, error: ticketError } = await supabase
-        .rpc('generate_ticket_number');
+      const { data: ticketData, error: ticketError } = await supabase.rpc("generate_ticket_number");
 
       if (ticketError) throw ticketError;
 
@@ -145,49 +151,52 @@ Justification: ${formData.justification}
         email: formData.email,
         contact_number: formData.contactNumber,
         department: formData.department,
-        issue_category: 'procure',
+        issue_category: "procure",
         issue_description: issueDescription,
         priority: formData.priority,
-        created_by: user.id
+        created_by: user.id,
       };
 
       // If HOD, send to Principal for approval
-      if (primaryRole === 'hod') {
-        insertPayload.status = 'pending_principal';
+      if (primaryRole === "hod") {
+        insertPayload.status = "pending_principal";
       } else {
-        insertPayload.status = 'pending';
+        insertPayload.status = "pending";
       }
 
       const { data, error } = await supabase
-        .from('tickets')
+        .from("tickets")
         .insert([insertPayload])
-        .select('ticket_number')
+        .select("ticket_number")
         .single();
 
       if (error) throw error;
 
       toast({
-        title: primaryRole === 'hod' ? 'Request Sent' : 'Procure request submitted',
-        description: primaryRole === 'hod' ? `Your request ${data.ticket_number} was sent to Principal for approval` : `Your request has been submitted with ticket number ${data.ticket_number}`,
+        title: primaryRole === "hod" ? "Request Sent" : "Procure request submitted",
+        description:
+          primaryRole === "hod"
+            ? `Your request ${data.ticket_number} was sent to Principal for approval`
+            : `Your request has been submitted with ticket number ${data.ticket_number}`,
       });
 
       // Reset form
       setFormData({
         name: formData.name, // Keep user info
         email: formData.email,
-        contactNumber: '',
-        department: '',
-        deviceName: '',
-        deviceSpecifications: '',
-        quantity: '',
-        estimatedCost: '',
-        justification: '',
-        priority: 'medium'
+        contactNumber: "",
+        department: "",
+        deviceName: "",
+        deviceSpecifications: "",
+        quantity: "",
+        estimatedCost: "",
+        justification: "",
+        priority: "medium",
       });
 
-      navigate({ to: '/my-tickets' });
+      navigate({ to: "/my-tickets" });
     } catch (error: any) {
-      console.error('Error submitting procure request:', error);
+      console.error("Error submitting procure request:", error);
       toast({
         title: "Submission failed",
         description: error.message || "Failed to submit procure request",
@@ -261,7 +270,10 @@ Justification: ${formData.justification}
                 </div>
                 <div>
                   <Label htmlFor="department">Department *</Label>
-                  <Select value={formData.department} onValueChange={(value) => handleChange({ name: 'department', value })}>
+                  <Select
+                    value={formData.department}
+                    onValueChange={(value) => handleChange({ name: "department", value })}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select department" />
                     </SelectTrigger>
@@ -344,7 +356,10 @@ Justification: ${formData.justification}
 
               <div>
                 <Label htmlFor="priority">Priority *</Label>
-                <Select value={formData.priority} onValueChange={(value) => handleChange({ name: 'priority', value })}>
+                <Select
+                  value={formData.priority}
+                  onValueChange={(value) => handleChange({ name: "priority", value })}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -361,7 +376,11 @@ Justification: ${formData.justification}
               {/* approval letter upload removed per UX change */}
 
               <Button type="submit" disabled={submitting} className="w-full">
-                {submitting ? 'Submitting...' : (primaryRole === 'hod' ? 'Request Principal Approval' : 'Submit Procure Request')}
+                {submitting
+                  ? "Submitting..."
+                  : primaryRole === "hod"
+                    ? "Request Principal Approval"
+                    : "Submit Procure Request"}
               </Button>
             </form>
           </CardContent>

@@ -1,7 +1,7 @@
-import { useNavigate } from '@tanstack/react-router';
-import Layout from '@/components/Layout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { useNavigate } from "@tanstack/react-router";
+import Layout from "@/components/Layout";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
   ShieldCheck,
   FileSpreadsheet,
@@ -17,7 +17,7 @@ import {
   Receipt,
   Zap,
   Award,
-} from 'lucide-react';
+} from "lucide-react";
 
 export default function ProcurementHub() {
   const navigate = useNavigate();
@@ -33,7 +33,8 @@ export default function ProcurementHub() {
             Procurement Lifecycle & Governance
           </h1>
           <p className="text-slate-600 dark:text-slate-400 mt-1">
-            Server-governed approval matrix, multi-vendor solicitations, three-way match payment gate, emergency cap ledger, and performance ratings.
+            Server-governed approval matrix, multi-vendor solicitations, three-way match payment
+            gate, emergency cap ledger, and performance ratings.
           </p>
         </div>
 
@@ -47,12 +48,13 @@ export default function ProcurementHub() {
               <div>
                 <CardTitle className="text-lg">Unified Approvals Inbox</CardTitle>
                 <CardDescription>
-                  Review and authorize PRs, Comparative Statements, POs, Invoices, and Emergency requests based on your matrix roles.
+                  Review and authorize PRs, Comparative Statements, POs, Invoices, and Emergency
+                  requests based on your matrix roles.
                 </CardDescription>
               </div>
             </div>
             <Button
-              onClick={() => navigate({ to: '/procurement/approvals' })}
+              onClick={() => navigate({ to: "/procurement/approvals" })}
               className="bg-purple-600 hover:bg-purple-700 text-white gap-2 shrink-0"
             >
               Open My Approvals <ArrowRight className="w-4 h-4" />
@@ -74,7 +76,10 @@ export default function ProcurementHub() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 pt-0 space-y-3">
-              <Button onClick={() => navigate({ to: '/procurement/raise-pr' })} className="w-full gap-1.5 text-xs h-8">
+              <Button
+                onClick={() => navigate({ to: "/procurement/raise-pr" })}
+                className="w-full gap-1.5 text-xs h-8"
+              >
                 Raise PR <ArrowRight className="w-3.5 h-3.5" />
               </Button>
             </CardContent>
@@ -92,7 +97,11 @@ export default function ProcurementHub() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 pt-0 space-y-3">
-              <Button onClick={() => navigate({ to: '/procurement/rfqs' })} variant="outline" className="w-full gap-1.5 text-xs h-8">
+              <Button
+                onClick={() => navigate({ to: "/procurement/rfqs" })}
+                variant="outline"
+                className="w-full gap-1.5 text-xs h-8"
+              >
                 Manage RFQs <ArrowRight className="w-3.5 h-3.5" />
               </Button>
             </CardContent>
@@ -110,7 +119,11 @@ export default function ProcurementHub() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 pt-0 space-y-3">
-              <Button onClick={() => navigate({ to: '/procurement/cs' })} variant="outline" className="w-full gap-1.5 text-xs h-8">
+              <Button
+                onClick={() => navigate({ to: "/procurement/cs" })}
+                variant="outline"
+                className="w-full gap-1.5 text-xs h-8"
+              >
                 Comparative CS <ArrowRight className="w-3.5 h-3.5" />
               </Button>
             </CardContent>
@@ -128,7 +141,11 @@ export default function ProcurementHub() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 pt-0 space-y-3">
-              <Button onClick={() => navigate({ to: '/procurement/orders' })} variant="outline" className="w-full gap-1.5 text-xs h-8">
+              <Button
+                onClick={() => navigate({ to: "/procurement/orders" })}
+                variant="outline"
+                className="w-full gap-1.5 text-xs h-8"
+              >
                 Purchase Orders <ArrowRight className="w-3.5 h-3.5" />
               </Button>
             </CardContent>
@@ -146,7 +163,11 @@ export default function ProcurementHub() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 pt-0 space-y-3">
-              <Button onClick={() => navigate({ to: '/procurement/grns' })} variant="outline" className="w-full gap-1.5 text-xs h-8">
+              <Button
+                onClick={() => navigate({ to: "/procurement/grns" })}
+                variant="outline"
+                className="w-full gap-1.5 text-xs h-8"
+              >
                 Stores Receipts <ArrowRight className="w-3.5 h-3.5" />
               </Button>
             </CardContent>
@@ -164,7 +185,11 @@ export default function ProcurementHub() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 pt-0 space-y-3">
-              <Button onClick={() => navigate({ to: '/procurement/invoices' })} variant="outline" className="w-full gap-1.5 text-xs h-8">
+              <Button
+                onClick={() => navigate({ to: "/procurement/invoices" })}
+                variant="outline"
+                className="w-full gap-1.5 text-xs h-8"
+              >
                 Invoices & Match <ArrowRight className="w-3.5 h-3.5" />
               </Button>
             </CardContent>
@@ -182,7 +207,11 @@ export default function ProcurementHub() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 pt-0 space-y-3">
-              <Button onClick={() => navigate({ to: '/procurement/emergency' })} variant="outline" className="w-full gap-1.5 text-xs h-8">
+              <Button
+                onClick={() => navigate({ to: "/procurement/emergency" })}
+                variant="outline"
+                className="w-full gap-1.5 text-xs h-8"
+              >
                 Emergency Register <ArrowRight className="w-3.5 h-3.5" />
               </Button>
             </CardContent>
@@ -200,7 +229,11 @@ export default function ProcurementHub() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 pt-0 space-y-3">
-              <Button onClick={() => navigate({ to: '/procurement/vendor-ratings' })} variant="outline" className="w-full gap-1.5 text-xs h-8">
+              <Button
+                onClick={() => navigate({ to: "/procurement/vendor-ratings" })}
+                variant="outline"
+                className="w-full gap-1.5 text-xs h-8"
+              >
                 Performance Ratings <ArrowRight className="w-3.5 h-3.5" />
               </Button>
             </CardContent>

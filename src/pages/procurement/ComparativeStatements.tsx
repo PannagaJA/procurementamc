@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
-import Layout from '@/components/Layout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
+import { useState, useEffect } from "react";
+import Layout from "@/components/Layout";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -13,23 +13,23 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+} from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import {
   prepareComparativeStatement,
   approveCs,
   rejectCs,
   listComparativeStatements,
-} from '@/lib/procurement/cs.functions';
-import { listRfqs } from '@/lib/procurement/rfq.functions';
+} from "@/lib/procurement/cs.functions";
+import { listRfqs } from "@/lib/procurement/rfq.functions";
 import {
   Scale,
   PlusCircle,
@@ -40,7 +40,7 @@ import {
   RefreshCw,
   Trophy,
   ArrowRight,
-} from 'lucide-react';
+} from "lucide-react";
 
 export default function ComparativeStatements() {
   const { toast } = useToast();
@@ -50,20 +50,20 @@ export default function ComparativeStatements() {
 
   // Prepare CS Modal
   const [prepOpen, setPrepOpen] = useState(false);
-  const [selectedRfqId, setSelectedRfqId] = useState('');
+  const [selectedRfqId, setSelectedRfqId] = useState("");
   const [selectedRfq, setSelectedRfq] = useState<any>(null);
   const [vendorQuotes, setVendorQuotes] = useState<any[]>([]);
-  const [recommendedVendorId, setRecommendedVendorId] = useState('');
+  const [recommendedVendorId, setRecommendedVendorId] = useState("");
   const [isLowestPrice, setIsLowestPrice] = useState(true);
-  const [nonLowestRationale, setNonLowestRationale] = useState('');
-  const [negotiationNotes, setNegotiationNotes] = useState('');
-  const [priceReasonableness, setPriceReasonableness] = useState('');
+  const [nonLowestRationale, setNonLowestRationale] = useState("");
+  const [negotiationNotes, setNegotiationNotes] = useState("");
+  const [priceReasonableness, setPriceReasonableness] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   // Approval/Rejection Modals
   const [activeCs, setActiveCs] = useState<any>(null);
   const [rejectOpen, setRejectOpen] = useState(false);
-  const [rejectionRemarks, setRejectionRemarks] = useState('');
+  const [rejectionRemarks, setRejectionRemarks] = useState("");
   const [acting, setActing] = useState(false);
 
   const loadData = async () => {
@@ -77,7 +77,7 @@ export default function ComparativeStatements() {
       if (csRes?.ok) setCsList(csRes.comparativeStatements || []);
       if (rfqRes?.ok) setRfqList(rfqRes.rfqs || []);
     } catch (e: any) {
-      toast({ title: 'Error loading data', description: e.message, variant: 'destructive' });
+      toast({ title: "Error loading data", description: e.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -102,10 +102,12 @@ export default function ComparativeStatements() {
       const map = new Map<string, any>();
       for (const line of found.quotation_lines) {
         if (!map.has(line.vendor_id)) {
-          const vObj = found.rfq_vendors?.find((rv: any) => rv.vendor_id === line.vendor_id)?.vendors;
+          const vObj = found.rfq_vendors?.find(
+            (rv: any) => rv.vendor_id === line.vendor_id,
+          )?.vendors;
           map.set(line.vendor_id, {
             vendor_id: line.vendor_id,
-            vendor_name: vObj?.name || 'Vendor',
+            vendor_name: vObj?.name || "Vendor",
             total_quoted: 0,
             delivery_days: line.delivery_days || 7,
             warranty_months: line.warranty_months || 12,
@@ -145,15 +147,20 @@ export default function ComparativeStatements() {
 
   const handlePrepareCs = async () => {
     if (!selectedRfqId || !recommendedVendorId) {
-      toast({ title: 'Validation Error', description: 'Please select an RFQ and recommended vendor.', variant: 'destructive' });
+      toast({
+        title: "Validation Error",
+        description: "Please select an RFQ and recommended vendor.",
+        variant: "destructive",
+      });
       return;
     }
 
     if (!isLowestPrice && (!nonLowestRationale || !nonLowestRationale.trim())) {
       toast({
-        title: 'Non-Lowest Price Rationale Required',
-        description: 'You must provide a justification when recommending a vendor other than the lowest quote (§7.2).',
-        variant: 'destructive',
+        title: "Non-Lowest Price Rationale Required",
+        description:
+          "You must provide a justification when recommending a vendor other than the lowest quote (§7.2).",
+        variant: "destructive",
       });
       return;
     }
@@ -169,7 +176,7 @@ export default function ComparativeStatements() {
         warranty_score: 90,
         total_score: vq.meets_tech_spec ? 95 : 50,
         rank: idx + 1,
-        notes: vq.meets_tech_spec ? 'Technically compliant' : 'Failed technical spec',
+        notes: vq.meets_tech_spec ? "Technically compliant" : "Failed technical spec",
       }));
 
       const res = await (prepareComparativeStatement as any)({
@@ -185,18 +192,18 @@ export default function ComparativeStatements() {
       });
 
       if (!res.ok) {
-        toast({ title: 'Failed to submit CS', description: res.error, variant: 'destructive' });
+        toast({ title: "Failed to submit CS", description: res.error, variant: "destructive" });
         return;
       }
 
       toast({
-        title: 'Comparative Statement Prepared',
+        title: "Comparative Statement Prepared",
         description: `Routed to ${res.routing?.role?.toUpperCase()} for authority review.`,
       });
       setPrepOpen(false);
       loadData();
     } catch (e: any) {
-      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+      toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
@@ -209,13 +216,16 @@ export default function ComparativeStatements() {
         data: { cs_id: cs.id },
       });
       if (!res.ok) {
-        toast({ title: 'Approval Failed', description: res.error, variant: 'destructive' });
+        toast({ title: "Approval Failed", description: res.error, variant: "destructive" });
         return;
       }
-      toast({ title: 'CS Approved', description: `Comparative Statement ${cs.cs_number} approved.` });
+      toast({
+        title: "CS Approved",
+        description: `Comparative Statement ${cs.cs_number} approved.`,
+      });
       loadData();
     } catch (e: any) {
-      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+      toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
       setActing(false);
     }
@@ -223,7 +233,11 @@ export default function ComparativeStatements() {
 
   const handleRejectCs = async () => {
     if (!activeCs || !rejectionRemarks.trim()) {
-      toast({ title: 'Remarks Required', description: 'Please enter rejection remarks.', variant: 'destructive' });
+      toast({
+        title: "Remarks Required",
+        description: "Please enter rejection remarks.",
+        variant: "destructive",
+      });
       return;
     }
     setActing(true);
@@ -235,15 +249,15 @@ export default function ComparativeStatements() {
         },
       });
       if (!res.ok) {
-        toast({ title: 'Rejection Failed', description: res.error, variant: 'destructive' });
+        toast({ title: "Rejection Failed", description: res.error, variant: "destructive" });
         return;
       }
-      toast({ title: 'CS Rejected', description: 'Sent back to procurement.' });
+      toast({ title: "CS Rejected", description: "Sent back to procurement." });
       setRejectOpen(false);
-      setRejectionRemarks('');
+      setRejectionRemarks("");
       loadData();
     } catch (e: any) {
-      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+      toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
       setActing(false);
     }
@@ -262,12 +276,16 @@ export default function ComparativeStatements() {
               Comparative Statements & Evaluation
             </h1>
             <p className="text-slate-600 dark:text-slate-400 mt-1">
-              Multi-vendor technical/commercial comparison, mandatory non-lowest rationale gate, and authority matrix approval routing.
+              Multi-vendor technical/commercial comparison, mandatory non-lowest rationale gate, and
+              authority matrix approval routing.
             </p>
           </div>
 
           <div className="flex items-center gap-2">
-            <Button onClick={() => setPrepOpen(true)} className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm">
+            <Button
+              onClick={() => setPrepOpen(true)}
+              className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+            >
               <PlusCircle className="w-4 h-4" /> Prepare CS
             </Button>
           </div>
@@ -279,37 +297,61 @@ export default function ComparativeStatements() {
             <div className="p-8 text-center text-slate-500">Loading Comparative Statements...</div>
           ) : csList.length === 0 ? (
             <Card className="text-center p-8">
-              <p className="text-slate-500">No Comparative Statements evaluated yet. Prepare one from an RFQ with quotation responses.</p>
+              <p className="text-slate-500">
+                No Comparative Statements evaluated yet. Prepare one from an RFQ with quotation
+                responses.
+              </p>
             </Card>
           ) : (
             csList.map((cs) => {
               const pr = cs.rfqs?.purchase_requisitions;
-              const isPending = cs.status === 'submitted';
+              const isPending = cs.status === "submitted";
 
               return (
-                <Card key={cs.id} className="overflow-hidden border border-slate-200 dark:border-slate-800 hover:border-slate-300">
+                <Card
+                  key={cs.id}
+                  className="overflow-hidden border border-slate-200 dark:border-slate-800 hover:border-slate-300"
+                >
                   <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 pb-3">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <span className="font-mono font-bold text-base text-slate-900 dark:text-slate-100">
-                            {cs.cs_number || 'CS-PENDING'}
+                            {cs.cs_number || "CS-PENDING"}
                           </span>
-                          <Badge variant={cs.status === 'approved' ? 'default' : cs.status === 'rejected' ? 'destructive' : 'secondary'}>
+                          <Badge
+                            variant={
+                              cs.status === "approved"
+                                ? "default"
+                                : cs.status === "rejected"
+                                  ? "destructive"
+                                  : "secondary"
+                            }
+                          >
                             {cs.status.toUpperCase()}
                           </Badge>
                           {cs.is_lowest_price ? (
-                            <Badge variant="outline" className="text-emerald-700 dark:text-emerald-400 border-emerald-500 gap-1 text-xs">
+                            <Badge
+                              variant="outline"
+                              className="text-emerald-700 dark:text-emerald-400 border-emerald-500 gap-1 text-xs"
+                            >
                               <CheckCircle className="w-3 h-3" /> L1 Lowest Price
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="text-amber-700 dark:text-amber-400 border-amber-500 gap-1 text-xs">
+                            <Badge
+                              variant="outline"
+                              className="text-amber-700 dark:text-amber-400 border-amber-500 gap-1 text-xs"
+                            >
                               <AlertCircle className="w-3 h-3" /> Non-Lowest (Rationale Provided)
                             </Badge>
                           )}
                         </div>
                         <p className="text-xs text-slate-500">
-                          RFQ: <span className="font-medium text-slate-700 dark:text-slate-300">{cs.rfqs?.rfq_number}</span> • PR: {pr?.pr_number} • Category: {pr?.category}
+                          RFQ:{" "}
+                          <span className="font-medium text-slate-700 dark:text-slate-300">
+                            {cs.rfqs?.rfq_number}
+                          </span>{" "}
+                          • PR: {pr?.pr_number} • Category: {pr?.category}
                         </p>
                       </div>
 
@@ -346,18 +388,21 @@ export default function ComparativeStatements() {
                       <div>
                         <span className="text-slate-500 block">Recommended Vendor</span>
                         <span className="font-semibold text-slate-800 dark:text-slate-200">
-                          {cs.vendors?.name || 'Selected Vendor'}
+                          {cs.vendors?.name || "Selected Vendor"}
                         </span>
                       </div>
                       <div>
                         <span className="text-slate-500 block">Recommended Amount</span>
                         <span className="font-mono font-bold text-slate-900 dark:text-white">
-                          ₹{Number(cs.recommended_total || 0).toLocaleString('en-IN')}
+                          ₹{Number(cs.recommended_total || 0).toLocaleString("en-IN")}
                         </span>
                       </div>
                       <div>
                         <span className="text-slate-500 block">Authority Routing</span>
-                        <Badge variant="outline" className="font-semibold bg-purple-50 text-purple-700 border-purple-300">
+                        <Badge
+                          variant="outline"
+                          className="font-semibold bg-purple-50 text-purple-700 border-purple-300"
+                        >
                           {cs.current_approver_role?.toUpperCase()}
                         </Badge>
                       </div>
@@ -366,7 +411,8 @@ export default function ComparativeStatements() {
                     {/* Routing reason notice */}
                     {cs.routing_reason && (
                       <div className="p-2.5 bg-blue-50/70 dark:bg-blue-950/40 rounded text-xs text-blue-900 dark:text-blue-200">
-                        <span className="font-semibold">Routing Rule: </span>{cs.routing_reason}
+                        <span className="font-semibold">Routing Rule: </span>
+                        {cs.routing_reason}
                       </div>
                     )}
 
@@ -395,26 +441,42 @@ export default function ComparativeStatements() {
                             {cs.cs_line_scores.map((ls: any) => (
                               <tr
                                 key={ls.id}
-                                className={ls.vendor_id === cs.recommended_vendor_id ? 'bg-emerald-50/60 dark:bg-emerald-950/30 font-medium' : ''}
+                                className={
+                                  ls.vendor_id === cs.recommended_vendor_id
+                                    ? "bg-emerald-50/60 dark:bg-emerald-950/30 font-medium"
+                                    : ""
+                                }
                               >
-                                <td className="p-2">#{ls.rank || '-'}</td>
+                                <td className="p-2">#{ls.rank || "-"}</td>
                                 <td className="p-2 flex items-center gap-1.5">
                                   {ls.vendor_id === cs.recommended_vendor_id && (
                                     <Trophy className="w-3.5 h-3.5 text-amber-500" />
                                   )}
-                                  {ls.vendors?.name || 'Vendor'}
+                                  {ls.vendors?.name || "Vendor"}
                                 </td>
                                 <td className="p-2 text-right font-mono">
-                                  ₹{Number(ls.quoted_total || 0).toLocaleString('en-IN')}
+                                  ₹{Number(ls.quoted_total || 0).toLocaleString("en-IN")}
                                 </td>
                                 <td className="p-2 text-center">
                                   {ls.technical_score >= 70 ? (
-                                    <Badge variant="outline" className="text-emerald-600 border-emerald-500 text-[10px]">YES</Badge>
+                                    <Badge
+                                      variant="outline"
+                                      className="text-emerald-600 border-emerald-500 text-[10px]"
+                                    >
+                                      YES
+                                    </Badge>
                                   ) : (
-                                    <Badge variant="outline" className="text-red-600 border-red-500 text-[10px]">NO</Badge>
+                                    <Badge
+                                      variant="outline"
+                                      className="text-red-600 border-red-500 text-[10px]"
+                                    >
+                                      NO
+                                    </Badge>
                                   )}
                                 </td>
-                                <td className="p-2 text-center font-semibold">{ls.total_score || '-'}</td>
+                                <td className="p-2 text-center font-semibold">
+                                  {ls.total_score || "-"}
+                                </td>
                               </tr>
                             ))}
                           </tbody>
@@ -434,7 +496,8 @@ export default function ComparativeStatements() {
             <DialogHeader>
               <DialogTitle>Prepare Comparative Statement</DialogTitle>
               <DialogDescription>
-                Compare vendor quotations, evaluate technical compliance, and formulate recommendation.
+                Compare vendor quotations, evaluate technical compliance, and formulate
+                recommendation.
               </DialogDescription>
             </DialogHeader>
 
@@ -446,11 +509,14 @@ export default function ComparativeStatements() {
                     <SelectValue placeholder="Select RFQ with responses..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {rfqList.filter((r) => r.status === 'sent').map((r) => (
-                      <SelectItem key={r.id} value={r.id}>
-                        {r.rfq_number} — PR: {r.purchase_requisitions?.pr_number} ({r.quotation_lines?.length || 0} quotes)
-                      </SelectItem>
-                    ))}
+                    {rfqList
+                      .filter((r) => r.status === "sent")
+                      .map((r) => (
+                        <SelectItem key={r.id} value={r.id}>
+                          {r.rfq_number} — PR: {r.purchase_requisitions?.pr_number} (
+                          {r.quotation_lines?.length || 0} quotes)
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -472,15 +538,21 @@ export default function ComparativeStatements() {
                       <tbody className="divide-y">
                         {vendorQuotes.map((vq, i) => (
                           <tr key={vq.vendor_id}>
-                            <td className="p-2 font-medium">{vq.vendor_name} {i === 0 && '(Lowest)'}</td>
+                            <td className="p-2 font-medium">
+                              {vq.vendor_name} {i === 0 && "(Lowest)"}
+                            </td>
                             <td className="p-2 text-right font-mono font-semibold">
-                              ₹{vq.total_quoted.toLocaleString('en-IN')}
+                              ₹{vq.total_quoted.toLocaleString("en-IN")}
                             </td>
                             <td className="p-2 text-center">
                               {vq.meets_tech_spec ? (
-                                <Badge variant="outline" className="text-emerald-600 text-[10px]">Compliant</Badge>
+                                <Badge variant="outline" className="text-emerald-600 text-[10px]">
+                                  Compliant
+                                </Badge>
                               ) : (
-                                <Badge variant="outline" className="text-red-600 text-[10px]">Non-Compliant</Badge>
+                                <Badge variant="outline" className="text-red-600 text-[10px]">
+                                  Non-Compliant
+                                </Badge>
                               )}
                             </td>
                             <td className="p-2 text-center">{vq.delivery_days} days</td>
@@ -500,7 +572,7 @@ export default function ComparativeStatements() {
                       <SelectContent>
                         {vendorQuotes.map((vq) => (
                           <SelectItem key={vq.vendor_id} value={vq.vendor_id}>
-                            {vq.vendor_name} — ₹{vq.total_quoted.toLocaleString('en-IN')}
+                            {vq.vendor_name} — ₹{vq.total_quoted.toLocaleString("en-IN")}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -515,7 +587,9 @@ export default function ComparativeStatements() {
                         Non-Lowest Bidder Justification Mandatory
                       </div>
                       <p className="text-[11px] text-amber-700 dark:text-amber-300">
-                        You have selected a vendor that did not submit the lowest quotation. Please record the comprehensive technical or warranty justification before submission.
+                        You have selected a vendor that did not submit the lowest quotation. Please
+                        record the comprehensive technical or warranty justification before
+                        submission.
                       </p>
                       <Textarea
                         placeholder="Detail specific technical superiority, warranty terms, or vendor track record justifying higher cost..."
@@ -549,13 +623,15 @@ export default function ComparativeStatements() {
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setPrepOpen(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setPrepOpen(false)}>
+                Cancel
+              </Button>
               <Button
                 onClick={handlePrepareCs}
                 disabled={submitting || !selectedRfqId || !recommendedVendorId}
                 className="bg-emerald-600 hover:bg-emerald-700 text-white"
               >
-                {submitting ? 'Submitting...' : 'Submit CS for Approval'}
+                {submitting ? "Submitting..." : "Submit CS for Approval"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -582,13 +658,15 @@ export default function ComparativeStatements() {
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setRejectOpen(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setRejectOpen(false)}>
+                Cancel
+              </Button>
               <Button
                 variant="destructive"
                 onClick={handleRejectCs}
                 disabled={acting || !rejectionRemarks.trim()}
               >
-                {acting ? 'Rejecting...' : 'Reject CS'}
+                {acting ? "Rejecting..." : "Reject CS"}
               </Button>
             </DialogFooter>
           </DialogContent>

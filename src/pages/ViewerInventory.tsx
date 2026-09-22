@@ -1,13 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from '@tanstack/react-router';
-import Layout from '@/components/Layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
-import { usePagination } from '@/hooks/use-pagination';
-import { PaginationControls } from '@/components/PaginationControls';
-import { inventoryApi } from '@/lib/inventoryApi';
-import { useAuth } from '@/lib/auth';
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import Layout from "@/components/Layout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { usePagination } from "@/hooks/use-pagination";
+import { PaginationControls } from "@/components/PaginationControls";
+import { inventoryApi } from "@/lib/inventoryApi";
+import { useAuth } from "@/lib/auth";
 
 const ViewerInventory = () => {
   const { toast } = useToast();
@@ -28,15 +28,19 @@ const ViewerInventory = () => {
       setItems(data || []);
       setTotal(count || 0);
     } catch (err) {
-      console.error('Failed to fetch inventory items', err);
-      toast({ title: 'Error', description: 'Failed to load inventory', variant: 'destructive' });
+      console.error("Failed to fetch inventory items", err);
+      toast({ title: "Error", description: "Failed to load inventory", variant: "destructive" });
     } finally {
       setLoading(false);
     }
   }, [pagination.page, pagination.pageSize, setTotal, toast]);
 
-  useEffect(() => { if (primaryRole !== 'viewer') navigate({ to: '/' }); }, [primaryRole, navigate]);
-  useEffect(() => { fetchItems(); }, [fetchItems]);
+  useEffect(() => {
+    if (primaryRole !== "viewer") navigate({ to: "/" });
+  }, [primaryRole, navigate]);
+  useEffect(() => {
+    fetchItems();
+  }, [fetchItems]);
 
   return (
     <Layout>
@@ -54,12 +58,12 @@ const ViewerInventory = () => {
             <div className="overflow-x-auto">
               <table className="w-full table-fixed">
                 <colgroup>
-                  <col style={{ width: '14%' }} />
-                  <col style={{ width: '30%' }} />
-                  <col style={{ width: '14%' }} />
-                  <col style={{ width: '14%' }} />
-                  <col style={{ width: '18%' }} />
-                  <col style={{ width: '10%' }} />
+                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "30%" }} />
+                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "18%" }} />
+                  <col style={{ width: "10%" }} />
                 </colgroup>
                 <thead className="bg-slate-50">
                   <tr>
@@ -72,18 +76,45 @@ const ViewerInventory = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map(it => (
+                  {items.map((it) => (
                     <tr key={it.id} className="border-t">
-                      <td className="px-2 py-2 align-middle"><div className="truncate max-w-full">{it.item_code}</div></td>
-                      <td className="px-2 py-2 align-middle"><div className="truncate max-w-full">{it.item_name}</div></td>
-                      <td className="px-2 py-2 align-middle">{(it.categories && it.categories.name) || it.category_name || '-'}</td>
-                      <td className="px-2 py-2 align-middle">{it.department || '-'}</td>
-                      <td className="px-2 py-2 align-middle">{(it.locations && it.locations.name) || it.location_name || '-'}</td>
-                      <td className="px-2 py-2 align-middle text-right"><Button size="sm" onClick={() => navigate({ to: `/viewer/inventory/${it.id}`, state: { from: 'viewer-inventory' } as any })}>View</Button></td>
+                      <td className="px-2 py-2 align-middle">
+                        <div className="truncate max-w-full">{it.item_code}</div>
+                      </td>
+                      <td className="px-2 py-2 align-middle">
+                        <div className="truncate max-w-full">{it.item_name}</div>
+                      </td>
+                      <td className="px-2 py-2 align-middle">
+                        {(it.categories && it.categories.name) || it.category_name || "-"}
+                      </td>
+                      <td className="px-2 py-2 align-middle">{it.department || "-"}</td>
+                      <td className="px-2 py-2 align-middle">
+                        {(it.locations && it.locations.name) || it.location_name || "-"}
+                      </td>
+                      <td className="px-2 py-2 align-middle text-right">
+                        <Button
+                          size="sm"
+                          onClick={() =>
+                            navigate({
+                              to: `/viewer/inventory/${it.id}`,
+                              state: { from: "viewer-inventory" } as any,
+                            })
+                          }
+                        >
+                          View
+                        </Button>
+                      </td>
                     </tr>
                   ))}
                   {items.length === 0 && (
-                    <tr><td colSpan={6} className="px-2 py-6 text-center text-sm text-muted-foreground">No inventory items found.</td></tr>
+                    <tr>
+                      <td
+                        colSpan={6}
+                        className="px-2 py-6 text-center text-sm text-muted-foreground"
+                      >
+                        No inventory items found.
+                      </td>
+                    </tr>
                   )}
                 </tbody>
               </table>

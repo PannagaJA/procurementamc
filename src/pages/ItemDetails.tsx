@@ -1,12 +1,21 @@
-import { useQuery } from '@tanstack/react-query';
-import { inventoryApi } from '@/lib/inventoryApi';
+import { useQuery } from "@tanstack/react-query";
+import { inventoryApi } from "@/lib/inventoryApi";
 import Layout from "@/components/Layout";
-import { useParams, useNavigate, useLocation } from '@tanstack/react-router';
+import { useParams, useNavigate, useLocation } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, MapPin, Package, DollarSign, Calendar, FileText, Download, Printer } from "lucide-react";
+import {
+  ArrowLeft,
+  MapPin,
+  Package,
+  DollarSign,
+  Calendar,
+  FileText,
+  Download,
+  Printer,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface InventoryDetail {
@@ -48,7 +57,7 @@ const ItemDetails = () => {
   const location = useLocation();
 
   const { data: item, isLoading } = useQuery({
-    queryKey: ['inventory-item', id],
+    queryKey: ["inventory-item", id],
     queryFn: () => inventoryApi.getInventoryItem(id!),
     enabled: !!id,
   });
@@ -60,21 +69,21 @@ const ItemDetails = () => {
       // Fetch the QR code image
       const response = await fetch(item.qr_code_url);
       const blob = await response.blob();
-      
+
       // Create download link
       const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = url;
       link.download = `${item.item_code}-qrcode.png`;
-      
+
       // Trigger download
       document.body.appendChild(link);
       link.click();
-      
+
       // Cleanup
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      
+
       toast({
         title: "Download started",
         description: "QR code image has been downloaded.",
@@ -94,7 +103,7 @@ const ItemDetails = () => {
 
     try {
       // Open a new window with just the QR code for printing
-      const printWindow = window.open('', '_blank');
+      const printWindow = window.open("", "_blank");
       if (!printWindow) {
         toast({
           variant: "destructive",
@@ -155,7 +164,7 @@ const ItemDetails = () => {
 
       printWindow.document.close();
       printWindow.focus();
-      
+
       // Wait a bit for the image to load, then print
       setTimeout(() => {
         printWindow.print();
@@ -179,9 +188,9 @@ const ItemDetails = () => {
   const getStatusBadge = (status: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
       "in-use": "default",
-      "discarded": "secondary",
-      "scrapped": "destructive",
-      "transferred": "outline",
+      discarded: "secondary",
+      scrapped: "destructive",
+      transferred: "outline",
     };
 
     return (
@@ -211,12 +220,17 @@ const ItemDetails = () => {
     <Layout>
       <div className="space-y-6">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => {
-            const from = (location && (location as any).state && (location as any).state.from) || null;
-            if (from === 'hod-dashboard') return navigate({ to: '/hod' });
-            if (from === 'hod-inventory') return navigate({ to: '/hod/inventory' });
-            return navigate({ to: '/inventory' });
-          }}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              const from =
+                (location && (location as any).state && (location as any).state.from) || null;
+              if (from === "hod-dashboard") return navigate({ to: "/hod" });
+              if (from === "hod-inventory") return navigate({ to: "/hod/inventory" });
+              return navigate({ to: "/inventory" });
+            }}
+          >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Inventory
           </Button>
@@ -226,7 +240,8 @@ const ItemDetails = () => {
           <div>
             <h2 className="text-3xl font-bold tracking-tight">{item.item_name}</h2>
             <p className="text-muted-foreground mt-1">
-              <span className="font-mono text-primary">{item.item_code}</span> • Sl. No: {item.sl_no}
+              <span className="font-mono text-primary">{item.item_code}</span> • Sl. No:{" "}
+              {item.sl_no}
             </p>
           </div>
           {getStatusBadge(item.status)}
@@ -243,11 +258,17 @@ const ItemDetails = () => {
             <CardContent className="space-y-4">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Category</p>
-                <p className="text-base">{item.categories ? `${item.categories.name} (${item.categories.prefix})` : "-"}</p>
+                <p className="text-base">
+                  {item.categories ? `${item.categories.name} (${item.categories.prefix})` : "-"}
+                </p>
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Location/Building</p>
-                <p className="text-base">{item.locations ? `${item.locations.name}${item.locations.prefix ? ` (${item.locations.prefix})` : ''} - ${item.locations.building}` : "-"}</p>
+                <p className="text-base">
+                  {item.locations
+                    ? `${item.locations.name}${item.locations.prefix ? ` (${item.locations.prefix})` : ""} - ${item.locations.building}`
+                    : "-"}
+                </p>
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Department</p>
@@ -255,7 +276,13 @@ const ItemDetails = () => {
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Asset Type</p>
-                <p className="text-base">{item.asset_type === 'capital' ? 'Capital' : item.asset_type === 'recurring' ? 'Recurring/Consumables' : '-'}</p>
+                <p className="text-base">
+                  {item.asset_type === "capital"
+                    ? "Capital"
+                    : item.asset_type === "recurring"
+                      ? "Recurring/Consumables"
+                      : "-"}
+                </p>
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Room Number</p>
@@ -282,7 +309,9 @@ const ItemDetails = () => {
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Cost per Unit</p>
-                <p className="text-base">₹{parseFloat(String(item.cost_per_unit)).toLocaleString("en-IN")}</p>
+                <p className="text-base">
+                  ₹{parseFloat(String(item.cost_per_unit)).toLocaleString("en-IN")}
+                </p>
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Cost</p>
@@ -335,13 +364,17 @@ const ItemDetails = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Approval Letter Reference</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Approval Letter Reference
+                </p>
                 <p className="text-base">{item.approval_letter_ref || "-"}</p>
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Approval Date</p>
                 <p className="text-base">
-                  {item.approval_letter_date ? new Date(item.approval_letter_date).toLocaleDateString() : "-"}
+                  {item.approval_letter_date
+                    ? new Date(item.approval_letter_date).toLocaleDateString()
+                    : "-"}
                 </p>
               </div>
               <div>
@@ -407,12 +440,7 @@ const ItemDetails = () => {
                         <Download className="w-3 h-3 mr-1" />
                         Download
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={printQRCode}
-                        className="text-xs"
-                      >
+                      <Button variant="outline" size="sm" onClick={printQRCode} className="text-xs">
                         <Printer className="w-3 h-3 mr-1" />
                         Print
                       </Button>
@@ -458,11 +486,14 @@ const ItemDetails = () => {
                   />
                 </div>
               )}
-              {!item.qr_code_url && !item.item_photo_url && !item.approval_letter_photo_url && !item.invoice_photo_url && (
-                <p className="text-sm text-muted-foreground col-span-4 text-center py-8">
-                  No QR code or images uploaded for this item
-                </p>
-              )}
+              {!item.qr_code_url &&
+                !item.item_photo_url &&
+                !item.approval_letter_photo_url &&
+                !item.invoice_photo_url && (
+                  <p className="text-sm text-muted-foreground col-span-4 text-center py-8">
+                    No QR code or images uploaded for this item
+                  </p>
+                )}
             </div>
           </CardContent>
         </Card>

@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { inventoryApi } from '@/lib/inventoryApi';
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { inventoryApi } from "@/lib/inventoryApi";
 import Layout from "@/components/Layout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { useNavigate } from '@tanstack/react-router';
+import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -36,8 +36,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import { Download } from "lucide-react";
 import QRScanner from "@/components/QRScanner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -73,13 +73,7 @@ const InventoryList = () => {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [showQRScanner, setShowQRScanner] = useState(false);
 
-  const {
-    pagination,
-    setPage,
-    setPageSize,
-    setTotal,
-    resetPagination,
-  } = usePagination(10, 1);
+  const { pagination, setPage, setPageSize, setTotal, resetPagination } = usePagination(10, 1);
 
   // Reset to first page whenever filters/search change
   useEffect(() => {
@@ -88,16 +82,26 @@ const InventoryList = () => {
 
   // Queries
   const { data: inventoryData, isLoading } = useQuery({
-    queryKey: ['inventory', pagination.page, pagination.pageSize, searchTerm, statusFilter, categoryFilter, locationFilter, departmentFilter],
-    queryFn: () => inventoryApi.getInventoryItems({
-      limit: pagination.pageSize,
-      offset: (pagination.page - 1) * pagination.pageSize,
-      search: searchTerm,
-      status: statusFilter,
-      categoryId: categoryFilter,
-      locationId: locationFilter,
-      departmentId: departmentFilter,
-    }),
+    queryKey: [
+      "inventory",
+      pagination.page,
+      pagination.pageSize,
+      searchTerm,
+      statusFilter,
+      categoryFilter,
+      locationFilter,
+      departmentFilter,
+    ],
+    queryFn: () =>
+      inventoryApi.getInventoryItems({
+        limit: pagination.pageSize,
+        offset: (pagination.page - 1) * pagination.pageSize,
+        search: searchTerm,
+        status: statusFilter,
+        categoryId: categoryFilter,
+        locationId: locationFilter,
+        departmentId: departmentFilter,
+      }),
     placeholderData: (previousData: any) => previousData,
   });
 
@@ -106,19 +110,19 @@ const InventoryList = () => {
   }, [inventoryData]);
 
   const { data: categories = [] } = useQuery({
-    queryKey: ['categories'],
+    queryKey: ["categories"],
     queryFn: inventoryApi.getCategories,
   });
 
   const { data: locations = [] } = useQuery({
-    queryKey: ['locations'],
+    queryKey: ["locations"],
     queryFn: inventoryApi.getLocations,
   });
 
   const { data: departments = [] } = useQuery({
-    queryKey: ['departments'],
+    queryKey: ["departments"],
     queryFn: async () => {
-      const { data } = await supabase.from('departments').select('*').order('name');
+      const { data } = await supabase.from("departments").select("*").order("name");
       return data || [];
     },
   });
@@ -131,7 +135,9 @@ const InventoryList = () => {
 
   const checkUserRole = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (user) {
         const { data: roleData } = await supabase
           .from("user_roles")
@@ -149,7 +155,7 @@ const InventoryList = () => {
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       inventoryApi.updateInventoryItem(id, { status }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
       toast({
         title: "Status updated",
         description: "Item status has been updated.",
@@ -171,7 +177,7 @@ const InventoryList = () => {
   const deleteMutation = useMutation({
     mutationFn: inventoryApi.deleteInventoryItem,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
       toast({
         title: "Item deleted",
         description: "Item has been successfully deleted.",
@@ -202,58 +208,58 @@ const InventoryList = () => {
 
   const exportToPDF = async () => {
     const doc = new jsPDF();
-    
+
     // Load logo
     let logoData = null;
     try {
       const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.src = '/amc.jpeg';
+      img.crossOrigin = "anonymous";
+      img.src = "/amc.jpeg";
       await new Promise((resolve, reject) => {
         img.onload = resolve;
         img.onerror = reject;
       });
-      
+
       // Create canvas to get data URL
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
       canvas.width = img.width;
       canvas.height = img.height;
       ctx?.drawImage(img, 0, 0);
-      logoData = canvas.toDataURL('image/jpeg');
+      logoData = canvas.toDataURL("image/jpeg");
     } catch (error) {
-      console.warn('Failed to load logo:', error);
+      console.warn("Failed to load logo:", error);
     }
-    
+
     // Add logo if available
     if (logoData) {
-      doc.addImage(logoData, 'JPEG', 15, 10, 30, 30);
+      doc.addImage(logoData, "JPEG", 15, 10, 30, 30);
     }
-    
+
     // Add title
     doc.setFontSize(20);
-    doc.text('AMC Inventory Report', 105, 25, { align: 'center' });
-    
+    doc.text("AMC Inventory Report", 105, 25, { align: "center" });
+
     // Add date
     doc.setFontSize(12);
-    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 105, 35, { align: 'center' });
-    
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 105, 35, { align: "center" });
+
     // Prepare table data
     const tableData = items.map((item) => [
       item.item_code,
       item.item_name,
-      item.categories?.name || '-',
+      item.categories?.name || "-",
       item.quantity_available,
-      `₹${parseFloat(String(item.total_cost || 0)).toLocaleString('en-IN')}`
+      `₹${parseFloat(String(item.total_cost || 0)).toLocaleString("en-IN")}`,
     ]);
-    
+
     // Calculate totals
     const totalItems = items.length;
     const totalValue = items.reduce((sum, item) => sum + (item.total_cost || 0), 0);
-    
+
     // Add table
     autoTable(doc, {
-      head: [['Item Code', 'Item Name', 'Category', 'Quantity', 'Total Cost']],
+      head: [["Item Code", "Item Name", "Category", "Quantity", "Total Cost"]],
       body: tableData,
       startY: 50,
       styles: {
@@ -263,7 +269,7 @@ const InventoryList = () => {
       headStyles: {
         fillColor: [59, 130, 246], // blue
         textColor: 255,
-        fontStyle: 'bold',
+        fontStyle: "bold",
       },
       alternateRowStyles: {
         fillColor: [245, 245, 245],
@@ -276,15 +282,15 @@ const InventoryList = () => {
         4: { cellWidth: 30 }, // Total Cost
       },
     });
-    
+
     // Add summary
     const finalY = (doc as any).lastAutoTable.finalY + 10;
     doc.setFontSize(10);
     doc.text(`Total Items: ${totalItems}`, 15, finalY);
-    doc.text(`Total Value: ₹${totalValue.toLocaleString('en-IN')}`, 15, finalY + 10);
-    
+    doc.text(`Total Value: ₹${totalValue.toLocaleString("en-IN")}`, 15, finalY + 10);
+
     // Save the PDF
-    doc.save('inventory-report.pdf');
+    doc.save("inventory-report.pdf");
   };
 
   const handleQRScan = (result: string) => {
@@ -294,12 +300,12 @@ const InventoryList = () => {
     let itemCode = result;
 
     // If it's a URL, extract the item code from the path
-    if (result.includes('/inventory/')) {
-      const urlParts = result.split('/inventory/');
+    if (result.includes("/inventory/")) {
+      const urlParts = result.split("/inventory/");
       if (urlParts.length > 1) {
-        itemCode = urlParts[1].split('/')[0]; // Get the ID part
+        itemCode = urlParts[1].split("/")[0]; // Get the ID part
         // If it's an ID, we need to find the item by ID instead
-        const foundItem = items.find(item => item.id === itemCode);
+        const foundItem = items.find((item) => item.id === itemCode);
         if (foundItem) {
           navigate({ to: `/inventory/${foundItem.id}` });
           toast({
@@ -312,7 +318,7 @@ const InventoryList = () => {
     }
 
     // Search for the item with the scanned QR code (item_code)
-    const foundItem = items.find(item => item.item_code === itemCode);
+    const foundItem = items.find((item) => item.item_code === itemCode);
     if (foundItem) {
       navigate({ to: `/inventory/${foundItem.id}` });
       toast({
@@ -331,9 +337,9 @@ const InventoryList = () => {
   const getStatusBadge = (status: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
       "in-use": "default",
-      "discarded": "secondary",
-      "scrapped": "destructive",
-      "transferred": "outline",
+      discarded: "secondary",
+      scrapped: "destructive",
+      transferred: "outline",
     };
 
     return (
@@ -373,15 +379,15 @@ const InventoryList = () => {
   return (
     <Layout>
       <div className="space-y-8 animate-in fade-in-0 duration-700">
-        
-
         <Card className="bg-card/90 backdrop-blur-sm shadow-xl border-0 rounded-xl transition-all duration-300 hover:shadow-2xl">
           <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 rounded-t-xl">
             <CardTitle className="text-2xl font-bold text-card-foreground flex items-center gap-2">
               <ScanLine className="w-6 h-6 text-green-600 dark:text-green-400" />
               Scan to Get Info
             </CardTitle>
-            <p className="text-sm text-muted-foreground">Scan QR codes to quickly access item details</p>
+            <p className="text-sm text-muted-foreground">
+              Scan QR codes to quickly access item details
+            </p>
           </CardHeader>
           <CardContent className="p-8">
             <div className="text-center">
@@ -402,7 +408,9 @@ const InventoryList = () => {
 
         <Card className="bg-card/90 backdrop-blur-sm shadow-xl border-0 rounded-xl transition-all duration-300 hover:shadow-2xl">
           <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 rounded-t-xl">
-            <CardTitle className="text-2xl font-bold text-card-foreground">Search & Filters</CardTitle>
+            <CardTitle className="text-2xl font-bold text-card-foreground">
+              Search & Filters
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6 p-8">
             <div className="flex items-center gap-3">
@@ -410,10 +418,14 @@ const InventoryList = () => {
                 placeholder="Search by item code, name, department, category, or location..."
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') setSearchTerm(searchInput); }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") setSearchTerm(searchInput);
+                }}
                 className="pl-3 py-2 text-sm rounded-lg h-10 w-64"
               />
-              <Button onClick={() => setSearchTerm(searchInput)} className="h-10">Search</Button>
+              <Button onClick={() => setSearchTerm(searchInput)} className="h-10">
+                Search
+              </Button>
             </div>
 
             <div className="grid md:grid-cols-5 gap-6">
@@ -452,7 +464,8 @@ const InventoryList = () => {
                   <SelectItem value="all">All Locations</SelectItem>
                   {locations.map((loc) => (
                     <SelectItem key={loc.id} value={loc.id}>
-                      {loc.name}{loc.prefix ? ` (${loc.prefix})` : ''}
+                      {loc.name}
+                      {loc.prefix ? ` (${loc.prefix})` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -465,13 +478,15 @@ const InventoryList = () => {
                 <SelectContent>
                   <SelectItem value="all">All Departments</SelectItem>
                   {departments.map((d: any) => (
-                    <SelectItem key={d.id} value={d.name}>{d.name}</SelectItem>
+                    <SelectItem key={d.id} value={d.name}>
+                      {d.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
 
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={clearFilters}
                 className="h-12 text-base font-medium border-2 border-border hover:bg-accent transition-all duration-300 hover:scale-105 hover:shadow-md rounded-lg"
               >
@@ -487,41 +502,86 @@ const InventoryList = () => {
               <Table className="w-max">
                 <TableHeader className="bg-muted">
                   <TableRow>
-                    <TableHead className="text-base font-semibold text-muted-foreground">#</TableHead>
-                    <TableHead className="text-base font-semibold text-muted-foreground">Item Code</TableHead>
-                    <TableHead className="text-base font-semibold text-muted-foreground">Item Name</TableHead>
-                    <TableHead className="text-base font-semibold text-muted-foreground">Category</TableHead>
-                    <TableHead className="text-base font-semibold text-muted-foreground">Location</TableHead>
-                    <TableHead className="text-base font-semibold text-muted-foreground">Asset Type</TableHead>
-                    <TableHead className="text-base font-semibold text-muted-foreground">Department</TableHead>
-                    <TableHead className="text-base font-semibold text-muted-foreground text-right">Quantity</TableHead>
-                    <TableHead className="text-base font-semibold text-muted-foreground text-right">Total Cost</TableHead>
-                    <TableHead className="text-base font-semibold text-muted-foreground">Status</TableHead>
-                    <TableHead className="text-base font-semibold text-muted-foreground text-right">Actions</TableHead>
+                    <TableHead className="text-base font-semibold text-muted-foreground">
+                      #
+                    </TableHead>
+                    <TableHead className="text-base font-semibold text-muted-foreground">
+                      Item Code
+                    </TableHead>
+                    <TableHead className="text-base font-semibold text-muted-foreground">
+                      Item Name
+                    </TableHead>
+                    <TableHead className="text-base font-semibold text-muted-foreground">
+                      Category
+                    </TableHead>
+                    <TableHead className="text-base font-semibold text-muted-foreground">
+                      Location
+                    </TableHead>
+                    <TableHead className="text-base font-semibold text-muted-foreground">
+                      Asset Type
+                    </TableHead>
+                    <TableHead className="text-base font-semibold text-muted-foreground">
+                      Department
+                    </TableHead>
+                    <TableHead className="text-base font-semibold text-muted-foreground text-right">
+                      Quantity
+                    </TableHead>
+                    <TableHead className="text-base font-semibold text-muted-foreground text-right">
+                      Total Cost
+                    </TableHead>
+                    <TableHead className="text-base font-semibold text-muted-foreground">
+                      Status
+                    </TableHead>
+                    <TableHead className="text-base font-semibold text-muted-foreground text-right">
+                      Actions
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {items.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={11} className="text-center py-12 text-muted-foreground text-lg">
+                      <TableCell
+                        colSpan={11}
+                        className="text-center py-12 text-muted-foreground text-lg"
+                      >
                         No items found. Try adjusting your search or filters.
                       </TableCell>
                     </TableRow>
                   ) : (
                     items.map((item, index) => (
-                      <TableRow 
-                        key={item.id} 
+                      <TableRow
+                        key={item.id}
                         className="hover:bg-muted/50 animate-in slide-in-from-bottom-2 duration-500"
                         style={{ animationDelay: `${index * 50}ms` }}
                       >
                         <TableCell className="text-base">{index + 1}</TableCell>
-                        <TableCell className="font-mono text-base text-foreground whitespace-nowrap">{item.item_code}</TableCell>
-                        <TableCell className="font-semibold text-base text-foreground whitespace-nowrap">{item.item_name}</TableCell>
-                        <TableCell className="text-base whitespace-nowrap">{item.categories?.name || "-"}</TableCell>
-                        <TableCell className="text-base whitespace-nowrap">{item.locations ? `${item.locations.name}${item.locations.prefix ? ` (${item.locations.prefix})` : ''}` : "-"}</TableCell>
-                          <TableCell className="text-base whitespace-nowrap">{item.asset_type === 'capital' ? 'Capital' : item.asset_type === 'recurring' ? 'Recurring/Consumables' : '-'}</TableCell>
-                          <TableCell className="text-base whitespace-nowrap">{item.department || "-"}</TableCell>
-                        <TableCell className="text-right text-base font-medium">{item.quantity_available}</TableCell>
+                        <TableCell className="font-mono text-base text-foreground whitespace-nowrap">
+                          {item.item_code}
+                        </TableCell>
+                        <TableCell className="font-semibold text-base text-foreground whitespace-nowrap">
+                          {item.item_name}
+                        </TableCell>
+                        <TableCell className="text-base whitespace-nowrap">
+                          {item.categories?.name || "-"}
+                        </TableCell>
+                        <TableCell className="text-base whitespace-nowrap">
+                          {item.locations
+                            ? `${item.locations.name}${item.locations.prefix ? ` (${item.locations.prefix})` : ""}`
+                            : "-"}
+                        </TableCell>
+                        <TableCell className="text-base whitespace-nowrap">
+                          {item.asset_type === "capital"
+                            ? "Capital"
+                            : item.asset_type === "recurring"
+                              ? "Recurring/Consumables"
+                              : "-"}
+                        </TableCell>
+                        <TableCell className="text-base whitespace-nowrap">
+                          {item.department || "-"}
+                        </TableCell>
+                        <TableCell className="text-right text-base font-medium">
+                          {item.quantity_available}
+                        </TableCell>
                         <TableCell className="text-right text-base font-semibold text-foreground">
                           ₹{parseFloat(String(item.total_cost || 0)).toLocaleString("en-IN")}
                         </TableCell>
@@ -546,7 +606,9 @@ const InventoryList = () => {
                             </Button>
                             <Select
                               value={item.status || "in-use"}
-                              onValueChange={(value) => updateItemStatus(item.id, value, item.item_code)}
+                              onValueChange={(value) =>
+                                updateItemStatus(item.id, value, item.item_code)
+                              }
                             >
                               <SelectTrigger className="w-32 h-10 text-base">
                                 <SelectValue />
@@ -560,9 +622,9 @@ const InventoryList = () => {
                             </Select>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm" 
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
                                   className="text-destructive hover:text-destructive hover:bg-destructive/10 transition-all duration-300 hover:scale-105 rounded-lg px-3 py-2"
                                 >
                                   Delete
@@ -570,14 +632,18 @@ const InventoryList = () => {
                               </AlertDialogTrigger>
                               <AlertDialogContent className="bg-background rounded-xl shadow-2xl">
                                 <AlertDialogHeader>
-                                  <AlertDialogTitle className="text-xl font-bold">Delete Item</AlertDialogTitle>
+                                  <AlertDialogTitle className="text-xl font-bold">
+                                    Delete Item
+                                  </AlertDialogTitle>
                                   <AlertDialogDescription className="text-base">
-                                    Are you sure you want to delete item "{item.item_name}" with code "{item.item_code}"?
-                                    This action cannot be undone.
+                                    Are you sure you want to delete item "{item.item_name}" with
+                                    code "{item.item_code}"? This action cannot be undone.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
-                                  <AlertDialogCancel className="rounded-lg">Cancel</AlertDialogCancel>
+                                  <AlertDialogCancel className="rounded-lg">
+                                    Cancel
+                                  </AlertDialogCancel>
                                   <AlertDialogAction
                                     onClick={() => deleteItem(item.id, item.item_code)}
                                     className="bg-destructive hover:bg-destructive/90 rounded-lg px-4 py-2"
@@ -598,8 +664,8 @@ const InventoryList = () => {
 
             <PaginationControls
               currentPage={pagination.page}
-                totalPages={Math.ceil(pagination.total / pagination.pageSize)}
-                currentItemsCount={items.length}
+              totalPages={Math.ceil(pagination.total / pagination.pageSize)}
+              currentItemsCount={items.length}
               pageSize={pagination.pageSize}
               totalItems={pagination.total}
               onPageChange={setPage}
@@ -614,10 +680,7 @@ const InventoryList = () => {
           <DialogHeader>
             <DialogTitle>Scan QR Code</DialogTitle>
           </DialogHeader>
-          <QRScanner
-            onScan={handleQRScan}
-            onClose={() => setShowQRScanner(false)}
-          />
+          <QRScanner onScan={handleQRScan} onClose={() => setShowQRScanner(false)} />
         </DialogContent>
       </Dialog>
     </Layout>

@@ -1,1 +1,1 @@
-export * from '@/lib/procurement/grn.functions';
+export * from "@/lib/procurement/grn.functions";

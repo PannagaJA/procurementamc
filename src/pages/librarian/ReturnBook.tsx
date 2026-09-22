@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
-import LibraryLayout from '@/components/library/LibraryLayout';
-import { Button } from '@/components/ui/button';
-import libraryApi from '@/lib/libraryApi';
+import { useEffect, useState } from "react";
+import LibraryLayout from "@/components/library/LibraryLayout";
+import { Button } from "@/components/ui/button";
+import libraryApi from "@/lib/libraryApi";
 
 const ReturnBook = () => {
   const [issues, setIssues] = useState<any[]>([]);
@@ -9,7 +9,11 @@ const ReturnBook = () => {
   const [members, setMembers] = useState<any[]>([]);
 
   const load = async () => {
-    const [iRes, bRes, mRes] = await Promise.all([libraryApi.getIssues(), libraryApi.getBooks(), libraryApi.getMembers()]);
+    const [iRes, bRes, mRes] = await Promise.all([
+      libraryApi.getIssues(),
+      libraryApi.getBooks(),
+      libraryApi.getMembers(),
+    ]);
     const i = iRes.data || [];
     const b = bRes.data || [];
     setIssues(i);
@@ -20,17 +24,19 @@ const ReturnBook = () => {
   const membersMap = Object.fromEntries(members.map((m: any) => [m.id, m.name]));
   const booksMap = Object.fromEntries(books.map((b: any) => [b.id, b.title]));
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   const markReturned = async (id: string) => {
     try {
       const ok = await libraryApi.returnBook(id);
-      if (!ok) return alert('Return failed');
+      if (!ok) return alert("Return failed");
       await load();
-      alert('Marked returned');
-    } catch (err:any) {
-      console.error('Return failed', err);
-      alert(err?.message || 'Failed to mark returned');
+      alert("Marked returned");
+    } catch (err: any) {
+      console.error("Return failed", err);
+      alert(err?.message || "Failed to mark returned");
     }
   };
 
@@ -49,13 +55,15 @@ const ReturnBook = () => {
             </tr>
           </thead>
           <tbody>
-            {issues.map(i => (
+            {issues.map((i) => (
               <tr key={i.id} className="border-t border-border">
                 <td>{membersMap[i.memberId] || i.memberId}</td>
                 <td>{booksMap[i.bookId] || i.bookId}</td>
                 <td>{i.issueDate}</td>
                 <td>{i.dueDate}</td>
-                <td><Button onClick={() => markReturned(i.id)}>Return</Button></td>
+                <td>
+                  <Button onClick={() => markReturned(i.id)}>Return</Button>
+                </td>
               </tr>
             ))}
           </tbody>

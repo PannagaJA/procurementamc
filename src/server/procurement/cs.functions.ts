@@ -1,1 +1,1 @@
-export * from '@/lib/procurement/cs.functions';
+export * from "@/lib/procurement/cs.functions";

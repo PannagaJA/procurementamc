@@ -28,5 +28,5 @@ export const createPaginatedQuery = (query: any, page: number, pageSize: number)
 };
 
 export const createCountQuery = (query: any) => {
-  return query.select('*', { count: 'exact', head: true });
+  return query.select("*", { count: "exact", head: true });
 };

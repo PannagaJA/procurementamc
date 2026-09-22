@@ -1,1 +1,1 @@
-export * from '@/lib/procurement/authorityMatrix';
+export * from "@/lib/procurement/authorityMatrix";

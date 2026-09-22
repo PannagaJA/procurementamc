@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback } from "react";
 
 export interface PaginationState {
   page: number;
@@ -19,7 +19,7 @@ export interface UsePaginationReturn {
 
 export const usePagination = (
   initialPageSize: number = 10,
-  initialPage: number = 1
+  initialPage: number = 1,
 ): UsePaginationReturn => {
   const [pagination, setPagination] = useState<PaginationState>({
     page: initialPage,
@@ -28,15 +28,15 @@ export const usePagination = (
   });
 
   const setPage = useCallback((page: number) => {
-    setPagination(prev => ({ ...prev, page }));
+    setPagination((prev) => ({ ...prev, page }));
   }, []);
 
   const setPageSize = useCallback((pageSize: number) => {
-    setPagination(prev => ({ ...prev, pageSize, page: 1 })); // Reset to first page when changing page size
+    setPagination((prev) => ({ ...prev, pageSize, page: 1 })); // Reset to first page when changing page size
   }, []);
 
   const setTotal = useCallback((total: number) => {
-    setPagination(prev => ({ ...prev, total }));
+    setPagination((prev) => ({ ...prev, total }));
   }, []);
 
   const resetPagination = useCallback(() => {

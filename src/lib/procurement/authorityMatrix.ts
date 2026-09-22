@@ -7,21 +7,21 @@
  */
 
 export type PrCategory =
-  | 'routine_consumable'
-  | 'equipment_asset'
-  | 'software'
-  | 'academic_research'
-  | 'services_amc'
-  | 'maintenance'
-  | 'small_value';
+  | "routine_consumable"
+  | "equipment_asset"
+  | "software"
+  | "academic_research"
+  | "services_amc"
+  | "maintenance"
+  | "small_value";
 
 export type ApprovalRole =
-  | 'hod'
-  | 'principal'
-  | 'procurement_officer'
-  | 'purchase_committee'
-  | 'director_admin_finance'
-  | 'evp';
+  | "hod"
+  | "principal"
+  | "procurement_officer"
+  | "purchase_committee"
+  | "director_admin_finance"
+  | "evp";
 
 export type MatrixRule = {
   id?: string;
@@ -45,24 +45,31 @@ export type ResolvedApprover = {
 };
 
 /** Role used whenever no rule in the matrix can authorise the transaction. */
-export const ESCALATION_ROLE: ApprovalRole = 'evp';
+export const ESCALATION_ROLE: ApprovalRole = "evp";
 
-const inr = (n: number) =>
-  `₹${n.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+const inr = (n: number) => `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
 
 function limit(v: number | null | undefined): number {
   return v === null || v === undefined ? Number.POSITIVE_INFINITY : Number(v);
 }
 
 export function normalizeCategory(category: string): string {
-  const norm = (category || '').toLowerCase().trim().replace(/[-\s]+/g, '_');
-  if (norm.includes('small_value') || norm.includes('smallvalue') || norm.includes('direct_purchase')) return 'small_value';
-  if (norm.includes('routine') || norm.includes('consumable')) return 'routine_consumable';
-  if (norm.includes('equipment') || norm.includes('asset')) return 'equipment_asset';
-  if (norm.includes('software')) return 'software';
-  if (norm.includes('academic') || norm.includes('research')) return 'academic_research';
-  if (norm.includes('service') || norm.includes('amc')) return 'services_amc';
-  if (norm.includes('maintenance')) return 'maintenance';
+  const norm = (category || "")
+    .toLowerCase()
+    .trim()
+    .replace(/[-\s]+/g, "_");
+  if (
+    norm.includes("small_value") ||
+    norm.includes("smallvalue") ||
+    norm.includes("direct_purchase")
+  )
+    return "small_value";
+  if (norm.includes("routine") || norm.includes("consumable")) return "routine_consumable";
+  if (norm.includes("equipment") || norm.includes("asset")) return "equipment_asset";
+  if (norm.includes("software")) return "software";
+  if (norm.includes("academic") || norm.includes("research")) return "academic_research";
+  if (norm.includes("service") || norm.includes("amc")) return "services_amc";
+  if (norm.includes("maintenance")) return "maintenance";
   return norm;
 }
 
@@ -83,7 +90,11 @@ export function resolveApprover(
 ): ResolvedApprover {
   const canonicalCat = normalizeCategory(category);
   const applicable = (rules ?? [])
-    .filter((r) => r.active !== false && (r.category === canonicalCat || normalizeCategory(r.category) === canonicalCat))
+    .filter(
+      (r) =>
+        r.active !== false &&
+        (r.category === canonicalCat || normalizeCategory(r.category) === canonicalCat),
+    )
     // cheapest authority first — first-approver-wins between overlapping roles (Q2)
     .sort((a, b) => limit(a.per_txn_limit) - limit(b.per_txn_limit));
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import {
   Pagination,
   PaginationContent,
@@ -7,16 +7,16 @@ import {
   PaginationLink,
   PaginationNext,
   PaginationPrevious,
-} from '@/components/ui/pagination';
+} from "@/components/ui/pagination";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface PaginationControlsProps {
   currentPage: number;
@@ -73,19 +73,16 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
     if (startPage > 1) {
       pages.push(
         <PaginationItem key={1}>
-          <PaginationLink
-            onClick={() => onPageChange(1)}
-            isActive={currentPage === 1}
-          >
+          <PaginationLink onClick={() => onPageChange(1)} isActive={currentPage === 1}>
             1
           </PaginationLink>
-        </PaginationItem>
+        </PaginationItem>,
       );
       if (startPage > 2) {
         pages.push(
           <PaginationItem key="start-ellipsis">
             <PaginationEllipsis />
-          </PaginationItem>
+          </PaginationItem>,
         );
       }
     }
@@ -94,13 +91,10 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
     for (let i = startPage; i <= endPage; i++) {
       pages.push(
         <PaginationItem key={i}>
-          <PaginationLink
-            onClick={() => onPageChange(i)}
-            isActive={currentPage === i}
-          >
+          <PaginationLink onClick={() => onPageChange(i)} isActive={currentPage === i}>
             {i}
           </PaginationLink>
-        </PaginationItem>
+        </PaginationItem>,
       );
     }
 
@@ -110,7 +104,7 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
         pages.push(
           <PaginationItem key="end-ellipsis">
             <PaginationEllipsis />
-          </PaginationItem>
+          </PaginationItem>,
         );
       }
       pages.push(
@@ -121,7 +115,7 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
           >
             {totalPages}
           </PaginationLink>
-        </PaginationItem>
+        </PaginationItem>,
       );
     }
 
@@ -133,9 +127,10 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
   // be more). Always show controls when we're past the first page so Prev is
   // available on the last page even if the final page has fewer items.
   const hasPrev = currentPage > 1;
-  const hasNext = totalPages && totalPages > 0
-    ? currentPage < totalPages
-    : !!(currentItemsCount && currentItemsCount >= pageSize);
+  const hasNext =
+    totalPages && totalPages > 0
+      ? currentPage < totalPages
+      : !!(currentItemsCount && currentItemsCount >= pageSize);
 
   const shouldRender = totalPages > 1 || hasPrev || hasNext;
   if (!shouldRender) return null;
@@ -177,7 +172,7 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
             <PaginationItem>
               <PaginationPrevious
                 onClick={() => hasPrev && onPageChange(currentPage - 1)}
-                className={hasPrev ? 'cursor-pointer' : 'pointer-events-none opacity-50'}
+                className={hasPrev ? "cursor-pointer" : "pointer-events-none opacity-50"}
               />
             </PaginationItem>
 
@@ -186,7 +181,7 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
             <PaginationItem>
               <PaginationNext
                 onClick={() => hasNext && onPageChange(currentPage + 1)}
-                className={hasNext ? 'cursor-pointer' : 'pointer-events-none opacity-50'}
+                className={hasNext ? "cursor-pointer" : "pointer-events-none opacity-50"}
               />
             </PaginationItem>
           </PaginationContent>

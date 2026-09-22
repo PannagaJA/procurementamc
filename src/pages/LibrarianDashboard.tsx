@@ -1,8 +1,8 @@
-import LibraryLayout from '@/components/library/LibraryLayout';
+import LibraryLayout from "@/components/library/LibraryLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import libraryApi from '@/lib/libraryApi';
+import libraryApi from "@/lib/libraryApi";
 
 const LibrarianDashboard = () => {
   const { toast } = useToast();
@@ -13,18 +13,45 @@ const LibrarianDashboard = () => {
   useEffect(() => {
     const init = async () => {
       try {
-        const [booksRes, membersRes, issuesRes] = await Promise.all([libraryApi.getBooks(), libraryApi.getMembers(), libraryApi.getIssues()]);
+        const [booksRes, membersRes, issuesRes] = await Promise.all([
+          libraryApi.getBooks(),
+          libraryApi.getMembers(),
+          libraryApi.getIssues(),
+        ]);
         const books = booksRes.data || [];
         const members = membersRes.data || [];
         const issues = issuesRes.data || [];
-        const overdue = (issues || []).filter((i:any) => new Date(i.dueDate) < new Date()).length;
-        setStats({ totalBooks: books.length, totalMembers: members.length, issued: issues.length, overdue });
-          const booksMap = books.reduce((acc:any,cur:any)=>{ acc[cur.id]=cur.title; return acc; }, {});
-          const membersMap = members.reduce((acc:any,cur:any)=>{ acc[cur.id]=cur.name; return acc; }, {});
-          setRecent(issues.slice(0,10).map((i:any)=>({ ...i, bookTitle: booksMap[i.bookId]||i.bookId, memberName: membersMap[i.memberId]||i.memberId })));
+        const overdue = (issues || []).filter((i: any) => new Date(i.dueDate) < new Date()).length;
+        setStats({
+          totalBooks: books.length,
+          totalMembers: members.length,
+          issued: issues.length,
+          overdue,
+        });
+        const booksMap = books.reduce((acc: any, cur: any) => {
+          acc[cur.id] = cur.title;
+          return acc;
+        }, {});
+        const membersMap = members.reduce((acc: any, cur: any) => {
+          acc[cur.id] = cur.name;
+          return acc;
+        }, {});
+        setRecent(
+          issues
+            .slice(0, 10)
+            .map((i: any) => ({
+              ...i,
+              bookTitle: booksMap[i.bookId] || i.bookId,
+              memberName: membersMap[i.memberId] || i.memberId,
+            })),
+        );
       } catch (err) {
         console.error("Error initializing librarian dashboard:", err);
-        toast({ title: "Error", description: "Failed to load librarian data", variant: "destructive" });
+        toast({
+          title: "Error",
+          description: "Failed to load librarian data",
+          variant: "destructive",
+        });
       } finally {
         setLoading(false);
       }
@@ -84,17 +111,22 @@ const LibrarianDashboard = () => {
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
-                  <tr><th>Action</th><th>Book</th><th>Member</th><th>Date</th></tr>
+                  <tr>
+                    <th>Action</th>
+                    <th>Book</th>
+                    <th>Member</th>
+                    <th>Date</th>
+                  </tr>
                 </thead>
                 <tbody>
-                    {recent.map((i:any) => (
-                      <tr key={i.id} className="border-t border-border">
-                        <td>Issued</td>
-                        <td>{i.bookTitle}</td>
-                        <td>{i.memberName}</td>
-                        <td>{i.issueDate}</td>
-                      </tr>
-                    ))}
+                  {recent.map((i: any) => (
+                    <tr key={i.id} className="border-t border-border">
+                      <td>Issued</td>
+                      <td>{i.bookTitle}</td>
+                      <td>{i.memberName}</td>
+                      <td>{i.issueDate}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from '@tanstack/react-router';
+import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,7 +18,9 @@ const PendingApproval = () => {
 
   const checkUserStatus = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (!session) {
         navigate({ to: "/auth" });
         return;
@@ -90,7 +92,8 @@ const PendingApproval = () => {
             Pending Approval
           </CardTitle>
           <CardDescription className="text-center">
-            Your account is pending administrator approval. You will be able to access the system once an administrator reviews and approves your registration.
+            Your account is pending administrator approval. You will be able to access the system
+            once an administrator reviews and approves your registration.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -104,11 +107,7 @@ const PendingApproval = () => {
               </ul>
             </div>
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => window.location.reload()}
-                className="flex-1"
-              >
+              <Button variant="outline" onClick={() => window.location.reload()} className="flex-1">
                 Check Again
               </Button>
               <Button variant="outline" onClick={handleLogout}>

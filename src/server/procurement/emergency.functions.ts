@@ -1,1 +1,1 @@
-export * from '@/lib/procurement/emergency.functions';
+export * from "@/lib/procurement/emergency.functions";

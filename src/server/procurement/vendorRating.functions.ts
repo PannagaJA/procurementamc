@@ -1,1 +1,1 @@
-export * from '@/lib/procurement/vendorRating.functions';
+export * from "@/lib/procurement/vendorRating.functions";

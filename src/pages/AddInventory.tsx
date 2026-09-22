@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from '@tanstack/react-router';
+import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { uploadImage, generateItemCode, generateQRCode } from "@/lib/inventoryApi";
 import { Button } from "@/components/ui/button";
@@ -34,14 +34,18 @@ const inventorySchema = z.object({
 
 // Asset types
 const ASSET_TYPES = [
-  { id: 'capital', label: 'Capital' },
-  { id: 'recurring', label: 'Recurring/Consumables' },
+  { id: "capital", label: "Capital" },
+  { id: "recurring", label: "Recurring/Consumables" },
 ];
 
 const AddInventory = () => {
   const [loading, setLoading] = useState(false);
-  const [categories, setCategories] = useState<Database['public']['Tables']['categories']['Row'][]>([]);
-  const [locations, setLocations] = useState<Database['public']['Tables']['locations']['Row'][]>([]);
+  const [categories, setCategories] = useState<Database["public"]["Tables"]["categories"]["Row"][]>(
+    [],
+  );
+  const [locations, setLocations] = useState<Database["public"]["Tables"]["locations"]["Row"][]>(
+    [],
+  );
   const [itemCode, setItemCode] = useState("");
   const [gpsCoords, setGpsCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const navigate = useNavigate();
@@ -99,16 +103,22 @@ const AddInventory = () => {
     setLocations(data || []);
   };
 
-  const [departments, setDepartments] = useState<Array<{ id: string; name: string; prefix?: string | null }>>([]);
+  const [departments, setDepartments] = useState<
+    Array<{ id: string; name: string; prefix?: string | null }>
+  >([]);
 
   const fetchDepartmentsByLocation = async (locationId: string) => {
     if (!locationId) {
       setDepartments([]);
       return;
     }
-    const { data, error } = await supabase.from('departments').select('*').eq('location_id', locationId).order('name');
+    const { data, error } = await supabase
+      .from("departments")
+      .select("*")
+      .eq("location_id", locationId)
+      .order("name");
     if (error) {
-      console.error('Failed to fetch departments', error);
+      console.error("Failed to fetch departments", error);
       setDepartments([]);
       return;
     }
@@ -135,11 +145,13 @@ const AddInventory = () => {
           switch (error.code) {
             case error.PERMISSION_DENIED:
               errorMessage = "Location access denied";
-              errorDescription = "Please allow location access in your browser settings and try again.";
+              errorDescription =
+                "Please allow location access in your browser settings and try again.";
               break;
             case error.POSITION_UNAVAILABLE:
               errorMessage = "Location unavailable";
-              errorDescription = "Your location could not be determined. Please check your GPS settings.";
+              errorDescription =
+                "Your location could not be determined. Please check your GPS settings.";
               break;
             case error.TIMEOUT:
               errorMessage = "Location request timeout";
@@ -162,13 +174,14 @@ const AddInventory = () => {
           enableHighAccuracy: true,
           timeout: 10000,
           maximumAge: 300000, // 5 minutes
-        }
+        },
       );
     } else {
       toast({
         variant: "destructive",
         title: "Geolocation not supported",
-        description: "Your browser doesn't support geolocation. You can continue without location data.",
+        description:
+          "Your browser doesn't support geolocation. You can continue without location data.",
       });
     }
   };
@@ -180,7 +193,7 @@ const AddInventory = () => {
           formData.category_id,
           formData.location_id,
           formData.quantity_available,
-          formData.department_prefix || undefined
+          formData.department_prefix || undefined,
         );
         if (codes.length === 1) {
           setItemCode(codes[0]);
@@ -243,7 +256,9 @@ const AddInventory = () => {
       ]);
 
       // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
       // For quantity > 1, we need to create multiple items with unique codes
       const itemsToInsert = [];
@@ -254,13 +269,14 @@ const AddInventory = () => {
           formData.category_id,
           formData.location_id,
           formData.quantity_available,
-          formData.department_prefix || undefined
+          formData.department_prefix || undefined,
         );
       } else {
         // Generate fallback codes
         const timestamp = Date.now().toString().slice(-6);
-        generatedCodes = Array.from({ length: formData.quantity_available }, (_, i) => 
-          `ITEM-${timestamp}-${String(i + 1).padStart(3, '0')}`
+        generatedCodes = Array.from(
+          { length: formData.quantity_available },
+          (_, i) => `ITEM-${timestamp}-${String(i + 1).padStart(3, "0")}`,
         );
       }
 
@@ -275,7 +291,7 @@ const AddInventory = () => {
           cost_per_unit: formData.cost_per_unit,
           vendor_name: formData.vendor_name || null,
           vendor_contact: formData.vendor_contact || null,
-            department: formData.department || null,
+          department: formData.department || null,
           asset_type: formData.asset_type || null,
           item_photo_url: itemPhotoUrl,
           approval_letter_photo_url: approvalPhotoUrl,
@@ -300,18 +316,15 @@ const AddInventory = () => {
 
       // Generate QR codes for each item
       for (const item of insertedItems || []) {
-        const qrCodeUrl = await generateQRCode(item.item_code || '', item.id);
+        const qrCodeUrl = await generateQRCode(item.item_code || "", item.id);
         if (qrCodeUrl) {
-          await supabase
-            .from("inventory")
-            .update({ qr_code_url: qrCodeUrl })
-            .eq("id", item.id);
+          await supabase.from("inventory").update({ qr_code_url: qrCodeUrl }).eq("id", item.id);
         }
       }
 
       toast({
         title: "Success!",
-        description: `${formData.quantity_available} item${formData.quantity_available > 1 ? 's' : ''} have been added to inventory.`,
+        description: `${formData.quantity_available} item${formData.quantity_available > 1 ? "s" : ""} have been added to inventory.`,
       });
 
       // Navigate to inventory list since multiple items were created
@@ -343,7 +356,9 @@ const AddInventory = () => {
         <form onSubmit={handleSubmit} className="space-y-8">
           <Card className="bg-card/90 backdrop-blur-sm shadow-xl border-0 rounded-xl transition-all duration-300 hover:shadow-2xl">
             <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 rounded-t-xl">
-              <CardTitle className="text-2xl font-bold text-card-foreground">Basic Information</CardTitle>
+              <CardTitle className="text-2xl font-bold text-card-foreground">
+                Basic Information
+              </CardTitle>
               <CardDescription className="text-base">
                 {itemCode && (
                   <span className="inline-flex items-center gap-2 px-4 py-2 mt-3 bg-blue-100 text-blue-800 rounded-lg font-mono text-base font-semibold animate-in slide-in-from-top duration-500">
@@ -355,7 +370,9 @@ const AddInventory = () => {
             <CardContent className="space-y-6 p-8">
               <div className="grid md:grid-cols-3 gap-6">
                 <div className="space-y-3">
-                  <Label htmlFor="category" className="text-base font-semibold text-foreground">Category</Label>
+                  <Label htmlFor="category" className="text-base font-semibold text-foreground">
+                    Category
+                  </Label>
                   <Combobox
                     options={categories.map((cat) => ({
                       value: cat.id,
@@ -373,7 +390,9 @@ const AddInventory = () => {
                 </div>
 
                 <div className="space-y-3">
-                  <Label htmlFor="location" className="text-base font-semibold text-foreground">Location</Label>
+                  <Label htmlFor="location" className="text-base font-semibold text-foreground">
+                    Location
+                  </Label>
                   <Select
                     value={formData.location_id}
                     onValueChange={(value) => {
@@ -384,41 +403,54 @@ const AddInventory = () => {
                     <SelectTrigger className="h-12 text-base">
                       <SelectValue placeholder="Select location" />
                     </SelectTrigger>
-                      <SelectContent>
-                        {locations.map((loc) => {
-                          const lname = (loc.name || '').toLowerCase();
-                          let code = loc.prefix || '';
-                          if (lname.includes('engineering')) code = 'EC';
-                          else if (lname.includes('degree')) code = 'DC';
-                          else if (lname.includes('admin')) code = 'AB';
+                    <SelectContent>
+                      {locations.map((loc) => {
+                        const lname = (loc.name || "").toLowerCase();
+                        let code = loc.prefix || "";
+                        if (lname.includes("engineering")) code = "EC";
+                        else if (lname.includes("degree")) code = "DC";
+                        else if (lname.includes("admin")) code = "AB";
 
-                          let display = loc.name;
-                          if (lname.includes('engineering')) display = `Engineering college - ${code}`;
-                          else if (lname.includes('degree')) display = `Degree college - ${code}`;
-                          else if (lname.includes('admin')) display = `Admin block - ${code}`;
-                          else if (code) display = `${loc.name} (${code})`;
+                        let display = loc.name;
+                        if (lname.includes("engineering"))
+                          display = `Engineering college - ${code}`;
+                        else if (lname.includes("degree")) display = `Degree college - ${code}`;
+                        else if (lname.includes("admin")) display = `Admin block - ${code}`;
+                        else if (code) display = `${loc.name} (${code})`;
 
-                          return (
-                            <SelectItem key={loc.id} value={loc.id}>
-                              {display}
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
+                        return (
+                          <SelectItem key={loc.id} value={loc.id}>
+                            {display}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-3">
-                  <Label htmlFor="department" className="text-base font-semibold text-foreground">Department</Label>
+                  <Label htmlFor="department" className="text-base font-semibold text-foreground">
+                    Department
+                  </Label>
                   <Select
                     value={formData.department_id}
                     onValueChange={(value) => {
-                      if (value === 'none') {
-                        setFormData((prev) => ({ ...prev, department_id: '', department: '', department_prefix: '' }));
+                      if (value === "none") {
+                        setFormData((prev) => ({
+                          ...prev,
+                          department_id: "",
+                          department: "",
+                          department_prefix: "",
+                        }));
                         updateItemCode();
                         return;
                       }
-                      const dept = departments.find(d => d.id === value);
-                      setFormData((prev) => ({ ...prev, department_id: value, department: dept ? dept.name : value, department_prefix: dept ? (dept.prefix || '') : '' }));
+                      const dept = departments.find((d) => d.id === value);
+                      setFormData((prev) => ({
+                        ...prev,
+                        department_id: value,
+                        department: dept ? dept.name : value,
+                        department_prefix: dept ? dept.prefix || "" : "",
+                      }));
                       updateItemCode();
                     }}
                   >
@@ -428,16 +460,23 @@ const AddInventory = () => {
                     <SelectContent>
                       <SelectItem value="none">None</SelectItem>
                       {departments.map((d) => (
-                        <SelectItem key={d.id} value={d.id}>{`${d.name}${d.prefix ? ` (${d.prefix})` : ''}`}</SelectItem>
+                        <SelectItem
+                          key={d.id}
+                          value={d.id}
+                        >{`${d.name}${d.prefix ? ` (${d.prefix})` : ""}`}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-3">
-                  <Label htmlFor="asset_type" className="text-base font-semibold text-foreground">Asset Type</Label>
+                  <Label htmlFor="asset_type" className="text-base font-semibold text-foreground">
+                    Asset Type
+                  </Label>
                   <Select
                     value={formData.asset_type}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, asset_type: value }))}
+                    onValueChange={(value) =>
+                      setFormData((prev) => ({ ...prev, asset_type: value }))
+                    }
                   >
                     <SelectTrigger className="h-12 text-base">
                       <SelectValue placeholder="Select asset type" />
@@ -445,7 +484,9 @@ const AddInventory = () => {
                     <SelectContent>
                       <SelectItem value="none">None</SelectItem>
                       {ASSET_TYPES.map((a) => (
-                        <SelectItem key={a.id} value={a.id}>{a.label}</SelectItem>
+                        <SelectItem key={a.id} value={a.id}>
+                          {a.label}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -453,20 +494,22 @@ const AddInventory = () => {
               </div>
 
               <div className="space-y-3">
-                <Label htmlFor="item_name" className="text-base font-semibold text-foreground">Item Name *</Label>
+                <Label htmlFor="item_name" className="text-base font-semibold text-foreground">
+                  Item Name *
+                </Label>
                 <Input
                   id="item_name"
                   value={formData.item_name}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, item_name: e.target.value }))
-                  }
+                  onChange={(e) => setFormData((prev) => ({ ...prev, item_name: e.target.value }))}
                   required
                   className="h-12 text-base"
                 />
               </div>
 
               <div className="space-y-3">
-                <Label htmlFor="specifications" className="text-base font-semibold text-foreground">Specifications</Label>
+                <Label htmlFor="specifications" className="text-base font-semibold text-foreground">
+                  Specifications
+                </Label>
                 <Textarea
                   id="specifications"
                   value={formData.specifications}
@@ -480,7 +523,9 @@ const AddInventory = () => {
 
               <div className="grid md:grid-cols-3 gap-6">
                 <div className="space-y-3">
-                  <Label htmlFor="quantity" className="text-base font-semibold text-foreground">Quantity *</Label>
+                  <Label htmlFor="quantity" className="text-base font-semibold text-foreground">
+                    Quantity *
+                  </Label>
                   <Input
                     id="quantity"
                     type="number"
@@ -503,7 +548,9 @@ const AddInventory = () => {
                 </div>
 
                 <div className="space-y-3">
-                  <Label htmlFor="cost" className="text-base font-semibold text-foreground">Cost per Unit (₹) *</Label>
+                  <Label htmlFor="cost" className="text-base font-semibold text-foreground">
+                    Cost per Unit (₹) *
+                  </Label>
                   <Input
                     id="cost"
                     type="number"
@@ -539,12 +586,16 @@ const AddInventory = () => {
 
           <Card className="bg-card/90 backdrop-blur-sm shadow-xl border-0 rounded-xl transition-all duration-300 hover:shadow-2xl">
             <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 rounded-t-xl">
-              <CardTitle className="text-2xl font-bold text-card-foreground">Vendor & Invoice Details</CardTitle>
+              <CardTitle className="text-2xl font-bold text-card-foreground">
+                Vendor & Invoice Details
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6 p-8">
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="space-y-3">
-                  <Label htmlFor="vendor_name" className="text-base font-semibold text-foreground">Vendor Name</Label>
+                  <Label htmlFor="vendor_name" className="text-base font-semibold text-foreground">
+                    Vendor Name
+                  </Label>
                   <Input
                     id="vendor_name"
                     value={formData.vendor_name}
@@ -556,7 +607,12 @@ const AddInventory = () => {
                 </div>
 
                 <div className="space-y-3">
-                  <Label htmlFor="vendor_contact" className="text-base font-semibold text-foreground">Vendor Contact</Label>
+                  <Label
+                    htmlFor="vendor_contact"
+                    className="text-base font-semibold text-foreground"
+                  >
+                    Vendor Contact
+                  </Label>
                   <Input
                     id="vendor_contact"
                     value={formData.vendor_contact}
@@ -569,7 +625,9 @@ const AddInventory = () => {
               </div>
 
               <div className="space-y-3">
-                <Label htmlFor="vendor_address" className="text-base font-semibold text-foreground">Vendor Address</Label>
+                <Label htmlFor="vendor_address" className="text-base font-semibold text-foreground">
+                  Vendor Address
+                </Label>
                 <Textarea
                   id="vendor_address"
                   value={formData.vendor_address}
@@ -583,7 +641,9 @@ const AddInventory = () => {
 
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="space-y-3">
-                  <Label htmlFor="invoice_no" className="text-base font-semibold text-foreground">Invoice Number</Label>
+                  <Label htmlFor="invoice_no" className="text-base font-semibold text-foreground">
+                    Invoice Number
+                  </Label>
                   <Input
                     id="invoice_no"
                     value={formData.invoice_no}
@@ -595,7 +655,9 @@ const AddInventory = () => {
                 </div>
 
                 <div className="space-y-3">
-                  <Label htmlFor="invoice_date" className="text-base font-semibold text-foreground">Invoice Date</Label>
+                  <Label htmlFor="invoice_date" className="text-base font-semibold text-foreground">
+                    Invoice Date
+                  </Label>
                   <Input
                     id="invoice_date"
                     type="date"
@@ -616,7 +678,9 @@ const AddInventory = () => {
 
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="space-y-3">
-                  <Label htmlFor="approval_ref" className="text-base font-semibold text-foreground">Approval Letter Ref</Label>
+                  <Label htmlFor="approval_ref" className="text-base font-semibold text-foreground">
+                    Approval Letter Ref
+                  </Label>
                   <Input
                     id="approval_ref"
                     value={formData.approval_letter_ref}
@@ -628,7 +692,12 @@ const AddInventory = () => {
                 </div>
 
                 <div className="space-y-3">
-                  <Label htmlFor="approval_date" className="text-base font-semibold text-foreground">Approval Date</Label>
+                  <Label
+                    htmlFor="approval_date"
+                    className="text-base font-semibold text-foreground"
+                  >
+                    Approval Date
+                  </Label>
                   <Input
                     id="approval_date"
                     type="date"
@@ -651,13 +720,17 @@ const AddInventory = () => {
 
           <Card className="bg-card/90 backdrop-blur-sm shadow-xl border-0 rounded-xl transition-all duration-300 hover:shadow-2xl">
             <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 rounded-t-xl">
-              <CardTitle className="text-2xl font-bold text-card-foreground">Location & Status</CardTitle>
+              <CardTitle className="text-2xl font-bold text-card-foreground">
+                Location & Status
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6 p-8">
               <div />
 
               <div className="space-y-3">
-                <Label htmlFor="status" className="text-base font-semibold text-gray-700">Status</Label>
+                <Label htmlFor="status" className="text-base font-semibold text-gray-700">
+                  Status
+                </Label>
                 <Select
                   value={formData.status}
                   onValueChange={(value: string) =>
@@ -678,7 +751,9 @@ const AddInventory = () => {
 
               {gpsCoords && (
                 <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-lg flex items-start gap-3 animate-in slide-in-from-left duration-500">
-                  <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm">📍</div>
+                  <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                    📍
+                  </div>
                   <div className="text-base">
                     <p className="font-semibold text-blue-800">GPS Coordinates Captured</p>
                     <p className="text-blue-600">
@@ -705,13 +780,13 @@ const AddInventory = () => {
               )}
 
               <div className="space-y-3">
-                <Label htmlFor="remarks" className="text-base font-semibold text-gray-700">Remarks</Label>
+                <Label htmlFor="remarks" className="text-base font-semibold text-gray-700">
+                  Remarks
+                </Label>
                 <Textarea
                   id="remarks"
                   value={formData.remarks}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, remarks: e.target.value }))
-                  }
+                  onChange={(e) => setFormData((prev) => ({ ...prev, remarks: e.target.value }))}
                   rows={4}
                   className="text-base resize-none"
                 />
@@ -720,9 +795,9 @@ const AddInventory = () => {
           </Card>
 
           <div className="flex gap-6 pt-4">
-            <Button 
-              type="submit" 
-              disabled={loading} 
+            <Button
+              type="submit"
+              disabled={loading}
               className="flex-1 py-4 text-lg font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 hover:scale-105 hover:shadow-xl rounded-xl"
             >
               {loading ? "Adding..." : "Add to Inventory"}

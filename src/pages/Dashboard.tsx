@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from '@tanstack/react-router';
+import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from '@/lib/auth';
-import { useToast } from '@/hooks/use-toast';
+import { useAuth } from "@/lib/auth";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   BarChart,
@@ -15,7 +15,7 @@ import {
   PieChart,
   Pie,
   Cell,
-  Legend
+  Legend,
 } from "recharts";
 import Layout from "@/components/Layout";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -40,7 +40,7 @@ const Dashboard = () => {
   const { toast } = useToast();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
-  
+
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredItems, setFilteredItems] = useState<any[]>([]);
@@ -54,20 +54,20 @@ const Dashboard = () => {
 
     // Redirect based on primary role
     switch (primaryRole) {
-      case 'admin':
+      case "admin":
         // keep the main dashboard for admins
         break;
-      case 'hod':
-        navigate({ to: '/hod' });
+      case "hod":
+        navigate({ to: "/hod" });
         return;
-      case 'principle':
-        navigate({ to: '/principal' });
+      case "principle":
+        navigate({ to: "/principal" });
         return;
-      case 'librarian':
-        navigate({ to: '/librarian' });
+      case "librarian":
+        navigate({ to: "/librarian" });
         return;
-      case 'viewer':
-        navigate({ to: '/viewer' });
+      case "viewer":
+        navigate({ to: "/viewer" });
         return;
       default:
         break;
@@ -81,20 +81,23 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     try {
       const [inventoryResult, categoriesResult, locationsResult] = await Promise.all([
-        supabase.from("inventory").select("quantity_available, total_cost, status, categories(name), locations(name, prefix)"),
+        supabase
+          .from("inventory")
+          .select(
+            "quantity_available, total_cost, status, categories(name), locations(name, prefix)",
+          ),
         supabase.from("categories").select("id"),
         supabase.from("locations").select("id"),
       ]);
 
-      const totalItems = inventoryResult.data?.reduce(
-        (sum, item) => sum + (item.quantity_available || 0),
-        0
-      ) || 0;
+      const totalItems =
+        inventoryResult.data?.reduce((sum, item) => sum + (item.quantity_available || 0), 0) || 0;
 
-      const totalValue = inventoryResult.data?.reduce(
-        (sum, item) => sum + (parseFloat(String(item.total_cost || 0))),
-        0
-      ) || 0;
+      const totalValue =
+        inventoryResult.data?.reduce(
+          (sum, item) => sum + parseFloat(String(item.total_cost || 0)),
+          0,
+        ) || 0;
 
       // Category breakdown
       const categoryMap = new Map<string, { count: number; value: number }>();
@@ -116,12 +119,15 @@ const Dashboard = () => {
       const locationMap = new Map<string, { count: number; value: number; building: string }>();
       inventoryResult.data?.forEach((item) => {
         const locName = (item.locations as any)?.name || "Unassigned";
-        const locPrefix = (item.locations as any)?.prefix ? ` (${(item.locations as any).prefix})` : '';
+        const locPrefix = (item.locations as any)?.prefix
+          ? ` (${(item.locations as any).prefix})`
+          : "";
         const location = `${locName}${locPrefix}`;
         // Access building safely, defaulting to Unknown if not available
-        const building = item.locations && typeof item.locations === 'object' && 'building' in item.locations 
-          ? (item.locations as any).building || "Unknown"
-          : "Unknown";
+        const building =
+          item.locations && typeof item.locations === "object" && "building" in item.locations
+            ? (item.locations as any).building || "Unknown"
+            : "Unknown";
         const existing = locationMap.get(location) || { count: 0, value: 0, building: "Unknown" };
         locationMap.set(location, {
           count: existing.count + (item.quantity_available || 0),
@@ -168,8 +174,8 @@ const Dashboard = () => {
         item.item_name?.toLowerCase().includes(term) ||
         item.department?.toLowerCase().includes(term) ||
         item.categories?.name?.toLowerCase().includes(term) ||
-        (item.locations?.name || '').toLowerCase().includes(term) ||
-        (item.locations?.prefix || '').toLowerCase().includes(term)
+        (item.locations?.name || "").toLowerCase().includes(term) ||
+        (item.locations?.prefix || "").toLowerCase().includes(term),
     );
 
     setFilteredItems(filtered);
@@ -187,12 +193,12 @@ const Dashboard = () => {
     let itemCode = result;
 
     // If it's a URL, extract the item code from the path
-    if (result.includes('/inventory/')) {
-      const urlParts = result.split('/inventory/');
+    if (result.includes("/inventory/")) {
+      const urlParts = result.split("/inventory/");
       if (urlParts.length > 1) {
-        itemCode = urlParts[1].split('/')[0]; // Get the ID part
+        itemCode = urlParts[1].split("/")[0]; // Get the ID part
         // If it's an ID, we need to find the item by ID instead
-        const foundItem = stats?.allItems.find(item => item.id === itemCode);
+        const foundItem = stats?.allItems.find((item) => item.id === itemCode);
         if (foundItem) {
           navigate({ to: `/inventory/${foundItem.id}` });
           return;
@@ -201,7 +207,7 @@ const Dashboard = () => {
     }
 
     // Search for the item with the scanned QR code (item_code)
-    const foundItem = stats?.allItems.find(item => item.item_code === itemCode);
+    const foundItem = stats?.allItems.find((item) => item.item_code === itemCode);
     if (foundItem) {
       navigate({ to: `/inventory/${foundItem.id}` });
     } else {
@@ -220,7 +226,10 @@ const Dashboard = () => {
           </div>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             {[...Array(4)].map((_, i) => (
-              <Card key={i} className="bg-white/80 backdrop-blur-sm shadow-lg border-0 rounded-xl transition-all duration-300 hover:shadow-xl">
+              <Card
+                key={i}
+                className="bg-white/80 backdrop-blur-sm shadow-lg border-0 rounded-xl transition-all duration-300 hover:shadow-xl"
+              >
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                   <Skeleton className="h-5 w-28" />
                   <Skeleton className="h-5 w-5 rounded-full" />
@@ -248,23 +257,29 @@ const Dashboard = () => {
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/20 dark:to-blue-900/20 shadow-lg border-0 rounded-xl transition-all duration-300 hover:shadow-xl hover:scale-105">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle className="text-base font-semibold text-blue-800 dark:text-blue-200">Total Items</CardTitle>
+              <CardTitle className="text-base font-semibold text-blue-800 dark:text-blue-200">
+                Total Items
+              </CardTitle>
               <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-blue-900 dark:text-blue-100">{stats?.totalItems || 0}</div>
+              <div className="text-3xl font-bold text-blue-900 dark:text-blue-100">
+                {stats?.totalItems || 0}
+              </div>
               <p className="text-sm text-blue-700 dark:text-blue-300">Across all locations</p>
             </CardContent>
           </Card>
 
           <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/20 dark:to-green-900/20 shadow-lg border-0 rounded-xl transition-all duration-300 hover:shadow-xl hover:scale-105">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle className="text-base font-semibold text-green-800 dark:text-green-200">Total Value</CardTitle>
+              <CardTitle className="text-base font-semibold text-green-800 dark:text-green-200">
+                Total Value
+              </CardTitle>
               <div className="w-3 h-3 bg-green-500 rounded-full"></div>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-green-900 dark:text-green-100">
-                ₹{(stats?.totalValue || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                ₹{(stats?.totalValue || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
               </div>
               <p className="text-sm text-green-700 dark:text-green-300">Total inventory worth</p>
             </CardContent>
@@ -272,22 +287,30 @@ const Dashboard = () => {
 
           <Card className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950/20 dark:to-purple-900/20 shadow-lg border-0 rounded-xl transition-all duration-300 hover:shadow-xl hover:scale-105">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle className="text-base font-semibold text-purple-800 dark:text-purple-200">Categories</CardTitle>
+              <CardTitle className="text-base font-semibold text-purple-800 dark:text-purple-200">
+                Categories
+              </CardTitle>
               <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-purple-900 dark:text-purple-100">{stats?.categoriesCount || 0}</div>
+              <div className="text-3xl font-bold text-purple-900 dark:text-purple-100">
+                {stats?.categoriesCount || 0}
+              </div>
               <p className="text-sm text-purple-700 dark:text-purple-300">Item categories</p>
             </CardContent>
           </Card>
 
           <Card className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950/20 dark:to-orange-900/20 shadow-lg border-0 rounded-xl transition-all duration-300 hover:shadow-xl hover:scale-105">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle className="text-base font-semibold text-orange-800 dark:text-orange-200">Locations</CardTitle>
+              <CardTitle className="text-base font-semibold text-orange-800 dark:text-orange-200">
+                Locations
+              </CardTitle>
               <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-orange-900 dark:text-orange-100">{stats?.locationsCount || 0}</div>
+              <div className="text-3xl font-bold text-orange-900 dark:text-orange-100">
+                {stats?.locationsCount || 0}
+              </div>
               <p className="text-sm text-orange-700 dark:text-orange-300">Storage locations</p>
             </CardContent>
           </Card>
@@ -301,7 +324,9 @@ const Dashboard = () => {
               <ScanLine className="w-6 h-6 text-green-600 dark:text-green-400" />
               Scan to Get Info
             </CardTitle>
-            <p className="text-sm text-muted-foreground">Scan QR codes to quickly access item details</p>
+            <p className="text-sm text-muted-foreground">
+              Scan QR codes to quickly access item details
+            </p>
           </CardHeader>
           <CardContent className="p-8">
             <div className="text-center">
@@ -327,7 +352,9 @@ const Dashboard = () => {
       <div className="grid md:grid-cols-2 gap-8 mt-8 animate-in fade-in-0 duration-1000">
         <Card className="bg-card/90 backdrop-blur-sm shadow-xl border-0 rounded-xl transition-all duration-300 hover:shadow-2xl">
           <CardHeader>
-            <CardTitle className="text-xl font-bold text-card-foreground">Inventory by Location</CardTitle>
+            <CardTitle className="text-xl font-bold text-card-foreground">
+              Inventory by Location
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-80">
@@ -345,18 +372,23 @@ const Dashboard = () => {
                   <YAxis stroke="hsl(var(--muted-foreground))" />
                   <Tooltip
                     formatter={(value, name) => [
-                      name === 'count' ? `${value} items` : `₹${value.toLocaleString('en-IN')}`,
-                      name === 'count' ? 'Items' : 'Value'
+                      name === "count" ? `${value} items` : `₹${value.toLocaleString("en-IN")}`,
+                      name === "count" ? "Items" : "Value",
                     ]}
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--background))', 
-                      border: '1px solid hsl(var(--border))', 
-                      borderRadius: '8px', 
-                      boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
-                      color: 'hsl(var(--foreground))'
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--background))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
+                      color: "hsl(var(--foreground))",
                     }}
                   />
-                  <Bar dataKey="count" fill="hsl(var(--primary))" name="count" radius={[4, 4, 0, 0]} />
+                  <Bar
+                    dataKey="count"
+                    fill="hsl(var(--primary))"
+                    name="count"
+                    radius={[4, 4, 0, 0]}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -365,7 +397,9 @@ const Dashboard = () => {
 
         <Card className="bg-card/90 backdrop-blur-sm shadow-xl border-0 rounded-xl transition-all duration-300 hover:shadow-2xl">
           <CardHeader>
-            <CardTitle className="text-xl font-bold text-card-foreground">Location Distribution</CardTitle>
+            <CardTitle className="text-xl font-bold text-card-foreground">
+              Location Distribution
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-80">
@@ -385,15 +419,15 @@ const Dashboard = () => {
                       <Cell key={`cell-${index}`} fill={`hsl(${index * 45 + 200}, 70%, 50%)`} />
                     ))}
                   </Pie>
-                  <Tooltip 
-                    formatter={(value) => [`${value} items`, 'Count']} 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--background))', 
-                      border: '1px solid hsl(var(--border))', 
-                      borderRadius: '8px', 
-                      boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
-                      color: 'hsl(var(--foreground))'
-                    }} 
+                  <Tooltip
+                    formatter={(value) => [`${value} items`, "Count"]}
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--background))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
+                      color: "hsl(var(--foreground))",
+                    }}
                   />
                   <Legend />
                 </PieChart>
@@ -408,10 +442,7 @@ const Dashboard = () => {
           <DialogHeader>
             <DialogTitle>Scan QR Code</DialogTitle>
           </DialogHeader>
-          <QRScanner
-            onScan={handleQRScan}
-            onClose={() => setShowQRScanner(false)}
-          />
+          <QRScanner onScan={handleQRScan} onClose={() => setShowQRScanner(false)} />
         </DialogContent>
       </Dialog>
     </Layout>

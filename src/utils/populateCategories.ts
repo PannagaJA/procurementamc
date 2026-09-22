@@ -73,7 +73,7 @@ const categories = [
   // Miscellaneous
   { name: "Miscellaneous", prefix: "MISC" },
   { name: "Assets", prefix: "ASSET" },
-  { name: "Inventory", prefix: "INV" }
+  { name: "Inventory", prefix: "INV" },
 ];
 
 export const populateCategories = async () => {
@@ -90,23 +90,29 @@ export const populateCategories = async () => {
       return;
     }
 
-    const existingNames = new Set(existingCategories?.map(cat => cat.name.toLowerCase()) || []);
-    const existingPrefixes = new Set(existingCategories?.map(cat => (cat.prefix || '').toLowerCase()).filter(Boolean) || []);
+    const existingNames = new Set(existingCategories?.map((cat) => cat.name.toLowerCase()) || []);
+    const existingPrefixes = new Set(
+      existingCategories?.map((cat) => (cat.prefix || "").toLowerCase()).filter(Boolean) || [],
+    );
 
     // Filter out categories that already exist (by name or prefix)
-    const newCategories = categories.filter(cat =>
-      !existingNames.has(cat.name.toLowerCase()) &&
-      !existingPrefixes.has(cat.prefix.toLowerCase())
+    const newCategories = categories.filter(
+      (cat) =>
+        !existingNames.has(cat.name.toLowerCase()) &&
+        !existingPrefixes.has(cat.prefix.toLowerCase()),
     );
 
     // Log which categories are being skipped
-    const skippedCategories = categories.filter(cat =>
-      existingNames.has(cat.name.toLowerCase()) ||
-      existingPrefixes.has(cat.prefix.toLowerCase())
+    const skippedCategories = categories.filter(
+      (cat) =>
+        existingNames.has(cat.name.toLowerCase()) || existingPrefixes.has(cat.prefix.toLowerCase()),
     );
 
     if (skippedCategories.length > 0) {
-      console.log("Skipping existing categories:", skippedCategories.map(cat => `${cat.name} (${cat.prefix})`));
+      console.log(
+        "Skipping existing categories:",
+        skippedCategories.map((cat) => `${cat.name} (${cat.prefix})`),
+      );
     }
 
     if (newCategories.length === 0) {
@@ -119,7 +125,7 @@ export const populateCategories = async () => {
     // Insert new categories with both name and prefix
     const { data, error } = await supabase
       .from("categories")
-      .insert(newCategories.map(cat => ({ name: cat.name, prefix: cat.prefix })))
+      .insert(newCategories.map((cat) => ({ name: cat.name, prefix: cat.prefix })))
       .select();
 
     if (error) {
@@ -134,9 +140,11 @@ export const populateCategories = async () => {
 };
 
 // Auto-run if this script is executed directly
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   // Browser environment - can be called from console
   (window as any).populateCategories = populateCategories;
-  console.log("populateCategories function is now available in the console. Run populateCategories() to populate categories.");
+  console.log(
+    "populateCategories function is now available in the console. Run populateCategories() to populate categories.",
+  );
   console.log("Note: You must be logged in as an admin user for this to work.");
 }

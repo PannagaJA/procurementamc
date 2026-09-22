@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react';
-import Layout from '@/components/Layout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
+import { useState, useEffect } from "react";
+import Layout from "@/components/Layout";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
   DialogContent,
@@ -14,23 +14,23 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import {
   requestEmergencyProcurement,
   approveEmergency,
   listEmergencyProcurements,
   EMERGENCY_CAP_LIMIT,
-} from '@/lib/procurement/emergency.functions';
+} from "@/lib/procurement/emergency.functions";
 import {
   Zap,
   PlusCircle,
@@ -42,7 +42,7 @@ import {
   Clock,
   Building2,
   Lock,
-} from 'lucide-react';
+} from "lucide-react";
 
 export default function EmergencyProcurement() {
   const { toast } = useToast();
@@ -53,20 +53,20 @@ export default function EmergencyProcurement() {
 
   // Request Modal
   const [requestOpen, setRequestOpen] = useState(false);
-  const [departmentId, setDepartmentId] = useState('');
-  const [vendorId, setVendorId] = useState('');
-  const [description, setDescription] = useState('');
+  const [departmentId, setDepartmentId] = useState("");
+  const [vendorId, setVendorId] = useState("");
+  const [description, setDescription] = useState("");
   const [estimatedCost, setEstimatedCost] = useState<number>(0);
-  const [reasonFailed, setReasonFailed] = useState('');
+  const [reasonFailed, setReasonFailed] = useState("");
   const [isPostFacto, setIsPostFacto] = useState(false);
   const [quotesCount, setQuotesCount] = useState(1);
-  const [priceReasonableness, setPriceReasonableness] = useState('');
+  const [priceReasonableness, setPriceReasonableness] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   // Rejection Modal
   const [rejectOpen, setRejectOpen] = useState(false);
   const [activeEp, setActiveEp] = useState<any>(null);
-  const [rejectionRemarks, setRejectionRemarks] = useState('');
+  const [rejectionRemarks, setRejectionRemarks] = useState("");
   const [acting, setActing] = useState(false);
 
   const loadData = async () => {
@@ -74,15 +74,15 @@ export default function EmergencyProcurement() {
     try {
       const [epRes, deptRes, vendorRes] = await Promise.all([
         (listEmergencyProcurements as any)(),
-        supabase.from('departments').select('id, name'),
-        supabase.from('vendors').select('id, name').eq('status', 'empanelled'),
+        supabase.from("departments").select("id, name"),
+        supabase.from("vendors").select("id, name").eq("status", "empanelled"),
       ]);
 
       if (epRes?.ok) setData(epRes);
       setDepartments(deptRes.data || []);
       setVendors(vendorRes.data || []);
     } catch (e: any) {
-      toast({ title: 'Error loading data', description: e.message, variant: 'destructive' });
+      toast({ title: "Error loading data", description: e.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -92,7 +92,11 @@ export default function EmergencyProcurement() {
     loadData();
   }, []);
 
-  const ledger = data?.ledger || { financial_year: '2026-27', running_total: 0, cap_limit: EMERGENCY_CAP_LIMIT };
+  const ledger = data?.ledger || {
+    financial_year: "2026-27",
+    running_total: 0,
+    cap_limit: EMERGENCY_CAP_LIMIT,
+  };
   const runningTotal = Number(ledger.running_total || 0);
   const capLimit = Number(ledger.cap_limit || EMERGENCY_CAP_LIMIT);
   const remaining = Math.max(0, capLimit - runningTotal);
@@ -100,15 +104,19 @@ export default function EmergencyProcurement() {
 
   const handleRequest = async () => {
     if (!description.trim() || !reasonFailed.trim() || estimatedCost <= 0) {
-      toast({ title: 'Validation Error', description: 'Please complete all required fields.', variant: 'destructive' });
+      toast({
+        title: "Validation Error",
+        description: "Please complete all required fields.",
+        variant: "destructive",
+      });
       return;
     }
 
     if (estimatedCost > remaining) {
       toast({
-        title: 'Statutory Cap Exceeded',
-        description: `Cost ₹${estimatedCost.toLocaleString('en-IN')} exceeds remaining annual headroom ₹${remaining.toLocaleString('en-IN')}.`,
-        variant: 'destructive',
+        title: "Statutory Cap Exceeded",
+        description: `Cost ₹${estimatedCost.toLocaleString("en-IN")} exceeds remaining annual headroom ₹${remaining.toLocaleString("en-IN")}.`,
+        variant: "destructive",
       });
       return;
     }
@@ -129,21 +137,21 @@ export default function EmergencyProcurement() {
       });
 
       if (!res.ok) {
-        toast({ title: 'Request Blocked', description: res.error, variant: 'destructive' });
+        toast({ title: "Request Blocked", description: res.error, variant: "destructive" });
         return;
       }
 
       toast({
-        title: 'Emergency Request Submitted',
+        title: "Emergency Request Submitted",
         description: `Logged in register (${res.emergencyProcurement.emergency_number}). Awaiting EVP authorization.`,
       });
       setRequestOpen(false);
-      setDescription('');
-      setReasonFailed('');
+      setDescription("");
+      setReasonFailed("");
       setEstimatedCost(0);
       loadData();
     } catch (e: any) {
-      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+      toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
@@ -155,22 +163,22 @@ export default function EmergencyProcurement() {
       const res = await (approveEmergency as any)({
         data: {
           emergency_id: ep.id,
-          decision: 'approved',
+          decision: "approved",
         },
       });
 
       if (!res.ok) {
-        toast({ title: 'Approval Blocked', description: res.error, variant: 'destructive' });
+        toast({ title: "Approval Blocked", description: res.error, variant: "destructive" });
         return;
       }
 
       toast({
-        title: 'Emergency Procurement Authorized',
-        description: `EVP approval recorded. Annual ledger updated to ₹${Number(res.runningTotal).toLocaleString('en-IN')}.`,
+        title: "Emergency Procurement Authorized",
+        description: `EVP approval recorded. Annual ledger updated to ₹${Number(res.runningTotal).toLocaleString("en-IN")}.`,
       });
       loadData();
     } catch (e: any) {
-      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+      toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
       setActing(false);
     }
@@ -183,21 +191,21 @@ export default function EmergencyProcurement() {
       const res = await (approveEmergency as any)({
         data: {
           emergency_id: activeEp.id,
-          decision: 'rejected',
+          decision: "rejected",
           rejection_remarks: rejectionRemarks,
         },
       });
 
       if (!res.ok) {
-        toast({ title: 'Rejection Failed', description: res.error, variant: 'destructive' });
+        toast({ title: "Rejection Failed", description: res.error, variant: "destructive" });
         return;
       }
 
-      toast({ title: 'Emergency Request Rejected', description: 'Recorded in register.' });
+      toast({ title: "Emergency Request Rejected", description: "Recorded in register." });
       setRejectOpen(false);
       loadData();
     } catch (e: any) {
-      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+      toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
       setActing(false);
     }
@@ -216,12 +224,16 @@ export default function EmergencyProcurement() {
               Emergency Procurement Register
             </h1>
             <p className="text-slate-600 dark:text-slate-400 mt-1">
-              Hard statutory annual cap of ₹10,00,000, post-facto 48-hour ratification rule, and exclusive EVP authorization.
+              Hard statutory annual cap of ₹10,00,000, post-facto 48-hour ratification rule, and
+              exclusive EVP authorization.
             </p>
           </div>
 
           <div className="flex items-center gap-2">
-            <Button onClick={() => setRequestOpen(true)} className="gap-2 bg-amber-600 hover:bg-amber-700 text-white shadow-sm">
+            <Button
+              onClick={() => setRequestOpen(true)}
+              className="gap-2 bg-amber-600 hover:bg-amber-700 text-white shadow-sm"
+            >
               <PlusCircle className="w-4 h-4" /> Request Emergency Procurement
             </Button>
           </div>
@@ -233,26 +245,33 @@ export default function EmergencyProcurement() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <ShieldAlert className="w-5 h-5 text-amber-600" />
-                <CardTitle className="text-lg">Statutory Annual Emergency Ledger — FY {ledger.financial_year}</CardTitle>
+                <CardTitle className="text-lg">
+                  Statutory Annual Emergency Ledger — FY {ledger.financial_year}
+                </CardTitle>
               </div>
-              <Badge variant="outline" className="font-mono text-xs border-amber-500 text-amber-900 dark:text-amber-200">
-                Hard Cap: ₹{capLimit.toLocaleString('en-IN')}
+              <Badge
+                variant="outline"
+                className="font-mono text-xs border-amber-500 text-amber-900 dark:text-amber-200"
+              >
+                Hard Cap: ₹{capLimit.toLocaleString("en-IN")}
               </Badge>
             </div>
             <CardDescription className="text-xs text-amber-800 dark:text-amber-300">
-              Institution-wide aggregate spend ceiling across all departments (Annual Statutory Ceiling).
+              Institution-wide aggregate spend ceiling across all departments (Annual Statutory
+              Ceiling).
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="space-y-1.5">
               <div className="flex justify-between text-xs font-semibold">
-                <span className="text-slate-700 dark:text-slate-300">Used: ₹{runningTotal.toLocaleString('en-IN')} ({usagePercent}%)</span>
-                <span className="text-emerald-700 dark:text-emerald-400">Remaining Balance: ₹{remaining.toLocaleString('en-IN')}</span>
+                <span className="text-slate-700 dark:text-slate-300">
+                  Used: ₹{runningTotal.toLocaleString("en-IN")} ({usagePercent}%)
+                </span>
+                <span className="text-emerald-700 dark:text-emerald-400">
+                  Remaining Balance: ₹{remaining.toLocaleString("en-IN")}
+                </span>
               </div>
-              <Progress
-                value={usagePercent}
-                className="h-3 bg-amber-200 dark:bg-amber-950"
-              />
+              <Progress value={usagePercent} className="h-3 bg-amber-200 dark:bg-amber-950" />
             </div>
           </CardContent>
         </Card>
@@ -263,15 +282,20 @@ export default function EmergencyProcurement() {
             <div className="p-8 text-center text-slate-500">Loading emergency register...</div>
           ) : (data?.emergencyProcurements || []).length === 0 ? (
             <Card className="text-center p-8">
-              <p className="text-slate-500">No emergency procurements registered for this financial year.</p>
+              <p className="text-slate-500">
+                No emergency procurements registered for this financial year.
+              </p>
             </Card>
           ) : (
             data?.emergencyProcurements?.map((ep: any) => {
-              const isPending = ep.evp_approval_status === 'pending';
-              const isApproved = ep.evp_approval_status === 'approved';
+              const isPending = ep.evp_approval_status === "pending";
+              const isApproved = ep.evp_approval_status === "approved";
 
               return (
-                <Card key={ep.id} className="overflow-hidden border border-slate-200 dark:border-slate-800 hover:border-slate-300">
+                <Card
+                  key={ep.id}
+                  className="overflow-hidden border border-slate-200 dark:border-slate-800 hover:border-slate-300"
+                >
                   <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 pb-3">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div className="space-y-1">
@@ -279,21 +303,32 @@ export default function EmergencyProcurement() {
                           <span className="font-mono font-bold text-base text-slate-900 dark:text-slate-100">
                             {ep.emergency_number}
                           </span>
-                          <Badge variant={isApproved ? 'default' : isPending ? 'secondary' : 'destructive'}>
+                          <Badge
+                            variant={
+                              isApproved ? "default" : isPending ? "secondary" : "destructive"
+                            }
+                          >
                             {ep.evp_approval_status.toUpperCase()}
                           </Badge>
                           {ep.is_post_facto ? (
-                            <Badge variant="outline" className="text-xs text-purple-700 border-purple-400">
+                            <Badge
+                              variant="outline"
+                              className="text-xs text-purple-700 border-purple-400"
+                            >
                               Post-Facto Ratification
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="text-xs text-amber-700 border-amber-400">
+                            <Badge
+                              variant="outline"
+                              className="text-xs text-amber-700 border-amber-400"
+                            >
                               Prior Approval
                             </Badge>
                           )}
                         </div>
                         <p className="text-xs text-slate-500">
-                          Dept: {ep.departments?.name || 'Central'} • Vendor: {ep.vendors?.name || 'Direct Procurement'}
+                          Dept: {ep.departments?.name || "Central"} • Vendor:{" "}
+                          {ep.vendors?.name || "Direct Procurement"}
                         </p>
                       </div>
 
@@ -330,7 +365,7 @@ export default function EmergencyProcurement() {
                       <div>
                         <span className="text-slate-500 block">Estimated Cost</span>
                         <span className="font-mono font-bold text-base text-slate-900 dark:text-white">
-                          ₹{Number(ep.estimated_cost).toLocaleString('en-IN')}
+                          ₹{Number(ep.estimated_cost).toLocaleString("en-IN")}
                         </span>
                       </div>
                       <div>
@@ -348,13 +383,25 @@ export default function EmergencyProcurement() {
                     </div>
 
                     <div className="text-xs space-y-1.5">
-                      <div><span className="font-semibold text-slate-700 dark:text-slate-300">Description: </span>{ep.description}</div>
+                      <div>
+                        <span className="font-semibold text-slate-700 dark:text-slate-300">
+                          Description:{" "}
+                        </span>
+                        {ep.description}
+                      </div>
                       <div className="p-2 bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded text-amber-900 dark:text-amber-200">
-                        <span className="font-semibold">Failure of Standard Process Justification: </span>
+                        <span className="font-semibold">
+                          Failure of Standard Process Justification:{" "}
+                        </span>
                         {ep.reason_standard_process_failed}
                       </div>
                       {ep.price_reasonableness_note && (
-                        <div><span className="font-semibold text-slate-700 dark:text-slate-300">Price Reasonableness: </span>{ep.price_reasonableness_note}</div>
+                        <div>
+                          <span className="font-semibold text-slate-700 dark:text-slate-300">
+                            Price Reasonableness:{" "}
+                          </span>
+                          {ep.price_reasonableness_note}
+                        </div>
                       )}
                     </div>
                   </CardContent>
@@ -370,7 +417,8 @@ export default function EmergencyProcurement() {
             <DialogHeader>
               <DialogTitle>Request Emergency Procurement</DialogTitle>
               <DialogDescription>
-                Initiate urgent purchase subject to the ₹10,00,000 annual statutory cap and EVP authorization.
+                Initiate urgent purchase subject to the ₹10,00,000 annual statutory cap and EVP
+                authorization.
               </DialogDescription>
             </DialogHeader>
 
@@ -379,10 +427,14 @@ export default function EmergencyProcurement() {
                 <div className="space-y-1">
                   <Label>Department</Label>
                   <Select value={departmentId} onValueChange={setDepartmentId}>
-                    <SelectTrigger><SelectValue placeholder="Select Department..." /></SelectTrigger>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Department..." />
+                    </SelectTrigger>
                     <SelectContent>
                       {departments.map((d) => (
-                        <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                        <SelectItem key={d.id} value={d.id}>
+                          {d.name}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -391,10 +443,14 @@ export default function EmergencyProcurement() {
                 <div className="space-y-1">
                   <Label>Vendor (If selected)</Label>
                   <Select value={vendorId} onValueChange={setVendorId}>
-                    <SelectTrigger><SelectValue placeholder="Select Vendor..." /></SelectTrigger>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Vendor..." />
+                    </SelectTrigger>
                     <SelectContent>
                       {vendors.map((v) => (
-                        <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
+                        <SelectItem key={v.id} value={v.id}>
+                          {v.name}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -435,7 +491,8 @@ export default function EmergencyProcurement() {
                 <div className="p-2.5 bg-red-50 dark:bg-red-950/40 border border-red-300 rounded text-xs text-red-900 dark:text-red-200 flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
                   <span>
-                    HARD BLOCK: Cost ₹{estimatedCost.toLocaleString('en-IN')} exceeds remaining annual cap ₹{remaining.toLocaleString('en-IN')}.
+                    HARD BLOCK: Cost ₹{estimatedCost.toLocaleString("en-IN")} exceeds remaining
+                    annual cap ₹{remaining.toLocaleString("en-IN")}.
                   </span>
                 </div>
               )}
@@ -466,19 +523,27 @@ export default function EmergencyProcurement() {
                   onCheckedChange={(c) => setIsPostFacto(!!c)}
                 />
                 <Label htmlFor="post-facto" className="text-xs cursor-pointer">
-                  Post-Facto Ratification (Work already initiated due to critical life/safety/crisis)
+                  Post-Facto Ratification (Work already initiated due to critical
+                  life/safety/crisis)
                 </Label>
               </div>
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setRequestOpen(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setRequestOpen(false)}>
+                Cancel
+              </Button>
               <Button
                 onClick={handleRequest}
-                disabled={submitting || estimatedCost <= 0 || estimatedCost > remaining || !reasonFailed.trim()}
+                disabled={
+                  submitting ||
+                  estimatedCost <= 0 ||
+                  estimatedCost > remaining ||
+                  !reasonFailed.trim()
+                }
                 className="bg-amber-600 hover:bg-amber-700 text-white"
               >
-                {submitting ? 'Registering...' : 'Register Emergency Request'}
+                {submitting ? "Registering..." : "Register Emergency Request"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -505,13 +570,15 @@ export default function EmergencyProcurement() {
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setRejectOpen(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setRejectOpen(false)}>
+                Cancel
+              </Button>
               <Button
                 variant="destructive"
                 onClick={handleReject}
                 disabled={acting || !rejectionRemarks.trim()}
               >
-                {acting ? 'Rejecting...' : 'Reject Emergency Request'}
+                {acting ? "Rejecting..." : "Reject Emergency Request"}
               </Button>
             </DialogFooter>
           </DialogContent>

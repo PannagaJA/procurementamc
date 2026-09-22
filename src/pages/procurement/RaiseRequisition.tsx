@@ -1,17 +1,33 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from '@tanstack/react-router';
-import Layout from '@/components/Layout';
-import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useToast } from '@/hooks/use-toast';
-import { Plus, Trash2, ShieldCheck, AlertTriangle, ArrowRight, CheckCircle2, Building2, Layers, IndianRupee } from 'lucide-react';
-import { resolveApprover, normalizeCategory } from '@/lib/procurement/authorityMatrix';
-import { createPr } from '@/lib/procurement/pr.functions';
+import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import Layout from "@/components/Layout";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Plus,
+  Trash2,
+  ShieldCheck,
+  AlertTriangle,
+  ArrowRight,
+  CheckCircle2,
+  Building2,
+  Layers,
+  IndianRupee,
+} from "lucide-react";
+import { resolveApprover, normalizeCategory } from "@/lib/procurement/authorityMatrix";
+import { createPr } from "@/lib/procurement/pr.functions";
 
 type LineItem = {
   id: string;
@@ -23,13 +39,13 @@ type LineItem = {
 };
 
 const CATEGORIES = [
-  { value: 'small_value', label: 'Small Value / Direct Purchase (≤ ₹5,000)' },
-  { value: 'routine_consumable', label: 'Routine Consumables (Rate Contract)' },
-  { value: 'equipment_asset', label: 'Equipment & Asset Procurement' },
-  { value: 'software', label: 'Software & Cloud Licenses' },
-  { value: 'academic_research', label: 'Academic & Research Material' },
-  { value: 'services_amc', label: 'Services & Annual Maintenance (AMC)' },
-  { value: 'maintenance', label: 'Facility Maintenance & Repairs' },
+  { value: "small_value", label: "Small Value / Direct Purchase (≤ ₹5,000)" },
+  { value: "routine_consumable", label: "Routine Consumables (Rate Contract)" },
+  { value: "equipment_asset", label: "Equipment & Asset Procurement" },
+  { value: "software", label: "Software & Cloud Licenses" },
+  { value: "academic_research", label: "Academic & Research Material" },
+  { value: "services_amc", label: "Services & Annual Maintenance (AMC)" },
+  { value: "maintenance", label: "Facility Maintenance & Repairs" },
 ];
 
 export default function RaiseRequisition() {
@@ -42,21 +58,21 @@ export default function RaiseRequisition() {
   const [createdResult, setCreatedResult] = useState<any | null>(null);
 
   // Form State
-  const [departmentId, setDepartmentId] = useState<string>('');
-  const [category, setCategory] = useState<string>('small_value');
-  const [scope, setScope] = useState<'academic' | 'operational'>('operational');
-  const [budgetHead, setBudgetHead] = useState<string>('');
+  const [departmentId, setDepartmentId] = useState<string>("");
+  const [category, setCategory] = useState<string>("small_value");
+  const [scope, setScope] = useState<"academic" | "operational">("operational");
+  const [budgetHead, setBudgetHead] = useState<string>("");
   const [isEmergency, setIsEmergency] = useState<boolean>(false);
   const [isRecurring, setIsRecurring] = useState<boolean>(false);
-  const [recurringFrequency, setRecurringFrequency] = useState<string>('');
-  const [justification, setJustification] = useState<string>('');
-  const [marketSurveyNotes, setMarketSurveyNotes] = useState<string>('');
+  const [recurringFrequency, setRecurringFrequency] = useState<string>("");
+  const [justification, setJustification] = useState<string>("");
+  const [marketSurveyNotes, setMarketSurveyNotes] = useState<string>("");
 
   const [lineItems, setLineItems] = useState<LineItem[]>([
     {
-      id: '1',
-      description: '',
-      unit: 'pcs',
+      id: "1",
+      description: "",
+      unit: "pcs",
       qty_required: 1,
       qty_in_stock: 0,
       est_unit_price: 1500,
@@ -66,13 +82,16 @@ export default function RaiseRequisition() {
   // Load initial data (departments, matrix rules)
   useEffect(() => {
     async function loadData() {
-      const { data: depts } = await supabase.from('departments').select('id, name').order('name');
+      const { data: depts } = await supabase.from("departments").select("id, name").order("name");
       if (depts && depts.length > 0) {
         setDepartments(depts);
         setDepartmentId(depts[0].id);
       }
 
-      const { data: rules } = await supabase.from('approval_matrix_rules').select('*').eq('active', true);
+      const { data: rules } = await supabase
+        .from("approval_matrix_rules")
+        .select("*")
+        .eq("active", true);
       if (rules) {
         setMatrixRules(rules);
       }
@@ -107,8 +126,8 @@ export default function RaiseRequisition() {
       ...prev,
       {
         id: Date.now().toString(),
-        description: '',
-        unit: 'pcs',
+        description: "",
+        unit: "pcs",
         qty_required: 1,
         qty_in_stock: 0,
         est_unit_price: 1000,
@@ -119,9 +138,9 @@ export default function RaiseRequisition() {
   const handleRemoveItem = (id: string) => {
     if (lineItems.length === 1) {
       toast({
-        title: 'At least one item required',
-        description: 'You cannot remove all line items.',
-        variant: 'destructive',
+        title: "At least one item required",
+        description: "You cannot remove all line items.",
+        variant: "destructive",
       });
       return;
     }
@@ -129,24 +148,25 @@ export default function RaiseRequisition() {
   };
 
   const handleItemChange = (id: string, field: keyof LineItem, val: any) => {
-    setLineItems((prev) =>
-      prev.map((i) => (i.id === id ? { ...i, [field]: val } : i)),
-    );
+    setLineItems((prev) => prev.map((i) => (i.id === id ? { ...i, [field]: val } : i)));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!departmentId) {
-      toast({ title: 'Please select a department', variant: 'destructive' });
+      toast({ title: "Please select a department", variant: "destructive" });
       return;
     }
     if (!justification.trim()) {
-      toast({ title: 'Please provide a justification', variant: 'destructive' });
+      toast({ title: "Please provide a justification", variant: "destructive" });
       return;
     }
     const validItems = lineItems.filter((i) => i.description.trim().length > 0);
     if (validItems.length === 0) {
-      toast({ title: 'Please provide at least one valid line item description', variant: 'destructive' });
+      toast({
+        title: "Please provide at least one valid line item description",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -176,24 +196,24 @@ export default function RaiseRequisition() {
 
       if (!res.ok) {
         toast({
-          title: 'Failed to create requisition',
-          description: (res as any).error || 'Server error',
-          variant: 'destructive',
+          title: "Failed to create requisition",
+          description: (res as any).error || "Server error",
+          variant: "destructive",
         });
         return;
       }
 
       setCreatedResult(res);
       toast({
-        title: 'Requisition Raised Successfully!',
+        title: "Requisition Raised Successfully!",
         description: `PR Number: ${res.pr.pr_number} routed to ${res.routing.role.toUpperCase()}`,
       });
     } catch (err: any) {
-      console.error('Submission failed', err);
+      console.error("Submission failed", err);
       toast({
-        title: 'Requisition failed',
-        description: err.message || 'An unexpected error occurred.',
-        variant: 'destructive',
+        title: "Requisition failed",
+        description: err.message || "An unexpected error occurred.",
+        variant: "destructive",
       });
     } finally {
       setIsSubmitting(false);
@@ -213,11 +233,12 @@ export default function RaiseRequisition() {
               Raise Purchase Requisition (PR)
             </h1>
             <p className="text-slate-600 dark:text-slate-400 mt-1">
-              Create structured indent requests with server-enforced Authority Matrix routing and instant approval preview.
+              Create structured indent requests with server-enforced Authority Matrix routing and
+              instant approval preview.
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="outline" onClick={() => navigate({ to: '/procurement/vendors' })}>
+            <Button variant="outline" onClick={() => navigate({ to: "/procurement/vendors" })}>
               Vendor Management <ArrowRight className="w-4 h-4 ml-1.5" />
             </Button>
           </div>
@@ -242,19 +263,27 @@ export default function RaiseRequisition() {
             <CardContent className="space-y-3 text-sm text-emerald-900 dark:text-emerald-100">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 bg-white/80 dark:bg-slate-900/80 rounded-lg border border-emerald-200 dark:border-emerald-800">
                 <div>
-                  <span className="text-xs uppercase text-slate-500 font-semibold">Assigned Approver</span>
+                  <span className="text-xs uppercase text-slate-500 font-semibold">
+                    Assigned Approver
+                  </span>
                   <p className="font-bold text-base text-slate-800 dark:text-slate-100 capitalize">
-                    {createdResult.routing.role.replace(/_/g, ' ')}
+                    {createdResult.routing.role.replace(/_/g, " ")}
                   </p>
                 </div>
                 <div>
-                  <span className="text-xs uppercase text-slate-500 font-semibold">Routing Status</span>
+                  <span className="text-xs uppercase text-slate-500 font-semibold">
+                    Routing Status
+                  </span>
                   <p className="font-bold text-base text-slate-800 dark:text-slate-100">
-                    {createdResult.routing.escalate ? '🚨 Escalated to EVP' : '✓ Normal Authority Band'}
+                    {createdResult.routing.escalate
+                      ? "🚨 Escalated to EVP"
+                      : "✓ Normal Authority Band"}
                   </p>
                 </div>
                 <div>
-                  <span className="text-xs uppercase text-slate-500 font-semibold">Min. Quotations</span>
+                  <span className="text-xs uppercase text-slate-500 font-semibold">
+                    Min. Quotations
+                  </span>
                   <p className="font-bold text-base text-slate-800 dark:text-slate-100">
                     {createdResult.routing.minQuotations} Quotes Required
                   </p>
@@ -282,7 +311,9 @@ export default function RaiseRequisition() {
                   <CardTitle className="text-lg flex items-center gap-2">
                     <Building2 className="w-5 h-5 text-blue-600" /> 1. Requisition Metadata
                   </CardTitle>
-                  <CardDescription>Department indent details and classification category.</CardDescription>
+                  <CardDescription>
+                    Department indent details and classification category.
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -350,16 +381,26 @@ export default function RaiseRequisition() {
                       <Layers className="w-5 h-5 text-indigo-600" /> 2. PR Line Items
                     </CardTitle>
                     <CardDescription>
-                      Specify required items. Net quantities to procure and line estimates calculate automatically.
+                      Specify required items. Net quantities to procure and line estimates calculate
+                      automatically.
                     </CardDescription>
                   </div>
-                  <Button type="button" size="sm" variant="outline" onClick={handleAddItem} className="gap-1.5">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleAddItem}
+                    className="gap-1.5"
+                  >
                     <Plus className="w-4 h-4" /> Add Item
                   </Button>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {lineItems.map((item, idx) => {
-                    const net = Math.max(0, Number(item.qty_required || 0) - Number(item.qty_in_stock || 0));
+                    const net = Math.max(
+                      0,
+                      Number(item.qty_required || 0) - Number(item.qty_in_stock || 0),
+                    );
                     const subtotal = net * Number(item.est_unit_price || 0);
 
                     return (
@@ -388,7 +429,9 @@ export default function RaiseRequisition() {
                             <Input
                               placeholder="Item specification & model"
                               value={item.description}
-                              onChange={(e) => handleItemChange(item.id, 'description', e.target.value)}
+                              onChange={(e) =>
+                                handleItemChange(item.id, "description", e.target.value)
+                              }
                               required
                             />
                           </div>
@@ -397,7 +440,7 @@ export default function RaiseRequisition() {
                             <Input
                               placeholder="pcs/kg/box"
                               value={item.unit}
-                              onChange={(e) => handleItemChange(item.id, 'unit', e.target.value)}
+                              onChange={(e) => handleItemChange(item.id, "unit", e.target.value)}
                             />
                           </div>
                           <div className="md:col-span-1 space-y-1">
@@ -406,7 +449,13 @@ export default function RaiseRequisition() {
                               type="number"
                               min="1"
                               value={item.qty_required}
-                              onChange={(e) => handleItemChange(item.id, 'qty_required', Math.max(1, parseInt(e.target.value) || 0))}
+                              onChange={(e) =>
+                                handleItemChange(
+                                  item.id,
+                                  "qty_required",
+                                  Math.max(1, parseInt(e.target.value) || 0),
+                                )
+                              }
                             />
                           </div>
                           <div className="md:col-span-1 space-y-1">
@@ -415,7 +464,13 @@ export default function RaiseRequisition() {
                               type="number"
                               min="0"
                               value={item.qty_in_stock}
-                              onChange={(e) => handleItemChange(item.id, 'qty_in_stock', Math.max(0, parseInt(e.target.value) || 0))}
+                              onChange={(e) =>
+                                handleItemChange(
+                                  item.id,
+                                  "qty_in_stock",
+                                  Math.max(0, parseInt(e.target.value) || 0),
+                                )
+                              }
                             />
                           </div>
                         </div>
@@ -428,14 +483,26 @@ export default function RaiseRequisition() {
                               min="0"
                               step="0.01"
                               value={item.est_unit_price}
-                              onChange={(e) => handleItemChange(item.id, 'est_unit_price', parseFloat(e.target.value) || 0)}
+                              onChange={(e) =>
+                                handleItemChange(
+                                  item.id,
+                                  "est_unit_price",
+                                  parseFloat(e.target.value) || 0,
+                                )
+                              }
                             />
                           </div>
                           <div className="text-xs text-slate-600 dark:text-slate-400">
-                            Net to Procure: <span className="font-semibold text-slate-900 dark:text-slate-100">{net} {item.unit}</span>
+                            Net to Procure:{" "}
+                            <span className="font-semibold text-slate-900 dark:text-slate-100">
+                              {net} {item.unit}
+                            </span>
                           </div>
                           <div className="text-right text-sm">
-                            Line Total: <span className="font-bold text-slate-900 dark:text-slate-100">₹{subtotal.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
+                            Line Total:{" "}
+                            <span className="font-bold text-slate-900 dark:text-slate-100">
+                              ₹{subtotal.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -447,7 +514,9 @@ export default function RaiseRequisition() {
               {/* Section 3: Justification & Flags */}
               <Card className="shadow-sm border-slate-200 dark:border-slate-800">
                 <CardHeader className="pb-4">
-                  <CardTitle className="text-lg">3. Justification & Pre-Indent Due Diligence</CardTitle>
+                  <CardTitle className="text-lg">
+                    3. Justification & Pre-Indent Due Diligence
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
@@ -483,7 +552,10 @@ export default function RaiseRequisition() {
                         className="mt-1 h-4 w-4 rounded border-amber-400 text-amber-600 focus:ring-amber-500"
                       />
                       <div>
-                        <Label htmlFor="isEmergency" className="font-semibold text-amber-900 dark:text-amber-200 cursor-pointer">
+                        <Label
+                          htmlFor="isEmergency"
+                          className="font-semibold text-amber-900 dark:text-amber-200 cursor-pointer"
+                        >
                           Emergency Procurement
                         </Label>
                         <p className="text-xs text-amber-700 dark:text-amber-400">
@@ -501,7 +573,10 @@ export default function RaiseRequisition() {
                         className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                       />
                       <div className="space-y-1.5 flex-1">
-                        <Label htmlFor="isRecurring" className="font-semibold text-slate-800 dark:text-slate-200 cursor-pointer">
+                        <Label
+                          htmlFor="isRecurring"
+                          className="font-semibold text-slate-800 dark:text-slate-200 cursor-pointer"
+                        >
                           Recurring Requirement
                         </Label>
                         {isRecurring && (
@@ -518,8 +593,15 @@ export default function RaiseRequisition() {
                 </CardContent>
               </Card>
 
-              <Button type="submit" size="lg" disabled={isSubmitting} className="w-full text-base font-semibold shadow-md">
-                {isSubmitting ? 'Validating & Submitting PR...' : `Submit Purchase Requisition (₹${totalEstimatedValue.toLocaleString('en-IN')})`}
+              <Button
+                type="submit"
+                size="lg"
+                disabled={isSubmitting}
+                className="w-full text-base font-semibold shadow-md"
+              >
+                {isSubmitting
+                  ? "Validating & Submitting PR..."
+                  : `Submit Purchase Requisition (₹${totalEstimatedValue.toLocaleString("en-IN")})`}
               </Button>
             </form>
           </div>
@@ -549,15 +631,17 @@ export default function RaiseRequisition() {
                     <span>Requisition Value:</span>
                   </div>
                   <span className="text-lg font-black text-slate-900 dark:text-slate-100">
-                    ₹{totalEstimatedValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                    ₹{totalEstimatedValue.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
                   </span>
                 </div>
 
                 {/* Resolved Role Display */}
                 <div className="p-4 rounded-xl bg-indigo-600 text-white shadow-sm space-y-1">
-                  <span className="text-xs uppercase text-indigo-200 font-medium">Target Approval Authority</span>
+                  <span className="text-xs uppercase text-indigo-200 font-medium">
+                    Target Approval Authority
+                  </span>
                   <div className="text-2xl font-black tracking-tight capitalize">
-                    {liveRouting.role.replace(/_/g, ' ')}
+                    {liveRouting.role.replace(/_/g, " ")}
                   </div>
                   <div className="text-xs text-indigo-100">
                     {liveRouting.escalate ? (
@@ -565,7 +649,7 @@ export default function RaiseRequisition() {
                         <AlertTriangle className="w-3.5 h-3.5" /> Escalated (Exceeds Band Cap)
                       </span>
                     ) : (
-                      '✓ Within standard delegated approval band'
+                      "✓ Within standard delegated approval band"
                     )}
                   </div>
                 </div>
@@ -577,13 +661,16 @@ export default function RaiseRequisition() {
                   </span>
                   <ul className="space-y-1.5 text-slate-600 dark:text-slate-400">
                     <li className="flex items-start gap-1.5">
-                      <span className="font-semibold text-emerald-600">₹1,500 Small Value:</span> Routes to <strong>HOD</strong> (≤ ₹2,000 txn limit)
+                      <span className="font-semibold text-emerald-600">₹1,500 Small Value:</span>{" "}
+                      Routes to <strong>HOD</strong> (≤ ₹2,000 txn limit)
                     </li>
                     <li className="flex items-start gap-1.5">
-                      <span className="font-semibold text-blue-600">₹4,500 Small Value:</span> Routes to <strong>Principal</strong> (≤ ₹5,000 txn limit)
+                      <span className="font-semibold text-blue-600">₹4,500 Small Value:</span>{" "}
+                      Routes to <strong>Principal</strong> (≤ ₹5,000 txn limit)
                     </li>
                     <li className="flex items-start gap-1.5">
-                      <span className="font-semibold text-amber-600">₹15,000 Equipment:</span> Escalates to <strong>EVP</strong> (exceeds ₹10,000 cap)
+                      <span className="font-semibold text-amber-600">₹15,000 Equipment:</span>{" "}
+                      Escalates to <strong>EVP</strong> (exceeds ₹10,000 cap)
                     </li>
                   </ul>
                 </div>
@@ -592,11 +679,15 @@ export default function RaiseRequisition() {
                 <div className="p-3 rounded-lg bg-slate-100 dark:bg-slate-800 space-y-1.5 text-xs text-slate-700 dark:text-slate-300">
                   <div className="flex justify-between">
                     <span>Min. Quotations:</span>
-                    <strong className="text-slate-900 dark:text-slate-100">{liveRouting.minQuotations} Quotes</strong>
+                    <strong className="text-slate-900 dark:text-slate-100">
+                      {liveRouting.minQuotations} Quotes
+                    </strong>
                   </div>
                   <div className="flex justify-between">
                     <span>Rate Contract Required:</span>
-                    <strong className="text-slate-900 dark:text-slate-100">{liveRouting.requiresRateContract ? 'Yes' : 'No'}</strong>
+                    <strong className="text-slate-900 dark:text-slate-100">
+                      {liveRouting.requiresRateContract ? "Yes" : "No"}
+                    </strong>
                   </div>
                 </div>
 

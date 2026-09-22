@@ -9,10 +9,11 @@ This document provides a screen-by-screen, field-level operational walkthrough o
 ---
 
 ### Step 1 — Requester Raises Requisition (PR) with Line Items & Due Diligence
+
 - **Route/URL:** `/procurement/raise-pr`
 - **Role required to see this screen:** Any authenticated institutional user (`hod`, `principal`, `procurement_officer`, `admin`).
 - **What the screen shows:**
-  - **Header:** SOP §8.3 Compliance badge (`bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200`), title *"Raise Purchase Requisition (PR)"*, and description *"Create structured indent requests with server-enforced Authority Matrix routing and instant approval preview."*
+  - **Header:** SOP §8.3 Compliance badge (`bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200`), title _"Raise Purchase Requisition (PR)"_, and description _"Create structured indent requests with server-enforced Authority Matrix routing and instant approval preview."_
   - **Card 1 (Requisition Metadata):**
     - `Requesting Department *` (Dropdown select populated dynamically from `departments` table).
     - `SOP Category *` (Select with options: `Small Value / Direct Purchase (≤ ₹5,000)`, `Routine Consumables (Rate Contract)`, `Equipment & Asset Procurement`, `Software & Cloud Licenses`, `Academic & Research Material`, `Services & Annual Maintenance (AMC)`, `Facility Maintenance & Repairs`).
@@ -48,7 +49,7 @@ This document provides a screen-by-screen, field-level operational walkthrough o
     - Routing Status: `🚨 Escalated to EVP`
     - Min. Quotations: `3 Quotes Required`
     - Routing Reason: `Equipment & Asset Procurement transaction value ₹12,00,000 exceeds band ceiling of ₹10,000 → Escalated to EVP for approval.`
-  - Toast notification fires: *"Requisition Raised Successfully! PR Number: PR-2026-0001 routed to EVP"*.
+  - Toast notification fires: _"Requisition Raised Successfully! PR Number: PR-2026-0001 routed to EVP"_.
 - **What changes elsewhere as a result:**
   - The PR record is created in `purchase_requisitions` table with `status = 'pending_approval'`, `assigned_approver_role = 'evp'`.
   - Dr. Mehta's **My Approvals** inbox (`/procurement/approvals`) immediately reflects **PR (1)** pending under the Requisitions tab.
@@ -57,12 +58,13 @@ This document provides a screen-by-screen, field-level operational walkthrough o
 ---
 
 ### Step 2 — Live Authority Matrix Preview Badge on PR Form
+
 - **Route/URL:** `/procurement/raise-pr` (Sidebar Component)
 - **Role required to see this screen:** All users on the PR creation page.
 - **What the screen shows:**
   - **Sticky Right Sidebar Card:** Border styled with `border-2 border-indigo-500/40 bg-gradient-to-br from-indigo-50/50 via-white to-slate-50`.
   - Header with animated pulsing green dot (`w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse`) and badge `"SOP ENGINE"`.
-  - Card Title: *"Authority Matrix Live Routing"*, Card Description: *"Server-enforced decision logic based on SOP §6 rules."*
+  - Card Title: _"Authority Matrix Live Routing"_, Card Description: _"Server-enforced decision logic based on SOP §6 rules."_
   - **Requisition Value Display:** Styled currency card showing `Requisition Value: ₹12,00,000.00`.
   - **Target Approval Authority Banner:** High-contrast purple pill (`bg-indigo-600 text-white`) showing large title **`EVP`** with escalation badge: `🚨 Escalated (Exceeds Band Cap)`.
   - **SOP §6 Threshold Proofs Guide:** List of live rules:
@@ -72,7 +74,7 @@ This document provides a screen-by-screen, field-level operational walkthrough o
   - **Requisition Constraints Container:**
     - `Min. Quotations:` **`3 Quotes`**
     - `Rate Contract Required:` **`No`**
-  - **Authority Rule Callout:** Amber callout box (`bg-amber-50 border-amber-200 text-amber-800`) displaying full rule evaluation text: *"Equipment & Asset Procurement transaction value ₹12,00,000 exceeds band ceiling of ₹10,000 → Escalated to EVP for approval."*
+  - **Authority Rule Callout:** Amber callout box (`bg-amber-50 border-amber-200 text-amber-800`) displaying full rule evaluation text: _"Equipment & Asset Procurement transaction value ₹12,00,000 exceeds band ceiling of ₹10,000 → Escalated to EVP for approval."_
 - **What the user does:**
   - As the user types quantities and unit prices in Step 1, the client-side `useMemo` immediately feeds `category`, `totalEstimatedValue`, and active `matrixRules` into `resolveApprover()`.
   - If user sets ₹1,800: Badge instantly flips to **`HOD`** (`✓ Within standard delegated approval band`, 1 quote).
@@ -87,10 +89,11 @@ This document provides a screen-by-screen, field-level operational walkthrough o
 ---
 
 ### Step 3 — EVP Approval Screen (Dr. Mehta's Authority Inbox)
+
 - **Route/URL:** `/procurement/approvals`
 - **Role required to see this screen:** Users with role `evp` or `admin`.
 - **What the screen shows:**
-  - **Header:** Title *"My Procurement Approvals"*, subtitle *"Requisitions, Comparative Statements, Purchase Orders, Invoices, and Emergency authorisations awaiting your role."*, and a `Refresh` button.
+  - **Header:** Title _"My Procurement Approvals"_, subtitle _"Requisitions, Comparative Statements, Purchase Orders, Invoices, and Emergency authorisations awaiting your role."_, and a `Refresh` button.
   - **Active Procurement Roles Banner:** Displays active user badges: `[EVP]` and pending badge: `Total Pending: 1`.
   - **Tab Bar (6 Tabs):** `PR (1)`, `CS (0)`, `PO (0)`, `Amend (0)`, `Invoices (0)`, `Emergency (0)`.
   - **Requisition Approval Card for `PR-2026-0001`:**
@@ -113,7 +116,7 @@ This document provides a screen-by-screen, field-level operational walkthrough o
   4. Clicks **`Confirm Decision`**.
 - **What happens on submit:**
   - Calls `approvePr` server function (`/api/procurement/approvals/approve-pr`).
-  - Modal closes, toast displays: *"Requisition Approved: PR PR-2026-0001 approved."*
+  - Modal closes, toast displays: _"Requisition Approved: PR PR-2026-0001 approved."_
   - Requisition tab counter decrements to `PR (0)`.
 - **What changes elsewhere as a result:**
   - Database row in `purchase_requisitions` transitions to `status = 'approved'`, `approval_date = NOW()`, `approved_by_id = <Dr. Mehta's user ID>`.
@@ -123,10 +126,11 @@ This document provides a screen-by-screen, field-level operational walkthrough o
 ---
 
 ### Step 4 — Procurement Officer Solicits Quotes (RFQ Screen & Vendor Selection)
+
 - **Route/URL:** `/procurement/rfqs`
 - **Role required to see this screen:** `procurement_officer`, `procurement_executive`, `admin`.
 - **What the screen shows:**
-  - **Header:** SOP §8.4 Solicitations banner, title *"Request for Quotation (RFQ) Hub"*, subtitle *"Create multi-vendor solicitations from approved PRs, enforce minimum 3-quote rule (§8.4), and record quote lines."*
+  - **Header:** SOP §8.4 Solicitations banner, title _"Request for Quotation (RFQ) Hub"_, subtitle _"Create multi-vendor solicitations from approved PRs, enforce minimum 3-quote rule (§8.4), and record quote lines."_
   - Action button: **`+ Create New RFQ`** (`bg-sky-600 hover:bg-sky-700 text-white`).
   - Active RFQ List showing columns/cards: `RFQ Number`, `PR Ref`, `Status`, `Vendor Count`, `Responses`, `Deadline`, `Actions`.
   - **Modal 1 (Create RFQ Dialog):**
@@ -146,14 +150,14 @@ This document provides a screen-by-screen, field-level operational walkthrough o
   4. Clicks **`Create RFQ (Draft)`**. System creates `RFQ-2026-0001` in `draft` status.
   5. Clicks the **`Send RFQ`** action button on the RFQ card.
   6. **Negative Test (Enforcement Check):** Selects only 2 vendors: `"Apex Infotech Pvt Ltd"` and `"ByteCore Systems Ltd"`. Clicks **`Dispatch RFQ to 2 Vendors`**.
-     - System immediately blocks with red toast: *"Insufficient Vendors: SOP §8.4 requires at least 3 empanelled vendors (currently selected 2)."*
+     - System immediately blocks with red toast: _"Insufficient Vendors: SOP §8.4 requires at least 3 empanelled vendors (currently selected 2)."_
   7. **Positive Path:** Selects 3rd vendor: `"CompuServe Solutions Ltd"`. Total selected = 3.
   8. Clicks **`Dispatch RFQ to 3 Vendors`**.
 - **What happens on submit:**
   - Calls `sendRfq` server function (`/api/procurement/rfqs/send`).
   - RFQ status changes from `draft` to `sent`.
   - Populates `rfq_vendors` join table with the 3 vendor IDs.
-  - Toast displays: *"RFQ Sent: Sent to 3 empanelled vendors successfully."*
+  - Toast displays: _"RFQ Sent: Sent to 3 empanelled vendors successfully."_
 - **What changes elsewhere as a result:**
   - Status badge on RFQ-2026-0001 flips to `SENT` (`bg-sky-100 text-sky-800`).
   - Generates unique public quotation submission links for each invited vendor (`/quotation/<quotation_id>`).
@@ -162,10 +166,11 @@ This document provides a screen-by-screen, field-level operational walkthrough o
 ---
 
 ### Step 5 — Vendor Quotation Response Portal
+
 - **Route/URL:** `/quotation/$id`
 - **Role required to see this screen:** Public / Invited Vendor (no AMC staff login required).
 - **What the screen shows:**
-  - **Card Header:** Title *"Submit Quotation Response"*, Category badge, Requisition description, and Response Deadline indicator.
+  - **Card Header:** Title _"Submit Quotation Response"_, Category badge, Requisition description, and Response Deadline indicator.
   - **Form Fields:**
     - `Detailed Description / Technical Specifications *` (Textarea, min 10 characters).
     - `Total Quoted Amount (₹) *` (Number input, must be > 0).
@@ -190,7 +195,7 @@ This document provides a screen-by-screen, field-level operational walkthrough o
   10. (Vendors ByteCore and CompuServe submit their quotes: ByteCore quotes ₹11,80,000; CompuServe quotes ₹12,20,000).
 - **What happens on submit:**
   - Inserts row into `quotation_responses` and updates parent quotation `status = 'responded'`.
-  - Form switches to read-only success view showing green checkmark and message: *"Your quotation response has been submitted successfully!"*
+  - Form switches to read-only success view showing green checkmark and message: _"Your quotation response has been submitted successfully!"_
 - **What changes elsewhere as a result:**
   - RFQ-2026-0001 on `/procurement/rfqs` updates response tally to **3 of 3 Quotes Received**.
   - Sourcing officer can now initialize Comparative Statement evaluation.
@@ -199,10 +204,11 @@ This document provides a screen-by-screen, field-level operational walkthrough o
 ---
 
 ### Step 6 — Comparative Statement (CS) Evaluation & Scoring
+
 - **Route/URL:** `/procurement/cs`
 - **Role required to see this screen:** `procurement_officer`, `purchase_committee`, `evp`, `admin`.
 - **What the screen shows:**
-  - **Header:** SOP §8.5 Comparative Statement banner, title *"Comparative Statements & Evaluation Hub"*, subtitle *"Evaluate multi-vendor quotes, score 4 pillars (Price, Technical, Delivery, Warranty), and enforce non-lowest rationale."*
+  - **Header:** SOP §8.5 Comparative Statement banner, title _"Comparative Statements & Evaluation Hub"_, subtitle _"Evaluate multi-vendor quotes, score 4 pillars (Price, Technical, Delivery, Warranty), and enforce non-lowest rationale."_
   - Action button: **`+ Prepare Comparative Statement`** (`bg-emerald-600 hover:bg-emerald-700 text-white`).
   - **Prepare CS Modal:**
     - `Select RFQ *` (Dropdown select listing sent RFQs).
@@ -211,7 +217,7 @@ This document provides a screen-by-screen, field-level operational walkthrough o
       - Auto-ranks bidders: Rank 1 (L1) = Apex Infotech (₹11,40,000), Rank 2 (L2) = ByteCore (₹11,80,000), Rank 3 (L3) = CompuServe (₹12,20,000).
     - `Recommended Vendor *` (Dropdown select, defaults to L1 bidder).
     - **Conditional Non-Lowest Rationale Field:**
-      - If Recommended Vendor is L1: Hidden or displays *"Recommended vendor is the lowest compliant bidder (L1)."*
+      - If Recommended Vendor is L1: Hidden or displays _"Recommended vendor is the lowest compliant bidder (L1)."_
       - If user selects L2/L3 (e.g. ByteCore): Textarea automatically appears with mandatory label: `Non-Lowest Price Rationale * (SOP §7.2 mandatory justification for bypassing L1)`.
     - `Negotiation Notes` (Textarea: e.g. details on final price reductions).
     - `Price Reasonableness Notes` (Textarea).
@@ -228,7 +234,7 @@ This document provides a screen-by-screen, field-level operational walkthrough o
   - Calls `prepareComparativeStatement` RPC (`/api/procurement/cs/prepare`).
   - Evaluates authority routing based on recommended value (₹11,40,000 → routes to `evp`).
   - System generates `CS-2026-0001` with `status = 'submitted'`, `assigned_approver_role = 'evp'`.
-  - Toast fires: *"Comparative Statement Prepared: Routed to EVP for authority review."*
+  - Toast fires: _"Comparative Statement Prepared: Routed to EVP for authority review."_
 - **What changes elsewhere as a result:**
   - EVP Dr. Mehta's approval inbox (`/procurement/approvals`) receives **CS (1)** under the Comparative Statements tab.
   - Upon EVP clicking `Approve` on CS-2026-0001, status transitions to `status = 'approved'`.
@@ -237,10 +243,11 @@ This document provides a screen-by-screen, field-level operational walkthrough o
 ---
 
 ### Step 7 — Purchase Order (PO) Creation, Approval & Issuance
+
 - **Route/URL:** `/procurement/orders`
 - **Role required to see this screen:** `procurement_officer`, `purchase_committee`, `evp`, `admin`.
 - **What the screen shows:**
-  - **Header:** SOP §8.5 PO Generation banner, title *"Purchase Orders Management"*, subtitle *"Draft, authorize, issue, and amend purchase orders with server-enforced authority re-evaluation."*
+  - **Header:** SOP §8.5 PO Generation banner, title _"Purchase Orders Management"_, subtitle _"Draft, authorize, issue, and amend purchase orders with server-enforced authority re-evaluation."_
   - Action button: **`+ Create Purchase Order`** (`bg-indigo-600 hover:bg-indigo-700 text-white`).
   - **Create PO Modal:**
     - `PO Type` (Select: `Standard PO (from Approved CS)` / `Rate Contract PO`).
@@ -264,7 +271,7 @@ This document provides a screen-by-screen, field-level operational walkthrough o
   - Calls `issuePo` RPC (`/api/procurement/orders/issue`).
   - PO status transitions from `approved` to `issued`.
   - System logs audit entry and sets `issued_at = NOW()`.
-  - Toast fires: *"Purchase Order Issued: Order PO-2026-0001 issued. Notifications dispatched to User Dept, Stores, and Finance."*
+  - Toast fires: _"Purchase Order Issued: Order PO-2026-0001 issued. Notifications dispatched to User Dept, Stores, and Finance."_
 - **What changes elsewhere as a result:**
   - Status badge on PO flips to **`ISSUED`** (`bg-emerald-600 text-white`).
   - Stores Goods Receipt Hub (`/procurement/grns`) now allows recording physical deliveries against `PO-2026-0001`.
@@ -273,10 +280,11 @@ This document provides a screen-by-screen, field-level operational walkthrough o
 ---
 
 ### Step 8 — Goods Receipt Note (GRN) & Dual Sign-Off (Security + Technical)
+
 - **Route/URL:** `/procurement/grns`
 - **Role required to see this screen:** `stores`, `hod` (for technical inspection), `admin`.
 - **What the screen shows:**
-  - **Header:** SOP §8.6 Stores Fulfilment banner, title *"Delivery Challans & Goods Receipt Notes (GRN)"*, subtitle *"Enforce physical delivery receipt, security check, technical inspection sign-off, and accepted value ledger."*
+  - **Header:** SOP §8.6 Stores Fulfilment banner, title _"Delivery Challans & Goods Receipt Notes (GRN)"_, subtitle _"Enforce physical delivery receipt, security check, technical inspection sign-off, and accepted value ledger."_
   - Action buttons:
     1. **`+ Record Delivery (Security Gate)`** (`bg-emerald-600 text-white`).
     2. **`+ Create GRN`** (`bg-blue-600 text-white`).
@@ -310,7 +318,7 @@ This document provides a screen-by-screen, field-level operational walkthrough o
   - Calls `technicalVerify` RPC (`/api/procurement/grns/technical-verify`).
   - GRN status transitions from `pending` to `accepted`.
   - Sets `accepted_value = ₹11,40,000`, `technical_signoff_by_id = <Prof. Sharma's ID>`.
-  - Toast fires: *"Technical Acceptance Recorded: GRN status updated to 'accepted'."*
+  - Toast fires: _"Technical Acceptance Recorded: GRN status updated to 'accepted'."_
 - **What changes elsewhere as a result:**
   - Status badge on `GRN-2026-0001` flips to **`ACCEPTED`** (`bg-emerald-100 text-emerald-800`).
   - Invoice submission against `PO-2026-0001` is now unlocked for Finance.
@@ -319,10 +327,11 @@ This document provides a screen-by-screen, field-level operational walkthrough o
 ---
 
 ### Step 9 — Invoice Submission, Visual Three-Way Match & Payment Gate
+
 - **Route/URL:** `/procurement/invoices`
 - **Role required to see this screen:** `finance`, `admin`.
 - **What the screen shows:**
-  - **Header:** SOP §8.7 Finance Payment Gate banner, title *"Invoices & Three-Way Match Verification"*, subtitle *"Verify Purchase Order (PO) ↔ Goods Receipt Note (GRN) ↔ Invoice agreement before payment release."*
+  - **Header:** SOP §8.7 Finance Payment Gate banner, title _"Invoices & Three-Way Match Verification"_, subtitle _"Verify Purchase Order (PO) ↔ Goods Receipt Note (GRN) ↔ Invoice agreement before payment release."_
   - Action button: **`+ Submit Invoice`** (`bg-emerald-600 hover:bg-emerald-700 text-white`).
   - **Submit Invoice Modal:**
     - `Issued Purchase Order *` (Dropdown select).
@@ -364,7 +373,7 @@ This document provides a screen-by-screen, field-level operational walkthrough o
   - Calls `recordPayment` RPC (`/api/procurement/invoices/record-payment`).
   - Invoice status changes to `paid`. Inserts row into `payments` table.
   - Automatically transitions parent `purchase_orders` row status to `closed`.
-  - Toast fires: *"Payment Recorded & Settled: Payment of ₹11,40,000 logged. PO settlement status updated to CLOSED."*
+  - Toast fires: _"Payment Recorded & Settled: Payment of ₹11,40,000 logged. PO settlement status updated to CLOSED."_
 - **What changes elsewhere as a result:**
   - Invoice card displays badge `[PAID]` (`bg-slate-900 text-white`).
   - Purchase Order `PO-2026-0001` is marked fully closed in the PO master register.
@@ -373,6 +382,7 @@ This document provides a screen-by-screen, field-level operational walkthrough o
 ---
 
 ### Step 10 — Final Purchase Order Status & Linked Document Audit View
+
 - **Route/URL:** `/procurement/orders`
 - **Role required to see this screen:** All procurement roles & finance.
 - **What the screen shows:**
@@ -398,10 +408,11 @@ This document provides a screen-by-screen, field-level operational walkthrough o
 ---
 
 ### Step 11 — Emergency Procurement Request Form
+
 - **Route/URL:** `/procurement/emergency`
 - **Role required to see this screen:** `hod`, `principal`, `procurement_officer`, `admin`.
 - **What the screen shows:**
-  - **Header:** SOP §9 Governance badge (`bg-amber-100 text-amber-900`), title *"Emergency Procurement Register"*, subtitle *"Hard statutory annual cap of ₹10,00,000, post-facto 48-hour ratification rule, and exclusive EVP authorization."*
+  - **Header:** SOP §9 Governance badge (`bg-amber-100 text-amber-900`), title _"Emergency Procurement Register"_, subtitle _"Hard statutory annual cap of ₹10,00,000, post-facto 48-hour ratification rule, and exclusive EVP authorization."_
   - Action button: **`+ Request Emergency Procurement`** (`bg-amber-600 hover:bg-amber-700 text-white`).
   - **Request Modal (Dialog):**
     - `Department` (Dropdown select).
@@ -428,7 +439,7 @@ This document provides a screen-by-screen, field-level operational walkthrough o
   - Calls `requestEmergencyProcurement` RPC (`/api/procurement/emergency/request`).
   - Validates cost against remaining statutory headroom in `emergency_procurement_ledger`.
   - Inserts row with `status = 'pending'`, `is_post_facto = true`, and sets `register_entry_at = NOW()`.
-  - Toast fires: *"Emergency Request Submitted: Logged in register (EP-2026-0001). Awaiting EVP authorization."*
+  - Toast fires: _"Emergency Request Submitted: Logged in register (EP-2026-0001). Awaiting EVP authorization."_
 - **What changes elsewhere as a result:**
   - Item appears on the Emergency Procurement Register with purple badge `[POST-FACTO RATIFICATION (§9.3)]`.
   - EVP Dr. Mehta's approval inbox receives **Emergency (1)** under the Emergency tab.
@@ -437,12 +448,13 @@ This document provides a screen-by-screen, field-level operational walkthrough o
 ---
 
 ### Step 12 — Live ₹10,00,000 Statutory Annual Cap Gauge Display
+
 - **Route/URL:** `/procurement/emergency` (Top Banner)
 - **Role required to see this screen:** All users on the Emergency page.
 - **What the screen shows:**
   - **Card Container:** Styled with gradient background `bg-gradient-to-r from-amber-50/80 via-orange-50/60 to-red-50/40 border-amber-300 dark:border-amber-900`.
-  - Header with shield alert icon (`ShieldAlert text-amber-600`), title: *"Statutory Annual Emergency Ledger — FY 2026-27"*, and badge: `Hard Cap: ₹10,00,000`.
-  - Subtitle: *"Institution-wide aggregate spend ceiling across all departments under SOP §9."*
+  - Header with shield alert icon (`ShieldAlert text-amber-600`), title: _"Statutory Annual Emergency Ledger — FY 2026-27"_, and badge: `Hard Cap: ₹10,00,000`.
+  - Subtitle: _"Institution-wide aggregate spend ceiling across all departments under SOP §9."_
   - **Live Progress & Metrics Bar:**
     - Left label: `Used: ₹4,50,000 (45%)` (slate text).
     - Right label: `Remaining Balance: ₹5,50,000` (bold emerald text).
@@ -456,13 +468,14 @@ This document provides a screen-by-screen, field-level operational walkthrough o
 ---
 
 ### Step 13 — Statutory Cap Hard-Block UI (When Headroom is Exceeded)
+
 - **Route/URL:** `/procurement/emergency` (Submit Modal & Server Response)
 - **Role required to see this screen:** Any user attempting to exceed the annual ₹10,00,000 ceiling.
 - **What the screen shows:**
   - **Client-Side Pre-Validation Error Toast:**
     - Toast variant: `destructive` (red banner).
-    - Title: *"Statutory Cap Exceeded"*.
-    - Description: *"Cost ₹6,00,000 exceeds remaining annual headroom ₹5,50,000."*
+    - Title: _"Statutory Cap Exceeded"_.
+    - Description: _"Cost ₹6,00,000 exceeds remaining annual headroom ₹5,50,000."_
   - **Server-Side Hard Block (Defense in Depth):**
     - If bypassed on client, server RPC `requestEmergencyProcurement` executes SQL transaction lock: `IF (v_current_spent + p_cost) > 1000000 THEN RAISE EXCEPTION 'EMERGENCY_CAP_EXCEEDED'`.
     - Server returns `{ ok: false, error: "EMERGENCY_CAP_EXCEEDED: Requested ₹6,00,000 exceeds remaining institutional cap of ₹5,50,000 for FY 2026-27 (§9.1)" }`.
@@ -479,6 +492,7 @@ This document provides a screen-by-screen, field-level operational walkthrough o
 ---
 
 ### Step 14 — EVP Post-Facto Ratification Screen (48-Hour Window)
+
 - **Route/URL:** `/procurement/approvals` (Tab: Emergency) & `/procurement/emergency`
 - **Role required to see this screen:** `evp`, `admin`.
 - **What the screen shows:**
@@ -501,7 +515,7 @@ This document provides a screen-by-screen, field-level operational walkthrough o
   - Calls `approveEmergency` RPC (`/api/procurement/emergency/approve`) with `decision = 'approved'`.
   - Atomically increments `emergency_procurement_ledger.running_total` by ₹4,50,000 (new total = ₹4,50,000).
   - Emergency record transitions to `evp_approval_status = 'approved'`, `ratified_at = NOW()`.
-  - Toast fires: *"Emergency Procurement Authorized: EVP approval recorded. Annual ledger updated to ₹4,50,000."*
+  - Toast fires: _"Emergency Procurement Authorized: EVP approval recorded. Annual ledger updated to ₹4,50,000."_
 - **What changes elsewhere as a result:**
   - Cap gauge at `/procurement/emergency` instantly reflects `Used: ₹4,50,000 (45%)`, `Remaining: ₹5,50,000`.
 - **Screenshot placeholder:** `![Step 14](./screenshots/step14.png)`
@@ -513,10 +527,11 @@ This document provides a screen-by-screen, field-level operational walkthrough o
 ---
 
 ### Step 15 — Vendor Empanelment Application Form
+
 - **Route/URL:** `/procurement/vendors` (Tab: Apply)
 - **Role required to see this screen:** Open entry for vendor intake / Admin onboarding (`procurement_officer`, `admin`).
 - **What the screen shows:**
-  - **Header:** SOP §5 Vendor Empanelment banner, title *"Vendor Management & Empanelment Hub"*, subtitle *"Manage vendor lifecycle: statutory registration, 4-pillar committee evaluation, and EVP approval."*
+  - **Header:** SOP §5 Vendor Empanelment banner, title _"Vendor Management & Empanelment Hub"_, subtitle _"Manage vendor lifecycle: statutory registration, 4-pillar committee evaluation, and EVP approval."_
   - **Tabs Bar:** `1. Application Form`, `2. Committee Evaluation (N)`, `3. EVP Approval Gate (N)`, `4. Empanelled Directory (N)`.
   - **Application Form Card (Statutory Registration):**
     - `Vendor Legal Name *` (Text input).
@@ -538,7 +553,7 @@ This document provides a screen-by-screen, field-level operational walkthrough o
   - Calls `applyEmpanelment` RPC (`/api/procurement/vendors/apply`).
   - Creates row in `vendors` table with `status = 'applied'`.
   - Form resets and automatically navigates to Tab `2. Committee Evaluation`.
-  - Toast fires: *"Vendor Application Submitted! Vendor 'Zenith Laboratory Supplies LLP' registered in 'applied' status. Proceed to Evaluation."*
+  - Toast fires: _"Vendor Application Submitted! Vendor 'Zenith Laboratory Supplies LLP' registered in 'applied' status. Proceed to Evaluation."_
 - **What changes elsewhere as a result:**
   - Evaluation tab badge increments: `Committee Evaluation (1)`.
 - **Screenshot placeholder:** `![Step 15](./screenshots/step15.png)`
@@ -546,6 +561,7 @@ This document provides a screen-by-screen, field-level operational walkthrough o
 ---
 
 ### Step 16 — Vendor Committee Evaluation Screen (4-Pillar Scoring)
+
 - **Route/URL:** `/procurement/vendors` (Tab: Committee Evaluation)
 - **Role required to see this screen:** `purchase_committee`, `procurement_officer`, `admin`.
 - **What the screen shows:**
@@ -568,7 +584,7 @@ This document provides a screen-by-screen, field-level operational walkthrough o
   - Calls `evaluateVendor` RPC (`/api/procurement/vendors/evaluate`).
   - Inserts row into `vendor_evaluations` and updates vendor status to `status = 'under_review'`.
   - Navigates to Tab `3. EVP Approval Gate`.
-  - Toast fires: *"Evaluation Recorded! Vendor status changed to 'under_review'. Ready for EVP Approval."*
+  - Toast fires: _"Evaluation Recorded! Vendor status changed to 'under_review'. Ready for EVP Approval."_
 - **What changes elsewhere as a result:**
   - EVP Approval tab badge increments: `EVP Approval Gate (1)`.
 - **Screenshot placeholder:** `![Step 16](./screenshots/step16.png)`
@@ -576,6 +592,7 @@ This document provides a screen-by-screen, field-level operational walkthrough o
 ---
 
 ### Step 17 — EVP Empanelment Approval Screen
+
 - **Route/URL:** `/procurement/vendors` (Tab: EVP Approval Gate)
 - **Role required to see this screen:** `evp`, `admin`.
 - **What the screen shows:**
@@ -593,7 +610,7 @@ This document provides a screen-by-screen, field-level operational walkthrough o
 - **What happens on submit:**
   - Calls `approveEmpanelment` RPC (`/api/procurement/vendors/approve`).
   - Sets `status = 'empanelled'`, `empanelled_on = CURRENT_DATE`, `empanelment_expiry = CURRENT_DATE + 365 days`.
-  - Toast fires: *"Vendor Empanelled Successfully! Vendor is now empanelled for 1 year."*
+  - Toast fires: _"Vendor Empanelled Successfully! Vendor is now empanelled for 1 year."_
 - **What changes elsewhere as a result:**
   - Vendor appears in the active directory under Tab `4. Empanelled Directory` with green badge `[EMPANELLED]` and expiry date.
   - Zenith Laboratory Supplies LLP is now selectable in RFQ multi-vendor pickers.
@@ -602,10 +619,11 @@ This document provides a screen-by-screen, field-level operational walkthrough o
 ---
 
 ### Step 18 — Vendor Performance Rating Form (6-Pillar Formula & Outcome Bands)
+
 - **Route/URL:** `/procurement/vendor-ratings`
 - **Role required to see this screen:** `procurement_officer`, `purchase_committee`, `admin`.
 - **What the screen shows:**
-  - **Header:** SOP Annexure 4 Vendor Performance banner, title *"Vendor Ratings & Performance Governance"*, subtitle *"6-Pillar weighted scoring, automated outcome banding, and automatic vendor suspension / debarment gates."*
+  - **Header:** SOP Annexure 4 Vendor Performance banner, title _"Vendor Ratings & Performance Governance"_, subtitle _"6-Pillar weighted scoring, automated outcome banding, and automatic vendor suspension / debarment gates."_
   - Action button: **`+ Evaluate Vendor`** (`bg-purple-600 hover:bg-purple-700 text-white`).
   - **Evaluate Vendor Modal (Dialog):**
     - `Vendor *` (Dropdown select of vendors).
@@ -632,7 +650,7 @@ This document provides a screen-by-screen, field-level operational walkthrough o
 - **What happens on submit:**
   - Calls `submitVendorRating` RPC (`/api/procurement/ratings/submit`).
   - Computes weighted score, maps to outcome band, and updates `vendors.status`.
-  - Toast fires: *"Vendor Performance Rating Recorded: Weighted Score: 91.5 → Outcome: PREFERRED"*.
+  - Toast fires: _"Vendor Performance Rating Recorded: Weighted Score: 91.5 → Outcome: PREFERRED"_.
 - **What changes elsewhere as a result:**
   - Vendor rating card is added to the list showing 6-pillar breakdown badges.
   - In Vendor Master, Apex Infotech status is tagged as `preferred`.
@@ -641,6 +659,7 @@ This document provides a screen-by-screen, field-level operational walkthrough o
 ---
 
 ### Step 19 — Vendor Debarment / Suspension Trigger Screen
+
 - **Route/URL:** `/procurement/vendor-ratings` (Modal & Table)
 - **Role required to see this screen:** `purchase_committee`, `evp`, `admin`.
 - **What the screen shows:**
@@ -659,7 +678,7 @@ This document provides a screen-by-screen, field-level operational walkthrough o
   4. Enters failure remarks and clicks **`Record Rating & Apply Status`**.
 - **What happens on submit:**
   - Server function sets `vendors.status = 'debarred'`.
-  - Toast fires: *"Vendor Performance Rating Recorded: Weighted Score: 32 → Outcome: DEBARRED"*.
+  - Toast fires: _"Vendor Performance Rating Recorded: Weighted Score: 32 → Outcome: DEBARRED"_.
 - **What changes elsewhere as a result:**
   - Database row in `vendors` table is set to `status = 'debarred'`.
 - **Screenshot placeholder:** `![Step 19](./screenshots/step19.png)`
@@ -667,6 +686,7 @@ This document provides a screen-by-screen, field-level operational walkthrough o
 ---
 
 ### Step 20 — RFQ Vendor Picker Debarment Exclusion Verification
+
 - **Route/URL:** `/procurement/rfqs` (Send RFQ Modal)
 - **Role required to see this screen:** `procurement_officer`, `procurement_executive`, `admin`.
 - **What the screen shows:**
@@ -693,20 +713,20 @@ This document provides a screen-by-screen, field-level operational walkthrough o
 
 The following access matrix is generated directly from inspection of client route guards (`src/routes/*`, `src/components/Layout.tsx`) and RPC server authorization checks (`src/server/procurement/guards.ts`):
 
-| Screen / Route | Route URL | Allowed User Roles | Server-Side Mutation Authorization Guard |
-| :--- | :--- | :--- | :--- |
-| **Procurement Hub** | `/procurement` | All authenticated users | Read-only portal overview |
-| **My Approvals** | `/procurement/approvals` | `hod`, `principal`, `purchase_committee`, `evp`, `finance`, `admin` | `assertRole(ctx, [assigned_approver_role, 'admin'])` |
-| **Requisitions (PR)** | `/procurement/raise-pr` | `hod`, `principal`, `procurement_officer`, `admin`, all authenticated staff | `createPr` allows any verified session user; matrix dictates approver |
-| **RFQ Management** | `/procurement/rfqs` | `procurement_officer`, `procurement_executive`, `admin` | `assertRole(ctx, ['procurement_officer', 'procurement_executive', 'admin'])` |
-| **Quotation Portal** | `/quotation/$id` | Public / Invited Vendor (Token/UUID keyed) | Public insert to `quotation_responses` when quotation is active |
-| **Comparative (CS)** | `/procurement/cs` | `procurement_officer`, `purchase_committee`, `director_admin_finance`, `evp`, `admin` | `prepareCs`: Procurement; `approveCs`: Matrix assigned role (`purchase_committee`, `evp`, `admin`) |
-| **Purchase Orders** | `/procurement/orders` | `procurement_officer`, `procurement_executive`, `purchase_committee`, `evp`, `admin` | `createPo`/`issuePo`: Procurement; `approvePo`: Matrix assigned role; `amendPo`: Procurement + re-approval |
-| **Goods Receipt (GRN)** | `/procurement/grns` | `stores`, `hod`, `admin` | `recordDelivery`/`createGrn`: `stores`, `admin`; `technicalVerify`: `hod`, `admin` |
-| **Invoices & 3-Way Match** | `/procurement/invoices` | `finance`, `admin`, `procurement_officer` | `submitInvoice`: Finance/Procurement; `approveInvoice`/`recordPayment`: `finance`, `admin` |
-| **Emergency (§9)** | `/procurement/emergency` | `hod`, `principal`, `procurement_officer`, `evp`, `admin` | `requestEmergency`: All roles; `approveEmergency`: `evp`, `admin` only |
-| **Vendor Master** | `/procurement/vendors` | Open intake / `procurement_officer`, `purchase_committee`, `evp`, `admin` | `apply`: Public/Admin; `evaluate`: `purchase_committee`, `admin`; `approve`: `evp`, `admin` only |
-| **Vendor Ratings** | `/procurement/vendor-ratings` | `procurement_officer`, `purchase_committee`, `admin` | `submitVendorRating`: `procurement_officer`, `purchase_committee`, `admin` |
+| Screen / Route             | Route URL                     | Allowed User Roles                                                                    | Server-Side Mutation Authorization Guard                                                                   |
+| :------------------------- | :---------------------------- | :------------------------------------------------------------------------------------ | :--------------------------------------------------------------------------------------------------------- |
+| **Procurement Hub**        | `/procurement`                | All authenticated users                                                               | Read-only portal overview                                                                                  |
+| **My Approvals**           | `/procurement/approvals`      | `hod`, `principal`, `purchase_committee`, `evp`, `finance`, `admin`                   | `assertRole(ctx, [assigned_approver_role, 'admin'])`                                                       |
+| **Requisitions (PR)**      | `/procurement/raise-pr`       | `hod`, `principal`, `procurement_officer`, `admin`, all authenticated staff           | `createPr` allows any verified session user; matrix dictates approver                                      |
+| **RFQ Management**         | `/procurement/rfqs`           | `procurement_officer`, `procurement_executive`, `admin`                               | `assertRole(ctx, ['procurement_officer', 'procurement_executive', 'admin'])`                               |
+| **Quotation Portal**       | `/quotation/$id`              | Public / Invited Vendor (Token/UUID keyed)                                            | Public insert to `quotation_responses` when quotation is active                                            |
+| **Comparative (CS)**       | `/procurement/cs`             | `procurement_officer`, `purchase_committee`, `director_admin_finance`, `evp`, `admin` | `prepareCs`: Procurement; `approveCs`: Matrix assigned role (`purchase_committee`, `evp`, `admin`)         |
+| **Purchase Orders**        | `/procurement/orders`         | `procurement_officer`, `procurement_executive`, `purchase_committee`, `evp`, `admin`  | `createPo`/`issuePo`: Procurement; `approvePo`: Matrix assigned role; `amendPo`: Procurement + re-approval |
+| **Goods Receipt (GRN)**    | `/procurement/grns`           | `stores`, `hod`, `admin`                                                              | `recordDelivery`/`createGrn`: `stores`, `admin`; `technicalVerify`: `hod`, `admin`                         |
+| **Invoices & 3-Way Match** | `/procurement/invoices`       | `finance`, `admin`, `procurement_officer`                                             | `submitInvoice`: Finance/Procurement; `approveInvoice`/`recordPayment`: `finance`, `admin`                 |
+| **Emergency (§9)**         | `/procurement/emergency`      | `hod`, `principal`, `procurement_officer`, `evp`, `admin`                             | `requestEmergency`: All roles; `approveEmergency`: `evp`, `admin` only                                     |
+| **Vendor Master**          | `/procurement/vendors`        | Open intake / `procurement_officer`, `purchase_committee`, `evp`, `admin`             | `apply`: Public/Admin; `evaluate`: `purchase_committee`, `admin`; `approve`: `evp`, `admin` only           |
+| **Vendor Ratings**         | `/procurement/vendor-ratings` | `procurement_officer`, `purchase_committee`, `admin`                                  | `submitVendorRating`: `procurement_officer`, `purchase_committee`, `admin`                                 |
 
 ---
 

@@ -1,1 +1,1 @@
-export * from '@/lib/procurement/rfq.functions';
+export * from "@/lib/procurement/rfq.functions";

@@ -83,9 +83,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "AMC Inventory Management" },
-      { name: "description", content: "College inventory, procurement, ticketing and library management system." },
+      {
+        name: "description",
+        content: "College inventory, procurement, ticketing and library management system.",
+      },
       { property: "og:title", content: "AMC Inventory Management" },
-      { property: "og:description", content: "College inventory, procurement, ticketing and library management system." },
+      {
+        property: "og:description",
+        content: "College inventory, procurement, ticketing and library management system.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],

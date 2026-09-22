@@ -34,6 +34,7 @@ The architecture enforces a strict **three-tier boundary**:
 ```
 
 ### Key Architectural Principles
+
 1. **Server-Side Enforcement**: No client component performs direct mutations (`insert`, `update`, `delete`) on procurement tables. All writes go through `src/server/procurement/*` server functions.
 2. **Pure Rules Engine**: `src/lib/procurement/authorityMatrix.ts` is table-driven with zero hardcoded thresholds.
 3. **Default-DENY Security**: Every procurement table is locked with Default-DENY Row Level Security (RLS).
@@ -59,6 +60,7 @@ The architecture enforces a strict **three-tier boundary**:
 ## 3. Database Migrations
 
 Database definitions are versioned under `supabase/migrations/`:
+
 - `20260918000001_day1_procurement_foundation.sql`: Roles, Vendors, PRs, Matrix Rules, Monthly Spend, Deviation Approvals.
 - `20260918000002_day2_rfq_cs_po.sql`: Rate Contracts, RFQs, RFQ Vendors, Quotation Lines, CS, CS Scores, POs, PO Amendments.
 - `20260918000003_day3_fulfilment_payment_emergency_ratings.sql`: Delivery Challans, GRNs, GRN Lines, Invoices, Payments, Emergency Ledger, Emergency Procurements, Vendor Ratings.
@@ -68,10 +70,12 @@ Database definitions are versioned under `supabase/migrations/`:
 ## 4. Getting Started & Verification
 
 ### Prerequisites
+
 - Node.js 20+
 - npm or bun
 
 ### Local Development
+
 ```sh
 # Install dependencies
 npm install
@@ -87,6 +91,7 @@ npm run build
 ```
 
 ### Running the Compliance Test Suites
+
 ```sh
 # Day 1 & Day 2 Foundation & Sourcing Tests
 node scripts/verify_day1.mjs
@@ -115,6 +120,7 @@ node scripts/verify_day4_compliance.mjs
 ## 6. System Workflow Diagrams
 
 ### Diagram 1: Overall P2P Lifecycle Flowchart
+
 The following flowchart illustrates the complete procure-to-pay lifecycle across standard and emergency paths, using the database status enum values (`draft`, `pending_approval`, `approved`, `sent`, `submitted`, `issued`, `matched`, `on_hold`, `paid`, `closed`).
 
 ```mermaid
@@ -156,11 +162,13 @@ flowchart TD
         Inv_Paid -->|"Auto PO Closure"| PO_Closed["PO: closed"]
     end
 ```
-*Derived from `supabase/migrations/` schema definitions, `src/server/procurement/*.functions.ts`, and Starlight P2P SOP §8.*
+
+_Derived from `supabase/migrations/` schema definitions, `src/server/procurement/*.functions.ts`, and Starlight P2P SOP §8._
 
 ---
 
 ### Diagram 2: Authority Matrix Decision Flowchart
+
 The following decision tree shows how `resolveApprover` evaluates transaction category, single transaction ceilings, and cumulative monthly spend caps to determine the approval authority role and escalation requirement.
 
 ```mermaid
@@ -185,11 +193,13 @@ flowchart TD
     MaxEVP --> End
     FallbackEVP --> End
 ```
-*Derived from `src/server/procurement/authorityMatrix.ts` and `approval_matrix_rules` database seed data.*
+
+_Derived from `src/server/procurement/authorityMatrix.ts` and `approval_matrix_rules` database seed data._
 
 ---
 
 ### Diagram 3: Cycle 1 Standard Procurement Sequence Diagram
+
 The following sequence diagram details the complete message exchanges, RPC calls, and database mutations between all eight procurement actors for an IT equipment purchase exceeding standard limits.
 
 ```mermaid
@@ -252,11 +262,13 @@ sequenceDiagram
     Server->>DB: INSERT INTO payments & UPDATE purchase_orders SET status='closed'
     Server-->>Finance: Invoice Paid & PO Closed
 ```
-*Derived from `src/server/procurement/*.functions.ts`, `docs/E2E_WALKTHROUGH.md`, and `docs/UI_WALKTHROUGH.md`.*
+
+_Derived from `src/server/procurement/*.functions.ts`, `docs/E2E_WALKTHROUGH.md`, and `docs/UI_WALKTHROUGH.md`._
 
 ---
 
 ### Diagram 4: Cycle 2 Emergency Procurement Sequence Diagram
+
 The following sequence diagram demonstrates the annual statutory cap verification, the hard-block branch, and the 48-hour post-facto ratification mechanism under SOP §9.
 
 ```mermaid
@@ -269,7 +281,7 @@ sequenceDiagram
 
     Requester->>Server: requestEmergencyProcurement(cost=₹4,50,000, reason_failed, is_post_facto=true)
     Server->>DB: SELECT running_total, cap_limit FROM emergency_procurement_ledger FOR UPDATE
-    
+
     alt Cap Exceeded: running_total + cost > 10,00,000
         Server-->>Requester: Hard Block: EMERGENCY_CAP_EXCEEDED (Ceiling Reached)
     else Spend within Headroom: running_total + cost <= 10,00,000
@@ -282,11 +294,13 @@ sequenceDiagram
     Server->>DB: UPDATE emergency_procurement_ledger SET running_total = running_total + ₹4,50,000
     Server-->>EVP: Emergency Procurement Ratified & Ledger Incremented
 ```
-*Derived from `src/server/procurement/emergency.functions.ts` and `20260918000003_day3_fulfilment_payment_emergency_ratings.sql`.*
+
+_Derived from `src/server/procurement/emergency.functions.ts` and `20260918000003_day3_fulfilment_payment_emergency_ratings.sql`._
 
 ---
 
 ### Diagram 5: Entity-Relationship Diagram (ERD)
+
 The following entity-relationship diagram illustrates the core procurement database entities, their primary/foreign keys, and relational constraints across the entire schema.
 
 ```mermaid
@@ -371,11 +385,13 @@ erDiagram
         string review_period
     }
 ```
-*Derived from PostgreSQL migration files `supabase/migrations/20260918000001_day1_procurement_foundation.sql`, `20260918000002_day2_rfq_cs_po.sql`, and `20260918000003_day3_fulfilment_payment_emergency_ratings.sql`.*
+
+_Derived from PostgreSQL migration files `supabase/migrations/20260918000001_day1_procurement_foundation.sql`, `20260918000002_day2_rfq_cs_po.sql`, and `20260918000003_day3_fulfilment_payment_emergency_ratings.sql`._
 
 ---
 
 ### Diagram 6: Purchase Order State Transition Diagram
+
 The following state transition diagram depicts the lifecycle states of a Purchase Order, including the amendment and tier escalation re-approval loop.
 
 ```mermaid
@@ -385,7 +401,7 @@ stateDiagram-v2
     pending_approval --> approved: approvePo
     pending_approval --> cancelled: rejectPo
     approved --> issued: issuePo
-    
+
     issued --> amended: amendPo
     amended --> issued: Within Same Tier
     amended --> pending_approval: Exceeds Tier Limit
@@ -397,5 +413,5 @@ stateDiagram-v2
     closed --> [*]
     cancelled --> [*]
 ```
-*Derived from `src/server/procurement/po.functions.ts` and SOP §8.5.*
 
+_Derived from `src/server/procurement/po.functions.ts` and SOP §8.5._

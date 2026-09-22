@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from '@tanstack/react-router';
+import { useParams, useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,7 +49,8 @@ const ItemHistory = () => {
       // Fetch item details
       const { data: itemData, error: itemError } = await supabase
         .from("inventory")
-        .select(`
+        .select(
+          `
           id,
           item_code,
           item_name,
@@ -57,7 +58,8 @@ const ItemHistory = () => {
           asset_type,
           categories(name),
           locations(name, prefix)
-        `)
+        `,
+        )
         .eq("id", id)
         .single();
 
@@ -67,10 +69,12 @@ const ItemHistory = () => {
       // Fetch history
       const { data: historyData, error: historyError } = await supabase
         .from("inventory_history")
-        .select(`
+        .select(
+          `
           *,
           profiles(full_name, email)
-        `)
+        `,
+        )
         .eq("inventory_id", id)
         .order("created_at", { ascending: false });
 
@@ -85,12 +89,12 @@ const ItemHistory = () => {
 
   const getActionBadge = (actionType: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-      "created": "default",
-      "updated": "secondary",
-      "status_changed": "outline",
-      "location_changed": "outline",
-      "quantity_changed": "outline",
-      "deleted": "destructive",
+      created: "default",
+      updated: "secondary",
+      status_changed: "outline",
+      location_changed: "outline",
+      quantity_changed: "outline",
+      deleted: "destructive",
     };
 
     return (
@@ -176,12 +180,8 @@ const ItemHistory = () => {
             Back
           </Button>
           <div>
-            <h2 className="text-3xl font-bold tracking-tight text-gray-800">
-              {item.item_name}
-            </h2>
-            <p className="text-gray-600 text-lg">
-              Item Code: {item.item_code}
-            </p>
+            <h2 className="text-3xl font-bold tracking-tight text-gray-800">{item.item_name}</h2>
+            <p className="text-gray-600 text-lg">Item Code: {item.item_code}</p>
           </div>
         </div>
 
@@ -197,11 +197,21 @@ const ItemHistory = () => {
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-600">Location</label>
-                <p className="text-base">{item.locations ? `${item.locations.name}${item.locations.prefix ? ` (${item.locations.prefix})` : ''}` : "N/A"}</p>
+                <p className="text-base">
+                  {item.locations
+                    ? `${item.locations.name}${item.locations.prefix ? ` (${item.locations.prefix})` : ""}`
+                    : "N/A"}
+                </p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-600">Asset Type</label>
-                <p className="text-base">{item.asset_type === 'capital' ? 'Capital' : item.asset_type === 'recurring' ? 'Recurring/Consumables' : 'N/A'}</p>
+                <p className="text-base">
+                  {item.asset_type === "capital"
+                    ? "Capital"
+                    : item.asset_type === "recurring"
+                      ? "Recurring/Consumables"
+                      : "N/A"}
+                </p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-600">Status</label>
@@ -242,9 +252,7 @@ const ItemHistory = () => {
                           </span>
                         </div>
                       </div>
-                      <p className="text-base mb-2">
-                        {formatChangeDetails(historyItem)}
-                      </p>
+                      <p className="text-base mb-2">{formatChangeDetails(historyItem)}</p>
                       {historyItem.profiles && (
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <User className="w-4 h-4" />
