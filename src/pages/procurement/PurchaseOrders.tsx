@@ -281,7 +281,7 @@ export default function PurchaseOrders() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-200 mb-2">
-              <ShoppingBag className="w-3.5 h-3.5" /> SOP §8.5 Purchase Order Governance
+              <ShoppingBag className="w-3.5 h-3.5" /> Purchase Order Governance
             </div>
             <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
               Purchase Orders & Amendments
@@ -292,10 +292,7 @@ export default function PurchaseOrders() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={loadData} disabled={loading} className="gap-2">
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
-            </Button>
-            <Button onClick={() => setCreateOpen(true)} className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white">
+            <Button onClick={() => setCreateOpen(true)} className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm">
               <PlusCircle className="w-4 h-4" /> Create PO
             </Button>
           </div>

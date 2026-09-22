@@ -196,11 +196,13 @@ export default function RequestQuotation() {
   return (
     <Layout>
       <div className="container mx-auto py-8">
-        <Tabs defaultValue="request" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="request">Request Quotation</TabsTrigger>
-            <TabsTrigger value="view">View Quotations</TabsTrigger>
-          </TabsList>
+        <Tabs defaultValue="request" className="w-full space-y-4">
+          <div className="w-full overflow-x-auto pb-1 scrollbar-none">
+            <TabsList className="inline-flex w-auto min-w-full sm:min-w-0 sm:grid sm:grid-cols-2 h-auto p-1.5 gap-1.5 bg-slate-200/70 dark:bg-slate-800/80 rounded-xl">
+              <TabsTrigger value="request" className="font-semibold text-xs sm:text-sm py-2 px-4 whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm">Request Quotation</TabsTrigger>
+              <TabsTrigger value="view" className="font-semibold text-xs sm:text-sm py-2 px-4 whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm">View Quotations</TabsTrigger>
+            </TabsList>
+          </div>
           <TabsContent value="request">
             <Card>
               <CardHeader>

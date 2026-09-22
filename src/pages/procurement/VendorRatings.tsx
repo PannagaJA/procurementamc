@@ -171,10 +171,7 @@ export default function VendorRatings() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={loadData} disabled={loading} className="gap-2">
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
-            </Button>
-            <Button onClick={() => setRateOpen(true)} className="gap-2 bg-purple-600 hover:bg-purple-700 text-white">
+            <Button onClick={() => setRateOpen(true)} className="gap-2 bg-purple-600 hover:bg-purple-700 text-white shadow-sm">
               <PlusCircle className="w-4 h-4" /> Evaluate Vendor
             </Button>
           </div>

@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AddRouteImport } from './routes/add'
+import { Route as ArchitectureRouteImport } from './routes/architecture'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as CategoriesRouteImport } from './routes/categories'
 import { Route as DepartmentsRouteImport } from './routes/departments'
@@ -60,6 +61,11 @@ const IndexRoute = IndexRouteImport.update({
 const AddRoute = AddRouteImport.update({
   id: '/add',
   path: '/add',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ArchitectureRoute = ArchitectureRouteImport.update({
+  id: '/architecture',
+  path: '/architecture',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -267,6 +273,7 @@ const ViewerInventoryIdRoute = ViewerInventoryIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/add': typeof AddRoute
+  '/architecture': typeof ArchitectureRoute
   '/auth': typeof AuthRoute
   '/categories': typeof CategoriesRoute
   '/departments': typeof DepartmentsRoute
@@ -311,6 +318,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/add': typeof AddRoute
+  '/architecture': typeof ArchitectureRoute
   '/auth': typeof AuthRoute
   '/categories': typeof CategoriesRoute
   '/departments': typeof DepartmentsRoute
@@ -356,6 +364,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/add': typeof AddRoute
+  '/architecture': typeof ArchitectureRoute
   '/auth': typeof AuthRoute
   '/categories': typeof CategoriesRoute
   '/departments': typeof DepartmentsRoute
@@ -402,6 +411,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/add'
+    | '/architecture'
     | '/auth'
     | '/categories'
     | '/departments'
@@ -446,6 +456,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/add'
+    | '/architecture'
     | '/auth'
     | '/categories'
     | '/departments'
@@ -490,6 +501,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/add'
+    | '/architecture'
     | '/auth'
     | '/categories'
     | '/departments'
@@ -535,6 +547,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AddRoute: typeof AddRoute
+  ArchitectureRoute: typeof ArchitectureRoute
   AuthRoute: typeof AuthRoute
   CategoriesRoute: typeof CategoriesRoute
   DepartmentsRoute: typeof DepartmentsRoute
@@ -590,6 +603,13 @@ declare module '@tanstack/react-router' {
       path: '/add'
       fullPath: '/add'
       preLoaderRoute: typeof AddRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/architecture': {
+      id: '/architecture'
+      path: '/architecture'
+      fullPath: '/architecture'
+      preLoaderRoute: typeof ArchitectureRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -890,6 +910,7 @@ const InventoryIdRouteWithChildren = InventoryIdRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AddRoute: AddRoute,
+  ArchitectureRoute: ArchitectureRoute,
   AuthRoute: AuthRoute,
   CategoriesRoute: CategoriesRoute,
   DepartmentsRoute: DepartmentsRoute,

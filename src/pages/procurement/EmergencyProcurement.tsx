@@ -210,7 +210,7 @@ export default function EmergencyProcurement() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200 mb-2">
-              <Zap className="w-3.5 h-3.5 text-amber-600" /> SOP §9 Emergency Procurement Governance
+              <Zap className="w-3.5 h-3.5 text-amber-600" /> Emergency Procurement Governance
             </div>
             <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
               Emergency Procurement Register
@@ -221,10 +221,7 @@ export default function EmergencyProcurement() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={loadData} disabled={loading} className="gap-2">
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
-            </Button>
-            <Button onClick={() => setRequestOpen(true)} className="gap-2 bg-amber-600 hover:bg-amber-700 text-white">
+            <Button onClick={() => setRequestOpen(true)} className="gap-2 bg-amber-600 hover:bg-amber-700 text-white shadow-sm">
               <PlusCircle className="w-4 h-4" /> Request Emergency Procurement
             </Button>
           </div>
@@ -243,7 +240,7 @@ export default function EmergencyProcurement() {
               </Badge>
             </div>
             <CardDescription className="text-xs text-amber-800 dark:text-amber-300">
-              Institution-wide aggregate spend ceiling across all departments under SOP §9.
+              Institution-wide aggregate spend ceiling across all departments (Annual Statutory Ceiling).
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -287,7 +284,7 @@ export default function EmergencyProcurement() {
                           </Badge>
                           {ep.is_post_facto ? (
                             <Badge variant="outline" className="text-xs text-purple-700 border-purple-400">
-                              Post-Facto Ratification (§9.3)
+                              Post-Facto Ratification
                             </Badge>
                           ) : (
                             <Badge variant="outline" className="text-xs text-amber-700 border-amber-400">
@@ -371,7 +368,7 @@ export default function EmergencyProcurement() {
         <Dialog open={requestOpen} onOpenChange={setRequestOpen}>
           <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Request Emergency Procurement (§9)</DialogTitle>
+              <DialogTitle>Request Emergency Procurement</DialogTitle>
               <DialogDescription>
                 Initiate urgent purchase subject to the ₹10,00,000 annual statutory cap and EVP authorization.
               </DialogDescription>

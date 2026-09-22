@@ -176,7 +176,7 @@ export default function ProcurementHub() {
               <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-950 flex items-center justify-center text-amber-600 dark:text-amber-400 mb-1.5">
                 <Zap className="w-4 h-4" />
               </div>
-              <CardTitle className="text-base">7. Emergency (§9)</CardTitle>
+              <CardTitle className="text-base">7. Emergency Procurement</CardTitle>
               <CardDescription className="text-xs">
                 Hard ₹10L annual cap ledger & EVP authorization.
               </CardDescription>

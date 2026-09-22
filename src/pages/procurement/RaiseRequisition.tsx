@@ -207,7 +207,7 @@ export default function RaiseRequisition() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-6">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200 mb-2">
-              <ShieldCheck className="w-3.5 h-3.5" /> SOP §8.3 Compliance
+              <ShieldCheck className="w-3.5 h-3.5" /> Procurement Compliance
             </div>
             <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
               Raise Purchase Requisition (PR)
@@ -484,7 +484,7 @@ export default function RaiseRequisition() {
                       />
                       <div>
                         <Label htmlFor="isEmergency" className="font-semibold text-amber-900 dark:text-amber-200 cursor-pointer">
-                          Emergency Procurement (§9)
+                          Emergency Procurement
                         </Label>
                         <p className="text-xs text-amber-700 dark:text-amber-400">
                           Subject to ₹10,00,000 annual institutional cap and post-facto audit.
@@ -538,7 +538,7 @@ export default function RaiseRequisition() {
                   Authority Matrix Live Routing
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Server-enforced decision logic based on SOP §6 rules.
+                  Server-enforced decision logic based on Institutional Authority Matrix.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4 pt-4 text-sm">
@@ -573,7 +573,7 @@ export default function RaiseRequisition() {
                 {/* Proof Cases Quick Guide */}
                 <div className="space-y-2 pt-2 text-xs border-t border-slate-200 dark:border-slate-800">
                   <span className="font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
-                    SOP §6 Threshold Proofs:
+                    Approval Authority Matrix Thresholds:
                   </span>
                   <ul className="space-y-1.5 text-slate-600 dark:text-slate-400">
                     <li className="flex items-start gap-1.5">

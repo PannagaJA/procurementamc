@@ -256,7 +256,7 @@ export default function ComparativeStatements() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200 mb-2">
-              <Scale className="w-3.5 h-3.5" /> SOP §8.4 Comparative Statement (CS) Evaluation
+              <Scale className="w-3.5 h-3.5" /> Comparative Statement (CS) Evaluation
             </div>
             <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
               Comparative Statements & Evaluation
@@ -267,10 +267,7 @@ export default function ComparativeStatements() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={loadData} disabled={loading} className="gap-2">
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
-            </Button>
-            <Button onClick={() => setPrepOpen(true)} className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white">
+            <Button onClick={() => setPrepOpen(true)} className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm">
               <PlusCircle className="w-4 h-4" /> Prepare CS
             </Button>
           </div>
@@ -376,7 +373,7 @@ export default function ComparativeStatements() {
                     {/* Non lowest rationale banner */}
                     {!cs.is_lowest_price && cs.non_lowest_rationale && (
                       <div className="p-2.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded text-xs text-amber-900 dark:text-amber-200">
-                        <span className="font-semibold">Non-Lowest Bidder Justification (§7.2): </span>
+                        <span className="font-semibold">Non-Lowest Bidder Justification: </span>
                         {cs.non_lowest_rationale}
                       </div>
                     )}
@@ -437,7 +434,7 @@ export default function ComparativeStatements() {
             <DialogHeader>
               <DialogTitle>Prepare Comparative Statement</DialogTitle>
               <DialogDescription>
-                Compare vendor quotations and formulate recommendation per SOP §8.4.
+                Compare vendor quotations, evaluate technical compliance, and formulate recommendation.
               </DialogDescription>
             </DialogHeader>
 
@@ -515,7 +512,7 @@ export default function ComparativeStatements() {
                     <div className="p-3 bg-amber-50 dark:bg-amber-950/50 border-2 border-amber-400 rounded-lg space-y-2">
                       <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200 font-semibold text-xs">
                         <AlertCircle className="w-4 h-4 text-amber-600" />
-                        Non-Lowest Bidder Justification Mandatory (SOP §7.2)
+                        Non-Lowest Bidder Justification Mandatory
                       </div>
                       <p className="text-[11px] text-amber-700 dark:text-amber-300">
                         You have selected a vendor that did not submit the lowest quotation. Please record the comprehensive technical or warranty justification before submission.

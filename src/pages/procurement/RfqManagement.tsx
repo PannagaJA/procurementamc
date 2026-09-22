@@ -147,7 +147,7 @@ export default function RfqManagement() {
     if (selectedVendorIds.length < minReq) {
       toast({
         title: 'Insufficient Vendors',
-        description: `SOP §8.4 requires at least ${minReq} empanelled vendors (currently selected ${selectedVendorIds.length}).`,
+        description: `Institutional Procurement Rules require at least ${minReq} empanelled vendors (currently selected ${selectedVendorIds.length}).`,
         variant: 'destructive',
       });
       return;
@@ -261,7 +261,7 @@ export default function RfqManagement() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200 mb-2">
-              <FileText className="w-3.5 h-3.5" /> SOP §8.4 Request For Quotations
+              <FileText className="w-3.5 h-3.5" /> Request For Quotations
             </div>
             <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
               RFQ & Vendor Solicitations
@@ -272,10 +272,7 @@ export default function RfqManagement() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={loadData} disabled={loading} className="gap-2">
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
-            </Button>
-            <Button onClick={() => setCreateOpen(true)} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white">
+            <Button onClick={() => setCreateOpen(true)} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-sm">
               <PlusCircle className="w-4 h-4" /> Create RFQ
             </Button>
           </div>
@@ -385,7 +382,7 @@ export default function RfqManagement() {
             <DialogHeader>
               <DialogTitle>Create Request for Quotation</DialogTitle>
               <DialogDescription>
-                Select an approved Purchase Requisition to initiate an RFQ per SOP §8.4.
+                Select an approved Purchase Requisition to initiate a multi-vendor RFQ.
               </DialogDescription>
             </DialogHeader>
 
@@ -440,7 +437,7 @@ export default function RfqManagement() {
             <DialogHeader>
               <DialogTitle>Invite Empanelled Vendors</DialogTitle>
               <DialogDescription>
-                Select at least {activeRfq?.required_min_quotations || 3} empanelled vendors. Free-text email input is prohibited per SOP §8.4.
+                Select at least {activeRfq?.required_min_quotations || 3} empanelled vendors. Free-text email input is restricted to empanelled vendors.
               </DialogDescription>
             </DialogHeader>
 

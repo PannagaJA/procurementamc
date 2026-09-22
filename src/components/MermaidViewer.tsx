@@ -24,9 +24,10 @@ mermaid.initialize({
 
 interface MermaidViewerProps {
   id: string;
-  chart: string;
-  title: string;
-  description: string;
+  chart?: string;
+  code?: string;
+  title?: string;
+  description?: string;
   badgeText?: string;
   sourceFile?: string;
 }
@@ -34,6 +35,7 @@ interface MermaidViewerProps {
 export const MermaidViewer: React.FC<MermaidViewerProps> = ({
   id,
   chart,
+  code,
   title,
   description,
   badgeText = 'Mermaid Diagram',
@@ -46,14 +48,17 @@ export const MermaidViewer: React.FC<MermaidViewerProps> = ({
   const [copied, setCopied] = useState<boolean>(false);
   const { toast } = useToast();
 
+  const chartDefinition = (chart || code || '').trim();
+
   useEffect(() => {
     let isMounted = true;
 
     const renderChart = async () => {
+      if (!chartDefinition) return;
       try {
         setError(null);
-        const uniqueId = `mermaid-${id}-${Date.now().toString(36)}`;
-        const { svg } = await mermaid.render(uniqueId, chart.trim());
+        const uniqueId = `mermaid-${id}-${Math.random().toString(36).substring(2, 9)}`;
+        const { svg } = await mermaid.render(uniqueId, chartDefinition);
         if (isMounted) {
           setSvgContent(svg);
         }
@@ -70,25 +75,27 @@ export const MermaidViewer: React.FC<MermaidViewerProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [chart, id]);
+  }, [chartDefinition, id]);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(chart.trim());
+    if (!chartDefinition) return;
+    navigator.clipboard.writeText(chartDefinition);
     setCopied(true);
     toast({ title: 'Copied to Clipboard', description: 'Mermaid source code copied.' });
     setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
-      <CardHeader className="p-4 pb-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/70">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div className="space-y-1">
+    <div className="w-full bg-white dark:bg-slate-900/90 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col">
+      {/* Optional Header - only shown if title or badgeText explicitly requested */}
+      {(title || description) && (
+        <div className="p-3 sm:p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/70 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="space-y-0.5">
             <div className="flex items-center gap-2">
-              <Badge className="bg-indigo-600 text-white text-[10px]">{badgeText}</Badge>
-              <CardTitle className="text-sm font-bold text-slate-900 dark:text-slate-100">{title}</CardTitle>
+              {badgeText && <Badge className="bg-indigo-600 text-white text-[10px]">{badgeText}</Badge>}
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">{title}</h3>
             </div>
-            <CardDescription className="text-xs text-slate-500">{description}</CardDescription>
+            {description && <p className="text-xs text-slate-500">{description}</p>}
           </div>
 
           <div className="flex items-center gap-1.5 self-end sm:self-auto">
@@ -99,7 +106,7 @@ export const MermaidViewer: React.FC<MermaidViewerProps> = ({
               className="h-7 px-2 text-xs gap-1"
             >
               {showCode ? <Eye className="w-3.5 h-3.5" /> : <Code className="w-3.5 h-3.5" />}
-              {showCode ? 'View Diagram' : 'View Code'}
+              {showCode ? 'Diagram' : 'Code'}
             </Button>
             <Button
               size="sm"
@@ -112,24 +119,41 @@ export const MermaidViewer: React.FC<MermaidViewerProps> = ({
             </Button>
           </div>
         </div>
-      </CardHeader>
+      )}
 
-      <CardContent className="p-4">
+      {/* Diagram Canvas */}
+      <div className="p-3 sm:p-5 relative flex flex-col">
+        {/* Mobile Swipe Hint */}
+        <div className="sm:hidden flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500 mb-2 px-1">
+          <span>👈 Swipe horizontally to view 👉</span>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleCopy}
+            className="h-6 px-1.5 text-[10px] gap-1 text-slate-500"
+          >
+            {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+            Copy
+          </Button>
+        </div>
+
         {showCode ? (
           <div className="p-3 bg-slate-900 text-slate-100 rounded-lg font-mono text-xs overflow-x-auto max-h-96">
-            <pre className="whitespace-pre">{chart.trim()}</pre>
+            <pre className="whitespace-pre">{chartDefinition}</pre>
           </div>
         ) : error ? (
           <div className="p-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-lg text-xs text-amber-900 dark:text-amber-200 space-y-2">
             <div className="font-semibold">Mermaid Source Fallback:</div>
-            <pre className="p-2 bg-slate-900 text-slate-100 rounded overflow-x-auto">{chart.trim()}</pre>
+            <pre className="p-2 bg-slate-900 text-slate-100 rounded overflow-x-auto">{chartDefinition}</pre>
           </div>
         ) : (
-          <div
-            ref={containerRef}
-            className="w-full overflow-x-auto flex justify-center py-2 bg-white dark:bg-slate-950/40 rounded-lg [&_svg]:max-w-full [&_svg]:h-auto"
-            dangerouslySetInnerHTML={{ __html: svgContent }}
-          />
+          <div className="w-full overflow-x-auto overflow-y-hidden scrollbar-thin py-2 rounded-lg flex justify-start sm:justify-center">
+            <div
+              ref={containerRef}
+              className="min-w-[620px] sm:min-w-[720px] md:min-w-0 max-w-full flex justify-center [&_svg]:max-w-none md:[&_svg]:max-w-full [&_svg]:h-auto"
+              dangerouslySetInnerHTML={{ __html: svgContent }}
+            />
+          </div>
         )}
 
         {sourceFile && (
@@ -137,8 +161,8 @@ export const MermaidViewer: React.FC<MermaidViewerProps> = ({
             {sourceFile}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };
 export default MermaidViewer;

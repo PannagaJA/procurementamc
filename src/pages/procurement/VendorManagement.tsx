@@ -253,50 +253,52 @@ export default function VendorManagement() {
     <Layout>
       <div className="max-w-6xl mx-auto space-y-8 pb-12">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-6">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200 mb-2">
-              <ShieldCheck className="w-3.5 h-3.5" /> SOP §8.2 Compliance
+              <ShieldCheck className="w-3.5 h-3.5" /> Vendor Empanelment & Compliance
             </div>
-            <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
               Vendor Empanelment & EVP Approval
             </h1>
-            <p className="text-slate-600 dark:text-slate-400 mt-1">
+            <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 mt-1">
               Multi-stage vendor qualification lifecycle: Application → Technical Evaluation → EVP Approval Gate.
             </p>
           </div>
-          <Button variant="outline" onClick={() => navigate({ to: '/procurement/raise-pr' })}>
+          <Button variant="outline" className="w-full sm:w-auto shrink-0" onClick={() => navigate({ to: '/procurement/raise-pr' })}>
             Raise Requisition <ArrowRight className="w-4 h-4 ml-1.5" />
           </Button>
         </div>
 
         {/* User Role Indicator Banner */}
-        <div className="p-4 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-700 dark:text-slate-300">
-          <div className="flex items-center gap-2">
-            <UserCheck className="w-4 h-4 text-blue-600" />
-            <span>Your Active Session Roles:</span>
-            <span className="font-bold text-slate-900 dark:text-white uppercase">
+        <div className="p-4 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-700 dark:text-slate-300">
+          <div className="flex items-center gap-2 flex-wrap">
+            <UserCheck className="w-4 h-4 text-blue-600 shrink-0" />
+            <span className="font-medium">Active Session Roles:</span>
+            <span className="font-bold text-slate-900 dark:text-white uppercase bg-white dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">
               {userRoles.join(', ') || 'user'}
             </span>
           </div>
-          <div className="text-slate-500 italic">
+          <div className="text-slate-500 italic text-[11px] sm:text-xs">
             * Note: Only users with the <strong>EVP</strong> (or Admin) role can approve vendor empanelment. Non-EVP users will be rejected server-side.
           </div>
         </div>
 
         {/* Tabs Container */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 h-12 p-1 bg-slate-200/80 dark:bg-slate-800/80">
-            <TabsTrigger value="apply" className="font-semibold text-sm">
-              1. Apply for Empanelment
-            </TabsTrigger>
-            <TabsTrigger value="evaluate" className="font-semibold text-sm">
-              2. Technical Evaluation ({appliedVendors.length})
-            </TabsTrigger>
-            <TabsTrigger value="evp_approval" className="font-semibold text-sm">
-              3. EVP Approval Gate ({reviewVendors.length})
-            </TabsTrigger>
-          </TabsList>
+          <div className="w-full overflow-x-auto pb-1 scrollbar-none">
+            <TabsList className="inline-flex w-full sm:w-auto h-auto p-1.5 gap-1.5 bg-slate-200/70 dark:bg-slate-800/80 rounded-xl">
+              <TabsTrigger value="apply" className="font-semibold text-xs sm:text-sm py-2 px-3.5 whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm">
+                1. Apply for Empanelment
+              </TabsTrigger>
+              <TabsTrigger value="evaluate" className="font-semibold text-xs sm:text-sm py-2 px-3.5 whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm">
+                2. Technical Evaluation ({appliedVendors.length})
+              </TabsTrigger>
+              <TabsTrigger value="evp_approval" className="font-semibold text-xs sm:text-sm py-2 px-3.5 whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm">
+                3. EVP Approval Gate ({reviewVendors.length})
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* TAB 1: APPLICATION */}
           <TabsContent value="apply">

@@ -236,7 +236,7 @@ export default function GrnManagement() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200 mb-2">
-              <Truck className="w-3.5 h-3.5" /> SOP §8.6 Stores Fulfilment & Goods Receipt
+              <Truck className="w-3.5 h-3.5" /> Stores Fulfilment & Goods Receipt
             </div>
             <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
               Delivery Challans & Goods Receipt Notes (GRN)
@@ -247,13 +247,10 @@ export default function GrnManagement() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={loadData} disabled={loading} className="gap-2">
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
-            </Button>
-            <Button onClick={() => setDeliveryOpen(true)} variant="outline" className="gap-2 border-emerald-600 text-emerald-700 hover:bg-emerald-50">
+            <Button onClick={() => setDeliveryOpen(true)} variant="outline" className="gap-2 border-emerald-600 text-emerald-700 hover:bg-emerald-50 shadow-sm">
               <Truck className="w-4 h-4" /> Record Challan
             </Button>
-            <Button onClick={() => setGrnOpen(true)} className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white">
+            <Button onClick={() => setGrnOpen(true)} className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm">
               <PlusCircle className="w-4 h-4" /> Create GRN
             </Button>
           </div>
@@ -386,7 +383,7 @@ export default function GrnManagement() {
             <DialogHeader>
               <DialogTitle>Record Delivery Challan</DialogTitle>
               <DialogDescription>
-                Log physical delivery package arrival at Stores gate per SOP §8.6.
+                Log physical delivery package arrival and inward inspection at Central Stores gate.
               </DialogDescription>
             </DialogHeader>
 

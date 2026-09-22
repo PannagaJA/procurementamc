@@ -157,12 +157,6 @@ export default function MyApprovals() {
               Requisitions, Comparative Statements, Purchase Orders, Invoices, and Emergency authorisations awaiting your role.
             </p>
           </div>
-
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={loadData} disabled={loading} className="gap-2">
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
-            </Button>
-          </div>
         </div>
 
         {/* User Roles Banner */}
@@ -191,26 +185,28 @@ export default function MyApprovals() {
 
         {/* Tabs for PR, CS, PO, Amendments, Invoices, Emergency */}
         <Tabs defaultValue="prs" className="space-y-4">
-          <TabsList className="grid grid-cols-6 max-w-3xl">
-            <TabsTrigger value="prs" className="gap-1 text-xs">
-              <FileSpreadsheet className="w-3.5 h-3.5" /> PR ({counts.prs})
-            </TabsTrigger>
-            <TabsTrigger value="css" className="gap-1 text-xs">
-              <Scale className="w-3.5 h-3.5" /> CS ({counts.css})
-            </TabsTrigger>
-            <TabsTrigger value="pos" className="gap-1 text-xs">
-              <ShoppingBag className="w-3.5 h-3.5" /> PO ({counts.pos})
-            </TabsTrigger>
-            <TabsTrigger value="amendments" className="gap-1 text-xs">
-              <FileEdit className="w-3.5 h-3.5" /> Amend ({counts.amendments})
-            </TabsTrigger>
-            <TabsTrigger value="invoices" className="gap-1 text-xs">
-              <Receipt className="w-3.5 h-3.5" /> Invoices ({counts.invoices})
-            </TabsTrigger>
-            <TabsTrigger value="emergency" className="gap-1 text-xs">
-              <Zap className="w-3.5 h-3.5" /> Emergency ({counts.emergency})
-            </TabsTrigger>
-          </TabsList>
+          <div className="w-full overflow-x-auto pb-1 scrollbar-none">
+            <TabsList className="inline-flex w-auto min-w-full sm:min-w-0 sm:grid sm:grid-cols-6 h-auto p-1.5 gap-1.5 bg-slate-200/70 dark:bg-slate-800/80 rounded-xl">
+              <TabsTrigger value="prs" className="gap-1.5 py-2 px-3 text-xs sm:text-sm font-medium whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm">
+                <FileSpreadsheet className="w-3.5 h-3.5 text-blue-600" /> PR ({counts.prs})
+              </TabsTrigger>
+              <TabsTrigger value="css" className="gap-1.5 py-2 px-3 text-xs sm:text-sm font-medium whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm">
+                <Scale className="w-3.5 h-3.5 text-emerald-600" /> CS ({counts.css})
+              </TabsTrigger>
+              <TabsTrigger value="pos" className="gap-1.5 py-2 px-3 text-xs sm:text-sm font-medium whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm">
+                <ShoppingBag className="w-3.5 h-3.5 text-indigo-600" /> PO ({counts.pos})
+              </TabsTrigger>
+              <TabsTrigger value="amendments" className="gap-1.5 py-2 px-3 text-xs sm:text-sm font-medium whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm">
+                <FileEdit className="w-3.5 h-3.5 text-purple-600" /> Amend ({counts.amendments})
+              </TabsTrigger>
+              <TabsTrigger value="invoices" className="gap-1.5 py-2 px-3 text-xs sm:text-sm font-medium whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm">
+                <Receipt className="w-3.5 h-3.5 text-teal-600" /> Invoices ({counts.invoices})
+              </TabsTrigger>
+              <TabsTrigger value="emergency" className="gap-1.5 py-2 px-3 text-xs sm:text-sm font-medium whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm">
+                <Zap className="w-3.5 h-3.5 text-amber-600" /> Emergency ({counts.emergency})
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* Requisitions Tab */}
           <TabsContent value="prs" className="space-y-3">
