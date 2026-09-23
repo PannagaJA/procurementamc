@@ -24,6 +24,8 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { usePagination } from "@/hooks/use-pagination";
+import { PaginationControls } from "@/components/PaginationControls";
 import { supabase } from "@/integrations/supabase/client";
 import {
   requestEmergencyProcurement,
@@ -47,6 +49,7 @@ import {
 export default function EmergencyProcurement() {
   const { toast } = useToast();
   const [data, setData] = useState<any>(null);
+  const { pagination, setPage, setPageSize, setTotal } = usePagination(10, 1);
   const [departments, setDepartments] = useState<any[]>([]);
   const [vendors, setVendors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,7 +81,10 @@ export default function EmergencyProcurement() {
         supabase.from("vendors").select("id, name").eq("status", "empanelled"),
       ]);
 
-      if (epRes?.ok) setData(epRes);
+      if (epRes?.ok) {
+        setData(epRes);
+        setTotal((epRes.emergencyProcurements || []).length);
+      }
       setDepartments(deptRes.data || []);
       setVendors(vendorRes.data || []);
     } catch (e: any) {
@@ -287,127 +293,149 @@ export default function EmergencyProcurement() {
               </p>
             </Card>
           ) : (
-            data?.emergencyProcurements?.map((ep: any) => {
-              const isPending = ep.evp_approval_status === "pending";
-              const isApproved = ep.evp_approval_status === "approved";
-
-              return (
-                <Card
-                  key={ep.id}
-                  className="overflow-hidden border border-slate-200 dark:border-slate-800 hover:border-slate-300"
-                >
-                  <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 pb-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold text-base text-slate-900 dark:text-slate-100">
-                            {ep.emergency_number}
-                          </span>
-                          <Badge
-                            variant={
-                              isApproved ? "default" : isPending ? "secondary" : "destructive"
-                            }
-                          >
-                            {ep.evp_approval_status.toUpperCase()}
-                          </Badge>
-                          {ep.is_post_facto ? (
-                            <Badge
-                              variant="outline"
-                              className="text-xs text-purple-700 border-purple-400"
-                            >
-                              Post-Facto Ratification
-                            </Badge>
-                          ) : (
-                            <Badge
-                              variant="outline"
-                              className="text-xs text-amber-700 border-amber-400"
-                            >
-                              Prior Approval
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-xs text-slate-500">
-                          Dept: {ep.departments?.name || "Central"} • Vendor:{" "}
-                          {ep.vendors?.name || "Direct Procurement"}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        {isPending && (
-                          <>
-                            <Button
-                              size="sm"
-                              onClick={() => handleApprove(ep)}
-                              disabled={acting}
-                              className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-                            >
-                              <CheckCircle2 className="w-3.5 h-3.5" /> EVP Authorize
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => {
-                                setActiveEp(ep);
-                                setRejectOpen(true);
-                              }}
-                              disabled={acting}
-                              className="gap-1"
-                            >
-                              <XCircle className="w-3.5 h-3.5" /> Reject
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-4 text-sm space-y-3">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 dark:bg-slate-950 p-3 rounded-lg text-xs">
-                      <div>
-                        <span className="text-slate-500 block">Estimated Cost</span>
-                        <span className="font-mono font-bold text-base text-slate-900 dark:text-white">
-                          ₹{Number(ep.estimated_cost).toLocaleString("en-IN")}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-slate-500 block">Quotes Obtained</span>
-                        <span className="font-semibold text-slate-800 dark:text-slate-200">
-                          {ep.quotations_obtained_count || 1} Quote(s)
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-slate-500 block">Register Entry Time</span>
-                        <span className="font-semibold text-slate-800 dark:text-slate-200">
-                          {new Date(ep.register_entry_at).toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="text-xs space-y-1.5">
-                      <div>
-                        <span className="font-semibold text-slate-700 dark:text-slate-300">
-                          Description:{" "}
-                        </span>
-                        {ep.description}
-                      </div>
-                      <div className="p-2 bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded text-amber-900 dark:text-amber-200">
-                        <span className="font-semibold">
-                          Failure of Standard Process Justification:{" "}
-                        </span>
-                        {ep.reason_standard_process_failed}
-                      </div>
-                      {ep.price_reasonableness_note && (
-                        <div>
-                          <span className="font-semibold text-slate-700 dark:text-slate-300">
-                            Price Reasonableness:{" "}
-                          </span>
-                          {ep.price_reasonableness_note}
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+            (() => {
+              const allItems = data?.emergencyProcurements || [];
+              const startIndex = (pagination.page - 1) * pagination.pageSize;
+              const paginatedItems = allItems.slice(
+                startIndex,
+                startIndex + pagination.pageSize,
               );
-            })
+              return (
+                <>
+                  {paginatedItems.map((ep: any) => {
+                    const isPending = ep.evp_approval_status === "pending";
+                    const isApproved = ep.evp_approval_status === "approved";
+
+                    return (
+                      <Card
+                        key={ep.id}
+                        className="overflow-hidden border border-slate-200 dark:border-slate-800 hover:border-slate-300"
+                      >
+                        <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 pb-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono font-bold text-base text-slate-900 dark:text-slate-100">
+                                  {ep.emergency_number}
+                                </span>
+                                <Badge
+                                  variant={
+                                    isApproved ? "default" : isPending ? "secondary" : "destructive"
+                                  }
+                                >
+                                  {ep.evp_approval_status.toUpperCase()}
+                                </Badge>
+                                {ep.is_post_facto ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-xs text-purple-700 border-purple-400"
+                                  >
+                                    Post-Facto Ratification
+                                  </Badge>
+                                ) : (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-xs text-amber-700 border-amber-400"
+                                  >
+                                    Prior Approval
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-xs text-slate-500">
+                                Dept: {ep.departments?.name || "Central"} • Vendor:{" "}
+                                {ep.vendors?.name || "Direct Procurement"}
+                              </p>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              {isPending && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleApprove(ep)}
+                                    disabled={acting}
+                                    className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                  >
+                                    <CheckCircle2 className="w-3.5 h-3.5" /> EVP Authorize
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => {
+                                      setActiveEp(ep);
+                                      setRejectOpen(true);
+                                    }}
+                                    disabled={acting}
+                                    className="gap-1"
+                                  >
+                                    <XCircle className="w-3.5 h-3.5" /> Reject
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="pt-4 text-sm space-y-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 dark:bg-slate-950 p-3 rounded-lg text-xs">
+                            <div>
+                              <span className="text-slate-500 block">Estimated Cost</span>
+                              <span className="font-mono font-bold text-slate-900 dark:text-white">
+                                ₹{Number(ep.estimated_cost || 0).toLocaleString("en-IN")}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500 block">Quotes Received</span>
+                              <span className="font-semibold text-slate-800 dark:text-slate-200">
+                                {ep.quotes_obtained_count} quote(s)
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500 block">Requested At</span>
+                              <span className="text-slate-600 dark:text-slate-400">
+                                {new Date(ep.created_at).toLocaleString("en-IN")}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="text-xs space-y-1.5">
+                            <div>
+                              <span className="font-semibold text-slate-700 dark:text-slate-300">
+                                Justification:{" "}
+                              </span>
+                              {ep.description}
+                            </div>
+                            <div className="p-2 bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded text-amber-900 dark:text-amber-200">
+                              <span className="font-semibold">
+                                Failure of Standard Process Justification:{" "}
+                              </span>
+                              {ep.reason_standard_process_failed}
+                            </div>
+                            {ep.price_reasonableness_note && (
+                              <div>
+                                <span className="font-semibold text-slate-700 dark:text-slate-300">
+                                  Price Reasonableness:{" "}
+                                </span>
+                                {ep.price_reasonableness_note}
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+
+                  <PaginationControls
+                    currentPage={pagination.page}
+                    totalPages={pagination.totalPages}
+                    pageSize={pagination.pageSize}
+                    totalItems={pagination.total}
+                    currentItemsCount={paginatedItems.length}
+                    onPageChange={setPage}
+                    onPageSizeChange={setPageSize}
+                  />
+                </>
+              );
+            })()
           )}
         </div>
 

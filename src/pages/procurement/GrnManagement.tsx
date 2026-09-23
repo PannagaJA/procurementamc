@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { usePagination } from "@/hooks/use-pagination";
+import { PaginationControls } from "@/components/PaginationControls";
 import { supabase } from "@/integrations/supabase/client";
 import {
   recordDelivery,
@@ -47,6 +49,7 @@ import {
 export default function GrnManagement() {
   const { toast } = useToast();
   const [grns, setGrns] = useState<any[]>([]);
+  const { pagination, setPage, setPageSize, setTotal } = usePagination(10, 1);
   const [issuedPos, setIssuedPos] = useState<any[]>([]);
   const [challans, setChallans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,7 +86,11 @@ export default function GrnManagement() {
         supabase.from("delivery_challans").select("*, purchase_orders(po_number, vendors(name))"),
       ]);
 
-      if (grnRes?.ok) setGrns(grnRes.grns || []);
+      if (grnRes?.ok) {
+        const list = grnRes.grns || [];
+        setGrns(list);
+        setTotal(list.length);
+      }
       if (poRes?.ok) setIssuedPos(poRes.purchaseOrders || []);
       setChallans(challanRes.data || []);
     } catch (e: any) {
@@ -284,133 +291,181 @@ export default function GrnManagement() {
               </p>
             </Card>
           ) : (
-            grns.map((grn) => {
-              const po = grn.purchase_orders;
-              const challan = grn.delivery_challans;
-              const isPending = grn.status === "pending";
-              const isAccepted = grn.status === "accepted";
-              const lines = grn.grn_lines || [];
-
+            (() => {
+              const startIndex = (pagination.page - 1) * pagination.pageSize;
+              const paginatedGrns = grns.slice(startIndex, startIndex + pagination.pageSize);
               return (
-                <Card
-                  key={grn.id}
-                  className="overflow-hidden border border-slate-200 dark:border-slate-800 hover:border-slate-300"
-                >
-                  <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 pb-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold text-base text-slate-900 dark:text-slate-100">
-                            {grn.grn_number || "GRN-PENDING"}
-                          </span>
-                          <Badge
-                            variant={
-                              isAccepted ? "default" : isPending ? "secondary" : "destructive"
-                            }
-                          >
-                            {grn.status.toUpperCase()}
-                          </Badge>
-                          <Badge variant="outline" className="text-xs">
-                            Challan: {challan?.challan_number || "Linked"}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-slate-500">
-                          PO:{" "}
-                          <span className="font-semibold text-slate-700 dark:text-slate-300">
-                            {po?.po_number}
-                          </span>{" "}
-                          • Vendor: {po?.vendors?.name} • PR Ref:{" "}
-                          {po?.purchase_requisitions?.pr_number}
-                        </p>
-                      </div>
+                <>
+                  {paginatedGrns.map((grn) => {
+                    const po = grn.purchase_orders;
+                    const challan = grn.delivery_challans;
+                    const isPending = grn.status === "pending";
+                    const isAccepted = grn.status === "accepted";
+                    const lines = grn.grn_lines || [];
 
-                      <div className="flex items-center gap-2">
-                        {isPending && (
-                          <Button
-                            size="sm"
-                            onClick={() => {
-                              setActiveGrn(grn);
-                              setTechAccepted(true);
-                              setTechRemarks("");
-                              setTechOpen(true);
-                            }}
-                            className="gap-1 bg-purple-600 hover:bg-purple-700 text-white"
-                          >
-                            <FileCheck className="w-3.5 h-3.5" /> Technical Sign-off
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-4 text-sm space-y-3">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 dark:bg-slate-950 p-3 rounded-lg text-xs">
-                      <div>
-                        <span className="text-slate-500 block">Accepted Value</span>
-                        <span className="font-mono font-bold text-slate-900 dark:text-white">
-                          ₹{Number(grn.accepted_value || 0).toLocaleString("en-IN")}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-slate-500 block">Security Verification</span>
-                        <span className="font-semibold text-emerald-600 flex items-center gap-1">
-                          <ShieldCheck className="w-3.5 h-3.5" /> Verified at Gate
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-slate-500 block">Technical Inspection</span>
-                        <span className="font-semibold text-slate-700 dark:text-slate-300">
-                          {grn.technical_verified_at ? (
-                            <span className="text-emerald-600 flex items-center gap-1">
-                              <CheckCircle2 className="w-3.5 h-3.5" /> Completed
-                            </span>
-                          ) : (
-                            <span className="text-amber-600 flex items-center gap-1">
-                              <AlertTriangle className="w-3.5 h-3.5" /> Pending User Sign-off
-                            </span>
+                    return (
+                      <Card
+                        key={grn.id}
+                        className="overflow-hidden border border-slate-200 dark:border-slate-800 hover:border-slate-300"
+                      >
+                        <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 pb-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono font-bold text-base text-slate-900 dark:text-slate-100">
+                                  {grn.grn_number || "GRN-PENDING"}
+                                </span>
+                                <Badge
+                                  variant={
+                                    isAccepted ? "default" : isPending ? "secondary" : "destructive"
+                                  }
+                                >
+                                  {grn.status.toUpperCase()}
+                                </Badge>
+                                <Badge variant="outline" className="text-xs">
+                                  Challan: {challan?.challan_number || "Linked"}
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-slate-500">
+                                PO:{" "}
+                                <span className="font-semibold text-slate-700 dark:text-slate-300">
+                                  {po?.po_number}
+                                </span>{" "}
+                                • Vendor:{" "}
+                                <span className="font-semibold text-slate-700 dark:text-slate-300">
+                                  {po?.vendors?.name || "Direct"}
+                                </span>
+                              </p>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              {/* Security Check button if not done */}
+                              {!grn.security_inward_done && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-xs border-amber-500 text-amber-700 hover:bg-amber-50 gap-1.5"
+                                  onClick={() => handleSecurityVerify(grn.id)}
+                                >
+                                  <ShieldCheck className="w-3.5 h-3.5" /> Security Verify
+                                </Button>
+                              )}
+
+                              {/* Technical Inspection button if required and pending */}
+                              {grn.requires_technical_inspection && !grn.technical_inspection_done && (
+                                <Button
+                                  size="sm"
+                                  className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5"
+                                  onClick={() => {
+                                    setActiveGrn(grn);
+                                    setTechOpen(true);
+                                  }}
+                                >
+                                  <FileCheck className="w-3.5 h-3.5" /> Technical Inspect
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </CardHeader>
+
+                        <CardContent className="pt-4 space-y-3">
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                            <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
+                              <span className="text-slate-500 block">Accepted Total</span>
+                              <span className="font-mono font-bold text-sm text-emerald-600 dark:text-emerald-400">
+                                ₹{Number(grn.total_accepted_value || 0).toLocaleString("en-IN")}
+                              </span>
+                            </div>
+                            <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
+                              <span className="text-slate-500 block">Rejected Total</span>
+                              <span className="font-mono font-bold text-sm text-red-600 dark:text-red-400">
+                                ₹{Number(grn.total_rejected_value || 0).toLocaleString("en-IN")}
+                              </span>
+                            </div>
+                            <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
+                              <span className="text-slate-500 block">Security Inward</span>
+                              <span className="font-semibold flex items-center gap-1 mt-0.5">
+                                {grn.security_inward_done ? (
+                                  <>
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Done
+                                  </>
+                                ) : (
+                                  <>
+                                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500" /> Pending
+                                  </>
+                                )}
+                              </span>
+                            </div>
+                            <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
+                              <span className="text-slate-500 block">Technical Sign-off</span>
+                              <span className="font-semibold flex items-center gap-1 mt-0.5">
+                                {!grn.requires_technical_inspection ? (
+                                  "Not Applicable"
+                                ) : grn.technical_inspection_done ? (
+                                  <>
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Done
+                                  </>
+                                ) : (
+                                  <>
+                                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500" /> Awaiting
+                                  </>
+                                )}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Line Items Table */}
+                          {lines.length > 0 && (
+                            <div className="rounded-lg border border-slate-100 dark:border-slate-800 overflow-hidden mt-3">
+                              <table className="w-full text-xs text-left">
+                                <thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-semibold">
+                                  <tr>
+                                    <th className="p-2">Description</th>
+                                    <th className="p-2 text-right">Delivered</th>
+                                    <th className="p-2 text-right">Accepted</th>
+                                    <th className="p-2 text-right">Rejected</th>
+                                    <th className="p-2 text-right">Unit Price</th>
+                                    <th className="p-2 text-right">Accepted Total</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y">
+                                  {lines.map((l: any) => (
+                                    <tr key={l.id}>
+                                      <td className="p-2 font-medium">{l.description}</td>
+                                      <td className="p-2 text-right">{l.qty_delivered}</td>
+                                      <td className="p-2 text-right font-semibold text-emerald-600">
+                                        {l.qty_accepted}
+                                      </td>
+                                      <td className="p-2 text-right text-red-500">{l.qty_rejected}</td>
+                                      <td className="p-2 text-right font-mono">
+                                        ₹{Number(l.unit_price).toLocaleString("en-IN")}
+                                      </td>
+                                      <td className="p-2 text-right font-mono font-bold">
+                                        ₹{Number(l.accepted_total).toLocaleString("en-IN")}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
                           )}
-                        </span>
-                      </div>
-                    </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
 
-                    {/* Lines list */}
-                    {lines.length > 0 && (
-                      <div className="overflow-x-auto border rounded-lg">
-                        <table className="w-full text-xs text-left">
-                          <thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                            <tr>
-                              <th className="p-2">Description</th>
-                              <th className="p-2 text-right">Delivered</th>
-                              <th className="p-2 text-right">Accepted</th>
-                              <th className="p-2 text-right">Rejected</th>
-                              <th className="p-2 text-right">Unit Price</th>
-                              <th className="p-2 text-right">Accepted Total</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y">
-                            {lines.map((l: any) => (
-                              <tr key={l.id}>
-                                <td className="p-2 font-medium">{l.description}</td>
-                                <td className="p-2 text-right">{l.qty_delivered}</td>
-                                <td className="p-2 text-right font-semibold text-emerald-600">
-                                  {l.qty_accepted}
-                                </td>
-                                <td className="p-2 text-right text-red-500">{l.qty_rejected}</td>
-                                <td className="p-2 text-right font-mono">
-                                  ₹{Number(l.unit_price).toLocaleString("en-IN")}
-                                </td>
-                                <td className="p-2 text-right font-mono font-bold">
-                                  ₹{Number(l.accepted_total).toLocaleString("en-IN")}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                  <PaginationControls
+                    currentPage={pagination.page}
+                    totalPages={pagination.totalPages}
+                    pageSize={pagination.pageSize}
+                    totalItems={pagination.total}
+                    currentItemsCount={paginatedGrns.length}
+                    onPageChange={setPage}
+                    onPageSizeChange={setPageSize}
+                  />
+                </>
               );
-            })
+            })()
           )}
         </div>
 

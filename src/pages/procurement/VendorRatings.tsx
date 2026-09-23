@@ -24,6 +24,8 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { usePagination } from "@/hooks/use-pagination";
+import { PaginationControls } from "@/components/PaginationControls";
 import { supabase } from "@/integrations/supabase/client";
 import {
   computeWeightedScore,
@@ -46,6 +48,7 @@ import {
 export default function VendorRatings() {
   const { toast } = useToast();
   const [ratings, setRatings] = useState<any[]>([]);
+  const { pagination, setPage, setPageSize, setTotal } = usePagination(10, 1);
   const [vendors, setVendors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -71,7 +74,11 @@ export default function VendorRatings() {
         supabase.from("vendors").select("id, name, gst_number, status"),
       ]);
 
-      if (rRes?.ok) setRatings(rRes.vendorRatings || []);
+      if (rRes?.ok) {
+        const list = rRes.vendorRatings || [];
+        setRatings(list);
+        setTotal(list.length);
+      }
       setVendors(vRes.data || []);
     } catch (e: any) {
       toast({ title: "Error loading data", description: e.message, variant: "destructive" });
@@ -201,110 +208,131 @@ export default function VendorRatings() {
               </p>
             </Card>
           ) : (
-            ratings.map((r) => {
-              const vendor = r.vendors;
-
-              return (
-                <Card
-                  key={r.id}
-                  className="overflow-hidden border border-slate-200 dark:border-slate-800 hover:border-slate-300"
-                >
-                  <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 pb-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-base text-slate-900 dark:text-slate-100">
-                            {vendor?.name}
-                          </span>
-                          {getOutcomeBadge(r.outcome)}
-                          <Badge variant="outline" className="text-xs">
-                            Period: {r.review_period}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-slate-500">
-                          GST: {vendor?.gst_number || "N/A"} • Current Status in Master:{" "}
-                          <span className="font-semibold text-slate-700 dark:text-slate-300">
-                            {vendor?.status}
-                          </span>
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <div className="text-right">
-                          <span className="text-[10px] text-slate-500 block uppercase font-bold">
-                            Weighted Score
-                          </span>
-                          <span className="font-mono font-extrabold text-xl text-purple-700 dark:text-purple-400">
-                            {r.weighted_score} / 100
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-4 text-sm space-y-3">
-                    <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 bg-slate-50 dark:bg-slate-950 p-2.5 rounded-lg text-xs text-center">
-                      <div className="p-1 border rounded bg-white dark:bg-slate-900">
-                        <span className="text-[10px] text-slate-400 block font-medium">
-                          Quality (25%)
-                        </span>
-                        <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
-                          {r.section_a_score}
-                        </span>
-                      </div>
-                      <div className="p-1 border rounded bg-white dark:bg-slate-900">
-                        <span className="text-[10px] text-slate-400 block font-medium">
-                          Delivery (20%)
-                        </span>
-                        <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
-                          {r.section_b_score}
-                        </span>
-                      </div>
-                      <div className="p-1 border rounded bg-white dark:bg-slate-900">
-                        <span className="text-[10px] text-slate-400 block font-medium">
-                          Pricing (15%)
-                        </span>
-                        <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
-                          {r.section_c_score}
-                        </span>
-                      </div>
-                      <div className="p-1 border rounded bg-white dark:bg-slate-900">
-                        <span className="text-[10px] text-slate-400 block font-medium">
-                          Support (20%)
-                        </span>
-                        <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
-                          {r.section_d_score}
-                        </span>
-                      </div>
-                      <div className="p-1 border rounded bg-white dark:bg-slate-900">
-                        <span className="text-[10px] text-slate-400 block font-medium">
-                          Safety (10%)
-                        </span>
-                        <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
-                          {r.section_e_score ?? "N/A"}
-                        </span>
-                      </div>
-                      <div className="p-1 border rounded bg-white dark:bg-slate-900">
-                        <span className="text-[10px] text-slate-400 block font-medium">
-                          Relations (10%)
-                        </span>
-                        <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
-                          {r.section_f_score}
-                        </span>
-                      </div>
-                    </div>
-
-                    {r.notes && (
-                      <div className="text-xs text-slate-600 dark:text-slate-400">
-                        <span className="font-semibold text-slate-700 dark:text-slate-300">
-                          Committee Remarks:{" "}
-                        </span>
-                        {r.notes}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+            (() => {
+              const startIndex = (pagination.page - 1) * pagination.pageSize;
+              const paginatedRatings = ratings.slice(
+                startIndex,
+                startIndex + pagination.pageSize,
               );
-            })
+              return (
+                <>
+                  {paginatedRatings.map((r) => {
+                    const vendor = r.vendors;
+
+                    return (
+                      <Card
+                        key={r.id}
+                        className="overflow-hidden border border-slate-200 dark:border-slate-800 hover:border-slate-300"
+                      >
+                        <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 pb-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-base text-slate-900 dark:text-slate-100">
+                                  {vendor?.name}
+                                </span>
+                                {getOutcomeBadge(r.outcome)}
+                                <Badge variant="outline" className="text-xs">
+                                  Period: {r.review_period}
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-slate-500">
+                                GST: {vendor?.gst_number || "N/A"} • Current Status in Master:{" "}
+                                <span className="font-semibold text-slate-700 dark:text-slate-300">
+                                  {vendor?.status}
+                                </span>
+                              </p>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <div className="text-right">
+                                <span className="text-[10px] text-slate-500 block uppercase font-bold">
+                                  Weighted Score
+                                </span>
+                                <span className="font-mono font-extrabold text-xl text-purple-700 dark:text-purple-400">
+                                  {r.weighted_score} / 100
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="pt-4 text-sm space-y-3">
+                          <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 bg-slate-50 dark:bg-slate-950 p-2.5 rounded-lg text-xs text-center">
+                            <div className="p-1 border rounded bg-white dark:bg-slate-900">
+                              <span className="text-[10px] text-slate-400 block font-medium">
+                                Quality (25%)
+                              </span>
+                              <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                                {r.section_a_score}
+                              </span>
+                            </div>
+                            <div className="p-1 border rounded bg-white dark:bg-slate-900">
+                              <span className="text-[10px] text-slate-400 block font-medium">
+                                Delivery (20%)
+                              </span>
+                              <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                                {r.section_b_score}
+                              </span>
+                            </div>
+                            <div className="p-1 border rounded bg-white dark:bg-slate-900">
+                              <span className="text-[10px] text-slate-400 block font-medium">
+                                Pricing (15%)
+                              </span>
+                              <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                                {r.section_c_score}
+                              </span>
+                            </div>
+                            <div className="p-1 border rounded bg-white dark:bg-slate-900">
+                              <span className="text-[10px] text-slate-400 block font-medium">
+                                Support (20%)
+                              </span>
+                              <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                                {r.section_d_score}
+                              </span>
+                            </div>
+                            <div className="p-1 border rounded bg-white dark:bg-slate-900">
+                              <span className="text-[10px] text-slate-400 block font-medium">
+                                Safety (10%)
+                              </span>
+                              <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                                {r.section_e_score ?? "N/A"}
+                              </span>
+                            </div>
+                            <div className="p-1 border rounded bg-white dark:bg-slate-900">
+                              <span className="text-[10px] text-slate-400 block font-medium">
+                                Relations (10%)
+                              </span>
+                              <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                                {r.section_f_score}
+                              </span>
+                            </div>
+                          </div>
+
+                          {r.notes && (
+                            <div className="text-xs text-slate-600 dark:text-slate-400">
+                              <span className="font-semibold text-slate-700 dark:text-slate-300">
+                                Committee Remarks:{" "}
+                              </span>
+                              {r.notes}
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+
+                  <PaginationControls
+                    currentPage={pagination.page}
+                    totalPages={pagination.totalPages}
+                    pageSize={pagination.pageSize}
+                    totalItems={pagination.total}
+                    currentItemsCount={paginatedRatings.length}
+                    onPageChange={setPage}
+                    onPageSizeChange={setPageSize}
+                  />
+                </>
+              );
+            })()
           )}
         </div>
 

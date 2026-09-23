@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { usePagination } from "@/hooks/use-pagination";
+import { PaginationControls } from "@/components/PaginationControls";
 import { supabase } from "@/integrations/supabase/client";
 import {
   createRfq,
@@ -45,6 +47,7 @@ import {
 export default function RfqManagement() {
   const { toast } = useToast();
   const [rfqs, setRfqs] = useState<any[]>([]);
+  const { pagination, setPage, setPageSize, setTotal } = usePagination(10, 1);
   const [approvedPrs, setApprovedPrs] = useState<any[]>([]);
   const [empanelledVendors, setEmpanelledVendors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,7 +78,9 @@ export default function RfqManagement() {
     try {
       const res = await (listRfqs as any)();
       if (res?.ok) {
-        setRfqs(res.rfqs || []);
+        const list = res.rfqs || [];
+        setRfqs(list);
+        setTotal(list.length);
       }
 
       // Fetch approved PRs
@@ -304,122 +309,163 @@ export default function RfqManagement() {
               </p>
             </Card>
           ) : (
-            rfqs.map((rfq) => {
-              const vendorsCount = rfq.rfq_vendors?.length || 0;
-              const responsesCount =
-                rfq.rfq_vendors?.filter((v: any) => v.response_received_at)?.length || 0;
-              const minReq = rfq.required_min_quotations || 3;
-              const pr = rfq.purchase_requisitions;
-
+            (() => {
+              const startIndex = (pagination.page - 1) * pagination.pageSize;
+              const paginatedRfqs = rfqs.slice(startIndex, startIndex + pagination.pageSize);
               return (
-                <Card
-                  key={rfq.id}
-                  className="overflow-hidden border border-slate-200 dark:border-slate-800 hover:border-slate-300"
-                >
-                  <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 pb-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold text-base text-slate-900 dark:text-slate-100">
-                            {rfq.rfq_number || "RFQ-PENDING"}
-                          </span>
-                          <Badge
-                            variant={
-                              rfq.status === "sent"
-                                ? "default"
-                                : rfq.status === "closed"
-                                  ? "secondary"
-                                  : "outline"
-                            }
-                          >
-                            {rfq.status.toUpperCase()}
-                          </Badge>
-                          <Badge variant="outline" className="text-xs">
-                            Min {minReq} Quotes Required
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-slate-500">
-                          PR Ref:{" "}
-                          <span className="font-semibold text-slate-700 dark:text-slate-300">
-                            {pr?.pr_number || "PR"}
-                          </span>{" "}
-                          • Category: {pr?.category} • Est. Value: ₹
-                          {Number(pr?.estimated_value || 0).toLocaleString("en-IN")}
-                        </p>
-                      </div>
+                <>
+                  {paginatedRfqs.map((rfq) => {
+                    const vendorsCount = rfq.rfq_vendors?.length || 0;
+                    const responsesCount =
+                      rfq.rfq_vendors?.filter((v: any) => v.response_received_at)?.length || 0;
+                    const minReq = rfq.required_min_quotations || 3;
+                    const pr = rfq.purchase_requisitions;
 
-                      <div className="flex items-center gap-2">
-                        {rfq.status === "draft" && (
-                          <Button
-                            size="sm"
-                            onClick={() => handleOpenSend(rfq)}
-                            className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-                          >
-                            <Send className="w-3.5 h-3.5" /> Invite Vendors
-                          </Button>
-                        )}
-                        {rfq.status === "sent" && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleOpenRecordQuote(rfq)}
-                            className="gap-1 border-blue-500 text-blue-600 hover:bg-blue-50"
-                          >
-                            <PlusCircle className="w-3.5 h-3.5" /> Record Quotation
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-4 text-sm space-y-3">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 dark:bg-slate-950 p-3 rounded-lg text-xs">
-                      <div>
-                        <span className="text-slate-500 block">Invited Empanelled Vendors</span>
-                        <span className="font-semibold text-slate-800 dark:text-slate-200">
-                          {vendorsCount} / {minReq} required
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-slate-500 block">Quotation Responses</span>
-                        <span className="font-semibold text-slate-800 dark:text-slate-200">
-                          {responsesCount} received ({rfq.quotation_lines?.length || 0} line items)
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-slate-500 block">Response Deadline</span>
-                        <span className="font-semibold text-slate-800 dark:text-slate-200">
-                          {rfq.response_deadline
-                            ? new Date(rfq.response_deadline).toLocaleDateString()
-                            : "Open / Unset"}
-                        </span>
-                      </div>
-                    </div>
+                    return (
+                      <Card
+                        key={rfq.id}
+                        className="overflow-hidden border border-slate-200 dark:border-slate-800 hover:border-slate-300"
+                      >
+                        <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 pb-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono font-bold text-base text-slate-900 dark:text-slate-100">
+                                  {rfq.rfq_number || "RFQ-PENDING"}
+                                </span>
+                                <Badge
+                                  variant={
+                                    rfq.status === "sent"
+                                      ? "default"
+                                      : rfq.status === "closed"
+                                        ? "secondary"
+                                        : "outline"
+                                  }
+                                >
+                                  {rfq.status.toUpperCase()}
+                                </Badge>
+                                <Badge variant="outline" className="text-xs">
+                                  Min {minReq} Quotes Required
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-slate-500">
+                                PR Ref:{" "}
+                                <span className="font-semibold text-slate-700 dark:text-slate-300">
+                                  {pr?.pr_number || "PR"}
+                                </span>{" "}
+                                • Category: {pr?.category} • Est. Value: ₹
+                                {Number(pr?.estimated_value || 0).toLocaleString("en-IN")}
+                              </p>
+                            </div>
 
-                    {/* Vendors list chips */}
-                    {rfq.rfq_vendors && rfq.rfq_vendors.length > 0 && (
-                      <div className="space-y-1">
-                        <span className="text-xs font-medium text-slate-500">
-                          Participating Vendors:
-                        </span>
-                        <div className="flex flex-wrap gap-1.5">
-                          {rfq.rfq_vendors.map((rv: any) => (
-                            <Badge key={rv.id} variant="secondary" className="gap-1 text-xs py-0.5">
-                              <Building2 className="w-3 h-3 text-slate-400" />
-                              {rv.vendors?.name || "Vendor"}
-                              {rv.response_received_at ? (
-                                <CheckCircle className="w-3 h-3 text-emerald-500" />
-                              ) : (
-                                <Clock className="w-3 h-3 text-amber-500" />
+                            <div className="flex items-center gap-2">
+                              {rfq.status === "draft" && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleOpenSend(rfq)}
+                                  className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                >
+                                  <Send className="w-3.5 h-3.5" /> Invite Vendors
+                                </Button>
                               )}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                              {rfq.status === "sent" && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleOpenRecordQuote(rfq)}
+                                  className="gap-1 border-blue-500 text-blue-600 hover:bg-blue-50"
+                                >
+                                  <PlusCircle className="w-3.5 h-3.5" /> Record Quotation
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="pt-4 text-sm space-y-3">
+                          {/* Scope */}
+                          <div className="text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-950 p-2.5 rounded border">
+                            <span className="font-semibold text-slate-700 dark:text-slate-200">
+                              Scope of Requirement:{" "}
+                            </span>
+                            {pr?.scope || "Requisitioned goods/services."}
+                          </div>
+
+                          {/* Stats */}
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                            <div className="p-2 bg-slate-50 dark:bg-slate-900 rounded border text-center">
+                              <span className="text-slate-400 block text-[10px]">Invited Vendors</span>
+                              <span className="font-bold text-sm text-slate-800 dark:text-slate-100">
+                                {vendorsCount}
+                              </span>
+                            </div>
+                            <div className="p-2 bg-slate-50 dark:bg-slate-900 rounded border text-center">
+                              <span className="text-slate-400 block text-[10px]">Quotes Received</span>
+                              <span
+                                className={`font-bold text-sm ${responsesCount >= minReq ? "text-emerald-600" : "text-amber-600"}`}
+                              >
+                                {responsesCount} / {minReq}
+                              </span>
+                            </div>
+                            <div className="p-2 bg-slate-50 dark:bg-slate-900 rounded border text-center">
+                              <span className="text-slate-400 block text-[10px]">Response Deadline</span>
+                              <span className="font-medium text-slate-700 dark:text-slate-300">
+                                {rfq.response_deadline
+                                  ? new Date(rfq.response_deadline).toLocaleDateString()
+                                  : "Open"}
+                              </span>
+                            </div>
+                            <div className="p-2 bg-slate-50 dark:bg-slate-900 rounded border text-center">
+                              <span className="text-slate-400 block text-[10px]">SOP Compliance</span>
+                              <span
+                                className={`font-semibold text-xs ${responsesCount >= minReq ? "text-emerald-600" : "text-amber-600"}`}
+                              >
+                                {responsesCount >= minReq ? "✓ Quorum Met" : "⏳ Pending Bids"}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Vendor responses preview */}
+                          {rfq.rfq_vendors && rfq.rfq_vendors.length > 0 && (
+                            <div className="space-y-1.5 pt-1">
+                              <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                                Invited Empanelled Vendors:
+                              </span>
+                              <div className="flex flex-wrap gap-1.5">
+                                {rfq.rfq_vendors.map((rv: any) => (
+                                  <Badge
+                                    key={rv.id}
+                                    variant="outline"
+                                    className={`text-xs gap-1 ${rv.response_received_at ? "bg-emerald-50 text-emerald-700 border-emerald-300" : "text-slate-500"}`}
+                                  >
+                                    <Building2 className="w-3 h-3" />
+                                    {rv.vendors?.name || "Vendor"}
+                                    {rv.response_received_at ? (
+                                      <CheckCircle className="w-3 h-3 text-emerald-600" />
+                                    ) : (
+                                      <Clock className="w-3 h-3 text-amber-500" />
+                                    )}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+
+                  <PaginationControls
+                    currentPage={pagination.page}
+                    totalPages={pagination.totalPages}
+                    pageSize={pagination.pageSize}
+                    totalItems={pagination.total}
+                    currentItemsCount={paginatedRfqs.length}
+                    onPageChange={setPage}
+                    onPageSizeChange={setPageSize}
+                  />
+                </>
               );
-            })
+            })()
           )}
         </div>
 

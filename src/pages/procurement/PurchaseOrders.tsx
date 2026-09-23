@@ -22,6 +22,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { usePagination } from "@/hooks/use-pagination";
+import { PaginationControls } from "@/components/PaginationControls";
 import { supabase } from "@/integrations/supabase/client";
 import {
   createPo,
@@ -49,6 +51,7 @@ import {
 export default function PurchaseOrders() {
   const { toast } = useToast();
   const [orders, setOrders] = useState<any[]>([]);
+  const { pagination, setPage, setPageSize, setTotal } = usePagination(10, 1);
   const [approvedCss, setApprovedCss] = useState<any[]>([]);
   const [rateContracts, setRateContracts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -86,7 +89,11 @@ export default function PurchaseOrders() {
         (listComparativeStatements as any)(),
       ]);
 
-      if (poRes?.ok) setOrders(poRes.purchaseOrders || []);
+      if (poRes?.ok) {
+        const list = poRes.purchaseOrders || [];
+        setOrders(list);
+        setTotal(list.length);
+      }
       if (csRes?.ok) {
         setApprovedCss(
           (csRes.comparativeStatements || []).filter((cs: any) => cs.status === "approved"),
@@ -319,187 +326,173 @@ export default function PurchaseOrders() {
               </p>
             </Card>
           ) : (
-            orders.map((po) => {
-              const pr = po.purchase_requisitions;
-              const isPending = po.status === "pending_approval";
-              const isApproved = po.status === "approved";
-              const isIssued = po.status === "issued";
-              const amendments = po.po_amendments || [];
-
+            (() => {
+              const startIndex = (pagination.page - 1) * pagination.pageSize;
+              const paginatedOrders = orders.slice(startIndex, startIndex + pagination.pageSize);
               return (
-                <Card
-                  key={po.id}
-                  className="overflow-hidden border border-slate-200 dark:border-slate-800 hover:border-slate-300"
-                >
-                  <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 pb-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold text-base text-slate-900 dark:text-slate-100">
-                            {po.po_number || "PO-PENDING"}
-                          </span>
-                          <Badge
-                            variant={
-                              isIssued
-                                ? "default"
-                                : isApproved
-                                  ? "secondary"
-                                  : isPending
-                                    ? "outline"
-                                    : "destructive"
-                            }
-                          >
-                            {po.status.toUpperCase()}
-                          </Badge>
-                          <Badge variant="outline" className="text-xs">
-                            {po.type === "rate_contract"
-                              ? "Rate Contract Order"
-                              : "Regular Order (CS-backed)"}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-slate-500">
-                          Vendor:{" "}
-                          <span className="font-semibold text-slate-700 dark:text-slate-300">
-                            {po.vendors?.name}
-                          </span>{" "}
-                          • PR: {pr?.pr_number} • Dept: {pr?.departments?.name || "Academic"}
-                        </p>
-                      </div>
+                <>
+                  {paginatedOrders.map((po) => {
+                    const pr = po.purchase_requisitions;
+                    const isPending = po.status === "pending_approval";
+                    const isApproved = po.status === "approved";
+                    const isIssued = po.status === "issued";
+                    const amendments = po.po_amendments || [];
 
-                      <div className="flex items-center gap-2">
-                        {isPending && (
-                          <Button
-                            size="sm"
-                            onClick={() => handleApprovePo(po)}
-                            disabled={acting}
-                            className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-                          >
-                            <CheckCircle className="w-3.5 h-3.5" /> Approve PO
-                          </Button>
-                        )}
-                        {isApproved && (
-                          <Button
-                            size="sm"
-                            onClick={() => handleIssuePo(po)}
-                            disabled={acting}
-                            className="gap-1 bg-indigo-600 hover:bg-indigo-700 text-white"
-                          >
-                            <Send className="w-3.5 h-3.5" /> Issue PO
-                          </Button>
-                        )}
-                        {(isApproved || isIssued) && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleOpenAmend(po)}
-                            disabled={acting}
-                            className="gap-1 border-amber-500 text-amber-700 hover:bg-amber-50"
-                          >
-                            <FileEdit className="w-3.5 h-3.5" /> Amend Value
-                          </Button>
-                        )}
-                        {isIssued && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleClosePo(po)}
-                            disabled={acting}
-                            className="gap-1 text-slate-500 hover:text-slate-900"
-                          >
-                            <Lock className="w-3.5 h-3.5" /> Close PO
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-4 text-sm space-y-3">
-                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-slate-50 dark:bg-slate-950 p-3 rounded-lg text-xs">
-                      <div>
-                        <span className="text-slate-500 block">Base Price</span>
-                        <span className="font-mono font-medium text-slate-800 dark:text-slate-200">
-                          ₹{Number(po.price || 0).toLocaleString("en-IN")}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-slate-500 block">Taxes & Duties</span>
-                        <span className="font-mono font-medium text-slate-800 dark:text-slate-200">
-                          ₹{Number(po.taxes || 0).toLocaleString("en-IN")}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-slate-500 block">Total Order Value</span>
-                        <span className="font-mono font-bold text-base text-slate-900 dark:text-white">
-                          ₹{(Number(po.price || 0) + Number(po.taxes || 0)).toLocaleString("en-IN")}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-slate-500 block">Authority Tier</span>
-                        <Badge
-                          variant="outline"
-                          className="font-semibold bg-purple-50 text-purple-700 border-purple-300"
-                        >
-                          {po.current_approver_role?.toUpperCase()}
-                        </Badge>
-                      </div>
-                    </div>
-
-                    {/* Scope & terms */}
-                    <div className="text-xs space-y-1 bg-white dark:bg-slate-900 p-2.5 rounded border">
-                      <div>
-                        <span className="font-medium text-slate-500">Scope of Supply: </span>
-                        {po.scope_of_supply}
-                      </div>
-                      <div>
-                        <span className="font-medium text-slate-500">Delivery: </span>
-                        {po.delivery_timeline || "Standard"} •{" "}
-                        <span className="font-medium text-slate-500">Payment: </span>
-                        {po.payment_terms || "Standard terms"}
-                      </div>
-                    </div>
-
-                    {/* Amendment History */}
-                    {amendments.length > 0 && (
-                      <div className="space-y-2 pt-2 border-t">
-                        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
-                          <History className="w-3.5 h-3.5 text-amber-500" /> Amendment History (
-                          {amendments.length})
-                        </div>
-                        <div className="space-y-1.5">
-                          {amendments.map((am: any) => (
-                            <div
-                              key={am.id}
-                              className="p-2 rounded bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-1"
-                            >
-                              <div>
-                                <span className="font-mono font-semibold">
-                                  ₹{Number(am.old_value_total).toLocaleString("en-IN")} → ₹
-                                  {Number(am.new_value_total).toLocaleString("en-IN")}
+                    return (
+                      <Card
+                        key={po.id}
+                        className="overflow-hidden border border-slate-200 dark:border-slate-800 hover:border-slate-300"
+                      >
+                        <CardHeader className="bg-slate-50/70 dark:bg-slate-900/70 p-4 sm:p-6 border-b border-slate-100 dark:border-slate-800">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2.5">
+                                <span className="font-mono text-base font-bold text-slate-900 dark:text-white">
+                                  {po.po_number}
                                 </span>
-                                <span className="text-slate-500 ml-2">Reason: {am.reason}</span>
+                                <Badge className={getStatusBadge(po.status)}>{po.status?.toUpperCase()}</Badge>
+                                <Badge variant="outline" className="text-xs capitalize">
+                                  {po.po_type?.replace("_", " ")}
+                                </Badge>
                               </div>
-                              <div className="flex items-center gap-2">
-                                {am.requires_reapproval ? (
-                                  <Badge
-                                    variant="outline"
-                                    className="text-purple-700 border-purple-400 text-[10px]"
-                                  >
-                                    Re-approved by {am.new_approver_role?.toUpperCase()}
-                                  </Badge>
-                                ) : (
-                                  <Badge variant="outline" className="text-slate-600 text-[10px]">
-                                    Original Tier ({am.original_approver_role})
-                                  </Badge>
-                                )}
+                              <div className="text-xs text-slate-500 flex flex-wrap items-center gap-x-4 gap-y-1">
+                                <span>Vendor: <strong className="text-slate-700 dark:text-slate-300">{po.vendors?.name || "N/A"}</strong></span>
+                                {pr && <span>PR: <strong className="text-slate-700 dark:text-slate-300">{pr.pr_number}</strong></span>}
+                                <span>Created: {new Date(po.created_at).toLocaleDateString()}</span>
                               </div>
                             </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+
+                            <div className="flex items-center gap-2 self-end sm:self-auto">
+                              {isPending && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleApprovePo(po)}
+                                  disabled={acting}
+                                  className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1 text-xs"
+                                >
+                                  <CheckCircle className="w-3.5 h-3.5" /> Approve
+                                </Button>
+                              )}
+
+                              {isApproved && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleIssuePo(po)}
+                                  disabled={acting}
+                                  className="bg-indigo-600 hover:bg-indigo-700 text-white gap-1 text-xs"
+                                >
+                                  <Send className="w-3.5 h-3.5" /> Issue to Vendor
+                                </Button>
+                              )}
+
+                              {isIssued && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleOpenAmend(po)}
+                                    className="gap-1 text-xs border-amber-300 text-amber-700 hover:bg-amber-50"
+                                  >
+                                    <FileEdit className="w-3.5 h-3.5" /> Amend
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleClosePo(po)}
+                                    disabled={acting}
+                                    className="gap-1 text-xs text-slate-600 hover:bg-slate-100"
+                                  >
+                                    <Lock className="w-3.5 h-3.5" /> Close PO
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </CardHeader>
+
+                        <CardContent className="p-4 sm:p-6 space-y-4">
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs bg-slate-50 dark:bg-slate-900/40 p-3 rounded-lg border border-slate-100 dark:border-slate-800">
+                            <div>
+                              <span className="text-slate-400 block font-medium">Base Price:</span>
+                              <span className="font-semibold text-slate-800 dark:text-slate-200">
+                                ₹{Number(po.price || 0).toLocaleString()}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 block font-medium">Taxes:</span>
+                              <span className="font-semibold text-slate-800 dark:text-slate-200">
+                                ₹{Number(po.taxes || 0).toLocaleString()}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 block font-medium">Total Value:</span>
+                              <span className="font-bold text-indigo-600 dark:text-indigo-400 text-sm">
+                                ₹{Number(po.total_value || 0).toLocaleString()}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 block font-medium">Approver Role:</span>
+                              <span className="font-semibold uppercase text-slate-700 dark:text-slate-300">
+                                {po.current_approver_role || "N/A"}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1 text-xs">
+                            <span className="font-semibold text-slate-700 dark:text-slate-300">Scope of Supply:</span>
+                            <p className="text-slate-600 dark:text-slate-400">{po.scope_of_supply || "Standard institutional procurement supply."}</p>
+                          </div>
+
+                          {amendments.length > 0 && (
+                            <div className="border-t border-slate-100 dark:border-slate-800 pt-3 space-y-2">
+                              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300">
+                                <History className="w-3.5 h-3.5 text-amber-500" /> Amendment History ({amendments.length})
+                              </div>
+                              <div className="space-y-1.5">
+                                {amendments.map((am: any) => (
+                                  <div
+                                    key={am.id}
+                                    className="p-2.5 rounded bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/50 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                                  >
+                                    <div>
+                                      <span className="font-medium text-slate-800 dark:text-slate-200">
+                                        ₹{Number(am.previous_total_value).toLocaleString()} → ₹{Number(am.new_total_value).toLocaleString()}
+                                      </span>
+                                      <span className="text-slate-500 block sm:inline sm:ml-2">({am.reason})</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                      {am.requires_reapproval ? (
+                                        <Badge className="bg-amber-500 text-white text-[10px]">
+                                          Escalated to {am.new_approver_role?.toUpperCase()}
+                                        </Badge>
+                                      ) : (
+                                        <Badge variant="outline" className="text-[10px] text-slate-600">
+                                          Within Tier ({am.original_approver_role})
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+
+                  <PaginationControls
+                    currentPage={pagination.page}
+                    totalPages={pagination.totalPages}
+                    pageSize={pagination.pageSize}
+                    totalItems={pagination.total}
+                    currentItemsCount={paginatedOrders.length}
+                    onPageChange={setPage}
+                    onPageSizeChange={setPageSize}
+                  />
+                </>
               );
-            })
+            })()
           )}
         </div>
 

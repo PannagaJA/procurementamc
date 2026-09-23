@@ -22,6 +22,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { usePagination } from "@/hooks/use-pagination";
+import { PaginationControls } from "@/components/PaginationControls";
 import { supabase } from "@/integrations/supabase/client";
 import {
   prepareComparativeStatement,
@@ -45,6 +47,7 @@ import {
 export default function ComparativeStatements() {
   const { toast } = useToast();
   const [csList, setCsList] = useState<any[]>([]);
+  const { pagination, setPage, setPageSize, setTotal } = usePagination(10, 1);
   const [rfqList, setRfqList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -74,7 +77,11 @@ export default function ComparativeStatements() {
         (listRfqs as any)(),
       ]);
 
-      if (csRes?.ok) setCsList(csRes.comparativeStatements || []);
+      if (csRes?.ok) {
+        const list = csRes.comparativeStatements || [];
+        setCsList(list);
+        setTotal(list.length);
+      }
       if (rfqRes?.ok) setRfqList(rfqRes.rfqs || []);
     } catch (e: any) {
       toast({ title: "Error loading data", description: e.message, variant: "destructive" });
@@ -303,190 +310,211 @@ export default function ComparativeStatements() {
               </p>
             </Card>
           ) : (
-            csList.map((cs) => {
-              const pr = cs.rfqs?.purchase_requisitions;
-              const isPending = cs.status === "submitted";
-
-              return (
-                <Card
-                  key={cs.id}
-                  className="overflow-hidden border border-slate-200 dark:border-slate-800 hover:border-slate-300"
-                >
-                  <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 pb-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold text-base text-slate-900 dark:text-slate-100">
-                            {cs.cs_number || "CS-PENDING"}
-                          </span>
-                          <Badge
-                            variant={
-                              cs.status === "approved"
-                                ? "default"
-                                : cs.status === "rejected"
-                                  ? "destructive"
-                                  : "secondary"
-                            }
-                          >
-                            {cs.status.toUpperCase()}
-                          </Badge>
-                          {cs.is_lowest_price ? (
-                            <Badge
-                              variant="outline"
-                              className="text-emerald-700 dark:text-emerald-400 border-emerald-500 gap-1 text-xs"
-                            >
-                              <CheckCircle className="w-3 h-3" /> L1 Lowest Price
-                            </Badge>
-                          ) : (
-                            <Badge
-                              variant="outline"
-                              className="text-amber-700 dark:text-amber-400 border-amber-500 gap-1 text-xs"
-                            >
-                              <AlertCircle className="w-3 h-3" /> Non-Lowest (Rationale Provided)
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-xs text-slate-500">
-                          RFQ:{" "}
-                          <span className="font-medium text-slate-700 dark:text-slate-300">
-                            {cs.rfqs?.rfq_number}
-                          </span>{" "}
-                          • PR: {pr?.pr_number} • Category: {pr?.category}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        {isPending && (
-                          <>
-                            <Button
-                              size="sm"
-                              onClick={() => handleApproveCs(cs)}
-                              disabled={acting}
-                              className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-                            >
-                              <CheckCircle className="w-3.5 h-3.5" /> Approve CS
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => {
-                                setActiveCs(cs);
-                                setRejectOpen(true);
-                              }}
-                              disabled={acting}
-                              className="gap-1"
-                            >
-                              <XCircle className="w-3.5 h-3.5" /> Reject
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-4 text-sm space-y-3">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 dark:bg-slate-950 p-3 rounded-lg text-xs">
-                      <div>
-                        <span className="text-slate-500 block">Recommended Vendor</span>
-                        <span className="font-semibold text-slate-800 dark:text-slate-200">
-                          {cs.vendors?.name || "Selected Vendor"}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-slate-500 block">Recommended Amount</span>
-                        <span className="font-mono font-bold text-slate-900 dark:text-white">
-                          ₹{Number(cs.recommended_total || 0).toLocaleString("en-IN")}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-slate-500 block">Authority Routing</span>
-                        <Badge
-                          variant="outline"
-                          className="font-semibold bg-purple-50 text-purple-700 border-purple-300"
-                        >
-                          {cs.current_approver_role?.toUpperCase()}
-                        </Badge>
-                      </div>
-                    </div>
-
-                    {/* Routing reason notice */}
-                    {cs.routing_reason && (
-                      <div className="p-2.5 bg-blue-50/70 dark:bg-blue-950/40 rounded text-xs text-blue-900 dark:text-blue-200">
-                        <span className="font-semibold">Routing Rule: </span>
-                        {cs.routing_reason}
-                      </div>
-                    )}
-
-                    {/* Non lowest rationale banner */}
-                    {!cs.is_lowest_price && cs.non_lowest_rationale && (
-                      <div className="p-2.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded text-xs text-amber-900 dark:text-amber-200">
-                        <span className="font-semibold">Non-Lowest Bidder Justification: </span>
-                        {cs.non_lowest_rationale}
-                      </div>
-                    )}
-
-                    {/* Vendor scores comparison table */}
-                    {cs.cs_line_scores && cs.cs_line_scores.length > 0 && (
-                      <div className="overflow-x-auto border rounded-lg">
-                        <table className="w-full text-xs text-left">
-                          <thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                            <tr>
-                              <th className="p-2">Rank</th>
-                              <th className="p-2">Vendor Name</th>
-                              <th className="p-2 text-right">Quoted Total (₹)</th>
-                              <th className="p-2 text-center">Tech Compliant</th>
-                              <th className="p-2 text-center">Score</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y">
-                            {cs.cs_line_scores.map((ls: any) => (
-                              <tr
-                                key={ls.id}
-                                className={
-                                  ls.vendor_id === cs.recommended_vendor_id
-                                    ? "bg-emerald-50/60 dark:bg-emerald-950/30 font-medium"
-                                    : ""
-                                }
-                              >
-                                <td className="p-2">#{ls.rank || "-"}</td>
-                                <td className="p-2 flex items-center gap-1.5">
-                                  {ls.vendor_id === cs.recommended_vendor_id && (
-                                    <Trophy className="w-3.5 h-3.5 text-amber-500" />
-                                  )}
-                                  {ls.vendors?.name || "Vendor"}
-                                </td>
-                                <td className="p-2 text-right font-mono">
-                                  ₹{Number(ls.quoted_total || 0).toLocaleString("en-IN")}
-                                </td>
-                                <td className="p-2 text-center">
-                                  {ls.technical_score >= 70 ? (
-                                    <Badge
-                                      variant="outline"
-                                      className="text-emerald-600 border-emerald-500 text-[10px]"
-                                    >
-                                      YES
-                                    </Badge>
-                                  ) : (
-                                    <Badge
-                                      variant="outline"
-                                      className="text-red-600 border-red-500 text-[10px]"
-                                    >
-                                      NO
-                                    </Badge>
-                                  )}
-                                </td>
-                                <td className="p-2 text-center font-semibold">
-                                  {ls.total_score || "-"}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+            (() => {
+              const startIndex = (pagination.page - 1) * pagination.pageSize;
+              const paginatedCsList = csList.slice(
+                startIndex,
+                startIndex + pagination.pageSize,
               );
-            })
+              return (
+                <>
+                  {paginatedCsList.map((cs) => {
+                    const pr = cs.rfqs?.purchase_requisitions;
+                    const isPending = cs.status === "submitted";
+
+                    return (
+                      <Card
+                        key={cs.id}
+                        className="overflow-hidden border border-slate-200 dark:border-slate-800 hover:border-slate-300"
+                      >
+                        <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 pb-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono font-bold text-base text-slate-900 dark:text-slate-100">
+                                  {cs.cs_number || "CS-PENDING"}
+                                </span>
+                                <Badge
+                                  variant={
+                                    cs.status === "approved"
+                                      ? "default"
+                                      : cs.status === "rejected"
+                                        ? "destructive"
+                                        : "secondary"
+                                  }
+                                >
+                                  {cs.status.toUpperCase()}
+                                </Badge>
+                                {cs.is_lowest_price ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-emerald-700 dark:text-emerald-400 border-emerald-500 gap-1 text-xs"
+                                  >
+                                    <CheckCircle className="w-3 h-3" /> L1 Lowest Price
+                                  </Badge>
+                                ) : (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-amber-700 dark:text-amber-400 border-amber-500 gap-1 text-xs"
+                                  >
+                                    <AlertCircle className="w-3 h-3" /> Non-Lowest (Rationale Provided)
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-xs text-slate-500">
+                                RFQ:{" "}
+                                <span className="font-medium text-slate-700 dark:text-slate-300">
+                                  {cs.rfqs?.rfq_number}
+                                </span>{" "}
+                                • PR: {pr?.pr_number} • Category: {pr?.category}
+                              </p>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              {isPending && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleApproveCs(cs)}
+                                    disabled={acting}
+                                    className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                  >
+                                    <CheckCircle className="w-3.5 h-3.5" /> Approve CS
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => {
+                                      setActiveCs(cs);
+                                      setRejectOpen(true);
+                                    }}
+                                    disabled={acting}
+                                    className="gap-1"
+                                  >
+                                    <XCircle className="w-3.5 h-3.5" /> Reject
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="pt-4 text-sm space-y-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 dark:bg-slate-950 p-3 rounded-lg text-xs">
+                            <div>
+                              <span className="text-slate-500 block">Recommended Vendor</span>
+                              <span className="font-semibold text-slate-800 dark:text-slate-200">
+                                {cs.vendors?.name || "Selected Vendor"}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500 block">Recommended Amount</span>
+                              <span className="font-mono font-bold text-slate-900 dark:text-white">
+                                ₹{Number(cs.recommended_total || 0).toLocaleString("en-IN")}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-slate-500 block">Authority Routing</span>
+                              <Badge
+                                variant="outline"
+                                className="font-semibold bg-purple-50 text-purple-700 border-purple-300"
+                              >
+                                {cs.current_approver_role?.toUpperCase()}
+                              </Badge>
+                            </div>
+                          </div>
+
+                          {/* Non-lowest justification notice if applicable */}
+                          {!cs.is_lowest_price && cs.non_lowest_rationale && (
+                            <div className="p-2.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-900 rounded-lg text-xs text-amber-900 dark:text-amber-200">
+                              <span className="font-semibold">Non-Lowest Rationale: </span>
+                              {cs.non_lowest_rationale}
+                            </div>
+                          )}
+
+                          {/* Line items table */}
+                          {cs.comparative_statement_lines &&
+                            cs.comparative_statement_lines.length > 0 && (
+                              <div className="overflow-x-auto border rounded-lg">
+                                <table className="w-full text-xs text-left">
+                                  <thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                                    <tr>
+                                      <th className="p-2">Vendor</th>
+                                      <th className="p-2 text-right">Quoted Value</th>
+                                      <th className="p-2 text-right">Negotiated Value</th>
+                                      <th className="p-2 text-center">Tech Spec</th>
+                                      <th className="p-2 text-center">Total Score</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y">
+                                    {cs.comparative_statement_lines.map((ls: any) => (
+                                      <tr
+                                        key={ls.id}
+                                        className={
+                                          ls.vendor_id === cs.recommended_vendor_id
+                                            ? "bg-emerald-50/50 dark:bg-emerald-950/20 font-medium"
+                                            : ""
+                                        }
+                                      >
+                                        <td className="p-2">
+                                          {ls.vendors?.name || "Vendor"}
+                                          {ls.vendor_id === cs.recommended_vendor_id && (
+                                            <Badge className="ml-2 text-[10px] bg-emerald-600 text-white">
+                                              Recommended
+                                            </Badge>
+                                          )}
+                                        </td>
+                                        <td className="p-2 text-right font-mono">
+                                          ₹{Number(ls.quoted_total || 0).toLocaleString("en-IN")}
+                                        </td>
+                                        <td className="p-2 text-right font-mono font-semibold">
+                                          ₹
+                                          {Number(
+                                            ls.final_negotiated_total || ls.quoted_total || 0,
+                                          ).toLocaleString("en-IN")}
+                                        </td>
+                                        <td className="p-2 text-center">
+                                          {ls.meets_technical_specs ? (
+                                            <Badge
+                                              variant="outline"
+                                              className="text-emerald-600 border-emerald-500 text-[10px]"
+                                            >
+                                              YES
+                                            </Badge>
+                                          ) : (
+                                            <Badge
+                                              variant="outline"
+                                              className="text-red-600 border-red-500 text-[10px]"
+                                            >
+                                              NO
+                                            </Badge>
+                                          )}
+                                        </td>
+                                        <td className="p-2 text-center font-semibold">
+                                          {ls.total_score || "-"}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+
+                  <PaginationControls
+                    currentPage={pagination.page}
+                    totalPages={pagination.totalPages}
+                    pageSize={pagination.pageSize}
+                    totalItems={pagination.total}
+                    currentItemsCount={paginatedCsList.length}
+                    onPageChange={setPage}
+                    onPageSizeChange={setPageSize}
+                  />
+                </>
+              );
+            })()
           )}
         </div>
 

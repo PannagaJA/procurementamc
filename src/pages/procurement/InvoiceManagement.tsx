@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { usePagination } from "@/hooks/use-pagination";
+import { PaginationControls } from "@/components/PaginationControls";
 import { supabase } from "@/integrations/supabase/client";
 import {
   submitInvoice,
@@ -50,6 +52,7 @@ import {
 export default function InvoiceManagement() {
   const { toast } = useToast();
   const [invoices, setInvoices] = useState<any[]>([]);
+  const { pagination, setPage, setPageSize, setTotal } = usePagination(10, 1);
   const [pos, setPos] = useState<any[]>([]);
   const [grns, setGrns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,7 +90,11 @@ export default function InvoiceManagement() {
         (listGrns as any)(),
       ]);
 
-      if (invRes?.ok) setInvoices(invRes.invoices || []);
+      if (invRes?.ok) {
+        const list = invRes.invoices || [];
+        setInvoices(list);
+        setTotal(list.length);
+      }
       if (poRes?.ok) setPos(poRes.purchaseOrders || []);
       if (grnRes?.ok) setGrns(grnRes.grns || []);
     } catch (e: any) {
@@ -277,159 +284,184 @@ export default function InvoiceManagement() {
               </p>
             </Card>
           ) : (
-            invoices.map((inv) => {
-              const po = inv.purchase_orders;
-              const grn = inv.grns;
-              const isMatched = inv.match_status === "matched";
-              const isOnHold = inv.match_status === "on_hold";
-              const isApproved = inv.match_status === "approved";
-              const isPaid = inv.match_status === "paid";
-              const poVal = Number(po?.total_value || 0);
-              const grnVal = Number(grn?.accepted_value || 0);
-              const invVal = Number(inv.invoice_amount || 0);
-
-              return (
-                <Card
-                  key={inv.id}
-                  className="overflow-hidden border border-slate-200 dark:border-slate-800 hover:border-slate-300"
-                >
-                  <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 pb-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold text-base text-slate-900 dark:text-slate-100">
-                            Invoice: {inv.invoice_number}
-                          </span>
-                          <Badge
-                            variant={
-                              isPaid
-                                ? "default"
-                                : isApproved
-                                  ? "secondary"
-                                  : isMatched
-                                    ? "outline"
-                                    : "destructive"
-                            }
-                          >
-                            {inv.match_status.toUpperCase()}
-                          </Badge>
-                          {inv.is_service_po && (
-                            <Badge
-                              variant="outline"
-                              className="text-xs text-blue-600 border-blue-400"
-                            >
-                              Service PO (Completion Certificate)
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-xs text-slate-500">
-                          Vendor:{" "}
-                          <span className="font-semibold text-slate-700 dark:text-slate-300">
-                            {inv.vendors?.name}
-                          </span>{" "}
-                          • PO: {po?.po_number} • PR: {po?.purchase_requisitions?.pr_number}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        {isMatched && (
-                          <Button
-                            size="sm"
-                            onClick={() => handleApprove(inv)}
-                            disabled={acting}
-                            className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5" /> Approve Invoice
-                          </Button>
-                        )}
-                        {isApproved && (
-                          <Button
-                            size="sm"
-                            onClick={() => handleOpenPay(inv)}
-                            disabled={acting}
-                            className="gap-1 bg-indigo-600 hover:bg-indigo-700 text-white"
-                          >
-                            <CreditCard className="w-3.5 h-3.5" /> Record Payment
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-4 text-sm space-y-3">
-                    {/* Visual Three-Way Match Comparator */}
-                    <div className="p-3.5 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2.5">
-                      <div className="flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-300">
-                        <span className="flex items-center gap-1.5">
-                          <Scale className="w-4 h-4 text-indigo-500" /> Three-Way Verification
-                          Matrix
-                        </span>
-                        <span>
-                          {isMatched
-                            ? "✅ Fully Reconciled"
-                            : isOnHold
-                              ? "⚠️ Verification Hold"
-                              : "⚡ Approved for Payment"}
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                        {/* 1. PO */}
-                        <div className="p-2.5 bg-white dark:bg-slate-900 rounded-lg border">
-                          <span className="text-slate-400 block text-[11px]">
-                            1. Purchase Order Value
-                          </span>
-                          <span className="font-mono font-bold text-sm text-slate-800 dark:text-slate-100">
-                            ₹{poVal.toLocaleString("en-IN")}
-                          </span>
-                          <span className="text-[10px] text-slate-500 block mt-0.5">
-                            PO: {po?.po_number}
-                          </span>
-                        </div>
-
-                        {/* 2. GRN */}
-                        <div className="p-2.5 bg-white dark:bg-slate-900 rounded-lg border">
-                          <span className="text-slate-400 block text-[11px]">
-                            2. GRN Accepted Value
-                          </span>
-                          <span className="font-mono font-bold text-sm text-slate-800 dark:text-slate-100">
-                            {inv.is_service_po
-                              ? "N/A (Service)"
-                              : `₹${grnVal.toLocaleString("en-IN")}`}
-                          </span>
-                          <span className="text-[10px] text-slate-500 block mt-0.5">
-                            GRN: {grn?.grn_number || "None"} ({grn?.status || "unlinked"})
-                          </span>
-                        </div>
-
-                        {/* 3. Invoice */}
-                        <div className="p-2.5 bg-white dark:bg-slate-900 rounded-lg border">
-                          <span className="text-slate-400 block text-[11px]">
-                            3. Claimed Invoice Amount
-                          </span>
-                          <span className="font-mono font-bold text-sm text-slate-800 dark:text-slate-100">
-                            ₹{invVal.toLocaleString("en-IN")}
-                          </span>
-                          <span className="text-[10px] text-slate-500 block mt-0.5">
-                            Invoice: {inv.invoice_number}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Hold reason message */}
-                      {isOnHold && inv.hold_reason && (
-                        <div className="p-2.5 bg-red-50 dark:bg-red-950/40 border border-red-300 dark:border-red-900 rounded-lg text-xs text-red-900 dark:text-red-200 flex items-start gap-2">
-                          <AlertOctagon className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-                          <div>
-                            <span className="font-semibold">Match Discrepancy / Hold: </span>
-                            {inv.hold_reason}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+            (() => {
+              const startIndex = (pagination.page - 1) * pagination.pageSize;
+              const paginatedInvoices = invoices.slice(
+                startIndex,
+                startIndex + pagination.pageSize,
               );
-            })
+              return (
+                <>
+                  {paginatedInvoices.map((inv) => {
+                    const po = inv.purchase_orders;
+                    const grn = inv.grns;
+                    const isMatched = inv.match_status === "matched";
+                    const isOnHold = inv.match_status === "on_hold";
+                    const isApproved = inv.match_status === "approved";
+                    const isPaid = inv.match_status === "paid";
+                    const poVal = Number(po?.total_value || 0);
+                    const grnVal = Number(grn?.accepted_value || 0);
+                    const invVal = Number(inv.invoice_amount || 0);
+
+                    return (
+                      <Card
+                        key={inv.id}
+                        className="overflow-hidden border border-slate-200 dark:border-slate-800 hover:border-slate-300"
+                      >
+                        <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 pb-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono font-bold text-base text-slate-900 dark:text-slate-100">
+                                  Invoice: {inv.invoice_number}
+                                </span>
+                                <Badge
+                                  variant={
+                                    isPaid
+                                      ? "default"
+                                      : isApproved
+                                        ? "secondary"
+                                        : isMatched
+                                          ? "outline"
+                                          : "destructive"
+                                  }
+                                >
+                                  {inv.match_status.toUpperCase()}
+                                </Badge>
+                                {inv.is_service_po && (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-xs text-blue-600 border-blue-400"
+                                  >
+                                    Service PO (Completion Certificate)
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-xs text-slate-500">
+                                Vendor:{" "}
+                                <span className="font-semibold text-slate-700 dark:text-slate-300">
+                                  {inv.vendors?.name}
+                                </span>{" "}
+                                • PO: {po?.po_number} • PR: {po?.purchase_requisitions?.pr_number}
+                              </p>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              {isMatched && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleApprove(inv)}
+                                  disabled={acting}
+                                  className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                >
+                                  <CheckCircle2 className="w-3.5 h-3.5" /> Approve Invoice
+                                </Button>
+                              )}
+                              {isApproved && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleOpenPay(inv)}
+                                  disabled={acting}
+                                  className="gap-1 bg-indigo-600 hover:bg-indigo-700 text-white"
+                                >
+                                  <CreditCard className="w-3.5 h-3.5" /> Record Payment
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="pt-4 text-sm space-y-3">
+                          {/* Visual Three-Way Match Comparator */}
+                          <div className="p-3.5 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2.5">
+                            <div className="flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-300">
+                              <span className="flex items-center gap-1.5">
+                                <Scale className="w-4 h-4 text-indigo-500" /> Three-Way Verification
+                                Matrix
+                              </span>
+                              <span>
+                                {isMatched
+                                  ? "✅ Fully Reconciled"
+                                  : isOnHold
+                                    ? "⚠️ Verification Hold"
+                                    : isApproved
+                                      ? "✅ Approved for Disbursement"
+                                      : isPaid
+                                        ? "💰 Settled"
+                                        : "Pending"}
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                              {/* 1. PO */}
+                              <div className="p-2.5 bg-white dark:bg-slate-900 rounded-lg border">
+                                <span className="text-slate-400 block text-[11px]">
+                                  1. PO Authorised Value
+                                </span>
+                                <span className="font-mono font-bold text-sm text-slate-800 dark:text-slate-100">
+                                  ₹{poVal.toLocaleString("en-IN")}
+                                </span>
+                                <span className="text-[10px] text-slate-500 block mt-0.5">
+                                  PO: {po?.po_number}
+                                </span>
+                              </div>
+
+                              {/* 2. GRN */}
+                              <div className="p-2.5 bg-white dark:bg-slate-900 rounded-lg border">
+                                <span className="text-slate-400 block text-[11px]">
+                                  2. GRN Accepted Value
+                                </span>
+                                <span className="font-mono font-bold text-sm text-slate-800 dark:text-slate-100">
+                                  {inv.is_service_po
+                                    ? "N/A (Service)"
+                                    : `₹${grnVal.toLocaleString("en-IN")}`}
+                                </span>
+                                <span className="text-[10px] text-slate-500 block mt-0.5">
+                                  GRN: {grn?.grn_number || "None"} ({grn?.status || "unlinked"})
+                                </span>
+                              </div>
+
+                              {/* 3. Invoice */}
+                              <div className="p-2.5 bg-white dark:bg-slate-900 rounded-lg border">
+                                <span className="text-slate-400 block text-[11px]">
+                                  3. Claimed Invoice Amount
+                                </span>
+                                <span className="font-mono font-bold text-sm text-slate-800 dark:text-slate-100">
+                                  ₹{invVal.toLocaleString("en-IN")}
+                                </span>
+                                <span className="text-[10px] text-slate-500 block mt-0.5">
+                                  Invoice: {inv.invoice_number}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Hold reason message */}
+                            {isOnHold && inv.hold_reason && (
+                              <div className="p-2.5 bg-red-50 dark:bg-red-950/40 border border-red-300 dark:border-red-900 rounded-lg text-xs text-red-900 dark:text-red-200 flex items-start gap-2">
+                                <AlertOctagon className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                                <div>
+                                  <span className="font-semibold">Match Discrepancy / Hold: </span>
+                                  {inv.hold_reason}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+
+                  <PaginationControls
+                    currentPage={pagination.page}
+                    totalPages={pagination.totalPages}
+                    pageSize={pagination.pageSize}
+                    totalItems={pagination.total}
+                    currentItemsCount={paginatedInvoices.length}
+                    onPageChange={setPage}
+                    onPageSizeChange={setPageSize}
+                  />
+                </>
+              );
+            })()
           )}
         </div>
 
