@@ -214,6 +214,20 @@ export default function GrnManagement() {
     }
   };
 
+  const handleSecurityVerify = async (grnId: string) => {
+    try {
+      const res = await (securityVerify as any)({ data: { grn_id: grnId } });
+      if (!res.ok) {
+        toast({ title: "Security Verification Failed", description: res.error, variant: "destructive" });
+        return;
+      }
+      toast({ title: "Security Verified", description: "Package inward verified at stores gate." });
+      loadData();
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    }
+  };
+
   const handleTechnicalVerify = async () => {
     if (!activeGrn) return;
     setVerifying(true);

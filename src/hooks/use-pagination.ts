@@ -4,6 +4,7 @@ export interface PaginationState {
   page: number;
   pageSize: number;
   total: number;
+  totalPages: number;
 }
 
 export interface UsePaginationReturn {
@@ -21,7 +22,7 @@ export const usePagination = (
   initialPageSize: number = 10,
   initialPage: number = 1,
 ): UsePaginationReturn => {
-  const [pagination, setPagination] = useState<PaginationState>({
+  const [pagination, setPagination] = useState<Omit<PaginationState, "totalPages">>({
     page: initialPage,
     pageSize: initialPageSize,
     total: 0,
@@ -51,8 +52,13 @@ export const usePagination = (
   const hasNextPage = pagination.page < totalPages;
   const hasPrevPage = pagination.page > 1;
 
+  const fullPagination: PaginationState = {
+    ...pagination,
+    totalPages,
+  };
+
   return {
-    pagination,
+    pagination: fullPagination,
     setPage,
     setPageSize,
     setTotal,

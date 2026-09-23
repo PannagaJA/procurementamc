@@ -56,6 +56,22 @@ export default function PurchaseOrders() {
   const [rateContracts, setRateContracts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "approved":
+      case "issued":
+        return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200 border-emerald-300";
+      case "pending_approval":
+        return "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200 border-amber-300";
+      case "closed":
+        return "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border-slate-300";
+      case "cancelled":
+        return "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200 border-red-300";
+      default:
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200";
+    }
+  };
+
   // Create PO Modal
   const [createOpen, setCreateOpen] = useState(false);
   const [poType, setPoType] = useState<"regular" | "rate_contract">("regular");
