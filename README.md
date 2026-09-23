@@ -414,4 +414,4 @@ stateDiagram-v2
     cancelled --> [*]
 ```
 
-_Derived from `src/server/procurement/po.functions.ts` and SOP §8.5._
+_Derived from `src/server/procurement/po.functions.ts` and SOP §8.5_
