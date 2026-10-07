@@ -214,6 +214,14 @@ async function decide(
     return { ok: false as const, error: e.message };
   }
 
+  if (decision === "rejected" && (!data.remarks || !data.remarks.trim())) {
+    return {
+      ok: false as const,
+      error: "A written rejection reason is mandatory under SOP §8.3.",
+      code: "rejection_remarks_required",
+    };
+  }
+
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
   const { error: upErr } = await (supabaseAdmin as any)
