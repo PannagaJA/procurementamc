@@ -152,7 +152,8 @@ export const prepareComparativeStatement = createServerFn({ method: "POST" })
     const resolved = resolveApprover(canonicalCat, recTotal, spend, rules ?? []);
 
     // 7. Insert or update Comparative Statement
-    const { data: existingCs } = await db
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: existingCs } = await supabaseAdmin
       .from("comparative_statements")
       .select("id")
       .eq("rfq_id", data.rfq_id)
@@ -177,7 +178,7 @@ export const prepareComparativeStatement = createServerFn({ method: "POST" })
     let csErr: any = null;
 
     if (existingCs?.id) {
-      const res = await db
+      const res = await supabaseAdmin
         .from("comparative_statements")
         .update(csPayload)
         .eq("id", existingCs.id)
@@ -186,7 +187,7 @@ export const prepareComparativeStatement = createServerFn({ method: "POST" })
       cs = res.data;
       csErr = res.error;
     } else {
-      const res = await db
+      const res = await supabaseAdmin
         .from("comparative_statements")
         .insert(csPayload)
         .select("*")
@@ -199,7 +200,7 @@ export const prepareComparativeStatement = createServerFn({ method: "POST" })
 
     // 8. Save Line Scores
     if (data.line_scores && data.line_scores.length > 0) {
-      await db.from("cs_line_scores").delete().eq("cs_id", cs.id);
+      await supabaseAdmin.from("cs_line_scores").delete().eq("cs_id", cs.id);
       const scoreRows = data.line_scores.map((ls) => ({
         cs_id: cs.id,
         vendor_id: ls.vendor_id,
@@ -212,7 +213,7 @@ export const prepareComparativeStatement = createServerFn({ method: "POST" })
         rank: Number(ls.rank) || null,
         notes: ls.notes ?? null,
       }));
-      await db.from("cs_line_scores").insert(scoreRows);
+      await supabaseAdmin.from("cs_line_scores").insert(scoreRows);
     }
 
     return {
@@ -252,7 +253,8 @@ export const approveCs = createServerFn({ method: "POST" })
       );
     }
 
-    const { error: upErr } = await db
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error: upErr } = await supabaseAdmin
       .from("comparative_statements")
       .update({
         status: "approved",
@@ -292,7 +294,8 @@ export const rejectCs = createServerFn({ method: "POST" })
       );
     }
 
-    const { error: upErr } = await db
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error: upErr } = await supabaseAdmin
       .from("comparative_statements")
       .update({
         status: "rejected",
