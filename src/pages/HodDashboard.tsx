@@ -371,14 +371,14 @@ const HodDashboard = () => {
                   <col style={{ width: "20%" }} />
                   <col style={{ width: "12%" }} />
                 </colgroup>
-                <thead className="bg-slate-50">
+                <thead className="bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-200 border-b border-slate-200 dark:border-slate-700 text-xs font-semibold uppercase tracking-wider">
                   <tr>
-                    <th className="px-3 py-2 text-left">Ticket #</th>
-                    <th className="px-3 py-2 text-left">Subject</th>
-                    <th className="px-3 py-2 text-left">Status</th>
-                    <th className="px-3 py-2 text-left">Priority</th>
-                    <th className="px-3 py-2 text-left">SLA</th>
-                    <th className="px-3 py-2 text-right">Actions</th>
+                    <th className="px-3 py-3 text-left">Ticket #</th>
+                    <th className="px-3 py-3 text-left">Subject</th>
+                    <th className="px-3 py-3 text-left">Status</th>
+                    <th className="px-3 py-3 text-left">Priority</th>
+                    <th className="px-3 py-3 text-left">SLA</th>
+                    <th className="px-3 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -466,14 +466,14 @@ const HodDashboard = () => {
                       <col style={{ width: "18%" }} />
                       <col style={{ width: "10%" }} />
                     </colgroup>
-                    <thead className="bg-slate-50">
+                    <thead className="bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-200 border-b border-slate-200 dark:border-slate-700 text-xs font-semibold uppercase tracking-wider">
                       <tr>
-                        <th className="px-2 py-2 text-left">Item Code</th>
-                        <th className="px-2 py-2 text-left">Name</th>
-                        <th className="px-2 py-2 text-left">Category</th>
-                        <th className="px-2 py-2 text-left">Department</th>
-                        <th className="px-2 py-2 text-left">Location</th>
-                        <th className="px-2 py-2 text-right">Actions</th>
+                        <th className="px-2 py-3 text-left">Item Code</th>
+                        <th className="px-2 py-3 text-left">Name</th>
+                        <th className="px-2 py-3 text-left">Category</th>
+                        <th className="px-2 py-3 text-left">Department</th>
+                        <th className="px-2 py-3 text-left">Location</th>
+                        <th className="px-2 py-3 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
