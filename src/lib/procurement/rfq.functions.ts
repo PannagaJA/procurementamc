@@ -51,6 +51,18 @@ export const createRfq = createServerFn({ method: "POST" })
   .validator((input: CreateRfqInput) => input)
   .handler(async ({ data, context }) => {
     const db = context.supabase as any;
+    const { getCallerRoles } = await import("@/server/procurement/roles");
+    const roles = await getCallerRoles(db, context.userId);
+    const held = roles.map((r) => r.role);
+
+    if (!held.includes("admin") && !held.includes("procurement_officer")) {
+      return {
+        ok: false as const,
+        error: "Only Procurement Officers can create RFQs.",
+        code: "unauthorized",
+      };
+    }
+
     const { assertPrApproved } = await import("@/server/procurement/guards");
     const { ProcurementRuleError } = await import("@/server/procurement/errors");
 
@@ -82,7 +94,9 @@ export const createRfq = createServerFn({ method: "POST" })
 
     const minQuotes = Math.max(3, ...(rules ?? []).map((r: any) => Number(r.min_quotations || 3)));
 
-    const { data: rfq, error: rfqErr } = await db
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: rfq, error: rfqErr } = await supabaseAdmin
       .from("rfqs")
       .insert({
         pr_id: data.pr_id,
@@ -107,6 +121,18 @@ export const sendRfq = createServerFn({ method: "POST" })
   .validator((input: SendRfqInput) => input)
   .handler(async ({ data, context }) => {
     const db = context.supabase as any;
+    const { getCallerRoles } = await import("@/server/procurement/roles");
+    const roles = await getCallerRoles(db, context.userId);
+    const held = roles.map((r) => r.role);
+
+    if (!held.includes("admin") && !held.includes("procurement_officer")) {
+      return {
+        ok: false as const,
+        error: "Only Procurement Officers can send RFQs.",
+        code: "unauthorized",
+      };
+    }
+
     const { assertVendorEmpanelled } = await import("@/server/procurement/guards");
     const { ProcurementRuleError } = await import("@/server/procurement/errors");
 
@@ -148,14 +174,16 @@ export const sendRfq = createServerFn({ method: "POST" })
       sent_at: new Date().toISOString(),
     }));
 
-    const { error: insErr } = await db
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { error: insErr } = await supabaseAdmin
       .from("rfq_vendors")
       .upsert(vendorRows, { onConflict: "rfq_id,vendor_id" });
 
     if (insErr) return { ok: false as const, error: insErr.message, code: "insert_vendors_failed" };
 
     // Update RFQ status
-    const { error: upErr } = await db
+    const { error: upErr } = await supabaseAdmin
       .from("rfqs")
       .update({ status: "sent", updated_at: new Date().toISOString() })
       .eq("id", data.rfq_id);
@@ -170,6 +198,17 @@ export const recordQuotationResponse = createServerFn({ method: "POST" })
   .validator((input: RecordQuotationResponseInput) => input)
   .handler(async ({ data, context }) => {
     const db = context.supabase as any;
+    const { getCallerRoles } = await import("@/server/procurement/roles");
+    const roles = await getCallerRoles(db, context.userId);
+    const held = roles.map((r) => r.role);
+
+    if (!held.includes("admin") && !held.includes("procurement_officer")) {
+      return {
+        ok: false as const,
+        error: "Only Procurement Officers can record quotation responses.",
+        code: "unauthorized",
+      };
+    }
 
     const { data: rfqVendor, error: rvErr } = await db
       .from("rfq_vendors")
@@ -186,10 +225,12 @@ export const recordQuotationResponse = createServerFn({ method: "POST" })
       };
     }
 
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
     // Insert or replace quotation lines
     if (data.lines && data.lines.length > 0) {
       // Clean up previous lines for this vendor & rfq if any
-      await db
+      await supabaseAdmin
         .from("quotation_lines")
         .delete()
         .eq("rfq_id", data.rfq_id)
@@ -218,12 +259,12 @@ export const recordQuotationResponse = createServerFn({ method: "POST" })
         };
       });
 
-      const { error: insErr } = await db.from("quotation_lines").insert(rows);
+      const { error: insErr } = await supabaseAdmin.from("quotation_lines").insert(rows);
       if (insErr) return { ok: false as const, error: insErr.message, code: "insert_lines_failed" };
     }
 
     // Mark response received
-    await db
+    await supabaseAdmin
       .from("rfq_vendors")
       .update({ response_received_at: new Date().toISOString() })
       .eq("id", rfqVendor.id);
@@ -236,7 +277,22 @@ export const checkTechnicalCompliance = createServerFn({ method: "POST" })
   .validator((input: TechnicalComplianceInput) => input)
   .handler(async ({ data, context }) => {
     const db = context.supabase as any;
-    const { error } = await db
+    const { getCallerRoles } = await import("@/server/procurement/roles");
+    const roles = await getCallerRoles(db, context.userId);
+    const held = roles.map((r) => r.role);
+
+    // According to SOP §8.5, technical committee / HOD checks compliance. 
+    // We'll allow procurement officer, admin, or hod.
+    if (!held.includes("admin") && !held.includes("procurement_officer") && !held.includes("hod")) {
+      return {
+        ok: false as const,
+        error: "Only authorized personnel (Procurement, HOD, Admin) can check technical compliance.",
+        code: "unauthorized",
+      };
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
       .from("quotation_lines")
       .update({
         meets_technical_spec: data.meets_technical_spec,
