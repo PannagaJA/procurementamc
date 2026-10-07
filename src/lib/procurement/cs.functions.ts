@@ -248,9 +248,10 @@ export const approveCs = createServerFn({ method: "POST" })
 
     const requiredRole = cs.current_approver_role;
     if (!held.includes("admin") && requiredRole && !held.includes(requiredRole)) {
-      throw new ForbiddenError(
-        `This Comparative Statement requires "${requiredRole}" approval. You hold: ${held.join(", ") || "none"}.`,
-      );
+      return {
+        ok: false as const,
+        error: `This Comparative Statement requires "${requiredRole}" approval. You hold: ${held.join(", ") || "none"}.`,
+      };
     }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -274,7 +275,6 @@ export const rejectCs = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const db = context.supabase as any;
     const { getCallerRoles } = await import("@/server/procurement/roles");
-    const { ForbiddenError } = await import("@/server/procurement/errors");
 
     const roles = await getCallerRoles(db, context.userId);
     const held = roles.map((r) => r.role);
@@ -289,9 +289,10 @@ export const rejectCs = createServerFn({ method: "POST" })
 
     const requiredRole = cs.current_approver_role;
     if (!held.includes("admin") && requiredRole && !held.includes(requiredRole)) {
-      throw new ForbiddenError(
-        `This Comparative Statement requires "${requiredRole}" authorization. You hold: ${held.join(", ") || "none"}.`,
-      );
+      return {
+        ok: false as const,
+        error: `This Comparative Statement requires "${requiredRole}" authorization. You hold: ${held.join(", ") || "none"}.`,
+      };
     }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
