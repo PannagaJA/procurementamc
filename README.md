@@ -1,4 +1,4 @@
-# AMC Inventory & Starlight Procure-to-Pay (P2P) Enterprise System
+# AMC Inventory & Stalight Procure-to-Pay (P2P) Enterprise System
 
 A modern, compliant Procure-to-Pay (P2P) and Inventory Management web application built with **TanStack Start (React 19, Vite 7)**, **Supabase PostgreSQL**, **Tailwind CSS**, and **TypeScript**.
 
