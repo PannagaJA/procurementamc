@@ -2,7 +2,7 @@
 
 A modern, compliant Procure-to-Pay (P2P) and Inventory Management web application built with **TanStack Start (React 19, Vite 7)**, **Supabase PostgreSQL**, **Tailwind CSS**, and **TypeScript**.
 
-The system fully enforces the **Starlight P2P Standard Operating Procedure (SOP)** with server-authoritative approval routing, statutory expenditure caps, three-way matching, and vendor governance.
+The system fully enforces the **Stalight P2P Standard Operating Procedure (SOP)** with server-authoritative approval routing, statutory expenditure caps, three-way matching, and vendor governance.
 
 ---
 
