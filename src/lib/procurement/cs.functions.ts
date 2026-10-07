@@ -233,12 +233,14 @@ export const approveCs = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const db = context.supabase as any;
     const { getCallerRoles } = await import("@/server/procurement/roles");
-    const { ForbiddenError } = await import("@/server/procurement/errors");
 
     const roles = await getCallerRoles(db, context.userId);
     const held = roles.map((r) => r.role);
 
-    const { data: cs, error } = await db
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Use supabaseAdmin for the read too, in case RLS blocks SELECT
+    const { data: cs, error } = await supabaseAdmin
       .from("comparative_statements")
       .select("id, status, current_approver_role, cs_number")
       .eq("id", data.cs_id)
@@ -246,16 +248,19 @@ export const approveCs = createServerFn({ method: "POST" })
 
     if (error || !cs) return { ok: false as const, error: "Comparative Statement not found" };
 
+    if (cs.status === "approved") {
+      return { ok: true as const, csId: cs.id, status: "approved", note: "Already approved" };
+    }
+
     const requiredRole = cs.current_approver_role;
     if (!held.includes("admin") && requiredRole && !held.includes(requiredRole)) {
       return {
         ok: false as const,
-        error: `This Comparative Statement requires "${requiredRole}" approval. You hold: ${held.join(", ") || "none"}.`,
+        error: `This CS requires "${requiredRole}" approval. You hold: ${held.join(", ") || "none"}.`,
       };
     }
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error: upErr } = await supabaseAdmin
+    const { data: updated, error: upErr } = await supabaseAdmin
       .from("comparative_statements")
       .update({
         status: "approved",
@@ -263,9 +268,19 @@ export const approveCs = createServerFn({ method: "POST" })
         approved_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
-      .eq("id", cs.id);
+      .eq("id", cs.id)
+      .select("id, status")
+      .single();
 
     if (upErr) return { ok: false as const, error: upErr.message };
+
+    if (!updated || updated.status !== "approved") {
+      return {
+        ok: false as const,
+        error: `Update did not persist. DB status is still "${updated?.status || "unknown"}". Check database constraints.`,
+      };
+    }
+
     return { ok: true as const, csId: cs.id, status: "approved" };
   });
 
@@ -279,7 +294,9 @@ export const rejectCs = createServerFn({ method: "POST" })
     const roles = await getCallerRoles(db, context.userId);
     const held = roles.map((r) => r.role);
 
-    const { data: cs, error } = await db
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: cs, error } = await supabaseAdmin
       .from("comparative_statements")
       .select("id, status, current_approver_role")
       .eq("id", data.cs_id)
@@ -291,12 +308,11 @@ export const rejectCs = createServerFn({ method: "POST" })
     if (!held.includes("admin") && requiredRole && !held.includes(requiredRole)) {
       return {
         ok: false as const,
-        error: `This Comparative Statement requires "${requiredRole}" authorization. You hold: ${held.join(", ") || "none"}.`,
+        error: `This CS requires "${requiredRole}" authorization. You hold: ${held.join(", ") || "none"}.`,
       };
     }
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error: upErr } = await supabaseAdmin
+    const { data: updated, error: upErr } = await supabaseAdmin
       .from("comparative_statements")
       .update({
         status: "rejected",
@@ -304,9 +320,19 @@ export const rejectCs = createServerFn({ method: "POST" })
         approved_by: context.userId,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", cs.id);
+      .eq("id", cs.id)
+      .select("id, status")
+      .single();
 
     if (upErr) return { ok: false as const, error: upErr.message };
+
+    if (!updated || updated.status !== "rejected") {
+      return {
+        ok: false as const,
+        error: `Rejection did not persist. DB status is still "${updated?.status || "unknown"}".`,
+      };
+    }
+
     return { ok: true as const, csId: cs.id, status: "rejected" };
   });
 
