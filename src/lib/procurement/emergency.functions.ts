@@ -199,8 +199,10 @@ export const approveEmergency = createServerFn({ method: "POST" })
       }
     }
 
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
     if (data.decision === "rejected") {
-      await db
+      await (supabaseAdmin as any)
         .from("emergency_procurements")
         .update({
           evp_approval_status: "rejected",
@@ -235,7 +237,7 @@ export const approveEmergency = createServerFn({ method: "POST" })
     }
 
     // Update ledger
-    await db
+    await (supabaseAdmin as any)
       .from("emergency_annual_ledger")
       .update({
         running_total: newTotal,
@@ -244,7 +246,7 @@ export const approveEmergency = createServerFn({ method: "POST" })
       .eq("financial_year", fy);
 
     // Update emergency record
-    const { error: upErr } = await db
+    const { error: upErr } = await (supabaseAdmin as any)
       .from("emergency_procurements")
       .update({
         evp_approval_status: "approved",

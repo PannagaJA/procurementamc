@@ -214,7 +214,9 @@ async function decide(
     return { ok: false as const, error: e.message };
   }
 
-  const { error: upErr } = await db
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  const { error: upErr } = await (supabaseAdmin as any)
     .from("purchase_requisitions")
     .update({
       status: nextStatus,
@@ -223,7 +225,7 @@ async function decide(
     .eq("id", pr.id);
   if (upErr) return { ok: false as const, error: upErr.message };
 
-  await db.from("pr_approvals").insert({
+  await (supabaseAdmin as any).from("pr_approvals").insert({
     pr_id: pr.id,
     stage,
     approver_role: held.find((h) => allowed.includes(h)) ?? "admin",
