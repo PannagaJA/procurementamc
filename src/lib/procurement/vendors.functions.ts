@@ -97,7 +97,10 @@ export const evaluateVendor = createServerFn({ method: "POST" })
     });
     if (error) return { ok: false as const, error: error.message };
 
-    await db.from("vendors").update({ status: "under_review" }).eq("id", data.vendor_id);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error: updateError } = await supabaseAdmin.from("vendors").update({ status: "under_review" }).eq("id", data.vendor_id);
+    if (updateError) return { ok: false as const, error: updateError.message };
+
     return { ok: true as const };
   });
 
@@ -126,7 +129,8 @@ export const approveEmpanelment = createServerFn({ method: "POST" })
     const expiry = new Date(today);
     expiry.setFullYear(expiry.getFullYear() + 1);
 
-    const { error } = await db
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
       .from("vendors")
       .update({
         status: "empanelled",
@@ -145,7 +149,8 @@ export const rejectEmpanelment = createServerFn({ method: "POST" })
     const { db, held } = await rolesOf(context);
     const d = deny(held, ["evp"], "reject vendor empanelment");
     if (d) return d;
-    const { error } = await db
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
       .from("vendors")
       .update({ status: "rejected" })
       .eq("id", data.vendor_id);
@@ -166,7 +171,8 @@ export const suspendVendor = createServerFn({ method: "POST" })
     const { db, held } = await rolesOf(context);
     const d = deny(held, ["evp", "director_admin_finance"], "suspend a vendor");
     if (d) return d;
-    const { error } = await db
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
       .from("vendors")
       .update({ status: "suspended" })
       .eq("id", data.vendor_id);
@@ -181,7 +187,8 @@ export const blacklistVendor = createServerFn({ method: "POST" })
     const { db, held } = await rolesOf(context);
     const d = deny(held, ["evp"], "debar or blacklist a vendor");
     if (d) return d;
-    const { error } = await db
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
       .from("vendors")
       .update({ status: "debarred" })
       .eq("id", data.vendor_id);
