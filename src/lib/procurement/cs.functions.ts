@@ -152,27 +152,48 @@ export const prepareComparativeStatement = createServerFn({ method: "POST" })
     const resolved = resolveApprover(canonicalCat, recTotal, spend, rules ?? []);
 
     // 7. Insert or update Comparative Statement
-    const { data: cs, error: csErr } = await db
+    const { data: existingCs } = await db
       .from("comparative_statements")
-      .upsert(
-        {
-          rfq_id: data.rfq_id,
-          pr_id: pr.id,
-          prepared_by: context.userId,
-          negotiation_notes: data.negotiation_notes ?? null,
-          price_reasonableness_notes: data.price_reasonableness_notes ?? null,
-          recommended_vendor_id: data.recommended_vendor_id,
-          recommended_total: recTotal,
-          is_lowest_price: effectiveIsLowest,
-          non_lowest_rationale: effectiveIsLowest ? null : data.non_lowest_rationale?.trim(),
-          status: "submitted",
-          current_approver_role: resolved.role,
-          routing_reason: resolved.reason,
-        },
-        { onConflict: "rfq_id" },
-      )
-      .select("*")
-      .single();
+      .select("id")
+      .eq("rfq_id", data.rfq_id)
+      .maybeSingle();
+
+    const csPayload = {
+      rfq_id: data.rfq_id,
+      pr_id: pr.id,
+      prepared_by: context.userId,
+      negotiation_notes: data.negotiation_notes ?? null,
+      price_reasonableness_notes: data.price_reasonableness_notes ?? null,
+      recommended_vendor_id: data.recommended_vendor_id,
+      recommended_total: recTotal,
+      is_lowest_price: effectiveIsLowest,
+      non_lowest_rationale: effectiveIsLowest ? null : data.non_lowest_rationale?.trim(),
+      status: "submitted",
+      current_approver_role: resolved.role,
+      routing_reason: resolved.reason,
+    };
+
+    let cs: any = null;
+    let csErr: any = null;
+
+    if (existingCs?.id) {
+      const res = await db
+        .from("comparative_statements")
+        .update(csPayload)
+        .eq("id", existingCs.id)
+        .select("*")
+        .single();
+      cs = res.data;
+      csErr = res.error;
+    } else {
+      const res = await db
+        .from("comparative_statements")
+        .insert(csPayload)
+        .select("*")
+        .single();
+      cs = res.data;
+      csErr = res.error;
+    }
 
     if (csErr) return { ok: false as const, error: csErr.message, code: "insert_cs_failed" };
 
