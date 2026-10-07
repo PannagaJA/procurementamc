@@ -27,6 +27,7 @@ import { useToast } from "@/hooks/use-toast";
 import { usePagination } from "@/hooks/use-pagination";
 import { PaginationControls } from "@/components/PaginationControls";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
 import {
   requestEmergencyProcurement,
   approveEmergency,
@@ -48,6 +49,8 @@ import {
 
 export default function EmergencyProcurement() {
   const { toast } = useToast();
+  const { hasRole } = useAuth();
+  const canAuthorize = hasRole("evp") || hasRole("admin");
   const [data, setData] = useState<any>(null);
   const { pagination, setPage, setPageSize, setTotal } = usePagination(10, 1);
   const [departments, setDepartments] = useState<any[]>([]);
@@ -348,7 +351,7 @@ export default function EmergencyProcurement() {
                             </div>
 
                             <div className="flex items-center gap-2">
-                              {isPending && (
+                              {isPending && canAuthorize ? (
                                 <>
                                   <Button
                                     size="sm"
@@ -371,7 +374,14 @@ export default function EmergencyProcurement() {
                                     <XCircle className="w-3.5 h-3.5" /> Reject
                                   </Button>
                                 </>
-                              )}
+                              ) : isPending ? (
+                                <Badge
+                                  variant="outline"
+                                  className="text-amber-600 border-amber-300 bg-amber-50 dark:bg-amber-950/40 text-xs"
+                                >
+                                  Awaiting EVP Authorization
+                                </Badge>
+                              ) : null}
                             </div>
                           </div>
                         </CardHeader>

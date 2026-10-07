@@ -87,6 +87,16 @@ export default function MyApprovals() {
 
   const handleExecuteAction = async () => {
     if (!activeItem) return;
+
+    if (dialogType.includes("reject") && !remarks.trim()) {
+      toast({
+        title: "Rejection Reason Required",
+        description: "A written justification is mandatory when rejecting per SOP §8.3.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setActing(true);
     try {
       if (dialogType === "pr_approve") {
@@ -614,13 +624,32 @@ export default function MyApprovals() {
             </DialogHeader>
 
             <div className="space-y-3 py-2">
-              <Label>Remarks / Observations</Label>
+              <Label className="flex items-center justify-between">
+                <span>Remarks / Observations</span>
+                {dialogType.includes("reject") && (
+                  <span className="text-xs text-red-500 font-semibold">(Mandatory for Rejection)</span>
+                )}
+              </Label>
               <Textarea
-                placeholder="Enter audit remarks..."
+                placeholder={
+                  dialogType.includes("reject")
+                    ? "Enter required reason for rejection..."
+                    : "Enter audit remarks (optional)..."
+                }
                 value={remarks}
                 onChange={(e) => setRemarks(e.target.value)}
                 rows={3}
+                className={
+                  dialogType.includes("reject") && !remarks.trim()
+                    ? "border-red-300 focus-visible:ring-red-400"
+                    : ""
+                }
               />
+              {dialogType.includes("reject") && !remarks.trim() && (
+                <p className="text-xs text-red-500">
+                  A written reason is required before confirming rejection.
+                </p>
+              )}
             </div>
 
             <DialogFooter>
@@ -629,10 +658,10 @@ export default function MyApprovals() {
               </Button>
               <Button
                 onClick={handleExecuteAction}
-                disabled={acting}
+                disabled={acting || (dialogType.includes("reject") && !remarks.trim())}
                 className={
                   dialogType.includes("reject")
-                    ? "bg-red-600 hover:bg-red-700 text-white"
+                    ? "bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
                     : "bg-emerald-600 hover:bg-emerald-700 text-white"
                 }
               >
