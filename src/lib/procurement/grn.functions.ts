@@ -45,13 +45,43 @@ export type CreateGrnInput = {
   lines: GrnLineInput[];
 };
 
+async function getMutationDb(context: any) {
+  if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      return supabaseAdmin as any;
+    } catch (err) {
+      console.warn("[GRN] Failed to load supabaseAdmin, falling back to session client:", err);
+    }
+  }
+  return context.supabase as any;
+}
+
+async function verifyCallerRole(context: any, allowed: string[], action: string) {
+  const { getCallerRoles, requireAnyRole } = await import("@/server/procurement/roles");
+  const callerRoles = await getCallerRoles(context.supabase, context.userId);
+  requireAnyRole(callerRoles, allowed, action);
+}
+
 export const recordDelivery = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: RecordDeliveryInput) => input)
   .handler(async ({ data, context }) => {
-    const db = context.supabase as any;
+    // 1. Role verification: Only stores, procurement, and admin can log gate inwards
+    try {
+      await verifyCallerRole(
+        context,
+        ["stores", "procurement_officer", "procurement_executive", "admin"],
+        "record delivery challans",
+      );
+    } catch (e: any) {
+      return { ok: false as const, error: e.message, code: "forbidden" };
+    }
 
-    const { data: po, error: poErr } = await db
+    const sessionDb = context.supabase as any;
+    const mutationDb = await getMutationDb(context);
+
+    const { data: po, error: poErr } = await sessionDb
       .from("purchase_orders")
       .select("id, po_number, vendor_id, status")
       .eq("id", data.po_id)
@@ -61,7 +91,7 @@ export const recordDelivery = createServerFn({ method: "POST" })
       return { ok: false as const, error: "Purchase order not found", code: "po_not_found" };
     }
 
-    const { data: challan, error: cErr } = await db
+    const { data: challan, error: cErr } = await mutationDb
       .from("delivery_challans")
       .insert({
         po_id: data.po_id,
@@ -84,7 +114,19 @@ export const createGrn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: CreateGrnInput) => input)
   .handler(async ({ data, context }) => {
-    const db = context.supabase as any;
+    // Role verification: Stores, Procurement, Admin can create GRN
+    try {
+      await verifyCallerRole(
+        context,
+        ["stores", "procurement_officer", "procurement_executive", "admin"],
+        "create goods receipt notes",
+      );
+    } catch (e: any) {
+      return { ok: false as const, error: e.message, code: "forbidden" };
+    }
+
+    const sessionDb = context.supabase as any;
+    const mutationDb = await getMutationDb(context);
     const { ruleError } = await import("@/server/procurement/errors");
 
     // 1. Guard: Delivery Challan is required
@@ -96,7 +138,7 @@ export const createGrn = createServerFn({ method: "POST" })
       };
     }
 
-    const { data: challan, error: cErr } = await db
+    const { data: challan, error: cErr } = await sessionDb
       .from("delivery_challans")
       .select("id, po_id, challan_number")
       .eq("id", data.delivery_challan_id)
@@ -111,7 +153,7 @@ export const createGrn = createServerFn({ method: "POST" })
     }
 
     // 2. Fetch PO & check over-delivery
-    const { data: po, error: poErr } = await db
+    const { data: po, error: poErr } = await sessionDb
       .from("purchase_orders")
       .select(
         `
@@ -140,7 +182,7 @@ export const createGrn = createServerFn({ method: "POST" })
     );
 
     // Fetch prior GRNs for this PO to check cumulative delivered qty
-    const { data: priorGrns } = await db
+    const { data: priorGrns } = await sessionDb
       .from("grns")
       .select("id, accepted_value, grn_lines (qty_delivered, qty_accepted)")
       .eq("po_id", data.po_id);
@@ -148,7 +190,7 @@ export const createGrn = createServerFn({ method: "POST" })
     // 3. Create GRN
     const initialStatus = data.requires_technical_inspection === false ? "accepted" : "pending";
 
-    const { data: grn, error: grnErr } = await db
+    const { data: grn, error: grnErr } = await mutationDb
       .from("grns")
       .insert({
         po_id: data.po_id,
@@ -177,7 +219,7 @@ export const createGrn = createServerFn({ method: "POST" })
         inspection_remarks: l.inspection_remarks ?? null,
       }));
 
-      const { error: lErr } = await db.from("grn_lines").insert(lineRows);
+      const { error: lErr } = await mutationDb.from("grn_lines").insert(lineRows);
       if (lErr) return { ok: false as const, error: lErr.message, code: "insert_grn_lines_failed" };
     }
 
@@ -188,8 +230,15 @@ export const securityVerify = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: SecurityVerifyInput) => input)
   .handler(async ({ data, context }) => {
-    const db = context.supabase as any;
-    const { error } = await db
+    // Role verification: Stores, Admin can verify security gate inward
+    try {
+      await verifyCallerRole(context, ["stores", "admin"], "sign off security verification on GRN");
+    } catch (e: any) {
+      return { ok: false as const, error: e.message, code: "forbidden" };
+    }
+
+    const mutationDb = await getMutationDb(context);
+    const { error } = await mutationDb
       .from("grns")
       .update({
         security_verified_by: context.userId,
@@ -205,10 +254,21 @@ export const technicalVerify = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: TechnicalVerifyInput) => input)
   .handler(async ({ data, context }) => {
-    const db = context.supabase as any;
+    // Role verification: HOD, Stores, Admin can sign off technical inspection
+    try {
+      await verifyCallerRole(
+        context,
+        ["hod", "stores", "admin"],
+        "sign off technical inspection on GRN",
+      );
+    } catch (e: any) {
+      return { ok: false as const, error: e.message, code: "forbidden" };
+    }
+
+    const mutationDb = await getMutationDb(context);
     const nextStatus = data.is_accepted ? "accepted" : "rejected";
 
-    const { error } = await db
+    const { error } = await mutationDb
       .from("grns")
       .update({
         technical_verified_by: context.userId,

@@ -317,6 +317,18 @@ export default function GrnManagement() {
                     const isAccepted = grn.status === "accepted";
                     const lines = grn.grn_lines || [];
 
+                    const isSecurityDone = Boolean(grn.security_verified_at || grn.security_inward_done);
+                    const isTechDone = Boolean(
+                      grn.technical_verified_at || grn.technical_inspection_done || isAccepted,
+                    );
+                    const acceptedTotal = Number(grn.accepted_value ?? grn.total_accepted_value ?? 0);
+                    const rejectedTotal =
+                      lines.reduce(
+                        (sum: number, l: any) =>
+                          sum + (Number(l.qty_rejected || 0) * Number(l.unit_price || 0)),
+                        0,
+                      ) || Number(grn.total_rejected_value ?? 0);
+
                     return (
                       <Card
                         key={grn.id}
@@ -354,7 +366,7 @@ export default function GrnManagement() {
 
                             <div className="flex items-center gap-2">
                               {/* Security Check button if not done */}
-                              {!grn.security_inward_done && (
+                              {!isSecurityDone && (
                                 <Button
                                   size="sm"
                                   variant="outline"
@@ -366,7 +378,7 @@ export default function GrnManagement() {
                               )}
 
                               {/* Technical Inspection button if required and pending */}
-                              {grn.requires_technical_inspection && !grn.technical_inspection_done && (
+                              {grn.requires_technical_inspection && !isTechDone && (
                                 <Button
                                   size="sm"
                                   className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5"
@@ -387,19 +399,19 @@ export default function GrnManagement() {
                             <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
                               <span className="text-slate-500 block">Accepted Total</span>
                               <span className="font-mono font-bold text-sm text-emerald-600 dark:text-emerald-400">
-                                ₹{Number(grn.total_accepted_value || 0).toLocaleString("en-IN")}
+                                ₹{acceptedTotal.toLocaleString("en-IN")}
                               </span>
                             </div>
                             <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
                               <span className="text-slate-500 block">Rejected Total</span>
                               <span className="font-mono font-bold text-sm text-red-600 dark:text-red-400">
-                                ₹{Number(grn.total_rejected_value || 0).toLocaleString("en-IN")}
+                                ₹{rejectedTotal.toLocaleString("en-IN")}
                               </span>
                             </div>
                             <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
                               <span className="text-slate-500 block">Security Inward</span>
                               <span className="font-semibold flex items-center gap-1 mt-0.5">
-                                {grn.security_inward_done ? (
+                                {isSecurityDone ? (
                                   <>
                                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Done
                                   </>
@@ -415,7 +427,7 @@ export default function GrnManagement() {
                               <span className="font-semibold flex items-center gap-1 mt-0.5">
                                 {!grn.requires_technical_inspection ? (
                                   "Not Applicable"
-                                ) : grn.technical_inspection_done ? (
+                                ) : isTechDone ? (
                                   <>
                                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Done
                                   </>

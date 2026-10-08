@@ -303,6 +303,20 @@ export default function InvoiceManagement() {
                     const grnVal = Number(grn?.accepted_value || 0);
                     const invVal = Number(inv.invoice_amount || 0);
 
+                    // Re-evaluate reconciliation from actual values at render time.
+                    // This catches stale DB records where match_status is incorrect.
+                    const exceedsGrn = !inv.is_service_po && grn && invVal > grnVal + 1;
+                    const exceedsPo = invVal > poVal + 1;
+                    const hasValueMismatch = exceedsGrn || exceedsPo;
+                    const reconciliationLabel = (() => {
+                      if (isPaid) return { icon: "💰", text: "Settled", cls: "text-indigo-700 dark:text-indigo-300" };
+                      if (isApproved) return { icon: "✅", text: "Approved for Disbursement", cls: "text-emerald-700 dark:text-emerald-300" };
+                      if (hasValueMismatch) return { icon: "❌", text: "Amount Mismatch — Not Reconciled", cls: "text-red-700 dark:text-red-400 font-semibold" };
+                      if (isMatched) return { icon: "✅", text: "Fully Reconciled", cls: "text-emerald-700 dark:text-emerald-300" };
+                      if (isOnHold) return { icon: "⚠️", text: "Verification Hold", cls: "text-amber-700 dark:text-amber-400" };
+                      return { icon: "⏳", text: "Pending", cls: "text-slate-500" };
+                    })();
+
                     return (
                       <Card
                         key={inv.id}
@@ -378,16 +392,8 @@ export default function InvoiceManagement() {
                                 <Scale className="w-4 h-4 text-indigo-500" /> Three-Way Verification
                                 Matrix
                               </span>
-                              <span>
-                                {isMatched
-                                  ? "✅ Fully Reconciled"
-                                  : isOnHold
-                                    ? "⚠️ Verification Hold"
-                                    : isApproved
-                                      ? "✅ Approved for Disbursement"
-                                      : isPaid
-                                        ? "💰 Settled"
-                                        : "Pending"}
+                              <span className={reconciliationLabel.cls}>
+                                {reconciliationLabel.icon} {reconciliationLabel.text}
                               </span>
                             </div>
 
@@ -434,13 +440,26 @@ export default function InvoiceManagement() {
                               </div>
                             </div>
 
-                            {/* Hold reason message */}
+                            {/* Hold reason message (from DB) */}
                             {isOnHold && inv.hold_reason && (
                               <div className="p-2.5 bg-red-50 dark:bg-red-950/40 border border-red-300 dark:border-red-900 rounded-lg text-xs text-red-900 dark:text-red-200 flex items-start gap-2">
                                 <AlertOctagon className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
                                 <div>
                                   <span className="font-semibold">Match Discrepancy / Hold: </span>
                                   {inv.hold_reason}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Value mismatch warning — caught at render time */}
+                            {hasValueMismatch && (
+                              <div className="p-2.5 bg-red-50 dark:bg-red-950/40 border border-red-300 dark:border-red-900 rounded-lg text-xs text-red-900 dark:text-red-200 flex items-start gap-2">
+                                <AlertOctagon className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                                <div>
+                                  <span className="font-semibold">Three-Way Match Failed: </span>
+                                  {exceedsGrn
+                                    ? `Invoice amount ₹${invVal.toLocaleString("en-IN")} exceeds GRN accepted value ₹${grnVal.toLocaleString("en-IN")}. Payment should not be released.`
+                                    : `Invoice amount ₹${invVal.toLocaleString("en-IN")} exceeds PO authorised value ₹${poVal.toLocaleString("en-IN")}.`}
                                 </div>
                               </div>
                             )}
