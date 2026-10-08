@@ -152,33 +152,55 @@ export const prepareComparativeStatement = createServerFn({ method: "POST" })
     const resolved = resolveApprover(canonicalCat, recTotal, spend, rules ?? []);
 
     // 7. Insert or update Comparative Statement
-    const { data: cs, error: csErr } = await db
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: existingCs } = await supabaseAdmin
       .from("comparative_statements")
-      .upsert(
-        {
-          rfq_id: data.rfq_id,
-          pr_id: pr.id,
-          prepared_by: context.userId,
-          negotiation_notes: data.negotiation_notes ?? null,
-          price_reasonableness_notes: data.price_reasonableness_notes ?? null,
-          recommended_vendor_id: data.recommended_vendor_id,
-          recommended_total: recTotal,
-          is_lowest_price: effectiveIsLowest,
-          non_lowest_rationale: effectiveIsLowest ? null : data.non_lowest_rationale?.trim(),
-          status: "submitted",
-          current_approver_role: resolved.role,
-          routing_reason: resolved.reason,
-        },
-        { onConflict: "rfq_id" },
-      )
-      .select("*")
-      .single();
+      .select("id")
+      .eq("rfq_id", data.rfq_id)
+      .maybeSingle();
+
+    const csPayload = {
+      rfq_id: data.rfq_id,
+      pr_id: pr.id,
+      prepared_by: context.userId,
+      negotiation_notes: data.negotiation_notes ?? null,
+      price_reasonableness_notes: data.price_reasonableness_notes ?? null,
+      recommended_vendor_id: data.recommended_vendor_id,
+      recommended_total: recTotal,
+      is_lowest_price: effectiveIsLowest,
+      non_lowest_rationale: effectiveIsLowest ? null : data.non_lowest_rationale?.trim(),
+      status: "submitted",
+      current_approver_role: resolved.role,
+      routing_reason: resolved.reason,
+    };
+
+    let cs: any = null;
+    let csErr: any = null;
+
+    if (existingCs?.id) {
+      const res = await supabaseAdmin
+        .from("comparative_statements")
+        .update(csPayload)
+        .eq("id", existingCs.id)
+        .select("*")
+        .single();
+      cs = res.data;
+      csErr = res.error;
+    } else {
+      const res = await supabaseAdmin
+        .from("comparative_statements")
+        .insert(csPayload)
+        .select("*")
+        .single();
+      cs = res.data;
+      csErr = res.error;
+    }
 
     if (csErr) return { ok: false as const, error: csErr.message, code: "insert_cs_failed" };
 
     // 8. Save Line Scores
     if (data.line_scores && data.line_scores.length > 0) {
-      await db.from("cs_line_scores").delete().eq("cs_id", cs.id);
+      await supabaseAdmin.from("cs_line_scores").delete().eq("cs_id", cs.id);
       const scoreRows = data.line_scores.map((ls) => ({
         cs_id: cs.id,
         vendor_id: ls.vendor_id,
@@ -191,7 +213,7 @@ export const prepareComparativeStatement = createServerFn({ method: "POST" })
         rank: Number(ls.rank) || null,
         notes: ls.notes ?? null,
       }));
-      await db.from("cs_line_scores").insert(scoreRows);
+      await supabaseAdmin.from("cs_line_scores").insert(scoreRows);
     }
 
     return {
@@ -211,12 +233,14 @@ export const approveCs = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const db = context.supabase as any;
     const { getCallerRoles } = await import("@/server/procurement/roles");
-    const { ForbiddenError } = await import("@/server/procurement/errors");
 
     const roles = await getCallerRoles(db, context.userId);
     const held = roles.map((r) => r.role);
 
-    const { data: cs, error } = await db
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Use supabaseAdmin for the read too, in case RLS blocks SELECT
+    const { data: cs, error } = await supabaseAdmin
       .from("comparative_statements")
       .select("id, status, current_approver_role, cs_number")
       .eq("id", data.cs_id)
@@ -224,14 +248,19 @@ export const approveCs = createServerFn({ method: "POST" })
 
     if (error || !cs) return { ok: false as const, error: "Comparative Statement not found" };
 
-    const requiredRole = cs.current_approver_role;
-    if (!held.includes("admin") && requiredRole && !held.includes(requiredRole)) {
-      throw new ForbiddenError(
-        `This Comparative Statement requires "${requiredRole}" approval. You hold: ${held.join(", ") || "none"}.`,
-      );
+    if (cs.status === "approved") {
+      return { ok: true as const, csId: cs.id, status: "approved", note: "Already approved" };
     }
 
-    const { error: upErr } = await db
+    const requiredRole = cs.current_approver_role;
+    if (!held.includes("admin") && requiredRole && !held.includes(requiredRole)) {
+      return {
+        ok: false as const,
+        error: `This CS requires "${requiredRole}" approval. You hold: ${held.join(", ") || "none"}.`,
+      };
+    }
+
+    const { data: updated, error: upErr } = await supabaseAdmin
       .from("comparative_statements")
       .update({
         status: "approved",
@@ -239,9 +268,19 @@ export const approveCs = createServerFn({ method: "POST" })
         approved_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
-      .eq("id", cs.id);
+      .eq("id", cs.id)
+      .select("id, status")
+      .single();
 
     if (upErr) return { ok: false as const, error: upErr.message };
+
+    if (!updated || updated.status !== "approved") {
+      return {
+        ok: false as const,
+        error: `Update did not persist. DB status is still "${updated?.status || "unknown"}". Check database constraints.`,
+      };
+    }
+
     return { ok: true as const, csId: cs.id, status: "approved" };
   });
 
@@ -251,12 +290,13 @@ export const rejectCs = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const db = context.supabase as any;
     const { getCallerRoles } = await import("@/server/procurement/roles");
-    const { ForbiddenError } = await import("@/server/procurement/errors");
 
     const roles = await getCallerRoles(db, context.userId);
     const held = roles.map((r) => r.role);
 
-    const { data: cs, error } = await db
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: cs, error } = await supabaseAdmin
       .from("comparative_statements")
       .select("id, status, current_approver_role")
       .eq("id", data.cs_id)
@@ -266,12 +306,13 @@ export const rejectCs = createServerFn({ method: "POST" })
 
     const requiredRole = cs.current_approver_role;
     if (!held.includes("admin") && requiredRole && !held.includes(requiredRole)) {
-      throw new ForbiddenError(
-        `This Comparative Statement requires "${requiredRole}" authorization. You hold: ${held.join(", ") || "none"}.`,
-      );
+      return {
+        ok: false as const,
+        error: `This CS requires "${requiredRole}" authorization. You hold: ${held.join(", ") || "none"}.`,
+      };
     }
 
-    const { error: upErr } = await db
+    const { data: updated, error: upErr } = await supabaseAdmin
       .from("comparative_statements")
       .update({
         status: "rejected",
@@ -279,9 +320,19 @@ export const rejectCs = createServerFn({ method: "POST" })
         approved_by: context.userId,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", cs.id);
+      .eq("id", cs.id)
+      .select("id, status")
+      .single();
 
     if (upErr) return { ok: false as const, error: upErr.message };
+
+    if (!updated || updated.status !== "rejected") {
+      return {
+        ok: false as const,
+        error: `Rejection did not persist. DB status is still "${updated?.status || "unknown"}".`,
+      };
+    }
+
     return { ok: true as const, csId: cs.id, status: "rejected" };
   });
 

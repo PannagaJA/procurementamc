@@ -20,13 +20,24 @@ import {
   ArrowRight,
   UserCheck,
   Calendar,
+  Eye,
+  Ban,
+  ShieldAlert,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   applyEmpanelment,
   evaluateVendor,
   approveEmpanelment,
   rejectEmpanelment,
   listVendorsForReview,
+  blacklistVendor,
 } from "@/lib/procurement/vendors.functions";
 import { useAuth } from "@/lib/auth";
 
@@ -39,6 +50,11 @@ export default function VendorManagement() {
   const [vendors, setVendors] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [userRoles, setUserRoles] = useState<string[]>([]);
+
+  // Vendor Master State
+  const [viewDetailsVendor, setViewDetailsVendor] = useState<any | null>(null);
+  const [debarVendorId, setDebarVendorId] = useState<string | null>(null);
+  const [debarReason, setDebarReason] = useState("");
 
   // Apply Form State
   const [name, setName] = useState("");
@@ -249,6 +265,35 @@ export default function VendorManagement() {
     }
   };
 
+  const handleDebarVendor = async () => {
+    if (!debarVendorId) return;
+    if (!debarReason.trim()) {
+      toast({ title: "Debarment reason is mandatory", variant: "destructive" });
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const res = await blacklistVendor({
+        data: { vendor_id: debarVendorId, reason: debarReason.trim() }
+      });
+
+      if (!res.ok) {
+        toast({ title: "Action Failed", description: (res as any).error, variant: "destructive" });
+        return;
+      }
+
+      toast({ title: "Vendor Debarred", description: "Vendor has been successfully blacklisted." });
+      setDebarVendorId(null);
+      setDebarReason("");
+      await loadVendors();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const appliedVendors = vendors.filter((v) => v.status === "applied");
   const reviewVendors = vendors.filter((v) => v.status === "under_review");
   const empanelledVendors = vendors.filter((v) => v.status === "empanelled");
@@ -315,6 +360,12 @@ export default function VendorManagement() {
                 className="font-semibold text-xs sm:text-sm py-2 px-3.5 whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm"
               >
                 3. EVP Approval Gate ({reviewVendors.length})
+              </TabsTrigger>
+              <TabsTrigger
+                value="master_directory"
+                className="font-semibold text-xs sm:text-sm py-2 px-3.5 whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm"
+              >
+                4. Vendor Master ({vendors.length})
               </TabsTrigger>
             </TabsList>
           </div>
@@ -673,47 +724,237 @@ export default function VendorManagement() {
               </CardContent>
             </Card>
 
-            {/* Approved Vendors List */}
-            {empanelledVendors.length > 0 && (
-              <Card className="mt-8 border-slate-200 dark:border-slate-800">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
-                    <CheckCircle className="w-4 h-4" /> Approved Vendor List (
-                    {empanelledVendors.length})
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    Qualified vendors with valid 1-year empanelment certificates.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="divide-y divide-slate-200 dark:divide-slate-800">
-                    {empanelledVendors.map((v) => (
-                      <div key={v.id} className="py-3 flex items-center justify-between text-xs">
-                        <div>
-                          <span className="font-bold text-slate-800 dark:text-slate-100">
-                            {v.name}
-                          </span>
-                          <span className="text-slate-500 ml-2">
-                            (GST: {v.gst_number || "N/A"})
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-4 text-slate-600 dark:text-slate-400">
-                          <span className="flex items-center gap-1">
-                            <Calendar className="w-3.5 h-3.5" /> Empanelled: {v.empanelled_on}
-                          </span>
-                          <span className="text-emerald-600 font-semibold">
-                            Expires: {v.empanelment_expiry}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+          </TabsContent>
+
+          {/* TAB 4: VENDOR MASTER DIRECTORY */}
+          <TabsContent value="master_directory">
+            <Card className="shadow-sm border-slate-200 dark:border-slate-800">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Building2 className="w-5 h-5 text-slate-600 dark:text-slate-300" /> Vendor Master Directory
+                </CardTitle>
+                <CardDescription>
+                  Comprehensive registry of all vendors and their current statuses.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {vendors.length === 0 ? (
+                    <div className="p-8 text-center text-slate-500 bg-slate-50 dark:bg-slate-900 rounded-lg">
+                      No vendors found in the system.
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-slate-200 dark:divide-slate-800 border-t border-slate-200 dark:border-slate-800 pt-2">
+                      {vendors.map((v) => {
+                        const isEmpanelled = v.status === "empanelled";
+                        const isDebarred = v.status === "debarred" || v.status === "blacklisted" || v.status === "suspended";
+                        
+                        return (
+                          <div key={v.id} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-sm">
+                            <div className="space-y-1 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-slate-800 dark:text-slate-100 text-base">
+                                  {v.name}
+                                </span>
+                                {isEmpanelled && (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 dark:border-emerald-800 uppercase tracking-wider">
+                                    <CheckCircle className="w-3 h-3" /> Empanelled
+                                  </span>
+                                )}
+                                {isDebarred && (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200 dark:bg-rose-900/40 dark:text-rose-300 dark:border-rose-800 uppercase tracking-wider">
+                                    <Ban className="w-3 h-3" /> {v.status}
+                                  </span>
+                                )}
+                                {!isEmpanelled && !isDebarred && (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700 uppercase tracking-wider">
+                                    {v.status.replace("_", " ")}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-slate-500 text-xs">
+                                <span>GST: <span className="font-medium text-slate-700 dark:text-slate-300">{v.gst_number || "N/A"}</span></span>
+                                <span>PAN: <span className="font-medium text-slate-700 dark:text-slate-300">{v.pan_number || "N/A"}</span></span>
+                                {isEmpanelled && v.empanelment_expiry && (
+                                  <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
+                                    <Calendar className="w-3.5 h-3.5" /> Valid till: {v.empanelment_expiry}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            
+                            <div className="flex-shrink-0 flex items-center gap-2">
+                              {(userRoles.includes("evp") || userRoles.includes("admin")) && !isDebarred && (
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  className="h-8 text-xs font-medium shadow-sm"
+                                  onClick={() => setDebarVendorId(v.id)}
+                                >
+                                  <Ban className="w-3.5 h-3.5 mr-1.5" /> Debar
+                                </Button>
+                              )}
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="h-8 text-xs font-medium bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 shadow-sm"
+                                onClick={() => setViewDetailsVendor(v)}
+                              >
+                                <Eye className="w-3.5 h-3.5 mr-1.5" /> View Details
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* View Details Dialog */}
+      <Dialog open={!!viewDetailsVendor} onOpenChange={(open) => !open && setViewDetailsVendor(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <Building2 className="w-5 h-5 text-blue-600" /> 
+              {viewDetailsVendor?.name}
+            </DialogTitle>
+            <DialogDescription>
+              Vendor Profile & Compliance Details
+            </DialogDescription>
+          </DialogHeader>
+
+          {viewDetailsVendor && (
+            <div className="space-y-6 pt-4">
+              {/* Status Banner */}
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800">
+                <span className="text-sm font-semibold text-slate-600 dark:text-slate-400 w-24">Status:</span>
+                {viewDetailsVendor.status === "empanelled" ? (
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 uppercase tracking-wider">
+                      <CheckCircle className="w-3.5 h-3.5" /> Empanelled
+                    </span>
+                    <span className="text-xs text-slate-500">
+                      (Valid till: <strong className="text-emerald-700 dark:text-emerald-400">{viewDetailsVendor.empanelment_expiry}</strong>)
+                    </span>
+                  </div>
+                ) : (viewDetailsVendor.status === "debarred" || viewDetailsVendor.status === "blacklisted" || viewDetailsVendor.status === "suspended") ? (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-200 dark:bg-rose-900/40 dark:text-rose-300 uppercase tracking-wider">
+                    <Ban className="w-3.5 h-3.5" /> {viewDetailsVendor.status}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 uppercase tracking-wider">
+                    {viewDetailsVendor.status.replace("_", " ")}
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Registration Info */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 border-b border-slate-200 dark:border-slate-800 pb-1">
+                    Registration Information
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">GSTIN</span>
+                      <span className="font-medium text-slate-900 dark:text-white">{viewDetailsVendor.gst_number || "N/A"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">PAN</span>
+                      <span className="font-medium text-slate-900 dark:text-white">{viewDetailsVendor.pan_number || "N/A"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Address</span>
+                      <span className="font-medium text-slate-900 dark:text-white text-right max-w-[200px] truncate" title={viewDetailsVendor.registered_address}>
+                        {viewDetailsVendor.registered_address || "N/A"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Applied On</span>
+                      <span className="font-medium text-slate-900 dark:text-white">
+                        {viewDetailsVendor.created_at ? new Date(viewDetailsVendor.created_at).toLocaleDateString() : "N/A"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bank Details */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 border-b border-slate-200 dark:border-slate-800 pb-1">
+                    Bank Remittance Details
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Bank Name</span>
+                      <span className="font-medium text-slate-900 dark:text-white">
+                        {viewDetailsVendor.bank_details_json?.bank_name || "N/A"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Account No.</span>
+                      <span className="font-medium text-slate-900 dark:text-white font-mono">
+                        {viewDetailsVendor.bank_details_json?.account_number || "N/A"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">IFSC Code</span>
+                      <span className="font-medium text-slate-900 dark:text-white font-mono uppercase">
+                        {viewDetailsVendor.bank_details_json?.ifsc_code || "N/A"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Optional: Debarred Warning Note */}
+              {(viewDetailsVendor.status === "debarred" || viewDetailsVendor.status === "blacklisted") && (
+                <div className="p-3 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900 rounded-lg flex items-start gap-2">
+                  <ShieldAlert className="w-5 h-5 text-rose-600 mt-0.5 shrink-0" />
+                  <p className="text-xs text-rose-800 dark:text-rose-300">
+                    This vendor has been debarred/blacklisted and is strictly prohibited from participating in any procurement requests (RFQs) until further notice.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+      {/* Debar Vendor Dialog */}
+      <Dialog open={!!debarVendorId} onOpenChange={(open) => !open && setDebarVendorId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-600">
+              <ShieldAlert className="w-5 h-5" /> Debar Vendor
+            </DialogTitle>
+            <DialogDescription>
+              This is a severe disciplinary action. The vendor will be permanently blacklisted and restricted from all future RFQs.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label>Reason for Debarment *</Label>
+              <Textarea 
+                placeholder="e.g. Fraud, persistent poor performance, breach of contract..." 
+                value={debarReason}
+                onChange={(e) => setDebarReason(e.target.value)}
+                className="resize-none"
+                rows={3}
+              />
+            </div>
+            <div className="flex justify-end gap-3 pt-4">
+              <Button variant="outline" onClick={() => setDebarVendorId(null)}>Cancel</Button>
+              <Button variant="destructive" onClick={handleDebarVendor} disabled={isLoading || !debarReason.trim()}>
+                {isLoading ? "Processing..." : "Confirm Debarment"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }

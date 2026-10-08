@@ -56,6 +56,18 @@ export const createPo = createServerFn({ method: "POST" })
   .validator((input: CreatePoInput) => input)
   .handler(async ({ data, context }) => {
     const db = context.supabase as any;
+    const { getCallerRoles } = await import("@/server/procurement/roles");
+    const roles = await getCallerRoles(db, context.userId);
+    const held = roles.map((r) => r.role);
+
+    if (!held.includes("admin") && !held.includes("procurement_officer")) {
+      return {
+        ok: false as const,
+        error: "Only Procurement Officers can create Purchase Orders.",
+        code: "unauthorized",
+      };
+    }
+
     const { assertPrApproved, assertVendorEmpanelled, assertNoPoSplitting } =
       await import("@/server/procurement/guards");
     const { ProcurementRuleError } = await import("@/server/procurement/errors");
@@ -171,8 +183,9 @@ export const createPo = createServerFn({ method: "POST" })
 
     const resolved = resolveApprover(canonicalCat, totalValue, spend, rules ?? []);
 
-    // 6. Insert Purchase Order
-    const { data: po, error: poErr } = await db
+    // 6. Insert Purchase Order using supabaseAdmin to bypass RLS
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: po, error: poErr } = await supabaseAdmin
       .from("purchase_orders")
       .insert({
         pr_id: data.pr_id,
@@ -219,13 +232,19 @@ export const approvePo = createServerFn({ method: "POST" })
     const roles = await getCallerRoles(db, context.userId);
     const held = roles.map((r) => r.role);
 
-    const { data: po, error } = await db
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: po, error } = await supabaseAdmin
       .from("purchase_orders")
       .select("id, status, current_approver_role, po_number")
       .eq("id", data.po_id)
       .maybeSingle();
 
     if (error || !po) return { ok: false as const, error: "Purchase Order not found" };
+
+    if (po.status === "approved") {
+      return { ok: true as const, poId: po.id, status: "approved", note: "Already approved" };
+    }
 
     const requiredRole = po.current_approver_role;
     if (!held.includes("admin") && requiredRole && !held.includes(requiredRole)) {
@@ -234,7 +253,7 @@ export const approvePo = createServerFn({ method: "POST" })
       );
     }
 
-    const { error: upErr } = await db
+    const { data: updated, error: upErr } = await supabaseAdmin
       .from("purchase_orders")
       .update({
         status: "approved",
@@ -242,9 +261,19 @@ export const approvePo = createServerFn({ method: "POST" })
         approved_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
-      .eq("id", po.id);
+      .eq("id", po.id)
+      .select("id, status")
+      .single();
 
     if (upErr) return { ok: false as const, error: upErr.message };
+
+    if (!updated || updated.status !== "approved") {
+      return {
+        ok: false as const,
+        error: `Update did not persist. DB status is still "${updated?.status || "unknown"}".`,
+      };
+    }
+
     return { ok: true as const, poId: po.id, status: "approved" };
   });
 
@@ -252,9 +281,9 @@ export const issuePo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: IssuePoInput) => input)
   .handler(async ({ data, context }) => {
-    const db = context.supabase as any;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const { data: po, error } = await db
+    const { data: po, error } = await supabaseAdmin
       .from("purchase_orders")
       .select("id, status, po_number, vendor_id, pr_id")
       .eq("id", data.po_id)
@@ -269,16 +298,21 @@ export const issuePo = createServerFn({ method: "POST" })
       };
     }
 
-    const { error: upErr } = await db
+    const { data: updated, error: upErr } = await supabaseAdmin
       .from("purchase_orders")
       .update({
         status: "issued",
         issued_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
-      .eq("id", po.id);
+      .eq("id", po.id)
+      .select("id, status")
+      .single();
 
     if (upErr) return { ok: false as const, error: upErr.message };
+    if (!updated || updated.status !== "issued") {
+      return { ok: false as const, error: `Update did not persist. DB status is still "${updated?.status}".` };
+    }
 
     return { ok: true as const, poId: po.id, status: "issued", poNumber: po.po_number };
   });
@@ -288,12 +322,13 @@ export const amendPo = createServerFn({ method: "POST" })
   .validator((input: AmendPoInput) => input)
   .handler(async ({ data, context }) => {
     const db = context.supabase as any;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { resolveApprover, normalizeCategory } =
       await import("@/lib/procurement/authorityMatrix");
     const { assertNoPoSplitting } = await import("@/server/procurement/guards");
     const { ProcurementRuleError } = await import("@/server/procurement/errors");
 
-    const { data: po, error: poErr } = await db
+    const { data: po, error: poErr } = await supabaseAdmin
       .from("purchase_orders")
       .select(
         `
@@ -362,7 +397,7 @@ export const amendPo = createServerFn({ method: "POST" })
       newTotal > oldTotal * 1.1;
 
     // Record Amendment
-    const { data: amendment, error: amErr } = await db
+    const { data: amendment, error: amErr } = await supabaseAdmin
       .from("po_amendments")
       .insert({
         po_id: po.id,
@@ -383,7 +418,7 @@ export const amendPo = createServerFn({ method: "POST" })
 
     // Update PO
     const nextStatus = requiresReapproval ? "pending_approval" : "amended";
-    const { error: upErr } = await db
+    const { data: updated, error: upErr } = await supabaseAdmin
       .from("purchase_orders")
       .update({
         price: newPrice,
@@ -393,7 +428,9 @@ export const amendPo = createServerFn({ method: "POST" })
         routing_reason: resolvedNew.reason,
         updated_at: new Date().toISOString(),
       })
-      .eq("id", po.id);
+      .eq("id", po.id)
+      .select("id, status")
+      .single();
 
     if (upErr) return { ok: false as const, error: upErr.message };
 
@@ -410,10 +447,10 @@ export const closePo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: ClosePoInput) => input)
   .handler(async ({ data, context }) => {
-    const db = context.supabase as any;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const nextStatus = data.partially ? "partially_closed" : "closed";
 
-    const { error } = await db
+    const { error } = await supabaseAdmin
       .from("purchase_orders")
       .update({
         status: nextStatus,
