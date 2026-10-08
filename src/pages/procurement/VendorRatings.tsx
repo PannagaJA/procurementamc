@@ -64,6 +64,7 @@ export default function VendorRatings() {
   const [secE, setSecE] = useState(80); // Safety (10%)
   const [secF, setSecF] = useState(85); // Relations (10%)
   const [notes, setNotes] = useState("");
+  const [evpAuthRef, setEvpAuthRef] = useState(""); // Required when score < 40 (debarment)
   const [submitting, setSubmitting] = useState(false);
 
   const loadData = async () => {
@@ -143,6 +144,7 @@ export default function VendorRatings() {
           section_e_score: includeSecE ? secE : null,
           section_f_score: secF,
           notes: notes || null,
+          evp_approved_by: liveScore < 40 ? evpAuthRef.trim() || null : null,
         },
       });
 
@@ -506,6 +508,32 @@ export default function VendorRatings() {
                   rows={2}
                 />
               </div>
+
+              {/* Debarment Warning + EVP Auth — shown only when score < 40 */}
+              {liveScore < 40 && (
+                <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-300 dark:border-red-800 rounded-xl space-y-2">
+                  <div className="flex items-start gap-2 text-xs text-red-800 dark:text-red-200">
+                    <ShieldAlert className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-semibold block">Debarment Outcome — EVP Authorization Required (SOP Annexure 4)</span>
+                      Score {liveScore} &lt; 40 triggers automatic vendor blacklisting. This action
+                      requires explicit Executive Vice President sign-off before it can be recorded.
+                      Enter the EVP&apos;s name or authorization reference below.
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-red-800 dark:text-red-300 text-xs font-semibold">
+                      EVP Authorization Reference *
+                    </Label>
+                    <Input
+                      placeholder="e.g. EVP/AUTH/2026-10 or Name of EVP who approved"
+                      value={evpAuthRef}
+                      onChange={(e) => setEvpAuthRef(e.target.value)}
+                      className="border-red-400 focus:ring-red-500"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             <DialogFooter>
@@ -514,7 +542,7 @@ export default function VendorRatings() {
               </Button>
               <Button
                 onClick={handleSubmitRating}
-                disabled={submitting || !selectedVendorId}
+                disabled={submitting || !selectedVendorId || (liveScore < 40 && !evpAuthRef.trim())}
                 className="bg-purple-600 hover:bg-purple-700 text-white"
               >
                 {submitting ? "Recording..." : "Record Rating & Apply Status"}

@@ -156,7 +156,10 @@ export const submitInvoice = createServerFn({ method: "POST" })
     );
 
     // 5. Insert Invoice
-    const { data: invoice, error: insErr } = await db
+    // Use service-role client to bypass RLS INSERT restriction on invoices.
+    // All business gates (duplicate check, 3-way match) are enforced above in application code.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: invoice, error: insErr } = await supabaseAdmin
       .from("invoices")
       .insert({
         po_id: data.po_id,
@@ -213,7 +216,9 @@ export const runThreeWayMatch = createServerFn({ method: "POST" })
       inv.service_completion_cert_url,
     );
 
-    const { error: upErr } = await db
+    // Use service-role client: direct UPDATE on invoices is denied for authenticated users.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error: upErr } = await supabaseAdmin
       .from("invoices")
       .update({
         match_status: matchStatus,
@@ -241,6 +246,7 @@ export const approveInvoice = createServerFn({ method: "POST" })
     if (
       !held.includes("admin") &&
       !held.includes("director_admin_finance") &&
+      !held.includes("finance") &&
       !held.includes("procurement_officer")
     ) {
       throw new ForbiddenError(
@@ -265,7 +271,9 @@ export const approveInvoice = createServerFn({ method: "POST" })
       };
     }
 
-    const { error: upErr } = await db
+    // Use service-role client: direct UPDATE on invoices is denied for authenticated users.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error: upErr } = await supabaseAdmin
       .from("invoices")
       .update({
         match_status: "approved",
@@ -291,7 +299,7 @@ export const recordPayment = createServerFn({ method: "POST" })
     const roles = await getCallerRoles(db, context.userId);
     const held = roles.map((r) => r.role);
 
-    if (!held.includes("admin") && !held.includes("director_admin_finance")) {
+    if (!held.includes("admin") && !held.includes("director_admin_finance") && !held.includes("finance")) {
       throw new ForbiddenError(
         `Recording payment requires Finance role authorization. You hold: ${held.join(", ") || "none"}.`,
       );
@@ -316,8 +324,11 @@ export const recordPayment = createServerFn({ method: "POST" })
 
     const paymentAmount = Number(data.amount) || Number(inv.invoice_amount) || 0;
 
+    // Service-role client: both payments INSERT and invoices UPDATE are blocked for authenticated users.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
     // 1. Insert Payment
-    const { data: payment, error: pErr } = await db
+    const { data: payment, error: pErr } = await supabaseAdmin
       .from("payments")
       .insert({
         invoice_id: inv.id,
@@ -333,11 +344,12 @@ export const recordPayment = createServerFn({ method: "POST" })
 
     if (pErr) return { ok: false as const, error: pErr.message, code: "insert_payment_failed" };
 
-    // 2. Mark Invoice as paid
-    await db
+    // 2. Mark Invoice as paid (UPDATE denied for authenticated users — use service-role)
+    await supabaseAdmin
       .from("invoices")
       .update({ match_status: "paid", updated_at: new Date().toISOString() })
       .eq("id", inv.id);
+
 
     // 3. Check PO settlement and close PO if fully invoiced
     if (inv.po_id) {
@@ -359,7 +371,8 @@ export const recordPayment = createServerFn({ method: "POST" })
       const poTotal = Number(po?.total_value || 0);
       const isFull = totalPaid >= poTotal - 1;
 
-      await db
+      // Use service-role client: "POs direct client updates denied" RLS blocks this for authenticated users.
+      const { error: poUpErr } = await supabaseAdmin
         .from("purchase_orders")
         .update({
           status: isFull ? "closed" : "partially_closed",
@@ -367,6 +380,8 @@ export const recordPayment = createServerFn({ method: "POST" })
           updated_at: new Date().toISOString(),
         })
         .eq("id", inv.po_id);
+
+      if (poUpErr) console.error("[recordPayment] PO settlement update failed:", poUpErr.message);
     }
 
     return { ok: true as const, payment, status: "paid" };
