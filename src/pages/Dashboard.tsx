@@ -22,7 +22,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import QRScanner from "@/components/QRScanner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ScanLine } from "lucide-react";
+import { ScanLine, Ticket, PlusCircle, ArrowUpRight, LifeBuoy } from "lucide-react";
 
 interface DashboardStats {
   totalItems: number;
@@ -33,6 +33,13 @@ interface DashboardStats {
   allItems: any[];
   categoryBreakdown: { category: string; count: number; value: number }[];
   locationBreakdown: { location: string; count: number; value: number; building: string }[];
+  ticketStats: {
+    total: number;
+    pending: number;
+    inProgress: number;
+    resolved: number;
+  };
+  recentTickets: any[];
 }
 
 const Dashboard = () => {
@@ -80,15 +87,24 @@ const Dashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      const [inventoryResult, categoriesResult, locationsResult] = await Promise.all([
-        supabase
-          .from("inventory")
-          .select(
-            "quantity_available, total_cost, status, categories(name), locations(name, prefix)",
-          ),
-        supabase.from("categories").select("id"),
-        supabase.from("locations").select("id"),
-      ]);
+      const [inventoryResult, categoriesResult, locationsResult, ticketsResult, allTicketsRes] =
+        await Promise.all([
+          supabase
+            .from("inventory")
+            .select(
+              "quantity_available, total_cost, status, categories(name), locations(name, prefix)",
+            ),
+          supabase.from("categories").select("id"),
+          supabase.from("locations").select("id"),
+          supabase
+            .from("tickets")
+            .select(
+              "id, ticket_number, name, department, issue_category, priority, status, created_at",
+            )
+            .order("created_at", { ascending: false })
+            .limit(5),
+          supabase.from("tickets").select("status"),
+        ]);
 
       const totalItems =
         inventoryResult.data?.reduce((sum, item) => sum + (item.quantity_available || 0), 0) || 0;
@@ -142,6 +158,19 @@ const Dashboard = () => {
         building: data.building,
       }));
 
+      // Ticket metrics
+      const allTickets = allTicketsRes.data || [];
+      const ticketStats = {
+        total: allTickets.length,
+        pending: allTickets.filter((t) => t.status === "pending" || t.status === "pending_principal")
+          .length,
+        inProgress: allTickets.filter((t) => t.status === "in-progress" || t.status.startsWith("procure"))
+          .length,
+        resolved: allTickets.filter(
+          (t) => t.status === "resolved" || t.status === "completed" || t.status === "procure-completed",
+        ).length,
+      };
+
       setStats({
         totalItems,
         totalValue,
@@ -151,6 +180,8 @@ const Dashboard = () => {
         allItems: [],
         categoryBreakdown,
         locationBreakdown,
+        ticketStats,
+        recentTickets: ticketsResult.data || [],
       });
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
@@ -345,7 +376,146 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Recent Additions removed per request */}
+        {/* Campus Tickets & Maintenance Overview */}
+        <Card className="bg-card/90 backdrop-blur-sm shadow-xl border-0 rounded-xl transition-all duration-300 hover:shadow-2xl">
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border/40">
+            <div>
+              <CardTitle className="text-xl font-bold text-card-foreground flex items-center gap-2">
+                <LifeBuoy className="w-5 h-5 text-indigo-500" />
+                Tickets & Maintenance Overview
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                Track and manage campus support, service, and procurement tickets
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate({ to: "/raise-ticket" })}
+                className="gap-1.5"
+              >
+                <PlusCircle className="w-4 h-4" />
+                Raise Ticket
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => navigate({ to: "/admin/tickets" })}
+                className="gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white"
+              >
+                <Ticket className="w-4 h-4" />
+                Manage All Tickets
+                <ArrowUpRight className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6">
+            {/* Quick Stats Badges */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+              <div className="p-4 rounded-lg bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200/50 dark:border-blue-900/30">
+                <span className="text-xs text-muted-foreground">Total Tickets</span>
+                <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">
+                  {stats?.ticketStats?.total ?? 0}
+                </p>
+              </div>
+              <div className="p-4 rounded-lg bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-900/30">
+                <span className="text-xs text-muted-foreground">Pending / Needs Action</span>
+                <p className="text-2xl font-bold text-amber-700 dark:text-amber-300">
+                  {stats?.ticketStats?.pending ?? 0}
+                </p>
+              </div>
+              <div className="p-4 rounded-lg bg-purple-50/60 dark:bg-purple-950/20 border border-purple-200/50 dark:border-purple-900/30">
+                <span className="text-xs text-muted-foreground">In Progress</span>
+                <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">
+                  {stats?.ticketStats?.inProgress ?? 0}
+                </p>
+              </div>
+              <div className="p-4 rounded-lg bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200/50 dark:border-emerald-900/30">
+                <span className="text-xs text-muted-foreground">Resolved / Completed</span>
+                <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">
+                  {stats?.ticketStats?.resolved ?? 0}
+                </p>
+              </div>
+            </div>
+
+            {/* Recent Tickets Table */}
+            <div className="overflow-x-auto rounded-lg border border-border/50">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 text-xs text-muted-foreground font-semibold">
+                  <tr>
+                    <th className="px-3 py-2.5 text-left">Ticket #</th>
+                    <th className="px-3 py-2.5 text-left">Reporter</th>
+                    <th className="px-3 py-2.5 text-left">Department</th>
+                    <th className="px-3 py-2.5 text-left">Category</th>
+                    <th className="px-3 py-2.5 text-left">Priority</th>
+                    <th className="px-3 py-2.5 text-left">Status</th>
+                    <th className="px-3 py-2.5 text-left">Created</th>
+                    <th className="px-3 py-2.5 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/40">
+                  {!stats?.recentTickets || stats.recentTickets.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-6 text-center text-muted-foreground text-xs">
+                        No tickets raised yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    stats.recentTickets.map((t) => (
+                      <tr key={t.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-3 py-2.5 font-mono font-semibold text-foreground">
+                          {t.ticket_number || "—"}
+                        </td>
+                        <td className="px-3 py-2.5 text-foreground">{t.name || "—"}</td>
+                        <td className="px-3 py-2.5 text-muted-foreground">{t.department || "—"}</td>
+                        <td className="px-3 py-2.5 text-muted-foreground">{t.issue_category || "—"}</td>
+                        <td className="px-3 py-2.5">
+                          <span
+                            className={`px-2 py-0.5 rounded text-xs font-medium capitalize ${
+                              t.priority === "high"
+                                ? "bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-400"
+                                : t.priority === "medium"
+                                  ? "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-400"
+                                  : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400"
+                            }`}
+                          >
+                            {t.priority}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2.5">
+                          <span
+                            className={`px-2 py-0.5 rounded text-xs font-medium capitalize ${
+                              t.status === "completed" || t.status === "resolved"
+                                ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400"
+                                : t.status === "in-progress"
+                                  ? "bg-purple-100 text-purple-800 dark:bg-purple-950/40 dark:text-purple-400"
+                                  : "bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-400"
+                            }`}
+                          >
+                            {t.status}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
+                          {new Date(t.created_at).toLocaleDateString()}
+                        </td>
+                        <td className="px-3 py-2.5 text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs h-7 px-2"
+                            onClick={() => navigate({ to: "/admin/tickets" })}
+                          >
+                            View
+                          </Button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Charts Section */}

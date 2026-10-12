@@ -54,7 +54,9 @@ export default function GrnManagement() {
   const { pagination, setPage, setPageSize, setTotal } = usePagination(10, 1);
   const [issuedPos, setIssuedPos] = useState<any[]>([]);
   const [challans, setChallans] = useState<any[]>([]);
+  const [unlinkedChallans, setUnlinkedChallans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showClosed, setShowClosed] = useState(false);
 
   // Record Delivery Modal
   const [deliveryOpen, setDeliveryOpen] = useState(false);
@@ -85,16 +87,32 @@ export default function GrnManagement() {
       const [grnRes, poRes, challanRes] = await Promise.all([
         (listGrns as any)(),
         (listPurchaseOrders as any)({ status: "issued" }),
-        supabase.from("delivery_challans").select("*, purchase_orders(po_number, vendors(name))"),
+        supabase.from("delivery_challans").select("*, purchase_orders(po_number, vendors(name))").order("received_at", { ascending: false }),
       ]);
 
       if (grnRes?.ok) {
-        const list = grnRes.grns || [];
-        setGrns(list);
-        setTotal(list.length);
+        // Deduplicate GRNs by id — prevents duplicate cards when the JOIN produces multiple rows
+        const rawList: any[] = grnRes.grns || [];
+        const seen = new Set<string>();
+        const dedupedList = rawList.filter((g) => {
+          if (seen.has(g.id)) return false;
+          seen.add(g.id);
+          return true;
+        });
+        setGrns(dedupedList);
+        setTotal(dedupedList.length);
+
+        // Compute which challans already have a GRN so we can show orphaned ones
+        const linkedChallanIds = new Set(dedupedList.map((g: any) => g.delivery_challan_id).filter(Boolean));
+        const allChallans: any[] = challanRes.data || [];
+        setChallans(allChallans);
+        setUnlinkedChallans(allChallans.filter((c) => !linkedChallanIds.has(c.id)));
+      } else {
+        const allChallans: any[] = challanRes.data || [];
+        setChallans(allChallans);
+        setUnlinkedChallans(allChallans);
       }
       if (poRes?.ok) setIssuedPos(poRes.purchaseOrders || []);
-      setChallans(challanRes.data || []);
     } catch (e: any) {
       toast({ title: "Error loading data", description: e.message, variant: "destructive" });
     } finally {
@@ -299,22 +317,95 @@ export default function GrnManagement() {
           </div>
         </div>
 
+        {/* Pending Delivery Challans (not yet linked to a GRN) */}
+        {!loading && unlinkedChallans.length > 0 && (
+          <div className="space-y-2">
+            <h2 className="text-sm font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-2">
+              <Truck className="w-4 h-4" />
+              Delivery Challans Awaiting GRN ({unlinkedChallans.length})
+            </h2>
+            {unlinkedChallans.map((c) => (
+              <Card
+                key={c.id}
+                className="border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+              >
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-bold text-sm text-slate-900 dark:text-slate-100">
+                      {c.challan_number || "DC-PENDING"}
+                    </span>
+                    <Badge variant="outline" className="text-xs border-amber-500 text-amber-700 dark:text-amber-400">
+                      Awaiting GRN
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    PO:{" "}
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">
+                      {c.purchase_orders?.po_number || "—"}
+                    </span>
+                    {" "}• Vendor:{" "}
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">
+                      {c.purchase_orders?.vendors?.name || "—"}
+                    </span>
+                    {" "}• Packages: {c.packages_count ?? 1}
+                    {c.carrier_details && ` • ${c.carrier_details}`}
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    Received: {c.received_at ? new Date(c.received_at).toLocaleString() : "Just now"}
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 shrink-0"
+                  onClick={() => {
+                    setGrnPoId(c.po_id || "");
+                    setSelectedChallanId(c.id);
+                    setGrnOpen(true);
+                  }}
+                >
+                  <PlusCircle className="w-3.5 h-3.5" /> Create GRN
+                </Button>
+              </Card>
+            ))}
+          </div>
+        )}
+
         {/* GRN List */}
         <div className="space-y-4">
+          {/* Show Closed toggle */}
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+              Goods Receipt Notes
+            </h2>
+            <label className="flex items-center gap-2 text-xs text-slate-500 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                className="form-checkbox h-3.5 w-3.5"
+                checked={showClosed}
+                onChange={(e) => setShowClosed(e.target.checked)}
+              />
+              Show accepted / rejected
+            </label>
+          </div>
           {loading ? (
             <div className="p-8 text-center text-slate-500">Loading Goods Receipt Notes...</div>
-          ) : grns.length === 0 ? (
-            <Card className="text-center p-8">
-              <p className="text-slate-500">
-                No Goods Receipt Notes created yet. Record delivery and create a GRN against an
-                issued PO.
-              </p>
-            </Card>
-          ) : (
-            (() => {
-              const startIndex = (pagination.page - 1) * pagination.pageSize;
-              const paginatedGrns = grns.slice(startIndex, startIndex + pagination.pageSize);
-              return (
+          ) : (() => {
+            // Filter by closed toggle
+            const visibleGrns = showClosed
+              ? grns
+              : grns.filter((g) => g.status !== "accepted" && g.status !== "rejected");
+            if (visibleGrns.length === 0) return (
+              <Card className="text-center p-8">
+                <p className="text-slate-500">
+                  {grns.length === 0
+                    ? "No Goods Receipt Notes created yet. Record a Delivery Challan first, then create a GRN."
+                    : "All GRNs are closed. Enable \"Show accepted / rejected\" to view them."}
+                </p>
+              </Card>
+            );
+            const startIndex = (pagination.page - 1) * pagination.pageSize;
+            const paginatedGrns = visibleGrns.slice(startIndex, startIndex + pagination.pageSize);
+            return (
                 <>
                   {paginatedGrns.map((grn) => {
                     const po = grn.purchase_orders;
@@ -518,9 +609,9 @@ export default function GrnManagement() {
 
                   <PaginationControls
                     currentPage={pagination.page}
-                    totalPages={pagination.totalPages}
+                    totalPages={Math.ceil(visibleGrns.length / pagination.pageSize)}
                     pageSize={pagination.pageSize}
-                    totalItems={pagination.total}
+                    totalItems={visibleGrns.length}
                     currentItemsCount={paginatedGrns.length}
                     onPageChange={setPage}
                     onPageSizeChange={setPageSize}
@@ -528,7 +619,7 @@ export default function GrnManagement() {
                 </>
               );
             })()
-          )}
+          }
         </div>
 
         {/* Modal: Record Delivery Challan */}
