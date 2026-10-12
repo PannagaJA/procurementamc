@@ -81,6 +81,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     roles.find((r) => r.role === "finance")?.role ||
     roles.find((r) => r.role === "librarian")?.role ||
     roles.find((r) => r.role === "viewer")?.role ||
+    roles.find((r) => r.role === "faculty")?.role ||
+    roles.find((r) => r.role === "user" || r.role === "staff")?.role ||
     null;
 
   const departmentId = roles.find((r) => r.role === "hod")?.department_id ?? undefined;

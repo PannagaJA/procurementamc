@@ -227,7 +227,16 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
     canSeeAdminItems || hasAny(["hod", "principal", "principle", "evp", "director_admin_finance", "finance"]);
   const canAccessPr =
     canSeeAdminItems ||
-    hasAny(["faculty", "requester", "hod", "procurement_officer", "procurement_executive", "purchase_committee"]);
+    hasAny([
+      "faculty",
+      "user",
+      "staff",
+      "requester",
+      "hod",
+      "procurement_officer",
+      "procurement_executive",
+      "purchase_committee",
+    ]);
   const canAccessRfqs =
     canSeeAdminItems || hasAny(["procurement_officer", "procurement_executive", "purchase_committee"]);
   const canAccessCs =
@@ -313,6 +322,8 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
                   (authCtx?.primaryRole === "hod" && "Head of Department (HOD)") ||
                   (authCtx?.primaryRole === "librarian" && "Librarian") ||
                   (authCtx?.primaryRole === "viewer" && "Viewer / Auditor") ||
+                  (authCtx?.primaryRole === "faculty" && "Faculty Requisitioner") ||
+                  (authCtx?.primaryRole === "user" && "Faculty / Academic Requisitioner") ||
                   (isAdmin ? "Administrator" : isPrinciple ? "Principal" : "Faculty / Staff Access")}
               </p>
             </div>
