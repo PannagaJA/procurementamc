@@ -398,15 +398,6 @@ const Dashboard = () => {
                 Raise PR
               </Button>
               <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate({ to: "/raise-ticket" })}
-                className="gap-1.5"
-              >
-                <PlusCircle className="w-4 h-4" />
-                Raise Ticket
-              </Button>
-              <Button
                 size="sm"
                 onClick={() => navigate({ to: "/admin/tickets" })}
                 className="gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white"
