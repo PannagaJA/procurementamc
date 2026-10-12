@@ -46,10 +46,13 @@ import {
   Building2,
   RefreshCw,
   CreditCard,
+  Clock,
 } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 
 export default function PurchaseOrders() {
   const { toast } = useToast();
+  const auth = useAuth();
   const [orders, setOrders] = useState<any[]>([]);
   const { pagination, setPage, setPageSize, setTotal } = usePagination(10, 1);
   const [approvedCss, setApprovedCss] = useState<any[]>([]);
@@ -322,12 +325,16 @@ export default function PurchaseOrders() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              onClick={() => setCreateOpen(true)}
-              className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
-            >
-              <PlusCircle className="w-4 h-4" /> Create PO
-            </Button>
+            {(auth.hasRole("admin") ||
+              auth.hasRole("procurement_officer") ||
+              auth.hasRole("procurement_executive")) && (
+              <Button
+                onClick={() => setCreateOpen(true)}
+                className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+              >
+                <PlusCircle className="w-4 h-4" /> Create PO
+              </Button>
+            )}
           </div>
         </div>
 
@@ -379,49 +386,65 @@ export default function PurchaseOrders() {
                             </div>
 
                             <div className="flex items-center gap-2 self-end sm:self-auto">
-                              {isPending && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleApprovePo(po)}
-                                  disabled={acting}
-                                  className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1 text-xs"
-                                >
-                                  <CheckCircle className="w-3.5 h-3.5" /> Approve
-                                </Button>
-                              )}
-
-                              {isApproved && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleIssuePo(po)}
-                                  disabled={acting}
-                                  className="bg-indigo-600 hover:bg-indigo-700 text-white gap-1 text-xs"
-                                >
-                                  <Send className="w-3.5 h-3.5" /> Issue to Vendor
-                                </Button>
-                              )}
-
-                              {isIssued && (
-                                <>
+                              {isPending &&
+                                (auth.hasRole("admin") ||
+                                (po.current_approver_role && auth.hasRole(po.current_approver_role)) ? (
                                   <Button
                                     size="sm"
-                                    variant="outline"
-                                    onClick={() => handleOpenAmend(po)}
-                                    className="gap-1 text-xs border-amber-300 text-amber-700 hover:bg-amber-50"
-                                  >
-                                    <FileEdit className="w-3.5 h-3.5" /> Amend
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleClosePo(po)}
+                                    onClick={() => handleApprovePo(po)}
                                     disabled={acting}
-                                    className="gap-1 text-xs text-slate-600 hover:bg-slate-100"
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1 text-xs"
                                   >
-                                    <Lock className="w-3.5 h-3.5" /> Close PO
+                                    <CheckCircle className="w-3.5 h-3.5" /> Approve
                                   </Button>
-                                </>
-                              )}
+                                ) : (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-xs bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-300 gap-1 text-[11px]"
+                                  >
+                                    <Clock className="w-3 h-3" />
+                                    Awaiting {po.current_approver_role?.toUpperCase()} Approval
+                                  </Badge>
+                                ))}
+
+                              {isApproved &&
+                                (auth.hasRole("admin") ||
+                                  auth.hasRole("procurement_officer") ||
+                                  auth.hasRole("procurement_executive")) && (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleIssuePo(po)}
+                                    disabled={acting}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white gap-1 text-xs"
+                                  >
+                                    <Send className="w-3.5 h-3.5" /> Issue to Vendor
+                                  </Button>
+                                )}
+
+                              {isIssued &&
+                                (auth.hasRole("admin") ||
+                                  auth.hasRole("procurement_officer") ||
+                                  auth.hasRole("procurement_executive")) && (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleOpenAmend(po)}
+                                      className="gap-1 text-xs border-amber-300 text-amber-700 hover:bg-amber-50"
+                                    >
+                                      <FileEdit className="w-3.5 h-3.5" /> Amend
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleClosePo(po)}
+                                      disabled={acting}
+                                      className="gap-1 text-xs text-slate-600 hover:bg-slate-100"
+                                    >
+                                      <Lock className="w-3.5 h-3.5" /> Close PO
+                                    </Button>
+                                  </>
+                                )}
                             </div>
                           </div>
                         </CardHeader>
