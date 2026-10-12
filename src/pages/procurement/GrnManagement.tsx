@@ -124,7 +124,7 @@ export default function GrnManagement() {
     loadData();
   }, []);
 
-  // When PO selection changes in GRN Modal, prepare lines
+  // When PO or Delivery Challan selection changes in GRN Modal, prepare lines
   useEffect(() => {
     if (!grnPoId) {
       setGrnLines([]);
@@ -134,22 +134,29 @@ export default function GrnManagement() {
     if (po) {
       // Find delivery challans for this PO
       const relevantChallans = challans.filter((c) => c.po_id === grnPoId);
-      if (relevantChallans.length > 0 && !selectedChallanId) {
-        setSelectedChallanId(relevantChallans[0].id);
+      let challanIdToUse = selectedChallanId;
+      if (relevantChallans.length > 0 && (!selectedChallanId || !relevantChallans.some((c) => c.id === selectedChallanId))) {
+        challanIdToUse = relevantChallans[0].id;
+        setSelectedChallanId(challanIdToUse);
       }
+
+      const activeChallan = challans.find((c) => c.id === challanIdToUse);
+      const pkgCount = Math.max(1, Number(activeChallan?.packages_count || 1));
+      const totalPrice = Number(po.price || 0);
+      const unitPrice = pkgCount > 0 ? Math.round((totalPrice / pkgCount) * 100) / 100 : totalPrice;
 
       setGrnLines([
         {
           description: po.scope_of_supply || "Material Supply",
-          unit: "lot",
-          qty_delivered: 1,
-          qty_accepted: 1,
-          unit_price: Number(po.price || 0),
+          unit: pkgCount > 1 ? "units" : "lot",
+          qty_delivered: pkgCount,
+          qty_accepted: pkgCount,
+          unit_price: unitPrice,
           inspection_remarks: "Visual verification complete",
         },
       ]);
     }
-  }, [grnPoId, issuedPos, challans]);
+  }, [grnPoId, selectedChallanId, issuedPos, challans]);
 
   const handleRecordDelivery = async () => {
     if (!selectedPoId) {
@@ -493,30 +500,6 @@ export default function GrnManagement() {
                                     <FileCheck className="w-3.5 h-3.5" /> Technical Inspect
                                   </Button>
                                 )}
-                              {!isSecurityDone && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-xs border-amber-500 text-amber-700 hover:bg-amber-50 gap-1.5"
-                                  onClick={() => handleSecurityVerify(grn.id)}
-                                >
-                                  <ShieldCheck className="w-3.5 h-3.5" /> Security Verify
-                                </Button>
-                              )}
-
-                              {/* Technical Inspection button if required and pending */}
-                              {grn.requires_technical_inspection && !isTechDone && (
-                                <Button
-                                  size="sm"
-                                  className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5"
-                                  onClick={() => {
-                                    setActiveGrn(grn);
-                                    setTechOpen(true);
-                                  }}
-                                >
-                                  <FileCheck className="w-3.5 h-3.5" /> Technical Inspect
-                                </Button>
-                              )}
                             </div>
                           </div>
                         </CardHeader>
