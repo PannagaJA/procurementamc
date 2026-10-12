@@ -46,10 +46,13 @@ import {
   Building2,
   RefreshCw,
   CreditCard,
+  Clock,
 } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 
 export default function PurchaseOrders() {
   const { toast } = useToast();
+  const auth = useAuth();
   const [orders, setOrders] = useState<any[]>([]);
   const { pagination, setPage, setPageSize, setTotal } = usePagination(10, 1);
   const [approvedCss, setApprovedCss] = useState<any[]>([]);
@@ -65,6 +68,8 @@ export default function PurchaseOrders() {
         return "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200 border-amber-300";
       case "closed":
         return "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border-slate-300";
+      case "partially_closed":
+        return "bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-200 border-teal-300";
       case "cancelled":
         return "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200 border-red-300";
       default:
@@ -322,12 +327,16 @@ export default function PurchaseOrders() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              onClick={() => setCreateOpen(true)}
-              className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
-            >
-              <PlusCircle className="w-4 h-4" /> Create PO
-            </Button>
+            {(auth.hasRole("admin") ||
+              auth.hasRole("procurement_officer") ||
+              auth.hasRole("procurement_executive")) && (
+              <Button
+                onClick={() => setCreateOpen(true)}
+                className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+              >
+                <PlusCircle className="w-4 h-4" /> Create PO
+              </Button>
+            )}
           </div>
         </div>
 
@@ -379,49 +388,65 @@ export default function PurchaseOrders() {
                             </div>
 
                             <div className="flex items-center gap-2 self-end sm:self-auto">
-                              {isPending && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleApprovePo(po)}
-                                  disabled={acting}
-                                  className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1 text-xs"
-                                >
-                                  <CheckCircle className="w-3.5 h-3.5" /> Approve
-                                </Button>
-                              )}
-
-                              {isApproved && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleIssuePo(po)}
-                                  disabled={acting}
-                                  className="bg-indigo-600 hover:bg-indigo-700 text-white gap-1 text-xs"
-                                >
-                                  <Send className="w-3.5 h-3.5" /> Issue to Vendor
-                                </Button>
-                              )}
-
-                              {isIssued && (
-                                <>
+                              {isPending &&
+                                (auth.hasRole("admin") ||
+                                (po.current_approver_role && auth.hasRole(po.current_approver_role)) ? (
                                   <Button
                                     size="sm"
-                                    variant="outline"
-                                    onClick={() => handleOpenAmend(po)}
-                                    className="gap-1 text-xs border-amber-300 text-amber-700 hover:bg-amber-50"
-                                  >
-                                    <FileEdit className="w-3.5 h-3.5" /> Amend
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleClosePo(po)}
+                                    onClick={() => handleApprovePo(po)}
                                     disabled={acting}
-                                    className="gap-1 text-xs text-slate-600 hover:bg-slate-100"
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1 text-xs"
                                   >
-                                    <Lock className="w-3.5 h-3.5" /> Close PO
+                                    <CheckCircle className="w-3.5 h-3.5" /> Approve
                                   </Button>
-                                </>
-                              )}
+                                ) : (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-xs bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-300 gap-1 text-[11px]"
+                                  >
+                                    <Clock className="w-3 h-3" />
+                                    Awaiting {po.current_approver_role?.toUpperCase()} Approval
+                                  </Badge>
+                                ))}
+
+                              {isApproved &&
+                                (auth.hasRole("admin") ||
+                                  auth.hasRole("procurement_officer") ||
+                                  auth.hasRole("procurement_executive")) && (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleIssuePo(po)}
+                                    disabled={acting}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white gap-1 text-xs"
+                                  >
+                                    <Send className="w-3.5 h-3.5" /> Issue to Vendor
+                                  </Button>
+                                )}
+
+                              {isIssued &&
+                                (auth.hasRole("admin") ||
+                                  auth.hasRole("procurement_officer") ||
+                                  auth.hasRole("procurement_executive")) && (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleOpenAmend(po)}
+                                      className="gap-1 text-xs border-amber-600 bg-amber-50 text-amber-800 hover:bg-amber-100 hover:text-amber-950 dark:border-amber-500/60 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/60 dark:hover:text-amber-100 transition-colors"
+                                    >
+                                      <FileEdit className="w-3.5 h-3.5" /> Amend
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleClosePo(po)}
+                                      disabled={acting}
+                                      className="gap-1 text-xs border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100 transition-colors"
+                                    >
+                                      <Lock className="w-3.5 h-3.5" /> Close PO
+                                    </Button>
+                                  </>
+                                )}
                             </div>
                           </div>
                         </CardHeader>
@@ -465,30 +490,34 @@ export default function PurchaseOrders() {
                                 <History className="w-3.5 h-3.5 text-amber-500" /> Amendment History ({amendments.length})
                               </div>
                               <div className="space-y-1.5">
-                                {amendments.map((am: any) => (
-                                  <div
-                                    key={am.id}
-                                    className="p-2.5 rounded bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/50 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2"
-                                  >
-                                    <div>
-                                      <span className="font-medium text-slate-800 dark:text-slate-200">
-                                        ₹{Number(am.previous_total_value).toLocaleString()} → ₹{Number(am.new_total_value).toLocaleString()}
-                                      </span>
-                                      <span className="text-slate-500 block sm:inline sm:ml-2">({am.reason})</span>
+                                {amendments.map((am: any) => {
+                                  const oldVal = Number(am.old_value_total ?? am.previous_total_value ?? 0);
+                                  const newVal = Number(am.new_value_total ?? am.new_total_value ?? 0);
+                                  return (
+                                    <div
+                                      key={am.id}
+                                      className="p-2.5 rounded bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/50 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                                    >
+                                      <div>
+                                        <span className="font-medium text-slate-800 dark:text-slate-200">
+                                          ₹{oldVal.toLocaleString("en-IN")} → ₹{newVal.toLocaleString("en-IN")}
+                                        </span>
+                                        <span className="text-slate-500 block sm:inline sm:ml-2">({am.reason})</span>
+                                      </div>
+                                      <div className="flex items-center gap-1.5 shrink-0">
+                                        {am.requires_reapproval ? (
+                                          <Badge className="bg-amber-500 text-white text-[10px]">
+                                            Escalated to {am.new_approver_role?.toUpperCase()}
+                                          </Badge>
+                                        ) : (
+                                          <Badge variant="outline" className="text-[10px] text-slate-600 dark:text-slate-300">
+                                            Within Tier {am.original_approver_role ? `(${am.original_approver_role.toUpperCase()})` : "Approved"}
+                                          </Badge>
+                                        )}
+                                      </div>
                                     </div>
-                                    <div className="flex items-center gap-1.5 shrink-0">
-                                      {am.requires_reapproval ? (
-                                        <Badge className="bg-amber-500 text-white text-[10px]">
-                                          Escalated to {am.new_approver_role?.toUpperCase()}
-                                        </Badge>
-                                      ) : (
-                                        <Badge variant="outline" className="text-[10px] text-slate-600">
-                                          Within Tier ({am.original_approver_role})
-                                        </Badge>
-                                      )}
-                                    </div>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             </div>
                           )}

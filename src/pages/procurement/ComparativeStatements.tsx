@@ -42,10 +42,13 @@ import {
   RefreshCw,
   Trophy,
   ArrowRight,
+  Clock,
 } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 
 export default function ComparativeStatements() {
   const { toast } = useToast();
+  const auth = useAuth();
   const [csList, setCsList] = useState<any[]>([]);
   const { pagination, setPage, setPageSize, setTotal } = usePagination(10, 1);
   const [rfqList, setRfqList] = useState<any[]>([]);
@@ -289,12 +292,17 @@ export default function ComparativeStatements() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              onClick={() => setPrepOpen(true)}
-              className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
-            >
-              <PlusCircle className="w-4 h-4" /> Prepare CS
-            </Button>
+            {(auth.hasRole("admin") ||
+              auth.hasRole("purchase_committee") ||
+              auth.hasRole("procurement_officer") ||
+              auth.hasRole("procurement_executive")) && (
+              <Button
+                onClick={() => setPrepOpen(true)}
+                className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+              >
+                <PlusCircle className="w-4 h-4" /> Prepare CS
+              </Button>
+            )}
           </div>
         </div>
 
@@ -371,30 +379,40 @@ export default function ComparativeStatements() {
                             </div>
 
                             <div className="flex items-center gap-2">
-                              {isPending && (
-                                <>
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleApproveCs(cs)}
-                                    disabled={acting}
-                                    className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                              {isPending &&
+                                (auth.hasRole("admin") ||
+                                (cs.current_approver_role && auth.hasRole(cs.current_approver_role)) ? (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleApproveCs(cs)}
+                                      disabled={acting}
+                                      className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                    >
+                                      <CheckCircle className="w-3.5 h-3.5" /> Approve CS
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      onClick={() => {
+                                        setActiveCs(cs);
+                                        setRejectOpen(true);
+                                      }}
+                                      disabled={acting}
+                                      className="gap-1"
+                                    >
+                                      <XCircle className="w-3.5 h-3.5" /> Reject
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-xs bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-300 gap-1 py-1"
                                   >
-                                    <CheckCircle className="w-3.5 h-3.5" /> Approve CS
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    onClick={() => {
-                                      setActiveCs(cs);
-                                      setRejectOpen(true);
-                                    }}
-                                    disabled={acting}
-                                    className="gap-1"
-                                  >
-                                    <XCircle className="w-3.5 h-3.5" /> Reject
-                                  </Button>
-                                </>
-                              )}
+                                    <Clock className="w-3.5 h-3.5" />
+                                    Awaiting {cs.current_approver_role?.toUpperCase()} Approval
+                                  </Badge>
+                                ))}
                             </div>
                           </div>
                         </CardHeader>

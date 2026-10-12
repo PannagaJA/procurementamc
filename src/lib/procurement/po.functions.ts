@@ -487,7 +487,7 @@ export const listPurchaseOrders = createServerFn({ method: "GET" })
           id, contract_number, title, valid_from, valid_to
         ),
         po_amendments (
-          id, old_value_total, new_value_total, reason, requires_reapproval, new_approver_role, status, created_at
+          id, old_value_total, new_value_total, reason, requires_reapproval, original_approver_role, new_approver_role, status, created_at
         )
       `,
       )

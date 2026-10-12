@@ -43,9 +43,11 @@ import {
   RefreshCw,
   Eye,
 } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 
 export default function RfqManagement() {
   const { toast } = useToast();
+  const auth = useAuth();
   const [rfqs, setRfqs] = useState<any[]>([]);
   const { pagination, setPage, setPageSize, setTotal } = usePagination(10, 1);
   const [approvedPrs, setApprovedPrs] = useState<any[]>([]);
@@ -189,9 +191,9 @@ export default function RfqManagement() {
     }
   };
 
-  const handleOpenRecordQuote = async (rfq: any) => {
+  const handleOpenRecordQuote = async (rfq: any, initialVendorId?: string) => {
     setQuoteRfq(rfq);
-    setQuoteVendorId(rfq.rfq_vendors?.[0]?.vendor_id || "");
+    setQuoteVendorId(initialVendorId || rfq.rfq_vendors?.[0]?.vendor_id || "");
     setQuotationRef("");
 
     // Fetch line items for this PR
@@ -289,12 +291,16 @@ export default function RfqManagement() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              onClick={() => setCreateOpen(true)}
-              className="gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
-            >
-              <PlusCircle className="w-4 h-4" /> Create RFQ
-            </Button>
+            {(auth.hasRole("admin") ||
+              auth.hasRole("procurement_officer") ||
+              auth.hasRole("procurement_executive")) && (
+              <Button
+                onClick={() => setCreateOpen(true)}
+                className="gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+              >
+                <PlusCircle className="w-4 h-4" /> Create RFQ
+              </Button>
+            )}
           </div>
         </div>
 
@@ -359,24 +365,30 @@ export default function RfqManagement() {
                             </div>
 
                             <div className="flex items-center gap-2">
-                              {rfq.status === "draft" && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleOpenSend(rfq)}
-                                  className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-                                >
-                                  <Send className="w-3.5 h-3.5" /> Invite Vendors
-                                </Button>
-                              )}
-                              {rfq.status === "sent" && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleOpenRecordQuote(rfq)}
-                                  className="gap-1 border-blue-500 text-blue-600 hover:bg-blue-50"
-                                >
-                                  <PlusCircle className="w-3.5 h-3.5" /> Record Quotation
-                                </Button>
+                              {(auth.hasRole("admin") ||
+                                auth.hasRole("procurement_officer") ||
+                                auth.hasRole("procurement_executive")) && (
+                                <>
+                                  {rfq.status === "draft" && (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleOpenSend(rfq)}
+                                      className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                    >
+                                      <Send className="w-3.5 h-3.5" /> Invite Vendors
+                                    </Button>
+                                  )}
+                                  {rfq.status === "sent" && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleOpenRecordQuote(rfq)}
+                                      className="gap-1 text-xs border-blue-600 bg-blue-50 text-blue-800 hover:bg-blue-100 hover:text-blue-950 dark:border-blue-500/60 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-900/60 dark:hover:text-blue-100 transition-colors"
+                                    >
+                                      <PlusCircle className="w-3.5 h-3.5" /> Record Quotation
+                                    </Button>
+                                  )}
+                                </>
                               )}
                             </div>
                           </div>
@@ -432,19 +444,44 @@ export default function RfqManagement() {
                               </span>
                               <div className="flex flex-wrap gap-1.5">
                                 {rfq.rfq_vendors.map((rv: any) => (
-                                  <Badge
+                                  <div
                                     key={rv.id}
-                                    variant="outline"
-                                    className={`text-xs gap-1 ${rv.response_received_at ? "bg-emerald-50 text-emerald-700 border-emerald-300" : "text-slate-500"}`}
+                                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs border transition-colors ${
+                                      rv.response_received_at
+                                        ? "bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/50"
+                                        : "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/60 dark:text-slate-300 dark:border-slate-800"
+                                    }`}
                                   >
-                                    <Building2 className="w-3 h-3" />
-                                    {rv.vendors?.name || "Vendor"}
+                                    <Building2 className="w-3.5 h-3.5 opacity-70" />
+                                    <span className="font-medium">{rv.vendors?.name || "Vendor"}</span>
                                     {rv.response_received_at ? (
-                                      <CheckCircle className="w-3 h-3 text-emerald-600" />
+                                      <span className="inline-flex items-center gap-1 text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold ml-1">
+                                        <CheckCircle className="w-3 h-3" /> Submitted
+                                      </span>
                                     ) : (
-                                      <Clock className="w-3 h-3 text-amber-500" />
+                                      <div className="inline-flex items-center gap-1 ml-1">
+                                        <span className="text-[11px] text-amber-600 dark:text-amber-400">
+                                          <Clock className="w-3 h-3 inline mr-0.5" /> Pending
+                                        </span>
+                                        {(auth.hasRole("admin") ||
+                                          auth.hasRole("procurement_officer") ||
+                                          auth.hasRole("procurement_executive")) &&
+                                          rfq.status === "sent" && (
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-5 px-1.5 text-[10px] text-blue-600 hover:text-blue-800 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/60 font-semibold ml-0.5"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleOpenRecordQuote(rfq, rv.vendor_id);
+                                              }}
+                                            >
+                                              + Record Quote
+                                            </Button>
+                                          )}
+                                      </div>
                                     )}
-                                  </Badge>
+                                  </div>
                                 ))}
                               </div>
                             </div>

@@ -45,9 +45,11 @@ import {
   PackageCheck,
   AlertTriangle,
 } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 
 export default function GrnManagement() {
   const { toast } = useToast();
+  const auth = useAuth();
   const [grns, setGrns] = useState<any[]>([]);
   const { pagination, setPage, setPageSize, setTotal } = usePagination(10, 1);
   const [issuedPos, setIssuedPos] = useState<any[]>([]);
@@ -277,19 +279,23 @@ export default function GrnManagement() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              onClick={() => setDeliveryOpen(true)}
-              variant="outline"
-              className="gap-2 border-emerald-600 text-emerald-700 hover:bg-emerald-50 shadow-sm"
-            >
-              <Truck className="w-4 h-4" /> Record Challan
-            </Button>
-            <Button
-              onClick={() => setGrnOpen(true)}
-              className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
-            >
-              <PlusCircle className="w-4 h-4" /> Create GRN
-            </Button>
+            {(auth.hasRole("admin") || auth.hasRole("stores")) && (
+              <>
+                <Button
+                  onClick={() => setDeliveryOpen(true)}
+                  variant="outline"
+                  className="gap-2 border-emerald-600 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:border-emerald-500/60 dark:bg-emerald-950/30 dark:text-emerald-300 dark:hover:bg-emerald-900/50 dark:hover:text-emerald-100 shadow-sm"
+                >
+                  <Truck className="w-4 h-4" /> Record Challan
+                </Button>
+                <Button
+                  onClick={() => setGrnOpen(true)}
+                  className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                >
+                  <PlusCircle className="w-4 h-4" /> Create GRN
+                </Button>
+              </>
+            )}
           </div>
         </div>
 
@@ -316,6 +322,19 @@ export default function GrnManagement() {
                     const isPending = grn.status === "pending";
                     const isAccepted = grn.status === "accepted";
                     const lines = grn.grn_lines || [];
+                    const isSecurityDone = Boolean(grn.security_verified_at || (grn as any).security_inward_done);
+                    const isTechDone = Boolean(
+                      grn.technical_verified_at ||
+                      (grn as any).technical_inspection_done ||
+                      isAccepted
+                    );
+                    const acceptedTotal = Number(grn.accepted_value ?? grn.total_accepted_value ?? 0);
+                    const rejectedTotal =
+                      lines.reduce(
+                        (sum: number, l: any) =>
+                          sum + (Number(l.qty_rejected || 0) * Number(l.unit_price || 0)),
+                        0,
+                      ) || Number(grn.total_rejected_value ?? 0);
 
                     return (
                       <Card
@@ -354,7 +373,36 @@ export default function GrnManagement() {
 
                             <div className="flex items-center gap-2">
                               {/* Security Check button if not done */}
-                              {!grn.security_inward_done && (
+                              {!isSecurityDone &&
+                                (auth.hasRole("admin") || auth.hasRole("stores")) && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-xs border-amber-600 bg-amber-50 text-amber-800 hover:bg-amber-100 hover:text-amber-950 dark:border-amber-500/60 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/60 dark:hover:text-amber-100 transition-colors gap-1.5"
+                                    onClick={() => handleSecurityVerify(grn.id)}
+                                  >
+                                    <ShieldCheck className="w-3.5 h-3.5" /> Security Verify
+                                  </Button>
+                                )}
+
+                              {/* Technical Inspection button if required and pending */}
+                              {grn.requires_technical_inspection &&
+                                !isTechDone &&
+                                (auth.hasRole("admin") ||
+                                  auth.hasRole("hod") ||
+                                  auth.hasRole("faculty")) && (
+                                  <Button
+                                    size="sm"
+                                    className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5"
+                                    onClick={() => {
+                                      setActiveGrn(grn);
+                                      setTechOpen(true);
+                                    }}
+                                  >
+                                    <FileCheck className="w-3.5 h-3.5" /> Technical Inspect
+                                  </Button>
+                                )}
+                              {!isSecurityDone && (
                                 <Button
                                   size="sm"
                                   variant="outline"
@@ -366,7 +414,7 @@ export default function GrnManagement() {
                               )}
 
                               {/* Technical Inspection button if required and pending */}
-                              {grn.requires_technical_inspection && !grn.technical_inspection_done && (
+                              {grn.requires_technical_inspection && !isTechDone && (
                                 <Button
                                   size="sm"
                                   className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5"
@@ -387,25 +435,25 @@ export default function GrnManagement() {
                             <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
                               <span className="text-slate-500 block">Accepted Total</span>
                               <span className="font-mono font-bold text-sm text-emerald-600 dark:text-emerald-400">
-                                ₹{Number(grn.total_accepted_value || 0).toLocaleString("en-IN")}
+                                ₹{acceptedTotal.toLocaleString("en-IN")}
                               </span>
                             </div>
                             <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
                               <span className="text-slate-500 block">Rejected Total</span>
                               <span className="font-mono font-bold text-sm text-red-600 dark:text-red-400">
-                                ₹{Number(grn.total_rejected_value || 0).toLocaleString("en-IN")}
+                                ₹{rejectedTotal.toLocaleString("en-IN")}
                               </span>
                             </div>
                             <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
                               <span className="text-slate-500 block">Security Inward</span>
                               <span className="font-semibold flex items-center gap-1 mt-0.5">
-                                {grn.security_inward_done ? (
+                                {isSecurityDone ? (
                                   <>
-                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Done
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> Done
                                   </>
                                 ) : (
                                   <>
-                                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500" /> Pending
+                                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" /> Pending
                                   </>
                                 )}
                               </span>
@@ -415,13 +463,13 @@ export default function GrnManagement() {
                               <span className="font-semibold flex items-center gap-1 mt-0.5">
                                 {!grn.requires_technical_inspection ? (
                                   "Not Applicable"
-                                ) : grn.technical_inspection_done ? (
+                                ) : isTechDone ? (
                                   <>
-                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Done
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> Done
                                   </>
                                 ) : (
                                   <>
-                                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500" /> Awaiting
+                                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" /> Awaiting
                                   </>
                                 )}
                               </span>
