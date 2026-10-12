@@ -430,7 +430,7 @@ export default function PurchaseOrders() {
                                       size="sm"
                                       variant="outline"
                                       onClick={() => handleOpenAmend(po)}
-                                      className="gap-1 text-xs border-amber-300 text-amber-700 hover:bg-amber-50"
+                                      className="gap-1 text-xs border-amber-600 bg-amber-50 text-amber-800 hover:bg-amber-100 hover:text-amber-950 dark:border-amber-500/60 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/60 dark:hover:text-amber-100 transition-colors"
                                     >
                                       <FileEdit className="w-3.5 h-3.5" /> Amend
                                     </Button>
@@ -439,7 +439,7 @@ export default function PurchaseOrders() {
                                       variant="outline"
                                       onClick={() => handleClosePo(po)}
                                       disabled={acting}
-                                      className="gap-1 text-xs text-slate-600 hover:bg-slate-100"
+                                      className="gap-1 text-xs border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100 transition-colors"
                                     >
                                       <Lock className="w-3.5 h-3.5" /> Close PO
                                     </Button>

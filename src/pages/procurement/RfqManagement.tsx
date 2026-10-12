@@ -383,7 +383,7 @@ export default function RfqManagement() {
                                       size="sm"
                                       variant="outline"
                                       onClick={() => handleOpenRecordQuote(rfq)}
-                                      className="gap-1 border-blue-500 text-blue-600 hover:bg-blue-50"
+                                      className="gap-1 text-xs border-blue-600 bg-blue-50 text-blue-800 hover:bg-blue-100 hover:text-blue-950 dark:border-blue-500/60 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-900/60 dark:hover:text-blue-100 transition-colors"
                                     >
                                       <PlusCircle className="w-3.5 h-3.5" /> Record Quotation
                                     </Button>

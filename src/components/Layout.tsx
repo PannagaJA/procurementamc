@@ -313,7 +313,7 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
               variant="outline"
               size="sm"
               onClick={handleLogout}
-              className="transition-all duration-300 hover:scale-105 hover:shadow-md px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg border-red-300 text-red-600 hover:bg-red-50 flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm"
+              className="transition-all duration-300 hover:scale-105 hover:shadow-md px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg border-red-300 bg-red-50/50 text-red-700 hover:bg-red-100 hover:text-red-900 dark:border-red-500/50 dark:bg-red-950/30 dark:text-red-400 dark:hover:bg-red-900/50 dark:hover:text-red-200 flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm"
             >
               <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">Logout</span>

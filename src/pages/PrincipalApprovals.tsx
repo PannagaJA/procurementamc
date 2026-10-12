@@ -395,11 +395,11 @@ const PrincipalApprovals = () => {
                               </Button>
                             </>
                           ) : r.status === "procure-approved" || r.status === "service-approved" ? (
-                            <Button size="sm" className="ml-2 bg-green-100 text-green-800" disabled>
+                            <Button size="sm" className="ml-2 bg-green-100 text-green-800 dark:bg-green-950/60 dark:text-green-300" disabled>
                               Approved
                             </Button>
                           ) : r.status === "procure-rejected" || r.status === "service-rejected" ? (
-                            <Button size="sm" className="ml-2 bg-red-100 text-red-800" disabled>
+                            <Button size="sm" className="ml-2 bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300" disabled>
                               Rejected
                             </Button>
                           ) : null}
