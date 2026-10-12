@@ -161,4 +161,30 @@
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
   }
+
+  /* ── Dark-mode native date/time input calendar icon ──────────────────────
+     The browser renders the calendar picker indicator using the OS colour-scheme.
+     Without an explicit hint it renders a dark icon on a dark background.
+     Setting color-scheme on the input forces the browser to use light-mode
+     system colours for the picker icon while our custom background/foreground
+     tokens still apply to the text.
+  ─────────────────────────────────────────────────────────────────────────── */
+  .dark input[type="date"],
+  .dark input[type="datetime-local"],
+  .dark input[type="time"],
+  .dark input[type="month"],
+  .dark input[type="week"] {
+    color-scheme: dark;
+  }
+
+  /* Fallback: explicitly colour the webkit calendar button icon */
+  .dark input[type="date"]::-webkit-calendar-picker-indicator,
+  .dark input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+  .dark input[type="time"]::-webkit-calendar-picker-indicator,
+  .dark input[type="month"]::-webkit-calendar-picker-indicator,
+  .dark input[type="week"]::-webkit-calendar-picker-indicator {
+    filter: invert(1) brightness(0.85);
+    opacity: 0.8;
+    cursor: pointer;
+  }
 }
