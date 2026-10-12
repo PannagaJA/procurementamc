@@ -132,18 +132,28 @@ export default function GrnManagement() {
     }
     const po = issuedPos.find((p) => p.id === grnPoId);
     if (po) {
-      // Find delivery challans for this PO
-      const relevantChallans = challans.filter((c) => c.po_id === grnPoId);
+      // Find delivery challans for this PO that haven't been linked yet
+      const relevantUnlinked = unlinkedChallans.filter((c) => c.po_id === grnPoId);
+      const allRelevant = challans.filter((c) => c.po_id === grnPoId);
+      const candidateList = relevantUnlinked.length > 0 ? relevantUnlinked : allRelevant;
+
       let challanIdToUse = selectedChallanId;
-      if (relevantChallans.length > 0 && (!selectedChallanId || !relevantChallans.some((c) => c.id === selectedChallanId))) {
-        challanIdToUse = relevantChallans[0].id;
+      if (candidateList.length > 0 && (!selectedChallanId || !candidateList.some((c) => c.id === selectedChallanId))) {
+        challanIdToUse = candidateList[0].id;
         setSelectedChallanId(challanIdToUse);
       }
 
       const activeChallan = challans.find((c) => c.id === challanIdToUse);
       const pkgCount = Math.max(1, Number(activeChallan?.packages_count || 1));
-      const totalPrice = Number(po.price || 0);
-      const unitPrice = pkgCount > 0 ? Math.round((totalPrice / pkgCount) * 100) / 100 : totalPrice;
+      const totalPrice = Number(po.price || po.total_value || 0);
+
+      // Estimate total PO ordered items from requisition or scope
+      const poTotalQty = (po.purchase_requisitions?.pr_line_items ?? []).reduce(
+        (sum: number, item: any) => sum + (Number(item.net_qty_to_procure) || 0),
+        0,
+      ) || pkgCount;
+
+      const unitPrice = poTotalQty > 0 ? Math.round((totalPrice / poTotalQty) * 100) / 100 : totalPrice;
 
       setGrnLines([
         {
@@ -156,7 +166,7 @@ export default function GrnManagement() {
         },
       ]);
     }
-  }, [grnPoId, selectedChallanId, issuedPos, challans]);
+  }, [grnPoId, selectedChallanId, issuedPos, challans, unlinkedChallans]);
 
   const handleRecordDelivery = async () => {
     if (!selectedPoId) {
@@ -713,9 +723,9 @@ export default function GrnManagement() {
                       <SelectValue placeholder="Select Challan..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {challans.map((c) => (
+                      {(unlinkedChallans.length > 0 ? unlinkedChallans : challans).map((c) => (
                         <SelectItem key={c.id} value={c.id}>
-                          {c.challan_number} (PO: {c.purchase_orders?.po_number || "Ref"})
+                          {c.challan_number} (PO: {c.purchase_orders?.po_number || "Ref"}) — {c.packages_count ?? 1} pkgs
                         </SelectItem>
                       ))}
                     </SelectContent>
