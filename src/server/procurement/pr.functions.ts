@@ -211,6 +211,17 @@ async function decide(
         `This requisition routes to "${resolved.role}". You hold: ${held.join(", ") || "no procurement role"}.`,
       );
     }
+    // If the approval requires HOD, ensure the caller is HOD for this PR's department
+    if (!held.includes("admin") && resolved.role === "hod") {
+      const isHodForDept = roles.some(
+        (r) => r.role === "hod" && r.department_id && r.department_id === pr.department_id,
+      );
+      if (!isHodForDept) {
+        throw new ForbiddenError(
+          "You are not the designated Head of Department (HOD) for this requisition's department.",
+        );
+      }
+    }
   } catch (e: any) {
     return { ok: false as const, error: e.message };
   }

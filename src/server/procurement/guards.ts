@@ -75,6 +75,7 @@ export async function assertNoPoSplitting(
   newValue: number,
   vendorId?: string,
   departmentId?: string,
+  csId?: string,
 ): Promise<void> {
   const { data: pr, error: prErr } = await db
     .from("purchase_requisitions")
@@ -104,14 +105,28 @@ export async function assertNoPoSplitting(
   }
 
   const already = (pos ?? []).reduce((s: number, p: any) => s + Number(p.total_value ?? 0), 0);
-  const approved = Number(pr.estimated_value ?? 0);
+  let approved = Number(pr.estimated_value ?? 0);
+
+  // If a Comparative Statement (CS) was approved by the designated authority following competitive bidding,
+  // the approved CS recommended amount is the authorized procurement cap for this requirement.
+  if (csId) {
+    const { data: cs } = await db
+      .from("comparative_statements")
+      .select("id, status, recommended_total")
+      .eq("id", csId)
+      .maybeSingle();
+    if (cs && cs.status === "approved" && Number(cs.recommended_total ?? 0) > 0) {
+      approved = Math.max(approved, Number(cs.recommended_total));
+    }
+  }
+
   const projected = already + Number(newValue);
 
   if (approved > 0 && projected > approved * (1 + PO_SPLIT_TOLERANCE)) {
     throw ruleError(
       "po_splitting",
       `Purchase orders against ${pr.pr_number ?? prId} would total ₹${projected.toLocaleString("en-IN")}, ` +
-        `above the approved requisition value of ₹${approved.toLocaleString("en-IN")}. ` +
+        `above the approved value of ₹${approved.toLocaleString("en-IN")}. ` +
         `Splitting a requirement across orders is not permitted — raise a deviation approval instead.`,
     );
   }

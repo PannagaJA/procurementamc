@@ -153,7 +153,14 @@ export const createPo = createServerFn({ method: "POST" })
     const totalValue = price + taxes;
 
     try {
-      await assertNoPoSplitting(db, data.pr_id, totalValue, data.vendor_id);
+      await assertNoPoSplitting(
+        db,
+        data.pr_id,
+        totalValue,
+        data.vendor_id,
+        undefined,
+        data.cs_id ?? undefined,
+      );
     } catch (e) {
       if (e instanceof ProcurementRuleError)
         return { ok: false as const, error: e.message, code: e.code };
