@@ -65,6 +65,8 @@ export default function PurchaseOrders() {
         return "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200 border-amber-300";
       case "closed":
         return "bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200 border-slate-300";
+      case "partially_closed":
+        return "bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-200 border-teal-300";
       case "cancelled":
         return "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200 border-red-300";
       default:
