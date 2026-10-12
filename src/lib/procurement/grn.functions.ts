@@ -91,6 +91,8 @@ export const recordDelivery = createServerFn({ method: "POST" })
       return { ok: false as const, error: "Purchase order not found", code: "po_not_found" };
     }
 
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: challan, error: cErr } = await (supabaseAdmin as any)
     const { data: challan, error: cErr } = await mutationDb
       .from("delivery_challans")
       .insert({
@@ -114,6 +116,8 @@ export const createGrn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: CreateGrnInput) => input)
   .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
     // Role verification: Stores, Procurement, Admin can create GRN
     try {
       await verifyCallerRole(
@@ -199,8 +203,8 @@ export const createGrn = createServerFn({ method: "POST" })
         status: initialStatus,
         accepted_value: acceptedVal,
         prepared_by: context.userId,
-        security_verified_by: context.userId,
-        security_verified_at: new Date().toISOString(),
+        security_verified_by: null,
+        security_verified_at: null,
       })
       .select("*")
       .single();
@@ -230,6 +234,8 @@ export const securityVerify = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: SecurityVerifyInput) => input)
   .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await (supabaseAdmin as any)
     // Role verification: Stores, Admin can verify security gate inward
     try {
       await verifyCallerRole(context, ["stores", "admin"], "sign off security verification on GRN");
@@ -254,6 +260,10 @@ export const technicalVerify = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: TechnicalVerifyInput) => input)
   .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const nextStatus = data.is_accepted ? "accepted" : "rejected";
+
+    const { error } = await (supabaseAdmin as any)
     // Role verification: HOD, Stores, Admin can sign off technical inspection
     try {
       await verifyCallerRole(

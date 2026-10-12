@@ -174,7 +174,7 @@ const ItemHistory = () => {
             variant="ghost"
             size="sm"
             onClick={() => navigate({ to: "/inventory" })}
-            className="hover:bg-gray-100"
+            className="hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back
@@ -242,7 +242,7 @@ const ItemHistory = () => {
                   {history.map((historyItem) => (
                     <div
                       key={historyItem.id}
-                      className="border rounded-lg p-4 bg-gray-50 hover:bg-gray-100 transition-colors"
+                      className="border rounded-lg p-4 bg-slate-50 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors border-slate-200 dark:border-slate-800"
                     >
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex items-center gap-2">

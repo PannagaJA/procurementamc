@@ -797,7 +797,7 @@ export default function VendorManagement() {
                               <Button 
                                 variant="outline" 
                                 size="sm" 
-                                className="h-8 text-xs font-medium bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 shadow-sm"
+                                className="h-8 text-xs font-medium bg-white text-slate-800 hover:bg-slate-50 hover:text-slate-950 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-white shadow-sm"
                                 onClick={() => setViewDetailsVendor(v)}
                               >
                                 <Eye className="w-3.5 h-3.5 mr-1.5" /> View Details

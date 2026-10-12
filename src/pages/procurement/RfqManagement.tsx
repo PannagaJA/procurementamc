@@ -43,9 +43,11 @@ import {
   RefreshCw,
   Eye,
 } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 
 export default function RfqManagement() {
   const { toast } = useToast();
+  const auth = useAuth();
   const [rfqs, setRfqs] = useState<any[]>([]);
   const { pagination, setPage, setPageSize, setTotal } = usePagination(10, 1);
   const [approvedPrs, setApprovedPrs] = useState<any[]>([]);
@@ -289,12 +291,16 @@ export default function RfqManagement() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              onClick={() => setCreateOpen(true)}
-              className="gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
-            >
-              <PlusCircle className="w-4 h-4" /> Create RFQ
-            </Button>
+            {(auth.hasRole("admin") ||
+              auth.hasRole("procurement_officer") ||
+              auth.hasRole("procurement_executive")) && (
+              <Button
+                onClick={() => setCreateOpen(true)}
+                className="gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+              >
+                <PlusCircle className="w-4 h-4" /> Create RFQ
+              </Button>
+            )}
           </div>
         </div>
 
@@ -359,24 +365,30 @@ export default function RfqManagement() {
                             </div>
 
                             <div className="flex items-center gap-2">
-                              {rfq.status === "draft" && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleOpenSend(rfq)}
-                                  className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-                                >
-                                  <Send className="w-3.5 h-3.5" /> Invite Vendors
-                                </Button>
-                              )}
-                              {rfq.status === "sent" && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleOpenRecordQuote(rfq)}
-                                  className="gap-1 border-blue-500 text-blue-600 hover:bg-blue-50"
-                                >
-                                  <PlusCircle className="w-3.5 h-3.5" /> Record Quotation
-                                </Button>
+                              {(auth.hasRole("admin") ||
+                                auth.hasRole("procurement_officer") ||
+                                auth.hasRole("procurement_executive")) && (
+                                <>
+                                  {rfq.status === "draft" && (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleOpenSend(rfq)}
+                                      className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                    >
+                                      <Send className="w-3.5 h-3.5" /> Invite Vendors
+                                    </Button>
+                                  )}
+                                  {rfq.status === "sent" && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleOpenRecordQuote(rfq)}
+                                      className="gap-1 text-xs border-blue-600 bg-blue-50 text-blue-800 hover:bg-blue-100 hover:text-blue-950 dark:border-blue-500/60 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-900/60 dark:hover:text-blue-100 transition-colors"
+                                    >
+                                      <PlusCircle className="w-3.5 h-3.5" /> Record Quotation
+                                    </Button>
+                                  )}
+                                </>
                               )}
                             </div>
                           </div>

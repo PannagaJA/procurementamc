@@ -48,9 +48,11 @@ import {
   DollarSign,
   ArrowRight,
 } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 
 export default function InvoiceManagement() {
   const { toast } = useToast();
+  const auth = useAuth();
   const [invoices, setInvoices] = useState<any[]>([]);
   const { pagination, setPage, setPageSize, setTotal } = usePagination(10, 1);
   const [pos, setPos] = useState<any[]>([]);
@@ -264,12 +266,14 @@ export default function InvoiceManagement() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              onClick={() => setSubmitOpen(true)}
-              className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
-            >
-              <PlusCircle className="w-4 h-4" /> Submit Invoice
-            </Button>
+            {(auth.hasRole("admin") || auth.hasRole("finance")) && (
+              <Button
+                onClick={() => setSubmitOpen(true)}
+                className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+              >
+                <PlusCircle className="w-4 h-4" /> Submit Invoice
+              </Button>
+            )}
           </div>
         </div>
 
@@ -361,25 +365,29 @@ export default function InvoiceManagement() {
                             </div>
 
                             <div className="flex items-center gap-2">
-                              {isMatched && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleApprove(inv)}
-                                  disabled={acting}
-                                  className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-                                >
-                                  <CheckCircle2 className="w-3.5 h-3.5" /> Approve Invoice
-                                </Button>
-                              )}
-                              {isApproved && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleOpenPay(inv)}
-                                  disabled={acting}
-                                  className="gap-1 bg-indigo-600 hover:bg-indigo-700 text-white"
-                                >
-                                  <CreditCard className="w-3.5 h-3.5" /> Record Payment
-                                </Button>
+                              {(auth.hasRole("admin") || auth.hasRole("finance")) && (
+                                <>
+                                  {isMatched && (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleApprove(inv)}
+                                      disabled={acting}
+                                      className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                    >
+                                      <CheckCircle2 className="w-3.5 h-3.5" /> Approve Invoice
+                                    </Button>
+                                  )}
+                                  {isApproved && (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleOpenPay(inv)}
+                                      disabled={acting}
+                                      className="gap-1 bg-indigo-600 hover:bg-indigo-700 text-white"
+                                    >
+                                      <CreditCard className="w-3.5 h-3.5" /> Record Payment
+                                    </Button>
+                                  )}
+                                </>
                               )}
                             </div>
                           </div>
