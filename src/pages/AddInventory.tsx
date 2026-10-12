@@ -314,13 +314,21 @@ const AddInventory = () => {
 
       if (error) throw error;
 
-      // Generate QR codes for each item
-      for (const item of insertedItems || []) {
-        const qrCodeUrl = await generateQRCode(item.item_code || "", item.id);
-        if (qrCodeUrl) {
-          await supabase.from("inventory").update({ qr_code_url: qrCodeUrl }).eq("id", item.id);
-        }
-      }
+      // Generate QR codes for all items in parallel, then batch-update in parallel
+      const qrResults = await Promise.all(
+        (insertedItems || []).map((item) =>
+          generateQRCode(item.item_code || "", item.id)
+        )
+      );
+      await Promise.all(
+        (insertedItems || []).map((item, idx) => {
+          const qrCodeUrl = qrResults[idx];
+          if (qrCodeUrl) {
+            return supabase.from("inventory").update({ qr_code_url: qrCodeUrl }).eq("id", item.id);
+          }
+          return Promise.resolve();
+        })
+      );
 
       toast({
         title: "Success!",

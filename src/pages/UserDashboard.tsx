@@ -69,9 +69,8 @@ const UserDashboard = () => {
           return;
         }
 
-        // Viewers now use the main dashboard, redirect them too
-        navigate({ to: "/" });
-        return;
+        // Fetch user tickets
+        await fetchUserTickets(user.id);
       } catch (error: any) {
         console.error("Error initializing dashboard:", error);
         toast({

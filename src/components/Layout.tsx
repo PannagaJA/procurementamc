@@ -191,13 +191,24 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
   const canSeeHodInventory = isHod || isRole("hod");
   const canSeeInventory = canSeeAdminItems || isRole("stores") || isPrinciple || isRole("principal");
   const canSeePrincipalApprovals = isPrinciple || isRole("principal") || canSeeAdminItems;
-  const canRaiseTickets =
-    !canSeeViewerItems &&
-    (canSeeAdminItems ||
+  const canRaiseTickets = Boolean(
+    user && (
+      canSeeAdminItems ||
       canSeeHodInventory ||
+      isPrinciple ||
+      isRole("principal") ||
       isRole("faculty") ||
       isRole("requester") ||
-      (!isRole("stores") && !isRole("finance") && !isRole("procurement_officer")));
+      isRole("stores") ||
+      isRole("finance") ||
+      isRole("procurement_officer") ||
+      isRole("procurement_executive") ||
+      isRole("purchase_committee") ||
+      isRole("librarian") ||
+      isRole("user") ||
+      !canSeeViewerItems
+    ),
+  );
 
   // Procurement (SOP) Module Permissions
   const canAccessHub =
