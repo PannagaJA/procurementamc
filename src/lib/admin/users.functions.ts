@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
 
-export type AppRole = Database["public"]["Enums"]["app_role"];
+export type AppRole = Database["public"]["Enums"]["app_role"] | "faculty" | "requester";
 
 export interface CreateAdminUserInput {
   email: string;
@@ -76,7 +76,7 @@ export const createAdminUser = createServerFn({ method: "POST" })
       department_id: data.department_id || null,
     };
 
-    const { error: roleError } = await supabaseAdmin.from("user_roles").insert(roleInsertPayload);
+    const { error: roleError } = await (supabaseAdmin.from("user_roles") as any).insert(roleInsertPayload);
 
     if (roleError) {
       console.error("Role insertion failed:", roleError.message);
