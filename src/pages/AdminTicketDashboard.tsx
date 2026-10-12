@@ -226,13 +226,16 @@ const AdminTicketDashboard = () => {
         .select("*", { count: "exact" })
         .order("created_at", { ascending: false });
 
-      // By default, Admin should not see tickets awaiting Principal approval
+      // By default, Admin should not see tickets awaiting Principal approval or closed tickets
       if (filters.status === "all") {
-        // By default hide tickets awaiting Principal approval and those rejected by Principal
+        // Hide tickets awaiting Principal approval, rejected by Principal, or already closed
         query = query
           .neq("status", "pending_principal")
           .neq("status", "procure-rejected")
-          .neq("status", "service-rejected");
+          .neq("status", "service-rejected")
+          .neq("status", "resolved")
+          .neq("status", "completed")
+          .neq("status", "procure-completed");
       }
 
       // Apply filters
@@ -790,38 +793,38 @@ const AdminTicketDashboard = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "pending":
-        return "bg-yellow-100 text-yellow-800";
+        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300";
       case "in-progress":
-        return "bg-blue-100 text-blue-800";
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300";
       case "waiting-for-user":
-        return "bg-orange-100 text-orange-800";
+        return "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300";
       case "resolved":
-        return "bg-green-100 text-green-800";
+        return "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300";
       case "completed":
-        return "bg-purple-100 text-purple-800";
+        return "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300";
       case "procure-approved":
-        return "bg-emerald-100 text-emerald-800";
+        return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300";
       case "procure-rejected":
-        return "bg-red-100 text-red-800";
+        return "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300";
       case "service-approved":
-        return "bg-emerald-100 text-emerald-800";
+        return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300";
       case "service-rejected":
-        return "bg-red-100 text-red-800";
+        return "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300";
     }
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "low":
-        return "bg-green-100 text-green-800";
+        return "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300";
       case "medium":
-        return "bg-yellow-100 text-yellow-800";
+        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300";
       case "high":
-        return "bg-red-100 text-red-800";
+        return "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300";
     }
   };
 
@@ -1043,11 +1046,11 @@ const AdminTicketDashboard = () => {
                       <SelectValue placeholder="All Statuses" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="all">All Open Tickets</SelectItem>
                       <SelectItem value="pending">Pending</SelectItem>
                       <SelectItem value="in-progress">In Progress</SelectItem>
                       <SelectItem value="waiting-for-user">Waiting for User</SelectItem>
-
+                      <SelectItem value="resolved">Resolved</SelectItem>
                       <SelectItem value="completed">Completed</SelectItem>
                       <SelectItem value="procure-in-progress">Procure In Progress</SelectItem>
                       <SelectItem value="procure-completed">Procure Completed</SelectItem>
@@ -1090,9 +1093,9 @@ const AdminTicketDashboard = () => {
             )}
 
             {/* top table with summary */}
-            <div className="mb-4 overflow-x-auto rounded border bg-white">
+            <div className="mb-4 overflow-x-auto rounded border bg-card">
               <table className="w-full table-auto">
-                <thead className="bg-slate-50">
+                <thead className="bg-muted/50">
                   <tr>
                     <th className="px-3 py-2 text-left">Ticket #</th>
                     <th className="px-3 py-2 text-left">SLA</th>
@@ -1107,7 +1110,15 @@ const AdminTicketDashboard = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {tickets.slice(0, 5).map((ticket) => (
+                  {tickets
+                    .filter(
+                      (t) =>
+                        t.status !== "resolved" &&
+                        t.status !== "completed" &&
+                        t.status !== "procure-completed",
+                    )
+                    .slice(0, 5)
+                    .map((ticket) => (
                     <tr key={ticket.id} className="border-t">
                       <td className="px-3 py-2">
                         <div className="font-semibold">{ticket.ticket_number}</div>
