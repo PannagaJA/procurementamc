@@ -323,11 +323,10 @@ export default function GrnManagement() {
                     const isAccepted = grn.status === "accepted";
                     const lines = grn.grn_lines || [];
                     const isSecurityDone = Boolean(grn.security_verified_at || (grn as any).security_inward_done);
-                    const isTechDone = Boolean(grn.technical_verified_at || (grn as any).technical_inspection_done);
-
-                    const isSecurityDone = Boolean(grn.security_verified_at || grn.security_inward_done);
                     const isTechDone = Boolean(
-                      grn.technical_verified_at || grn.technical_inspection_done || isAccepted,
+                      grn.technical_verified_at ||
+                      (grn as any).technical_inspection_done ||
+                      isAccepted
                     );
                     const acceptedTotal = Number(grn.accepted_value ?? grn.total_accepted_value ?? 0);
                     const rejectedTotal =
