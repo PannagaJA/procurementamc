@@ -191,9 +191,9 @@ export default function RfqManagement() {
     }
   };
 
-  const handleOpenRecordQuote = async (rfq: any) => {
+  const handleOpenRecordQuote = async (rfq: any, initialVendorId?: string) => {
     setQuoteRfq(rfq);
-    setQuoteVendorId(rfq.rfq_vendors?.[0]?.vendor_id || "");
+    setQuoteVendorId(initialVendorId || rfq.rfq_vendors?.[0]?.vendor_id || "");
     setQuotationRef("");
 
     // Fetch line items for this PR
@@ -444,19 +444,44 @@ export default function RfqManagement() {
                               </span>
                               <div className="flex flex-wrap gap-1.5">
                                 {rfq.rfq_vendors.map((rv: any) => (
-                                  <Badge
+                                  <div
                                     key={rv.id}
-                                    variant="outline"
-                                    className={`text-xs gap-1 ${rv.response_received_at ? "bg-emerald-50 text-emerald-700 border-emerald-300" : "text-slate-500"}`}
+                                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs border transition-colors ${
+                                      rv.response_received_at
+                                        ? "bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/50"
+                                        : "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/60 dark:text-slate-300 dark:border-slate-800"
+                                    }`}
                                   >
-                                    <Building2 className="w-3 h-3" />
-                                    {rv.vendors?.name || "Vendor"}
+                                    <Building2 className="w-3.5 h-3.5 opacity-70" />
+                                    <span className="font-medium">{rv.vendors?.name || "Vendor"}</span>
                                     {rv.response_received_at ? (
-                                      <CheckCircle className="w-3 h-3 text-emerald-600" />
+                                      <span className="inline-flex items-center gap-1 text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold ml-1">
+                                        <CheckCircle className="w-3 h-3" /> Submitted
+                                      </span>
                                     ) : (
-                                      <Clock className="w-3 h-3 text-amber-500" />
+                                      <div className="inline-flex items-center gap-1 ml-1">
+                                        <span className="text-[11px] text-amber-600 dark:text-amber-400">
+                                          <Clock className="w-3 h-3 inline mr-0.5" /> Pending
+                                        </span>
+                                        {(auth.hasRole("admin") ||
+                                          auth.hasRole("procurement_officer") ||
+                                          auth.hasRole("procurement_executive")) &&
+                                          rfq.status === "sent" && (
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="h-5 px-1.5 text-[10px] text-blue-600 hover:text-blue-800 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/60 font-semibold ml-0.5"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleOpenRecordQuote(rfq, rv.vendor_id);
+                                              }}
+                                            >
+                                              + Record Quote
+                                            </Button>
+                                          )}
+                                      </div>
                                     )}
-                                  </Badge>
+                                  </div>
                                 ))}
                               </div>
                             </div>

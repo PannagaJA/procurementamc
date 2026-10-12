@@ -189,6 +189,32 @@ export const createGrn = createServerFn({ method: "POST" })
       .select("id, accepted_value, grn_lines (qty_delivered, qty_accepted)")
       .eq("po_id", data.po_id);
 
+    // Cumulative over-delivery check against PO ordered quantity (SOP §8.6 & TC-3.3)
+    const poOrderedQty = (po.purchase_requisitions?.pr_line_items ?? []).reduce(
+      (sum: number, item: any) => sum + (Number(item.net_qty_to_procure) || 0),
+      0,
+    );
+
+    const priorDelivered = (priorGrns ?? []).reduce((sum: number, g: any) => {
+      return (
+        sum +
+        (g.grn_lines ?? []).reduce(
+          (lSum: number, l: any) => lSum + (Number(l.qty_delivered) || 0),
+          0,
+        )
+      );
+    }, 0);
+
+    const cumulativeDelivered = priorDelivered + totalDelivered;
+
+    if (poOrderedQty > 0 && cumulativeDelivered > poOrderedQty) {
+      return {
+        ok: false as const,
+        error: `Cumulative delivered quantity (${cumulativeDelivered}) cannot exceed PO ordered quantity (${poOrderedQty}) per SOP §8.6.`,
+        code: "over_delivery_not_permitted",
+      };
+    }
+
     // 3. Create GRN
     const initialStatus = data.requires_technical_inspection === false ? "accepted" : "pending";
 
