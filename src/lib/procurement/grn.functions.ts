@@ -61,7 +61,8 @@ export const recordDelivery = createServerFn({ method: "POST" })
       return { ok: false as const, error: "Purchase order not found", code: "po_not_found" };
     }
 
-    const { data: challan, error: cErr } = await db
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: challan, error: cErr } = await (supabaseAdmin as any)
       .from("delivery_challans")
       .insert({
         po_id: data.po_id,
@@ -84,7 +85,8 @@ export const createGrn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: CreateGrnInput) => input)
   .handler(async ({ data, context }) => {
-    const db = context.supabase as any;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
     const { ruleError } = await import("@/server/procurement/errors");
 
     // 1. Guard: Delivery Challan is required
@@ -157,8 +159,8 @@ export const createGrn = createServerFn({ method: "POST" })
         status: initialStatus,
         accepted_value: acceptedVal,
         prepared_by: context.userId,
-        security_verified_by: context.userId,
-        security_verified_at: new Date().toISOString(),
+        security_verified_by: null,
+        security_verified_at: null,
       })
       .select("*")
       .single();
@@ -188,8 +190,8 @@ export const securityVerify = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: SecurityVerifyInput) => input)
   .handler(async ({ data, context }) => {
-    const db = context.supabase as any;
-    const { error } = await db
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await (supabaseAdmin as any)
       .from("grns")
       .update({
         security_verified_by: context.userId,
@@ -205,10 +207,10 @@ export const technicalVerify = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: TechnicalVerifyInput) => input)
   .handler(async ({ data, context }) => {
-    const db = context.supabase as any;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const nextStatus = data.is_accepted ? "accepted" : "rejected";
 
-    const { error } = await db
+    const { error } = await (supabaseAdmin as any)
       .from("grns")
       .update({
         technical_verified_by: context.userId,
