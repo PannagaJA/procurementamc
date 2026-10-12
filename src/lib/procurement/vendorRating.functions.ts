@@ -100,8 +100,13 @@ export const submitVendorRating = createServerFn({ method: "POST" })
         ? context.userId
         : (data.evp_approved_by ?? null);
 
+    // Service-role client required for all writes below:
+    // - "Vendor ratings direct writes denied" (WITH CHECK false) blocks INSERT on vendor_ratings.
+    // - "Vendors direct status updates denied" (USING false) blocks UPDATE on vendors.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
     // 1. Insert Vendor Rating
-    const { data: rating, error: rErr } = await db
+    const { data: rating, error: rErr } = await supabaseAdmin
       .from("vendor_ratings")
       .insert({
         vendor_id: data.vendor_id,
@@ -126,16 +131,17 @@ export const submitVendorRating = createServerFn({ method: "POST" })
 
     // 2. Automatically flip vendor status if suspended or debarred
     if (outcome === "suspended") {
-      await db
+      await supabaseAdmin
         .from("vendors")
         .update({ status: "suspended", updated_at: new Date().toISOString() })
         .eq("id", data.vendor_id);
     } else if (outcome === "debarred") {
-      await db
+      await supabaseAdmin
         .from("vendors")
         .update({ status: "blacklisted", updated_at: new Date().toISOString() })
         .eq("id", data.vendor_id);
     }
+
 
     return {
       ok: true as const,

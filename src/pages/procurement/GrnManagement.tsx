@@ -325,6 +325,18 @@ export default function GrnManagement() {
                     const isSecurityDone = Boolean(grn.security_verified_at || (grn as any).security_inward_done);
                     const isTechDone = Boolean(grn.technical_verified_at || (grn as any).technical_inspection_done);
 
+                    const isSecurityDone = Boolean(grn.security_verified_at || grn.security_inward_done);
+                    const isTechDone = Boolean(
+                      grn.technical_verified_at || grn.technical_inspection_done || isAccepted,
+                    );
+                    const acceptedTotal = Number(grn.accepted_value ?? grn.total_accepted_value ?? 0);
+                    const rejectedTotal =
+                      lines.reduce(
+                        (sum: number, l: any) =>
+                          sum + (Number(l.qty_rejected || 0) * Number(l.unit_price || 0)),
+                        0,
+                      ) || Number(grn.total_rejected_value ?? 0);
+
                     return (
                       <Card
                         key={grn.id}
@@ -391,6 +403,30 @@ export default function GrnManagement() {
                                     <FileCheck className="w-3.5 h-3.5" /> Technical Inspect
                                   </Button>
                                 )}
+                              {!isSecurityDone && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-xs border-amber-500 text-amber-700 hover:bg-amber-50 gap-1.5"
+                                  onClick={() => handleSecurityVerify(grn.id)}
+                                >
+                                  <ShieldCheck className="w-3.5 h-3.5" /> Security Verify
+                                </Button>
+                              )}
+
+                              {/* Technical Inspection button if required and pending */}
+                              {grn.requires_technical_inspection && !isTechDone && (
+                                <Button
+                                  size="sm"
+                                  className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5"
+                                  onClick={() => {
+                                    setActiveGrn(grn);
+                                    setTechOpen(true);
+                                  }}
+                                >
+                                  <FileCheck className="w-3.5 h-3.5" /> Technical Inspect
+                                </Button>
+                              )}
                             </div>
                           </div>
                         </CardHeader>
@@ -400,13 +436,13 @@ export default function GrnManagement() {
                             <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
                               <span className="text-slate-500 block">Accepted Total</span>
                               <span className="font-mono font-bold text-sm text-emerald-600 dark:text-emerald-400">
-                                ₹{Number(grn.total_accepted_value || 0).toLocaleString("en-IN")}
+                                ₹{acceptedTotal.toLocaleString("en-IN")}
                               </span>
                             </div>
                             <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
                               <span className="text-slate-500 block">Rejected Total</span>
                               <span className="font-mono font-bold text-sm text-red-600 dark:text-red-400">
-                                ₹{Number(grn.total_rejected_value || 0).toLocaleString("en-IN")}
+                                ₹{rejectedTotal.toLocaleString("en-IN")}
                               </span>
                             </div>
                             <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
