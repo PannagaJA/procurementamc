@@ -488,30 +488,34 @@ export default function PurchaseOrders() {
                                 <History className="w-3.5 h-3.5 text-amber-500" /> Amendment History ({amendments.length})
                               </div>
                               <div className="space-y-1.5">
-                                {amendments.map((am: any) => (
-                                  <div
-                                    key={am.id}
-                                    className="p-2.5 rounded bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/50 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2"
-                                  >
-                                    <div>
-                                      <span className="font-medium text-slate-800 dark:text-slate-200">
-                                        ₹{Number(am.previous_total_value).toLocaleString()} → ₹{Number(am.new_total_value).toLocaleString()}
-                                      </span>
-                                      <span className="text-slate-500 block sm:inline sm:ml-2">({am.reason})</span>
+                                {amendments.map((am: any) => {
+                                  const oldVal = Number(am.old_value_total ?? am.previous_total_value ?? 0);
+                                  const newVal = Number(am.new_value_total ?? am.new_total_value ?? 0);
+                                  return (
+                                    <div
+                                      key={am.id}
+                                      className="p-2.5 rounded bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/50 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                                    >
+                                      <div>
+                                        <span className="font-medium text-slate-800 dark:text-slate-200">
+                                          ₹{oldVal.toLocaleString("en-IN")} → ₹{newVal.toLocaleString("en-IN")}
+                                        </span>
+                                        <span className="text-slate-500 block sm:inline sm:ml-2">({am.reason})</span>
+                                      </div>
+                                      <div className="flex items-center gap-1.5 shrink-0">
+                                        {am.requires_reapproval ? (
+                                          <Badge className="bg-amber-500 text-white text-[10px]">
+                                            Escalated to {am.new_approver_role?.toUpperCase()}
+                                          </Badge>
+                                        ) : (
+                                          <Badge variant="outline" className="text-[10px] text-slate-600 dark:text-slate-300">
+                                            Within Tier {am.original_approver_role ? `(${am.original_approver_role.toUpperCase()})` : "Approved"}
+                                          </Badge>
+                                        )}
+                                      </div>
                                     </div>
-                                    <div className="flex items-center gap-1.5 shrink-0">
-                                      {am.requires_reapproval ? (
-                                        <Badge className="bg-amber-500 text-white text-[10px]">
-                                          Escalated to {am.new_approver_role?.toUpperCase()}
-                                        </Badge>
-                                      ) : (
-                                        <Badge variant="outline" className="text-[10px] text-slate-600">
-                                          Within Tier ({am.original_approver_role})
-                                        </Badge>
-                                      )}
-                                    </div>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             </div>
                           )}
