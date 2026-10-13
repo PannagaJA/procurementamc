@@ -140,9 +140,24 @@ export const createGrn = createServerFn({ method: "POST" })
       };
     }
 
-    const { data: challan, error: cErr } = await sessionDb
+    // Check if a GRN already exists for this delivery challan
+    const { data: existingChallanGrn } = await mutationDb
+      .from("grns")
+      .select("id, grn_number")
+      .eq("delivery_challan_id", data.delivery_challan_id)
+      .maybeSingle();
+
+    if (existingChallanGrn) {
+      return {
+        ok: false as const,
+        error: `A Goods Receipt Note (${existingChallanGrn.grn_number}) has already been generated for this Delivery Challan. Each challan can only be processed once.`,
+        code: "challan_already_processed",
+      };
+    }
+
+    const { data: challan, error: cErr } = await mutationDb
       .from("delivery_challans")
-      .select("id, po_id, challan_number")
+      .select("id, po_id, challan_number, packages_count")
       .eq("id", data.delivery_challan_id)
       .maybeSingle();
 
@@ -155,21 +170,33 @@ export const createGrn = createServerFn({ method: "POST" })
     }
 
     // 2. Fetch PO & check over-delivery
-    const { data: po, error: poErr } = await sessionDb
+    const { data: po, error: poErr } = await mutationDb
       .from("purchase_orders")
-      .select(
-        `
-        id, po_number, price, taxes, total_value,
-        purchase_requisitions (
-          id, pr_line_items (id, description, net_qty_to_procure)
-        )
-      `,
-      )
+      .select("id, po_number, pr_id, price, taxes, total_value")
       .eq("id", data.po_id)
       .single();
 
     if (poErr || !po) {
       return { ok: false as const, error: "Purchase Order not found", code: "po_not_found" };
+    }
+
+    // Directly query PR line items to get the authoritative ordered quantity
+    const { data: prLines } = await mutationDb
+      .from("pr_line_items")
+      .select("net_qty_to_procure, qty_required")
+      .eq("pr_id", po.pr_id);
+
+    let poOrderedQty = (prLines ?? []).reduce(
+      (sum: number, item: any) => sum + (Number(item.net_qty_to_procure || item.qty_required) || 0),
+      0,
+    );
+
+    // Fallback if PR line items was not found: derive from PO value / unit price
+    if (poOrderedQty === 0 && data.lines && data.lines.length > 0) {
+      const lineUnit = Number(data.lines[0].unit_price) || 0;
+      if (lineUnit > 0) {
+        poOrderedQty = Math.round(Number(po.price || po.total_value || 0) / lineUnit);
+      }
     }
 
     // Check delivered quantities
@@ -184,16 +211,10 @@ export const createGrn = createServerFn({ method: "POST" })
     );
 
     // Fetch prior GRNs for this PO to check cumulative delivered qty
-    const { data: priorGrns } = await sessionDb
+    const { data: priorGrns } = await mutationDb
       .from("grns")
       .select("id, accepted_value, grn_lines (qty_delivered, qty_accepted)")
       .eq("po_id", data.po_id);
-
-    // Cumulative over-delivery check against PO ordered quantity (SOP §8.6 & TC-3.3)
-    const poOrderedQty = (po.purchase_requisitions?.pr_line_items ?? []).reduce(
-      (sum: number, item: any) => sum + (Number(item.net_qty_to_procure) || 0),
-      0,
-    );
 
     const priorDelivered = (priorGrns ?? []).reduce((sum: number, g: any) => {
       return (

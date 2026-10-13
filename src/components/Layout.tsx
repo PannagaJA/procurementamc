@@ -255,7 +255,9 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
   const canAccessGrn = canSeeAdminItems || hasAny(["stores", "hod", "finance"]);
   const canAccessInvoices = canSeeAdminItems || hasAny(["finance"]);
   const canAccessEmergency =
-    canSeeAdminItems || hasAny(["evp", "director_admin_finance", "procurement_officer", "procurement_executive"]);
+    canSeeAdminItems ||
+    canAccessPr ||
+    hasAny(["evp", "director_admin_finance", "procurement_officer", "procurement_executive"]);
   const canAccessVendorRatings =
     canSeeAdminItems ||
     hasAny([
