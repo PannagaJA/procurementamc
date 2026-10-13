@@ -57,6 +57,9 @@ export default function PurchaseOrders() {
   const { pagination, setPage, setPageSize, setTotal } = usePagination(10, 1);
   const [approvedCss, setApprovedCss] = useState<any[]>([]);
   const [rateContracts, setRateContracts] = useState<any[]>([]);
+  const [directPrs, setDirectPrs] = useState<any[]>([]);
+  const [vendorsList, setVendorsList] = useState<any[]>([]);
+  const [matrixRules, setMatrixRules] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const getStatusBadge = (status: string) => {
@@ -79,7 +82,7 @@ export default function PurchaseOrders() {
 
   // Create PO Modal
   const [createOpen, setCreateOpen] = useState(false);
-  const [poType, setPoType] = useState<"regular" | "rate_contract">("regular");
+  const [poType, setPoType] = useState<"regular" | "rate_contract" | "direct_purchase">("regular");
   const [selectedCsId, setSelectedCsId] = useState("");
   const [selectedRcId, setSelectedRcId] = useState("");
   const [selectedPrId, setSelectedPrId] = useState("");
@@ -124,6 +127,41 @@ export default function PurchaseOrders() {
       // Fetch active rate contracts
       const { data: rcData } = await supabase.from("rate_contracts").select("*, vendors(id, name)");
       setRateContracts(rcData || []);
+
+      // Fetch approved direct PRs (<= 5000 or small_value category)
+      const { data: prData } = await supabase
+        .from("purchase_requisitions")
+        .select(`
+          id, pr_number, estimated_value, category, justification,
+          departments (id, name),
+          pr_line_items (id, description, net_qty_to_procure, est_unit_price, est_total)
+        `)
+        .eq("status", "approved")
+        .order("created_at", { ascending: false });
+
+      // Filter eligible direct purchase PRs (<= 5000) that do not already have an active PO
+      const existingPoPrIds = new Set((poRes?.purchaseOrders || []).filter((o: any) => o.status !== "cancelled").map((o: any) => o.pr_id));
+      const eligiblePrs = (prData || []).filter(
+        (p: any) =>
+          (Number(p.estimated_value || 0) <= 5000 || p.category === "small_value") &&
+          !existingPoPrIds.has(p.id)
+      );
+      setDirectPrs(eligiblePrs);
+
+      // Fetch empanelled / active vendors
+      const { data: vData } = await supabase
+        .from("vendors")
+        .select("id, name, gst_number, status")
+        .in("status", ["empanelled", "active"])
+        .order("name");
+      setVendorsList(vData || []);
+
+      // Fetch matrix rules for previewing approver
+      const { data: rules } = await supabase
+        .from("approval_matrix_rules")
+        .select("*")
+        .eq("active", true);
+      setMatrixRules(rules || []);
     } catch (e: any) {
       toast({ title: "Error loading data", description: e.message, variant: "destructive" });
     } finally {
@@ -148,6 +186,25 @@ export default function PurchaseOrders() {
       }
     }
   }, [selectedCsId, poType, approvedCss]);
+
+  // When direct PR selection changes in Create PO Modal
+  useEffect(() => {
+    if (poType === "direct_purchase" && selectedPrId) {
+      const pr = directPrs.find((p) => p.id === selectedPrId);
+      if (pr) {
+        setPrice(Number(pr.estimated_value || 0));
+        setTaxes(0);
+        const itemDescriptions = (pr.pr_line_items || [])
+          .map((i: any) => `${i.description} (Qty: ${i.net_qty_to_procure ?? 1})`)
+          .join(", ");
+        setScopeOfSupply(
+          itemDescriptions
+            ? `Direct procurement: ${itemDescriptions}`
+            : `Direct procurement as per PR ${pr.pr_number}`
+        );
+      }
+    }
+  }, [selectedPrId, poType, directPrs]);
 
   const handleCreatePo = async () => {
     if (!selectedPrId || !selectedVendorId || price <= 0) {
@@ -389,8 +446,14 @@ export default function PurchaseOrders() {
 
                             <div className="flex items-center gap-2 self-end sm:self-auto">
                               {isPending &&
-                                (auth.hasRole("admin") ||
-                                (po.current_approver_role && auth.hasRole(po.current_approver_role)) ? (
+                                ((auth.hasRole("admin") ||
+                                  (po.current_approver_role &&
+                                    auth.hasRole(po.current_approver_role) &&
+                                    (po.current_approver_role !== "hod" ||
+                                      !auth.departmentId ||
+                                      !po.department_id ||
+                                      auth.departmentId === po.department_id ||
+                                      auth.departmentId === po.purchase_requisitions?.departments?.id))) ? (
                                   <Button
                                     size="sm"
                                     onClick={() => handleApprovePo(po)}
@@ -562,12 +625,13 @@ export default function PurchaseOrders() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="regular">Regular Order (Approved CS)</SelectItem>
+                      <SelectItem value="direct_purchase">Direct Purchase (≤ ₹5,000 / Small Value PR)</SelectItem>
                       <SelectItem value="rate_contract">Rate Contract Order</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                {poType === "regular" ? (
+                {poType === "regular" && (
                   <div className="space-y-1">
                     <Label>Approved Comparative Statement</Label>
                     <Select value={selectedCsId} onValueChange={setSelectedCsId}>
@@ -584,7 +648,9 @@ export default function PurchaseOrders() {
                       </SelectContent>
                     </Select>
                   </div>
-                ) : (
+                )}
+
+                {poType === "rate_contract" && (
                   <div className="space-y-1">
                     <Label>Active Rate Contract</Label>
                     <Select value={selectedRcId} onValueChange={setSelectedRcId}>
@@ -601,7 +667,56 @@ export default function PurchaseOrders() {
                     </Select>
                   </div>
                 )}
+
+                {poType === "direct_purchase" && (
+                  <div className="space-y-1">
+                    <Label>Approved Purchase Requisition (≤ ₹5,000)</Label>
+                    <Select value={selectedPrId} onValueChange={setSelectedPrId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Approved PR..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {directPrs.length === 0 ? (
+                          <SelectItem value="none" disabled>
+                            No approved low-value PRs found
+                          </SelectItem>
+                        ) : (
+                          directPrs.map((pr) => (
+                            <SelectItem key={pr.id} value={pr.id}>
+                              {pr.pr_number} — {pr.departments?.name || "Dept"} (₹
+                              {Number(pr.estimated_value).toLocaleString("en-IN")})
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
+
+              {poType === "direct_purchase" && (
+                <div className="space-y-1">
+                  <Label>Select Empanelled Vendor *</Label>
+                  <Select value={selectedVendorId} onValueChange={setSelectedVendorId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Empanelled Vendor..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {vendorsList.length === 0 ? (
+                        <SelectItem value="none" disabled>
+                          No empanelled vendors found
+                        </SelectItem>
+                      ) : (
+                        vendorsList.map((v) => (
+                          <SelectItem key={v.id} value={v.id}>
+                            {v.name} {v.gst_number ? `(${v.gst_number})` : ""}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div className="space-y-1">
                 <Label>Scope of Supply / Order Description</Label>
@@ -638,6 +753,17 @@ export default function PurchaseOrders() {
                   ₹{(Number(price) + Number(taxes)).toLocaleString("en-IN")}
                 </span>
               </div>
+
+              {poType === "direct_purchase" && (
+                <div className="p-2.5 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 flex items-center justify-between text-xs">
+                  <span className="font-medium text-blue-700 dark:text-blue-300">Target Approval Authority:</span>
+                  <Badge className="bg-blue-600 text-white font-bold uppercase text-[11px]">
+                    {Number(price) + Number(taxes) <= 2000
+                      ? `${directPrs.find((p) => p.id === selectedPrId)?.departments?.name || "Dept"} HOD (≤ ₹2,000)`
+                      : "Principal (≤ ₹5,000)"}
+                  </Badge>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
