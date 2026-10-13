@@ -15,7 +15,7 @@ export type CreatePoInput = {
   pr_id: string;
   cs_id?: string | null;
   rate_contract_id?: string | null;
-  type: "regular" | "rate_contract";
+  type: "regular" | "rate_contract" | "direct_purchase";
   vendor_id: string;
   scope_of_supply: string;
   price: number;
@@ -136,6 +136,32 @@ export const createPo = createServerFn({ method: "POST" })
           code: "rc_expired",
         };
       }
+    } else if (data.type === "direct_purchase") {
+      // Direct Purchase (SOP §VI, §8.5): ≤ ₹5,000 small value purchase linked directly to approved PR
+      const { data: directPr, error: directPrErr } = await db
+        .from("purchase_requisitions")
+        .select("id, status, estimated_value, category, pr_number")
+        .eq("id", data.pr_id)
+        .single();
+
+      if (directPrErr || !directPr) {
+        return { ok: false as const, error: "Purchase Requisition not found", code: "pr_not_found" };
+      }
+      if (directPr.status !== "approved") {
+        return {
+          ok: false as const,
+          error: `Cannot create direct PO: Requisition ${directPr.pr_number} is "${directPr.status}", not approved.`,
+          code: "pr_not_approved",
+        };
+      }
+      const val = Number(data.price) + Number(data.taxes);
+      if (val > 5000) {
+        return {
+          ok: false as const,
+          error: `Direct Purchase cannot exceed ₹5,000 per SOP Authority Matrix. Entered total is ₹${val.toLocaleString("en-IN")}.`,
+          code: "direct_purchase_limit_exceeded",
+        };
+      }
     }
 
     // 3. Guard: Vendor must be empanelled & active
@@ -152,8 +178,9 @@ export const createPo = createServerFn({ method: "POST" })
     const taxes = Number(data.taxes) || 0;
     const totalValue = price + taxes;
 
+    let escalationInfo: any = null;
     try {
-      await assertNoPoSplitting(
+      escalationInfo = await assertNoPoSplitting(
         db,
         data.pr_id,
         totalValue,
@@ -188,9 +215,15 @@ export const createPo = createServerFn({ method: "POST" })
       spend = (rows ?? []).reduce((s: number, r: any) => s + Number(r.total_spent ?? 0), 0);
     }
 
-    const resolved = resolveApprover(canonicalCat, totalValue, spend, rules ?? []);
+    const standardResolved = resolveApprover(canonicalCat, totalValue, spend, rules ?? []);
+    const resolvedRole = escalationInfo?.escalateRole || standardResolved.role;
+    const resolvedReason = escalationInfo?.reason || standardResolved.reason;
+    const isEscalated = Boolean(escalationInfo || standardResolved.escalate);
 
-    // 6. Insert Purchase Order using supabaseAdmin to bypass RLS
+    // In database schema check constraint (purchase_orders_type_check): type IN ('regular', 'rate_contract').
+    // Map 'direct_purchase' to 'regular' so it never violates the database check constraint, while preserving direct purchase semantics.
+    const dbType = data.type === "rate_contract" ? "rate_contract" : "regular";
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: po, error: poErr } = await supabaseAdmin
       .from("purchase_orders")
@@ -200,16 +233,16 @@ export const createPo = createServerFn({ method: "POST" })
         rate_contract_id: data.rate_contract_id ?? null,
         vendor_id: data.vendor_id,
         department_id: pr?.department_id ?? null,
-        type: data.type,
+        type: dbType,
         scope_of_supply: data.scope_of_supply,
         price,
         taxes,
         delivery_timeline: data.delivery_timeline ?? null,
         payment_terms: data.payment_terms ?? null,
         status: "pending_approval",
-        original_approver_role: resolved.role,
-        current_approver_role: resolved.role,
-        routing_reason: resolved.reason,
+        original_approver_role: resolvedRole,
+        current_approver_role: resolvedRole,
+        routing_reason: resolvedReason,
         created_by: context.userId,
       })
       .select("*")
@@ -221,9 +254,9 @@ export const createPo = createServerFn({ method: "POST" })
       ok: true as const,
       po,
       routing: {
-        role: resolved.role,
-        escalate: resolved.escalate,
-        reason: resolved.reason,
+        role: resolvedRole,
+        escalate: isEscalated,
+        reason: resolvedReason,
       },
     };
   });

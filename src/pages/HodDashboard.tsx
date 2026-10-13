@@ -357,6 +357,14 @@ const HodDashboard = () => {
                 >
                   Apply
                 </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => navigate({ to: "/procurement/approvals" })}
+                  className="bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800"
+                >
+                  Procurement Approvals
+                </Button>
               </div>
             </div>
           </CardHeader>

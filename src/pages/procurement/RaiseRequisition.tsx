@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,8 +40,7 @@ type LineItem = {
 };
 
 const CATEGORIES = [
-  { value: "small_value", label: "Small Value / Direct Purchase (≤ ₹5,000)" },
-  { value: "routine_consumable", label: "Routine Consumables (Rate Contract)" },
+  { value: "routine_consumable", label: "Routine Consumables" },
   { value: "equipment_asset", label: "Equipment & Asset Procurement" },
   { value: "software", label: "Software & Cloud Licenses" },
   { value: "academic_research", label: "Academic & Research Material" },
@@ -59,7 +59,7 @@ export default function RaiseRequisition() {
 
   // Form State
   const [departmentId, setDepartmentId] = useState<string>("");
-  const [category, setCategory] = useState<string>("small_value");
+  const [category, setCategory] = useState<string>("routine_consumable");
   const [scope, setScope] = useState<"academic" | "operational">("operational");
   const [budgetHead, setBudgetHead] = useState<string>("");
   const [isEmergency, setIsEmergency] = useState<boolean>(false);
@@ -79,13 +79,21 @@ export default function RaiseRequisition() {
     },
   ]);
 
+  const { departmentId: userDeptId } = useAuth();
+
   // Load initial data (departments, matrix rules)
   useEffect(() => {
     async function loadData() {
       const { data: depts } = await supabase.from("departments").select("id, name").order("name");
       if (depts && depts.length > 0) {
         setDepartments(depts);
-        setDepartmentId(depts[0].id);
+        // Default to the logged-in user's assigned department if present, else first department
+        setDepartmentId((prev) => {
+          if (userDeptId && depts.some((d) => d.id === userDeptId)) {
+            return userDeptId;
+          }
+          return prev || depts[0].id;
+        });
       }
 
       const { data: rules } = await supabase
@@ -97,7 +105,14 @@ export default function RaiseRequisition() {
       }
     }
     loadData();
-  }, []);
+  }, [userDeptId]);
+
+  // Keep departmentId synced if userDeptId loads after initial fetch
+  useEffect(() => {
+    if (userDeptId && departments.some((d) => d.id === userDeptId)) {
+      setDepartmentId(userDeptId);
+    }
+  }, [userDeptId, departments]);
 
   // Compute item totals and estimated total value
   const computedItems = useMemo(() => {
@@ -697,7 +712,9 @@ export default function RaiseRequisition() {
                     Target Approval Authority
                   </span>
                   <div className="text-2xl font-black tracking-tight capitalize">
-                    {liveRouting.role.replace(/_/g, " ")}
+                    {liveRouting.role === "hod"
+                      ? `${departments.find((d) => d.id === departmentId)?.name || "Department"} HOD`
+                      : liveRouting.role.replace(/_/g, " ")}
                   </div>
                   <div className="text-xs text-indigo-100">
                     {liveRouting.escalate ? (
