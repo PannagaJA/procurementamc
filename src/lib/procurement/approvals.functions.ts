@@ -33,7 +33,21 @@ export const getMyPendingApprovals = createServerFn({ method: "GET" })
     if (!isAdmin) {
       prQuery = prQuery.in("current_approver_role", held);
     }
-    const { data: prs, error: prErr } = await prQuery;
+    const { data: prsRaw, error: prErr } = await prQuery;
+
+    // Filter by department for HODs: Requisitions routed to 'hod' must only be visible
+    // to the HOD of that specific department (or admin).
+    const hodDeptIds = new Set(
+      roles.filter((r) => r.role === "hod" && r.department_id).map((r) => r.department_id),
+    );
+    const prs = isAdmin
+      ? prsRaw
+      : (prsRaw ?? []).filter((p: any) => {
+          if (p.current_approver_role === "hod") {
+            return p.department_id && hodDeptIds.has(p.department_id);
+          }
+          return true;
+        });
 
     // 2. Pending Comparative Statements
     let csQuery = db
