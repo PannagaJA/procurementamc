@@ -13,8 +13,20 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Check, Users, Trash2 } from "lucide-react";
+import { Check, Users, Trash2, Plus, UserPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { createAdminUser } from "@/lib/admin/users.functions";
+import type { AppRole } from "@/lib/admin/users.functions";
 import {
   Select,
   SelectContent,
@@ -56,6 +68,21 @@ const UserManagement = () => {
   const [departments, setDepartments] = useState<any[]>([]);
   const [selectedDepartments, setSelectedDepartments] = useState<Record<string, string>>({});
   const { toast } = useToast();
+
+  // Add User Dialog State
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [creatingUser, setCreatingUser] = useState(false);
+  const [newUserForm, setNewUserForm] = useState<{
+    fullName: string;
+    email: string;
+    role: AppRole;
+    departmentId: string;
+  }>({
+    fullName: "",
+    email: "",
+    role: "viewer",
+    departmentId: "",
+  });
 
   const { pagination, setPage, setPageSize, setTotal } = usePagination(10, 1);
 
@@ -199,243 +226,141 @@ const UserManagement = () => {
     departmentId?: string,
   ) => {
     try {
-      const user = users.find((u) => u.id === userId);
+      // Find management department if needed for non-academic roles
+      const mgmtDept = departments.find(
+        (d) => d.name.toLowerCase() === "management" || d.name.toLowerCase().includes("management"),
+      );
 
-      if (newRole === "admin") {
-        // Remove principle, viewer and librarian roles, then add admin
-        const { error: deleteError } = await supabase
-          .from("user_roles")
-          .delete()
-          .eq("user_id", userId)
-          .in("role", ["principle", "viewer", "librarian", "hod"]);
-
-        if (deleteError) throw deleteError;
-
-        if (!user?.user_roles?.some((r) => r.role === "admin")) {
-          const { error: insertError } = await supabase
-            .from("user_roles")
-            .insert({ user_id: userId, role: "admin" });
-          if (insertError) throw insertError;
-        }
-
-        // Update local state
-        setUsers((prev) =>
-          prev.map((u) => {
-            if (u.id === userId) {
-              return {
-                ...u,
-                user_roles: [
-                  ...(u.user_roles?.filter((r) => r.role !== "principle") || []),
-                  { role: "admin" },
-                ],
-              };
-            }
-            return u;
-          }),
-        );
-
-        toast({
-          title: "User promoted",
-          description: `${email} has been promoted to admin.`,
-        });
-      } else if (newRole === "principle") {
-        // Remove admin, viewer and librarian roles, then add principle
-        const { error: deleteError } = await supabase
-          .from("user_roles")
-          .delete()
-          .eq("user_id", userId)
-          .in("role", ["admin", "viewer", "librarian", "hod"]);
-
-        if (deleteError) throw deleteError;
-
-        if (!user?.user_roles?.some((r) => r.role === "principle")) {
-          const { error: insertError } = await supabase
-            .from("user_roles")
-            .insert({ user_id: userId, role: "principle" });
-          if (insertError) throw insertError;
-        }
-
-        setUsers((prev) =>
-          prev.map((u) => {
-            if (u.id === userId) {
-              return { ...u, user_roles: [{ role: "principle" }] };
-            }
-            return u;
-          }),
-        );
-
-        toast({ title: "User role updated", description: `${email} has been set as principle.` });
-      } else if (newRole === "librarian") {
-        // Remove admin and principle and viewer roles, then add librarian
-        const { error: deleteError } = await supabase
-          .from("user_roles")
-          .delete()
-          .eq("user_id", userId)
-          .in("role", ["admin", "viewer", "principle", "hod"]);
-
-        if (deleteError) throw deleteError;
-
-        if (!user?.user_roles?.some((r) => r.role === "librarian")) {
-          const { error } = await supabase
-            .from("user_roles")
-            .insert({ user_id: userId, role: "librarian" });
-          if (error) throw error;
-        }
-
-        setUsers((prev) =>
-          prev.map((u) => {
-            if (u.id === userId) {
-              return { ...u, user_roles: [{ role: "librarian" }] };
-            }
-            return u;
-          }),
-        );
-
-        toast({ title: "User role updated", description: `${email} has been set as librarian.` });
-      } else if (newRole === "viewer") {
-        // Remove admin, principle and librarian roles then ensure a viewer role exists
-        const { error: deleteError } = await supabase
-          .from("user_roles")
-          .delete()
-          .eq("user_id", userId)
-          .in("role", ["admin", "principle", "librarian", "hod"]);
-
-        if (deleteError) throw deleteError;
-
-        // Insert viewer role if not present
-        if (!user?.user_roles?.some((r) => r.role === "viewer")) {
-          const { error: insertError } = await supabase
-            .from("user_roles")
-            .insert({ user_id: userId, role: "viewer" });
-          if (insertError) throw insertError;
-        }
-
-        setUsers((prev) =>
-          prev.map((u) => {
-            if (u.id === userId) {
-              return { ...u, user_roles: [{ role: "viewer" }] };
-            }
-            return u;
-          }),
-        );
-
-        toast({ title: "User demoted", description: `${email} has been demoted to viewer.` });
-      } else if (newRole === "hod") {
-        // Remove other roles, then add hod with optional department
-        const { error: deleteError } = await supabase
-          .from("user_roles")
-          .delete()
-          .eq("user_id", userId)
-          .in("role", ["admin", "principle", "viewer", "librarian"]);
-
-        if (deleteError) throw deleteError;
-
-        if (!user?.user_roles?.some((r) => r.role === "hod")) {
-          const insertPayload: any = { user_id: userId, role: "hod" };
-          if (departmentId) insertPayload.department_id = departmentId;
-          const { error } = await supabase.from("user_roles").insert(insertPayload);
-          if (error) throw error;
-        } else {
-          // ensure department is updated if present
-          if (departmentId) {
-            const { error } = await supabase
-              .from("user_roles")
-              .update({ department_id: departmentId })
-              .eq("user_id", userId)
-              .eq("role", "hod");
-            if (error) throw error;
-          }
-        }
-
-        setUsers((prev) =>
-          prev.map((u) => {
-            if (u.id === userId) {
-              return { ...u, user_roles: [{ role: "hod", department_id: departmentId || null }] };
-            }
-            return u;
-          }),
-        );
-
-        toast({ title: "User role updated", description: `${email} has been set as HOD.` });
+      // Determine the department_id to store
+      let finalDeptId: string | null = null;
+      if (newRole === "hod" || newRole === "faculty") {
+        finalDeptId = departmentId || null;
+      } else {
+        finalDeptId = departmentId || mgmtDept?.id || null;
       }
+
+      // Delete existing roles for this user
+      const { error: deleteError } = await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", userId);
+
+      if (deleteError) throw deleteError;
+
+      // Insert new role
+      const insertPayload: any = {
+        user_id: userId,
+        role: newRole,
+      };
+      if (finalDeptId) {
+        insertPayload.department_id = finalDeptId;
+      }
+
+      const { error: insertError } = await supabase
+        .from("user_roles")
+        .insert(insertPayload);
+
+      if (insertError) throw insertError;
+
+      // Update local state
+      setUsers((prev) =>
+        prev.map((u) => {
+          if (u.id === userId) {
+            return {
+              ...u,
+              user_roles: [
+                {
+                  role: newRole,
+                  department_id: finalDeptId,
+                },
+              ],
+            };
+          }
+          return u;
+        }),
+      );
+
+      toast({
+        title: "User Role Updated",
+        description: `${email} has been updated to ${newRole}.`,
+      });
     } catch (error: any) {
       console.error("Error changing user role:", error);
-      try {
-        console.error("Error details:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
-      } catch (e) {
-        // ignore stringify errors
-      }
-      // If the remote DB doesn't have department_id yet (migration not applied),
-      // fall back to retrying the HOD insert without department_id so the UI remains usable.
-      const msg = (error && (error.message || error.error || "")).toString();
-      if (
-        error &&
-        (error.code === "PGRST204" || msg.includes("Could not find the 'department_id' column")) &&
-        newRole === "hod"
-      ) {
-        try {
-          // Retry without department_id
-          const { error: fallbackError } = await supabase
-            .from("user_roles")
-            .insert({ user_id: userId, role: "hod" });
-          if (fallbackError) throw fallbackError;
-
-          setUsers((prev) =>
-            prev.map((u) => {
-              if (u.id === userId) {
-                return { ...u, user_roles: [{ role: "hod" }] };
-              }
-              return u;
-            }),
-          );
-
-          toast({
-            title: "User role updated",
-            description: `${email} has been set as HOD (department will be available after migration).`,
-          });
-          return;
-        } catch (fallbackErr: any) {
-          console.error("Fallback insert failed:", fallbackErr);
-          // If the insert failed due to unique constraint, the role likely already exists
-          // but the earlier PATCH/update failed because the remote schema lacks department_id.
-          // Mark the user locally as HOD so the UI reflects the role, and inform the user
-          // to sync/apply migrations to enable department assignments.
-          if (
-            fallbackErr &&
-            (fallbackErr.code === "23505" ||
-              (fallbackErr.message || "").includes("duplicate key value"))
-          ) {
-            setUsers((prev) =>
-              prev.map((u) => {
-                if (u.id === userId) {
-                  return { ...u, user_roles: [{ role: "hod" }] };
-                }
-                return u;
-              }),
-            );
-
-            toast({
-              title: "User role updated (partial)",
-              description:
-                "User set as HOD locally. Run the DB migration to enable department assignments.",
-            });
-            return;
-          }
-
-          toast({
-            variant: "destructive",
-            title: "Role change failed",
-            description: fallbackErr.message || "Failed to change user role.",
-          });
-          return;
-        }
-      }
-
       toast({
         variant: "destructive",
         title: "Role change failed",
         description: error.message || "Failed to change user role.",
       });
+    }
+  };
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUserForm.email || !newUserForm.fullName) {
+      toast({
+        variant: "destructive",
+        title: "Validation Error",
+        description: "Name and email are required.",
+      });
+      return;
+    }
+
+    try {
+      setCreatingUser(true);
+      // Auto-assign management department for non-academic roles if no department selected
+      const mgmtDept = departments.find(
+        (d) => d.name.toLowerCase() === "management" || d.name.toLowerCase().includes("management"),
+      );
+      let chosenDeptId: string | null = null;
+      if (newUserForm.role === "hod" || newUserForm.role === "faculty") {
+        chosenDeptId = newUserForm.departmentId || null;
+      } else {
+        chosenDeptId = newUserForm.departmentId || mgmtDept?.id || null;
+      }
+
+      const res = await createAdminUser({
+        data: {
+          email: newUserForm.email,
+          full_name: newUserForm.fullName,
+          password: "Password@123",
+          role: newUserForm.role,
+          department_id: chosenDeptId,
+        },
+      });
+
+      if (!res.ok) {
+        toast({
+          variant: "destructive",
+          title: "User Creation Failed",
+          description: res.error,
+        });
+        return;
+      }
+
+      toast({
+        title: "User Created Successfully",
+        description: `${newUserForm.fullName} (${newUserForm.email}) added with default password Password@123.`,
+      });
+
+      setShowAddUserModal(false);
+      setNewUserForm({
+        fullName: "",
+        email: "",
+        role: "viewer",
+        departmentId: "",
+      });
+
+      // Refresh users list
+      await fetchUsers();
+    } catch (err: any) {
+      console.error("Failed to create user:", err);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: err.message || "An unexpected error occurred.",
+      });
+    } finally {
+      setCreatingUser(false);
     }
   };
 
@@ -475,25 +400,41 @@ const UserManagement = () => {
 
   const getUserRole = (userRoles: { role: string }[]) => {
     if (!userRoles || userRoles.length === 0) return "Pending";
-    if (userRoles.some((r) => r.role === "admin")) return "Admin";
-    if (userRoles.some((r) => r.role === "principle")) return "Principle";
-    if (userRoles.some((r) => r.role === "hod")) return "HOD";
-    if (userRoles.some((r) => r.role === "librarian")) return "Librarian";
-    return "Viewer";
+    const primary = userRoles[0]?.role;
+    if (!primary) return "Pending";
+    // Format role into readable label
+    switch (primary) {
+      case "admin": return "Admin";
+      case "principal":
+      case "principle": return "Principal";
+      case "hod": return "HOD";
+      case "librarian": return "Librarian";
+      case "viewer": return "Viewer";
+      case "faculty": return "Faculty";
+      case "requester": return "Requester";
+      case "stores": return "Stores";
+      case "finance": return "Finance";
+      case "procurement_officer": return "Procurement Officer";
+      case "procurement_executive": return "Procurement Executive";
+      case "purchase_committee": return "Purchase Committee";
+      case "evp": return "EVP";
+      case "director_admin_finance": return "Director Admin & Finance";
+      default: return primary.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    }
   };
 
   const getRoleBadge = (user: UserProfile) => {
     const role = getUserRole(user.user_roles);
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
       Admin: "default",
-      Principle: "secondary",
+      Principal: "secondary",
       HOD: "secondary",
       Librarian: "secondary",
-      Viewer: "secondary",
+      Viewer: "outline",
       Pending: "outline",
     };
 
-    return <Badge variant={variants[role] || "outline"}>{role}</Badge>;
+    return <Badge variant={variants[role] || "secondary"}>{role}</Badge>;
   };
 
   if (loading) {
@@ -526,11 +467,18 @@ const UserManagement = () => {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-3xl font-bold tracking-tight">User Management</h2>
             <p className="text-muted-foreground">Manage user roles and permissions</p>
           </div>
+          <Button
+            onClick={() => setShowAddUserModal(true)}
+            className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+          >
+            <UserPlus className="w-4 h-4" />
+            Add User
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
@@ -610,22 +558,19 @@ const UserManagement = () => {
                         <TableCell>{getRoleBadge(user)}</TableCell>
                         <TableCell>
                           {(() => {
-                            const hodRole = user.user_roles?.find((r) => r.role === "hod");
-                            const deptId = hodRole?.department_id;
-                            // show department Select only when role is HOD or when a selection is pending
-                            if (
-                              getUserRole(user.user_roles) === "HOD" ||
-                              selectedDepartments[user.id] !== undefined
-                            ) {
+                            const userRole = user.user_roles?.[0]?.role;
+                            const deptId = user.user_roles?.[0]?.department_id;
+                            const isAcademicRole = userRole === "hod" || userRole === "faculty";
+
+                            // Show department Select dropdown for HOD and Faculty
+                            if (isAcademicRole || selectedDepartments[user.id] !== undefined) {
                               return (
                                 <Select
                                   value={selectedDepartments[user.id] ?? deptId ?? ""}
-                                  onValueChange={(deptId) => {
-                                    setSelectedDepartments((p) => ({ ...p, [user.id]: deptId }));
-                                    // persist department for existing HOD role
-                                    if (getUserRole(user.user_roles) === "HOD") {
-                                      setUserRole(user.id, user.email, "hod", deptId);
-                                    }
+                                  onValueChange={(newDeptId) => {
+                                    setSelectedDepartments((p) => ({ ...p, [user.id]: newDeptId }));
+                                    const currentRole = userRole || "faculty";
+                                    setUserRole(user.id, user.email, currentRole, newDeptId);
                                   }}
                                 >
                                   <SelectTrigger className="w-48">
@@ -642,8 +587,10 @@ const UserManagement = () => {
                               );
                             }
 
+                            // For non-HOD and non-Faculty, display their department name or default to "Management"
                             const dept = departments.find((d) => d.id === deptId);
-                            return dept ? dept.name : deptId ? deptId : "-";
+                            if (dept) return dept.name;
+                            return "Management";
                           })()}
                         </TableCell>
                         <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
@@ -660,17 +607,16 @@ const UserManagement = () => {
                             )}
                             {getUserRole(user.user_roles) !== "Pending" && (
                               <Select
-                                value={getUserRole(user.user_roles).toLowerCase()}
+                                value={user.user_roles?.[0]?.role || "viewer"}
                                 onValueChange={(value) => {
-                                  if (value === "hod") {
-                                    // set role to HOD; department can be selected in the Department column
-                                    setUserRole(user.id, user.email, "hod");
+                                  const currentDept = user.user_roles?.[0]?.department_id;
+                                  if (value === "hod" || value === "faculty") {
+                                    setUserRole(user.id, user.email, value, currentDept || undefined);
                                     setSelectedDepartments((p) => ({
                                       ...p,
-                                      [user.id]: p[user.id] || "",
+                                      [user.id]: p[user.id] || currentDept || "",
                                     }));
                                   } else {
-                                    // clearing any selected department state when not HOD
                                     setSelectedDepartments((p) => {
                                       const copy = { ...p };
                                       delete copy[user.id];
@@ -680,14 +626,24 @@ const UserManagement = () => {
                                   }
                                 }}
                               >
-                                <SelectTrigger className="w-32">
+                                <SelectTrigger className="w-36">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="admin">Admin</SelectItem>
-                                  <SelectItem value="principle">Principle</SelectItem>
-                                  <SelectItem value="librarian">Librarian</SelectItem>
+                                  <SelectItem value="principal">Principal</SelectItem>
                                   <SelectItem value="hod">HOD</SelectItem>
+                                  <SelectItem value="faculty">Faculty</SelectItem>
+                                  <SelectItem value="librarian">Librarian</SelectItem>
+                                  <SelectItem value="procurement_officer">Procurement Officer</SelectItem>
+                                  <SelectItem value="procurement_executive">Procurement Executive</SelectItem>
+                                  <SelectItem value="purchase_committee">Purchase Committee</SelectItem>
+                                  <SelectItem value="stores">Stores</SelectItem>
+                                  <SelectItem value="finance">Finance</SelectItem>
+                                  <SelectItem value="evp">EVP</SelectItem>
+                                  <SelectItem value="director_admin_finance">Director (Admin & Fin)</SelectItem>
+                                  <SelectItem value="requester">Requester</SelectItem>
+                                  <SelectItem value="user">User</SelectItem>
                                   <SelectItem value="viewer">Viewer</SelectItem>
                                 </SelectContent>
                               </Select>
@@ -745,6 +701,144 @@ const UserManagement = () => {
             />
           </CardContent>
         </Card>
+
+        {/* Add User Modal */}
+        <Dialog open={showAddUserModal} onOpenChange={setShowAddUserModal}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-xl font-bold">
+                <UserPlus className="w-5 h-5 text-indigo-600" />
+                Add New User
+              </DialogTitle>
+              <DialogDescription>
+                Create a new user account in Supabase and configure their institutional role and department.
+              </DialogDescription>
+            </DialogHeader>
+
+            <form onSubmit={handleCreateUser} className="space-y-4 pt-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="new-fullname">Full Name *</Label>
+                <Input
+                  id="new-fullname"
+                  required
+                  placeholder="e.g. Dr. Ramesh Kumar"
+                  value={newUserForm.fullName}
+                  onChange={(e) =>
+                    setNewUserForm((prev) => ({ ...prev, fullName: e.target.value }))
+                  }
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="new-email">Email Address *</Label>
+                <Input
+                  id="new-email"
+                  type="email"
+                  required
+                  placeholder="e.g. ramesh.kumar@institution.edu"
+                  value={newUserForm.email}
+                  onChange={(e) =>
+                    setNewUserForm((prev) => ({ ...prev, email: e.target.value }))
+                  }
+                />
+              </div>
+
+              <div className="p-3 bg-muted/40 rounded-lg border border-border/50 text-xs text-muted-foreground flex flex-col gap-1">
+                <span className="font-semibold text-foreground">Default Credentials:</span>
+                <span>The initial password for this account will be automatically set to <strong className="text-foreground font-mono">Password@123</strong>.</span>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="new-role">Assign Role *</Label>
+                <Select
+                  value={newUserForm.role}
+                  onValueChange={(val) => {
+                    const role = val as AppRole;
+                    // Auto-select Management department for non-academic roles if empty
+                    const mgmtDept = departments.find(
+                      (d) => d.name.toLowerCase() === "management" || d.name.toLowerCase().includes("management"),
+                    );
+                    setNewUserForm((prev) => ({
+                      ...prev,
+                      role,
+                      departmentId:
+                        role === "hod" || role === "faculty"
+                          ? prev.departmentId
+                          : prev.departmentId || mgmtDept?.id || "",
+                    }));
+                  }}
+                >
+                  <SelectTrigger id="new-role">
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="principal">Principal</SelectItem>
+                    <SelectItem value="hod">HOD (Head of Department)</SelectItem>
+                    <SelectItem value="faculty">Faculty</SelectItem>
+                    <SelectItem value="librarian">Librarian</SelectItem>
+                    <SelectItem value="procurement_officer">Procurement Officer</SelectItem>
+                    <SelectItem value="procurement_executive">Procurement Executive</SelectItem>
+                    <SelectItem value="purchase_committee">Purchase Committee</SelectItem>
+                    <SelectItem value="stores">Stores / Receiving</SelectItem>
+                    <SelectItem value="finance">Finance Officer</SelectItem>
+                    <SelectItem value="evp">Executive Vice President (EVP)</SelectItem>
+                    <SelectItem value="director_admin_finance">Director (Admin & Finance)</SelectItem>
+                    <SelectItem value="requester">Requester</SelectItem>
+                    <SelectItem value="user">User</SelectItem>
+                    <SelectItem value="viewer">Viewer</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="new-department">
+                  Department {newUserForm.role === "hod" || newUserForm.role === "faculty" ? "*" : "(Defaults to Management)"}
+                </Label>
+                <Select
+                  value={newUserForm.departmentId}
+                  onValueChange={(val) =>
+                    setNewUserForm((prev) => ({ ...prev, departmentId: val }))
+                  }
+                >
+                  <SelectTrigger id="new-department">
+                    <SelectValue placeholder="Choose department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departments.map((dept) => (
+                      <SelectItem key={dept.id} value={dept.id}>
+                        {dept.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground">
+                  {newUserForm.role === "hod" || newUserForm.role === "faculty"
+                    ? "Select the academic/engineering department for this faculty or HOD."
+                    : "Non-academic users default to the Management department."}
+                </p>
+              </div>
+
+              <DialogFooter className="pt-3 gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowAddUserModal(false)}
+                  disabled={creatingUser}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={creatingUser}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5"
+                >
+                  {creatingUser ? "Creating User..." : "Save & Create User"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );

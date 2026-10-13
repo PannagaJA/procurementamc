@@ -22,7 +22,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import QRScanner from "@/components/QRScanner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+<<<<<<< HEAD
 import { ScanLine, Ticket, PlusCircle, ArrowUpRight, LifeBuoy } from "lucide-react";
+=======
+import { ScanLine, Ticket, PlusCircle, ArrowUpRight, LifeBuoy, PlusSquare } from "lucide-react";
+>>>>>>> origin/main
 
 interface DashboardStats {
   totalItems: number;
@@ -390,13 +394,12 @@ const Dashboard = () => {
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <Button
-                variant="outline"
                 size="sm"
-                onClick={() => navigate({ to: "/raise-ticket" })}
-                className="gap-1.5"
+                onClick={() => navigate({ to: "/procurement/raise-pr" })}
+                className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
               >
-                <PlusCircle className="w-4 h-4" />
-                Raise Ticket
+                <PlusSquare className="w-4 h-4" />
+                Raise PR
               </Button>
               <Button
                 size="sm"
