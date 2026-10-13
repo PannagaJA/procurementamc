@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -79,13 +80,20 @@ export default function RaiseRequisition() {
     },
   ]);
 
+  const { departmentId: userDeptId } = useAuth();
+
   // Load initial data (departments, matrix rules)
   useEffect(() => {
     async function loadData() {
       const { data: depts } = await supabase.from("departments").select("id, name").order("name");
       if (depts && depts.length > 0) {
         setDepartments(depts);
-        setDepartmentId(depts[0].id);
+        // Default to the logged-in user's assigned department if present, else first department
+        if (userDeptId && depts.some((d) => d.id === userDeptId)) {
+          setDepartmentId(userDeptId);
+        } else {
+          setDepartmentId(depts[0].id);
+        }
       }
 
       const { data: rules } = await supabase
@@ -97,7 +105,7 @@ export default function RaiseRequisition() {
       }
     }
     loadData();
-  }, []);
+  }, [userDeptId]);
 
   // Compute item totals and estimated total value
   const computedItems = useMemo(() => {
