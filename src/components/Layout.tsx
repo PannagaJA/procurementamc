@@ -190,9 +190,10 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
   const canSeeViewerItems = isViewer || isRole("viewer");
   const canSeeHodInventory = isHod || isRole("hod");
   const canSeeInventory = canSeeAdminItems || isRole("stores") || isPrinciple || isRole("principal");
-  const canSeePrincipalApprovals = isPrinciple || isRole("principal");
+  const canSeePrincipalApprovals = isPrinciple || isRole("principal") || canSeeAdminItems;
   const canRaiseTickets = Boolean(
-    user && !canSeeAdminItems && (
+    user && (
+      canSeeAdminItems ||
       canSeeHodInventory ||
       isPrinciple ||
       isRole("principal") ||

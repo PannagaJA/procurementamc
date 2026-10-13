@@ -176,6 +176,14 @@ export default function RaiseRequisition() {
       toast({ title: "Please provide a justification", variant: "destructive" });
       return;
     }
+    if (isRecurring && (!recurringFrequency || !recurringFrequency.trim())) {
+      toast({
+        title: "Recurring Frequency Required",
+        description: "Please specify the frequency (e.g. Monthly, Quarterly) for this recurring requisition.",
+        variant: "destructive",
+      });
+      return;
+    }
     const validItems = lineItems.filter((i) => i.description.trim().length > 0);
     if (validItems.length === 0) {
       toast({
@@ -584,7 +592,10 @@ export default function RaiseRequisition() {
                         type="checkbox"
                         id="isRecurring"
                         checked={isRecurring}
-                        onChange={(e) => setIsRecurring(e.target.checked)}
+                        onChange={(e) => {
+                          setIsRecurring(e.target.checked);
+                          if (!e.target.checked) setRecurringFrequency("");
+                        }}
                         className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                       />
                       <div className="space-y-1.5 flex-1">
@@ -595,12 +606,57 @@ export default function RaiseRequisition() {
                           Recurring Requirement
                         </Label>
                         {isRecurring && (
-                          <Input
-                            placeholder="e.g. Monthly, Quarterly"
-                            value={recurringFrequency}
-                            onChange={(e) => setRecurringFrequency(e.target.value)}
-                            className="h-8 text-xs mt-1"
-                          />
+                          <div className="space-y-2 mt-1.5">
+                            <Select
+                              value={
+                                ["Monthly", "Bi-Monthly", "Quarterly", "Half-Yearly", "Annually"].includes(
+                                  recurringFrequency,
+                                )
+                                  ? recurringFrequency
+                                  : recurringFrequency
+                                  ? "Custom"
+                                  : ""
+                              }
+                              onValueChange={(val) => {
+                                if (val === "Custom") {
+                                  setRecurringFrequency("");
+                                } else {
+                                  setRecurringFrequency(val);
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="h-8 text-xs bg-white dark:bg-slate-800">
+                                <SelectValue placeholder="Select frequency (Required) *" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Monthly">Monthly (12x / year)</SelectItem>
+                                <SelectItem value="Bi-Monthly">Bi-Monthly (Every 2 months)</SelectItem>
+                                <SelectItem value="Quarterly">Quarterly (Every 3 months)</SelectItem>
+                                <SelectItem value="Half-Yearly">Half-Yearly (Every 6 months)</SelectItem>
+                                <SelectItem value="Annually">Annually (Once a year)</SelectItem>
+                                <SelectItem value="Custom">Custom frequency...</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            {(![
+                              "Monthly",
+                              "Bi-Monthly",
+                              "Quarterly",
+                              "Half-Yearly",
+                              "Annually",
+                            ].includes(recurringFrequency) ||
+                              recurringFrequency === "") && (
+                              <Input
+                                placeholder="Enter custom frequency (e.g. Every 45 days) *"
+                                value={recurringFrequency}
+                                onChange={(e) => setRecurringFrequency(e.target.value)}
+                                className="h-8 text-xs bg-white dark:bg-slate-800"
+                                required
+                              />
+                            )}
+                            <p className="text-[11px] text-blue-600 dark:text-blue-400">
+                              💡 Routine recurring items qualify for a 6-month Master Rate Contract with Procurement under SOP §8.2.
+                            </p>
+                          </div>
                         )}
                       </div>
                     </div>
