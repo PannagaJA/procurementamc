@@ -22,11 +22,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import QRScanner from "@/components/QRScanner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-<<<<<<< HEAD
-import { ScanLine, Ticket, PlusCircle, ArrowUpRight, LifeBuoy } from "lucide-react";
-=======
 import { ScanLine, Ticket, PlusCircle, ArrowUpRight, LifeBuoy, PlusSquare } from "lucide-react";
->>>>>>> origin/main
 
 interface DashboardStats {
   totalItems: number;

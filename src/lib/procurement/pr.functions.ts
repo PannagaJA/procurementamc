@@ -76,6 +76,14 @@ export const createPr = createServerFn({ method: "POST" })
       }
     }
 
+    if (data.is_recurring && (!data.recurring_frequency || !data.recurring_frequency.trim())) {
+      return {
+        ok: false as const,
+        error: "Recurring frequency is required when Recurring Requirement is enabled (SOP §8.1).",
+        code: "recurring_frequency_required",
+      };
+    }
+
     const resolved = await resolve(db, canonicalCat, data.department_id, value);
 
     const { data: pr, error } = await db
