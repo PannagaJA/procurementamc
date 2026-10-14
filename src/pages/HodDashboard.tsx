@@ -31,8 +31,7 @@ const HodDashboard = () => {
 
   const { pagination, setPage, setPageSize, setTotal } = usePagination(10, 1);
 
-  const { departmentId } = useAuth();
-  const { primaryRole } = useAuth();
+  const { departmentId, primaryRole, loading: authLoading, hasRole } = useAuth();
   const [searchInput, setSearchInput] = useState<string>("");
   const [filters, setFilters] = useState({ search: "" });
   const [metrics, setMetrics] = useState({ pending: 0, inProgress: 0, approved: 0, rejected: 0 });
@@ -294,13 +293,16 @@ const HodDashboard = () => {
   };
 
   useEffect(() => {
+    // If auth is still resolving, do not redirect
+    if (authLoading) return;
+
     // redirect if user is not HOD
-    if (primaryRole !== "hod") {
+    if (!hasRole("hod") && primaryRole !== "hod" && !hasRole("admin")) {
       navigate({ to: "/" });
       return;
     }
     fetchDepartmentForUser();
-  }, [fetchDepartmentForUser]);
+  }, [authLoading, primaryRole, hasRole, fetchDepartmentForUser, navigate]);
 
   useEffect(() => {
     if (departmentName) {
@@ -319,7 +321,7 @@ const HodDashboard = () => {
     return () => clearInterval(iv);
   }, [departmentName, fetchMetrics, fetchTickets]);
 
-  if (loading)
+  if (loading || authLoading)
     return (
       <Layout>
         <div className="flex items-center justify-center min-h-screen">

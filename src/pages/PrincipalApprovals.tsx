@@ -26,14 +26,15 @@ const PrincipalApprovals = () => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const { pagination, setPage, setPageSize, setTotal } = usePagination(10, 1);
-  const { userId, primaryRole } = useAuth();
+  const { userId, primaryRole, loading: authLoading, hasRole } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   const fetchPending = useCallback(async () => {
+    if (authLoading) return;
     setLoading(true);
     try {
-      if (primaryRole !== "principle" && primaryRole !== "principal") {
+      if (!hasRole("principal") && primaryRole !== "principle" && primaryRole !== "principal" && !hasRole("admin")) {
         navigate({ to: "/" });
         return;
       }
@@ -71,7 +72,7 @@ const PrincipalApprovals = () => {
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.pageSize, setTotal, toast, navigate, primaryRole]);
+  }, [pagination.page, pagination.pageSize, setTotal, toast, navigate, primaryRole, authLoading, hasRole]);
 
   useEffect(() => {
     fetchPending();

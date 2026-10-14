@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { useAuth } from "@/lib/auth";
+import { useAuth, getRoleDefaultPath } from "@/lib/auth";
 import type { User } from "@supabase/supabase-js";
 import {
   Home,
@@ -323,10 +323,14 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
                 AMC Inventory System
               </h1>
               <p className="text-[11px] sm:text-xs text-gray-600 dark:text-gray-400 font-medium">
-                {(authCtx?.primaryRole === "admin" && "Administrator") ||
+                {authCtx?.loading && !authCtx?.primaryRole ? (
+                  <span className="inline-block w-24 h-3 bg-muted/60 animate-pulse rounded" />
+                ) : (
+                  (authCtx?.primaryRole === "admin" && "Administrator") ||
                   (authCtx?.primaryRole === "principle" && "Principal") ||
                   (authCtx?.primaryRole === "principal" && "Principal") ||
                   (authCtx?.primaryRole === "evp" && "Executive Vice President") ||
+                  (authCtx?.primaryRole === "director_admin_finance" && "Director (Admin & Finance)") ||
                   (authCtx?.primaryRole === "purchase_committee" && "Purchase Committee") ||
                   (authCtx?.primaryRole === "procurement_officer" && "Procurement Officer") ||
                   (authCtx?.primaryRole === "procurement_executive" && "Procurement Executive") ||
@@ -337,7 +341,8 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
                   (authCtx?.primaryRole === "viewer" && "Viewer / Auditor") ||
                   (authCtx?.primaryRole === "faculty" && "Faculty Requisitioner") ||
                   (authCtx?.primaryRole === "user" && "Faculty / Academic Requisitioner") ||
-                  (isAdmin ? "Administrator" : isPrinciple ? "Principal" : "Faculty / Staff Access")}
+                  (isAdmin ? "Administrator" : isPrinciple ? "Principal" : "Faculty / Staff Access")
+                )}
               </p>
             </div>
           </div>
@@ -366,16 +371,7 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
                 <li>
                   {(() => {
                     const role = authCtx?.primaryRole;
-                    const target =
-                      role === "hod"
-                        ? "/hod"
-                        : role === "principle" || role === "principal"
-                          ? "/principal"
-                          : role === "librarian"
-                            ? "/librarian"
-                            : role === "viewer"
-                              ? "/viewer"
-                              : "/";
+                    const target = getRoleDefaultPath(role);
                     const isActive =
                       location.pathname === target || (target === "/" && location.pathname === "/");
                     return (
@@ -778,16 +774,7 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
             <li>
               {(() => {
                 const role = authCtx?.primaryRole;
-                const target =
-                  role === "hod"
-                    ? "/hod"
-                    : role === "principle" || role === "principal"
-                      ? "/principal"
-                      : role === "librarian"
-                        ? "/librarian"
-                        : role === "viewer"
-                          ? "/viewer"
-                          : "/";
+                const target = getRoleDefaultPath(role);
                 const isActive =
                   location.pathname === target || (target === "/" && location.pathname === "/");
                 return (
