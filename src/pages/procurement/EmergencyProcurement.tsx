@@ -539,11 +539,11 @@ export default function EmergencyProcurement() {
               </div>
 
               {/* Cap Warning */}
-              {estimatedCost > remaining && (
+              {Number(estimatedCost) > remaining && (
                 <div className="p-2.5 bg-red-50 dark:bg-red-950/40 border border-red-300 rounded text-xs text-red-900 dark:text-red-200 flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
                   <span>
-                    HARD BLOCK: Cost ₹{estimatedCost.toLocaleString("en-IN")} exceeds remaining
+                    HARD BLOCK: Cost ₹{Number(estimatedCost).toLocaleString("en-IN")} exceeds remaining
                     annual cap ₹{remaining.toLocaleString("en-IN")}.
                   </span>
                 </div>
@@ -589,8 +589,8 @@ export default function EmergencyProcurement() {
                 onClick={handleRequest}
                 disabled={
                   submitting ||
-                  estimatedCost <= 0 ||
-                  estimatedCost > remaining ||
+                  Number(estimatedCost) <= 0 ||
+                  Number(estimatedCost) > remaining ||
                   !reasonFailed.trim()
                 }
                 className="bg-amber-600 hover:bg-amber-700 text-white"

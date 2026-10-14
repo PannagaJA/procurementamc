@@ -142,7 +142,7 @@ export default function InvoiceManagement() {
   }, [selectedPoId, pos, grns]);
 
   const handleSubmitInvoice = async () => {
-    if (!selectedPoId || !invoiceNumber.trim() || invoiceAmount <= 0) {
+    if (!selectedPoId || !invoiceNumber.trim() || Number(invoiceAmount) <= 0) {
       toast({
         title: "Validation Error",
         description: "Please complete all required fields.",
@@ -966,7 +966,7 @@ export default function InvoiceManagement() {
               </Button>
               <Button
                 onClick={handleRecordPayment}
-                disabled={paying || payAmount <= 0}
+                disabled={paying || Number(payAmount) <= 0}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white"
               >
                 {paying ? "Releasing..." : "Confirm Payment Release"}

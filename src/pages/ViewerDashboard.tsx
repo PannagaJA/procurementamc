@@ -209,7 +209,7 @@ const ViewerDashboard = () => {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="location" tick={{ fontSize: 12 }} interval={0} />
                       <YAxis />
-                      <ReTooltip />
+                      <ReTooltip cursor={{ fill: "transparent" }} />
                       <Legend />
                       <Bar dataKey="count" fill={CHART_COLORS[0]} />
                     </BarChart>

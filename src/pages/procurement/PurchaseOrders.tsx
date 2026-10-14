@@ -270,7 +270,7 @@ export default function PurchaseOrders() {
   }, [selectedPrId, poType, directPrs]);
 
   const handleCreatePo = async () => {
-    if (!selectedPrId || !selectedVendorId || price <= 0) {
+    if (!selectedPrId || !selectedVendorId || Number(price) <= 0) {
       toast({
         title: "Validation Error",
         description: "Please complete all required fields.",
@@ -374,7 +374,7 @@ export default function PurchaseOrders() {
   };
 
   const handleAmendPo = async () => {
-    if (!activePo || !amendReason.trim() || newPrice <= 0) {
+    if (!activePo || !amendReason.trim() || Number(newPrice) <= 0) {
       toast({
         title: "Validation Error",
         description: "Please provide valid amended values and reason.",
@@ -1084,7 +1084,7 @@ export default function PurchaseOrders() {
               </Button>
               <Button
                 onClick={handleCreatePo}
-                disabled={creating || !selectedPrId || price <= 0}
+                disabled={creating || !selectedPrId || Number(price) <= 0}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white"
               >
                 {creating ? "Creating..." : "Create & Route for Approval"}

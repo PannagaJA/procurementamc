@@ -105,6 +105,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --background: 222 47% 11%;
   --foreground: 210 40% 98%;
 
@@ -162,29 +163,47 @@
     color: hsl(var(--foreground));
   }
 
-  /* ── Dark-mode native date/time input calendar icon ──────────────────────
-     The browser renders the calendar picker indicator using the OS colour-scheme.
-     Without an explicit hint it renders a dark icon on a dark background.
-     Setting color-scheme on the input forces the browser to use light-mode
-     system colours for the picker icon while our custom background/foreground
-     tokens still apply to the text.
+  /* ── Native date/time input calendar icon in dark mode ──────────────────
+     Force the native picker indicator to be bright, crisp, and high-contrast
+     across all browsers (Chrome, Edge, Safari, Firefox).
   ─────────────────────────────────────────────────────────────────────────── */
   .dark input[type="date"],
   .dark input[type="datetime-local"],
   .dark input[type="time"],
   .dark input[type="month"],
-  .dark input[type="week"] {
+  .dark input[type="week"],
+  input[type="date"].dark,
+  input[type="datetime-local"].dark,
+  input[type="time"].dark,
+  input[type="month"].dark,
+  input[type="week"].dark {
     color-scheme: dark;
   }
 
-  /* Fallback: explicitly colour the webkit calendar button icon */
+  /* Force the native indicator icon to pure crisp white in dark mode */
   .dark input[type="date"]::-webkit-calendar-picker-indicator,
   .dark input[type="datetime-local"]::-webkit-calendar-picker-indicator,
   .dark input[type="time"]::-webkit-calendar-picker-indicator,
   .dark input[type="month"]::-webkit-calendar-picker-indicator,
-  .dark input[type="week"]::-webkit-calendar-picker-indicator {
-    filter: invert(1) brightness(0.85);
-    opacity: 0.8;
+  .dark input[type="week"]::-webkit-calendar-picker-indicator,
+  input[type="date"].dark::-webkit-calendar-picker-indicator,
+  input[type="datetime-local"].dark::-webkit-calendar-picker-indicator,
+  input[type="time"].dark::-webkit-calendar-picker-indicator,
+  input[type="month"].dark::-webkit-calendar-picker-indicator,
+  input[type="week"].dark::-webkit-calendar-picker-indicator {
+    filter: brightness(0) invert(1) !important;
+    opacity: 0.95 !important;
     cursor: pointer;
+    border-radius: 4px;
+    padding: 2px;
+  }
+
+  .dark input[type="date"]::-webkit-calendar-picker-indicator:hover,
+  .dark input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover,
+  .dark input[type="time"]::-webkit-calendar-picker-indicator:hover,
+  .dark input[type="month"]::-webkit-calendar-picker-indicator:hover,
+  .dark input[type="week"]::-webkit-calendar-picker-indicator:hover {
+    filter: brightness(0) invert(1) drop-shadow(0 0 2px rgba(255, 255, 255, 0.8)) !important;
+    opacity: 1 !important;
   }
 }

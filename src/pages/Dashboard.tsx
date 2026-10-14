@@ -42,6 +42,51 @@ interface DashboardStats {
   recentTickets: any[];
 }
 
+// High-contrast custom tooltips for charts
+const LocationBarTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0];
+    const locationName = label || data.payload?.location || "Location";
+    const count = data.value;
+
+    return (
+      <div className="bg-popover text-popover-foreground px-3 py-2 rounded-lg border border-border shadow-xl text-xs">
+        <p className="font-semibold text-popover-foreground text-sm">{locationName}</p>
+        <div className="flex items-center gap-2 mt-1">
+          <span className="w-2.5 h-2.5 rounded-full bg-primary inline-block shrink-0" />
+          <span className="text-muted-foreground font-medium">Items:</span>
+          <span className="font-bold text-foreground">{count} items</span>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
+const LocationPieTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0];
+    const locationName = data.name || data.payload?.location || "Location";
+    const count = data.value;
+    const sliceColor = data.payload?.fill || data.color || "hsl(var(--primary))";
+
+    return (
+      <div className="bg-popover text-popover-foreground px-3 py-2 rounded-lg border border-border shadow-xl text-xs">
+        <p className="font-semibold text-popover-foreground text-sm">{locationName}</p>
+        <div className="flex items-center gap-2 mt-1">
+          <span
+            className="w-2.5 h-2.5 rounded-full inline-block shrink-0"
+            style={{ backgroundColor: sliceColor }}
+          />
+          <span className="text-muted-foreground font-medium">Count:</span>
+          <span className="font-bold text-foreground">{count} items</span>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -540,17 +585,8 @@ const Dashboard = () => {
                   />
                   <YAxis stroke="hsl(var(--muted-foreground))" />
                   <Tooltip
-                    formatter={(value, name) => [
-                      name === "count" ? `${value} items` : `₹${value.toLocaleString("en-IN")}`,
-                      name === "count" ? "Items" : "Value",
-                    ]}
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--background))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                      boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
-                      color: "hsl(var(--foreground))",
-                    }}
+                    cursor={{ fill: "transparent" }}
+                    content={<LocationBarTooltip />}
                   />
                   <Bar
                     dataKey="count"
@@ -583,22 +619,18 @@ const Dashboard = () => {
                     outerRadius={80}
                     fill="#8884d8"
                     dataKey="count"
+                    nameKey="location"
                   >
                     {stats?.locationBreakdown?.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={`hsl(${index * 45 + 200}, 70%, 50%)`} />
                     ))}
                   </Pie>
-                  <Tooltip
-                    formatter={(value) => [`${value} items`, "Count"]}
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--background))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                      boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
-                      color: "hsl(var(--foreground))",
-                    }}
+                  <Tooltip content={<LocationPieTooltip />} />
+                  <Legend
+                    formatter={(value) => (
+                      <span className="text-card-foreground text-xs font-medium">{value}</span>
+                    )}
                   />
-                  <Legend />
                 </PieChart>
               </ResponsiveContainer>
             </div>

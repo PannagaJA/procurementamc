@@ -5,6 +5,7 @@ type RoleEntry = { role: string; department_id?: string | null };
 
 export type AuthContextValue = {
   userId: string | null;
+  user?: any;
   roles: RoleEntry[];
   primaryRole: string | null;
   departmentId?: string | null;
@@ -16,15 +17,17 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [userId, setUserId] = useState<string | null>(null);
+  const [user, setUser] = useState<any>(null);
   const [roles, setRoles] = useState<RoleEntry[]>([]);
 
   const load = async () => {
     try {
       const {
-        data: { user },
+        data: { user: authUser },
       } = await supabase.auth.getUser();
-      setUserId(user?.id ?? null);
-      if (!user) {
+      setUserId(authUser?.id ?? null);
+      setUser(authUser ?? null);
+      if (!authUser) {
         setRoles([]);
         return;
       }
@@ -49,6 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } = supabase.auth.onAuthStateChange((_, session) => {
       if (!session) {
         setUserId(null);
+        setUser(null);
         setRoles([]);
         try {
           localStorage.removeItem("amc_roles");
@@ -93,7 +97,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <AuthContext.Provider
-      value={{ userId, roles, primaryRole, departmentId, hasRole, refresh: load }}
+      value={{ userId, user, roles, primaryRole, departmentId, hasRole, refresh: load }}
     >
       {children}
     </AuthContext.Provider>

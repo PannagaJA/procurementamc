@@ -69,6 +69,13 @@ export async function assertVendorEmpanelled(db: Db, vendorId: string): Promise<
  *    approval tier than either PO individually received, it is BLOCKED unless a deviation
  *    approval exists (§7.5, Day 2 DoD).
  */
+export type PoSplittingEscalation = {
+  escalateRole: string;
+  combinedSum: number;
+  pastSum: number;
+  reason: string;
+} | null;
+
 export async function assertNoPoSplitting(
   db: Db,
   prId: string,
@@ -76,7 +83,7 @@ export async function assertNoPoSplitting(
   vendorId?: string,
   departmentId?: string,
   csId?: string,
-): Promise<void> {
+): Promise<PoSplittingEscalation> {
   const { data: pr, error: prErr } = await db
     .from("purchase_requisitions")
     .select("id, pr_number, estimated_value, department_id, category")
