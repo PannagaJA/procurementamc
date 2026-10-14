@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { BookOpen, ShieldCheck } from "lucide-react";
+import { computePrimaryRole, getRoleDefaultPath, type RoleEntry } from "@/lib/auth";
 
 const authSchema = z.object({
   email: z
@@ -94,19 +95,46 @@ const Auth = () => {
     }
   };
 
+  const redirectUser = async (userId: string) => {
+    try {
+      const cached = localStorage.getItem("amc_roles");
+      if (cached) {
+        const roles: RoleEntry[] = JSON.parse(cached);
+        const role = computePrimaryRole(roles);
+        if (role) {
+          navigate({ to: getRoleDefaultPath(role) });
+          return;
+        }
+      }
+      const { data } = await supabase
+        .from("user_roles")
+        .select("role,department_id")
+        .eq("user_id", userId);
+      const roles = (data as RoleEntry[]) || [];
+      try {
+        localStorage.setItem("amc_roles", JSON.stringify(roles));
+        localStorage.setItem("amc_user_id", userId);
+      } catch (e) {}
+      const role = computePrimaryRole(roles);
+      navigate({ to: getRoleDefaultPath(role) });
+    } catch {
+      navigate({ to: "/" });
+    }
+  };
+
   useEffect(() => {
     // Check if user is already logged in
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        navigate({ to: "/" });
+      if (session?.user) {
+        redirectUser(session.user.id);
       }
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session) {
-        navigate({ to: "/" });
+      if (session?.user && (event === "SIGNED_IN" || event === "INITIAL_SESSION")) {
+        redirectUser(session.user.id);
       }
     });
 

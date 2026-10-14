@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-type RoleEntry = { role: string; department_id?: string | null };
+export type RoleEntry = { role: string; department_id?: string | null };
 
 export type AuthContextValue = {
   userId: string | null;
@@ -9,16 +9,89 @@ export type AuthContextValue = {
   roles: RoleEntry[];
   primaryRole: string | null;
   departmentId?: string | null;
+  loading: boolean;
   hasRole: (role: string) => boolean;
   refresh: () => Promise<void>;
+};
+
+export function computePrimaryRole(roles: RoleEntry[]): string | null {
+  return (
+    roles.find((r) => r.role === "admin")?.role ||
+    roles.find((r) => r.role === "evp")?.role ||
+    roles.find((r) => r.role === "director_admin_finance")?.role ||
+    roles.find((r) => r.role === "purchase_committee")?.role ||
+    roles.find((r) => r.role === "principal" || r.role === "principle")?.role ||
+    roles.find((r) => r.role === "procurement_officer")?.role ||
+    roles.find((r) => r.role === "procurement_executive")?.role ||
+    roles.find((r) => r.role === "hod")?.role ||
+    roles.find((r) => r.role === "stores")?.role ||
+    roles.find((r) => r.role === "finance")?.role ||
+    roles.find((r) => r.role === "librarian")?.role ||
+    roles.find((r) => r.role === "viewer")?.role ||
+    roles.find((r) => r.role === "faculty")?.role ||
+    roles.find((r) => r.role === "user" || r.role === "staff")?.role ||
+    null
+  );
+}
+
+export function getRoleDefaultPath(role: string | null): string {
+  switch (role) {
+    case "hod":
+      return "/hod";
+    case "principle":
+    case "principal":
+      return "/principal";
+    case "procurement_officer":
+    case "procurement_executive":
+      return "/procurement";
+    case "stores":
+      return "/procurement/grns";
+    case "finance":
+      return "/procurement/invoices";
+    case "purchase_committee":
+    case "evp":
+    case "director_admin_finance":
+      return "/procurement/approvals";
+    case "librarian":
+      return "/librarian";
+    case "viewer":
+      return "/viewer";
+    case "admin":
+      return "/";
+    default:
+      return "/";
+  }
+}
+
+const getCachedRoles = (): RoleEntry[] => {
+  try {
+    if (typeof window === "undefined") return [];
+    const raw = localStorage.getItem("amc_roles");
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+};
+
+const getCachedUserId = (): string | null => {
+  try {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("amc_user_id") || null;
+  } catch (e) {
+    return null;
+  }
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [userId, setUserId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(getCachedUserId);
   const [user, setUser] = useState<any>(null);
-  const [roles, setRoles] = useState<RoleEntry[]>([]);
+  const [roles, setRoles] = useState<RoleEntry[]>(getCachedRoles);
+  const [loading, setLoading] = useState<boolean>(() => {
+    // If we have cached roles, initial render is already pre-resolved
+    return !getCachedUserId();
+  });
 
   const load = async () => {
     try {
@@ -29,19 +102,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(authUser ?? null);
       if (!authUser) {
         setRoles([]);
+        try {
+          localStorage.removeItem("amc_roles");
+          localStorage.removeItem("amc_user_id");
+        } catch (e) {}
         return;
       }
 
-      const { data: roleData } = await supabase
+      try {
+        localStorage.setItem("amc_user_id", authUser.id);
+      } catch (e) {}
+
+      const { data: roleData, error } = await supabase
         .from("user_roles")
         .select("role,department_id")
-        .eq("user_id", user.id);
-      setRoles((roleData as RoleEntry[]) || []);
-      try {
-        localStorage.setItem("amc_roles", JSON.stringify(roleData || []));
-      } catch (e) {}
+        .eq("user_id", authUser.id);
+
+      if (error) {
+        console.error("Failed to fetch user roles", error);
+      } else {
+        const fetchedRoles = (roleData as RoleEntry[]) || [];
+        setRoles(fetchedRoles);
+        try {
+          localStorage.setItem("amc_roles", JSON.stringify(fetchedRoles));
+        } catch (e) {}
+      }
     } catch (err) {
       console.error("AuthProvider load failed", err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -56,7 +145,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setRoles([]);
         try {
           localStorage.removeItem("amc_roles");
+          localStorage.removeItem("amc_user_id");
         } catch (e) {}
+        setLoading(false);
       } else {
         load();
       }
@@ -72,22 +163,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   };
 
-  const primaryRole =
-    roles.find((r) => r.role === "admin")?.role ||
-    roles.find((r) => r.role === "evp")?.role ||
-    roles.find((r) => r.role === "director_admin_finance")?.role ||
-    roles.find((r) => r.role === "purchase_committee")?.role ||
-    roles.find((r) => r.role === "principal" || r.role === "principle")?.role ||
-    roles.find((r) => r.role === "procurement_officer")?.role ||
-    roles.find((r) => r.role === "procurement_executive")?.role ||
-    roles.find((r) => r.role === "hod")?.role ||
-    roles.find((r) => r.role === "stores")?.role ||
-    roles.find((r) => r.role === "finance")?.role ||
-    roles.find((r) => r.role === "librarian")?.role ||
-    roles.find((r) => r.role === "viewer")?.role ||
-    roles.find((r) => r.role === "faculty")?.role ||
-    roles.find((r) => r.role === "user" || r.role === "staff")?.role ||
-    null;
+  const primaryRole = computePrimaryRole(roles);
 
   const departmentId =
     roles.find((r) => r.role === "hod" && r.department_id)?.department_id ||
@@ -97,7 +173,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <AuthContext.Provider
-      value={{ userId, user, roles, primaryRole, departmentId, hasRole, refresh: load }}
+      value={{ userId, user, roles, primaryRole, departmentId, loading, hasRole, refresh: load }}
     >
       {children}
     </AuthContext.Provider>

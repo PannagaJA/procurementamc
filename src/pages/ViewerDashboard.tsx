@@ -31,14 +31,16 @@ interface ViewerStats {
 
 const ViewerDashboard = () => {
   const navigate = useNavigate();
-  const { primaryRole } = useAuth();
+  const { primaryRole, loading: authLoading, hasRole } = useAuth();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<ViewerStats | null>(null);
 
   useEffect(() => {
-    if (!primaryRole) return;
-    if (primaryRole !== "viewer") navigate({ to: "/" });
-  }, [primaryRole, navigate]);
+    if (authLoading) return;
+    if (!hasRole("viewer") && primaryRole !== "viewer" && !hasRole("admin")) {
+      navigate({ to: "/" });
+    }
+  }, [authLoading, primaryRole, hasRole, navigate]);
 
   useEffect(() => {
     const fetch = async () => {

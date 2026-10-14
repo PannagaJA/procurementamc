@@ -254,7 +254,7 @@ const PrincipalDashboard = () => {
     return () => clearInterval(interval);
   }, [fetchMetrics, fetchTickets, remoteError]);
 
-  const { userId, primaryRole } = useAuth();
+  const { userId, primaryRole, loading: authLoading, hasRole } = useAuth();
   const navigate = useNavigate();
 
   const openTicketDetails = async (t: any) => {
@@ -400,7 +400,8 @@ const PrincipalDashboard = () => {
   };
 
   useEffect(() => {
-    if (primaryRole !== "principle" && primaryRole !== "principal") {
+    if (authLoading) return;
+    if (!hasRole("principal") && primaryRole !== "principle" && primaryRole !== "principal" && !hasRole("admin")) {
       navigate({ to: "/" });
       return;
     }
@@ -416,7 +417,7 @@ const PrincipalDashboard = () => {
     fetchDepartments();
     fetchMetrics();
     fetchTickets();
-  }, [fetchTickets, fetchDepartments, fetchMetrics, primaryRole, navigate, remoteError, toast]);
+  }, [authLoading, fetchTickets, fetchDepartments, fetchMetrics, primaryRole, hasRole, navigate, remoteError, toast]);
 
   // Actions: approve/reject/escalate/assign
   const performAction = async (
