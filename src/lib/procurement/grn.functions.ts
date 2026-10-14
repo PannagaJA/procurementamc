@@ -299,7 +299,6 @@ export const createGrn = createServerFn({ method: "POST" })
           qty_delivered: del,
           qty_accepted: acc,
           unit_price: unitP,
-          accepted_total: acc * unitP,
           inspection_remarks: l.inspection_remarks ?? null,
         };
       });
