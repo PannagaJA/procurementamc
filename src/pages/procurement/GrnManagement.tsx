@@ -474,29 +474,31 @@ export default function GrnManagement() {
                     {c.received_at ? new Date(c.received_at).toLocaleString() : "Just now"}
                   </p>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200 dark:border-rose-900/50 dark:hover:bg-rose-950/40 gap-1"
-                    disabled={dismissingId === c.id}
-                    onClick={() => handleDismissChallan(c.id, c.challan_number || "DC-PENDING")}
-                    title="Dismiss or remove invalid/excess delivery challan"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" /> Dismiss
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
-                    onClick={() => {
-                      setGrnPoId(c.po_id || "");
-                      setSelectedChallanId(c.id);
-                      setGrnOpen(true);
-                    }}
-                  >
-                    <PlusCircle className="w-3.5 h-3.5" /> Create GRN
-                  </Button>
-                </div>
+                {(auth.hasRole("admin") || auth.hasRole("stores")) && (
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200 dark:border-rose-900/50 dark:hover:bg-rose-950/40 gap-1"
+                      disabled={dismissingId === c.id}
+                      onClick={() => handleDismissChallan(c.id, c.challan_number || "DC-PENDING")}
+                      title="Dismiss or remove invalid/excess delivery challan"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Dismiss
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+                      onClick={() => {
+                        setGrnPoId(c.po_id || "");
+                        setSelectedChallanId(c.id);
+                        setGrnOpen(true);
+                      }}
+                    >
+                      <PlusCircle className="w-3.5 h-3.5" /> Create GRN
+                    </Button>
+                  </div>
+                )}
               </Card>
             ))}
           </div>

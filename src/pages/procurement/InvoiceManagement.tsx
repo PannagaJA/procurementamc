@@ -59,11 +59,17 @@ export default function InvoiceManagement() {
   const [grns, setGrns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Filter tabs
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "pending" | "on_hold" | "approved" | "paid"
+  >("all");
+
   // Submit Invoice Modal
   const [submitOpen, setSubmitOpen] = useState(false);
   const [selectedPoId, setSelectedPoId] = useState("");
   const [selectedGrnId, setSelectedGrnId] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState("");
+  const [vendorGstin, setVendorGstin] = useState("");
   const [invoiceAmount, setInvoiceAmount] = useState<number | "">(0);
   const [isServicePo, setIsServicePo] = useState(false);
   const [serviceCertUrl, setServiceCertUrl] = useState("");
@@ -78,6 +84,7 @@ export default function InvoiceManagement() {
   >("bank_transfer");
   const [externalRef, setExternalRef] = useState("");
   const [paymentTermsRef, setPaymentTermsRef] = useState("Immediate RTGS");
+  const [paymentRemarks, setPaymentRemarks] = useState("");
   const [paying, setPaying] = useState(false);
 
   // Action state
@@ -112,14 +119,23 @@ export default function InvoiceManagement() {
 
   // When PO selection changes in Submit Invoice Modal
   useEffect(() => {
-    if (!selectedPoId) return;
+    if (!selectedPoId) {
+      setVendorGstin("");
+      return;
+    }
     const po = pos.find((p) => p.id === selectedPoId);
     if (po) {
-      const matchedGrn = grns.find((g) => g.po_id === selectedPoId && g.status === "accepted");
+      const gstinVal = po.vendors?.gst_number || po.vendors?.gstin || "";
+      setVendorGstin(gstinVal);
+      const matchedGrn = grns.find(
+        (g) =>
+          g.po_id === selectedPoId && (g.status === "accepted" || g.status === "partially_accepted"),
+      );
       if (matchedGrn) {
         setSelectedGrnId(matchedGrn.id);
         setInvoiceAmount(Number(matchedGrn.accepted_value || po.total_value || 0));
       } else {
+        setSelectedGrnId("");
         setInvoiceAmount(Number(po.total_value || 0));
       }
     }
@@ -143,6 +159,9 @@ export default function InvoiceManagement() {
           grn_id: isServicePo ? null : selectedGrnId || null,
           invoice_number: invoiceNumber,
           invoice_amount: Number(invoiceAmount || 0),
+          gst_details_json: {
+            gstin: vendorGstin.trim(),
+          },
           is_service_po: isServicePo,
           service_completion_cert_url: serviceCertUrl || null,
         },
@@ -172,6 +191,7 @@ export default function InvoiceManagement() {
 
       setSubmitOpen(false);
       setInvoiceNumber("");
+      setVendorGstin("");
       loadData();
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
@@ -208,6 +228,12 @@ export default function InvoiceManagement() {
     setActiveInvoice(inv);
     setPayAmount(Number(inv.invoice_amount || 0));
     setExternalRef(`UTR-${Date.now().toString().slice(-8)}`);
+    const poNum = inv.purchase_orders?.po_number || "";
+    setPaymentRemarks(
+      poNum
+        ? `Full and final settlement against ${poNum}`
+        : `Full and final settlement against ${inv.invoice_number}`,
+    );
     setPayOpen(true);
   };
 
@@ -221,8 +247,9 @@ export default function InvoiceManagement() {
           invoice_id: activeInvoice.id,
           amount: amountNum,
           payment_mode: paymentMode,
-          payment_terms_ref: paymentTermsRef,
+          payment_terms_ref: paymentRemarks.trim() || paymentTermsRef,
           external_ref: externalRef,
+          remarks: paymentRemarks.trim(),
         },
       });
 
@@ -278,6 +305,88 @@ export default function InvoiceManagement() {
           </div>
         </div>
 
+        {/* Status Filter Tabs */}
+        <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+          <Button
+            variant={statusFilter === "all" ? "default" : "outline"}
+            size="sm"
+            onClick={() => {
+              setStatusFilter("all");
+              setPage(1);
+            }}
+            className="text-xs h-8 gap-1.5"
+          >
+            All Invoices
+            <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
+              {invoices.length}
+            </Badge>
+          </Button>
+
+          <Button
+            variant={statusFilter === "pending" ? "default" : "outline"}
+            size="sm"
+            onClick={() => {
+              setStatusFilter("pending");
+              setPage(1);
+            }}
+            className="text-xs h-8 gap-1.5"
+          >
+            Pending / Reconciled
+            <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
+              {
+                invoices.filter(
+                  (i) => i.match_status === "matched" || i.match_status === "pending",
+                ).length
+              }
+            </Badge>
+          </Button>
+
+          <Button
+            variant={statusFilter === "on_hold" ? "default" : "outline"}
+            size="sm"
+            onClick={() => {
+              setStatusFilter("on_hold");
+              setPage(1);
+            }}
+            className="text-xs h-8 gap-1.5 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-800"
+          >
+            Verification Hold
+            <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
+              {invoices.filter((i) => i.match_status === "on_hold").length}
+            </Badge>
+          </Button>
+
+          <Button
+            variant={statusFilter === "approved" ? "default" : "outline"}
+            size="sm"
+            onClick={() => {
+              setStatusFilter("approved");
+              setPage(1);
+            }}
+            className="text-xs h-8 gap-1.5 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800"
+          >
+            Approved for Payment
+            <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
+              {invoices.filter((i) => i.match_status === "approved").length}
+            </Badge>
+          </Button>
+
+          <Button
+            variant={statusFilter === "paid" ? "default" : "outline"}
+            size="sm"
+            onClick={() => {
+              setStatusFilter("paid");
+              setPage(1);
+            }}
+            className="text-xs h-8 gap-1.5 text-indigo-700 dark:text-indigo-400 border-indigo-300 dark:border-indigo-800"
+          >
+            Paid / Settled
+            <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
+              {invoices.filter((i) => i.match_status === "paid").length}
+            </Badge>
+          </Button>
+        </div>
+
         {/* Invoices List */}
         <div className="space-y-4">
           {loading ? (
@@ -290,11 +399,33 @@ export default function InvoiceManagement() {
             </Card>
           ) : (
             (() => {
+              const filteredInvoices = invoices.filter((inv) => {
+                if (statusFilter === "all") return true;
+                if (statusFilter === "pending")
+                  return inv.match_status === "matched" || inv.match_status === "pending";
+                if (statusFilter === "on_hold") return inv.match_status === "on_hold";
+                if (statusFilter === "approved") return inv.match_status === "approved";
+                if (statusFilter === "paid") return inv.match_status === "paid";
+                return true;
+              });
+
+              if (filteredInvoices.length === 0) {
+                return (
+                  <Card className="text-center p-8">
+                    <p className="text-slate-500">
+                      No invoices found under the selected &quot;{statusFilter}&quot; status filter.
+                    </p>
+                  </Card>
+                );
+              }
+
               const startIndex = (pagination.page - 1) * pagination.pageSize;
-              const paginatedInvoices = invoices.slice(
+              const paginatedInvoices = filteredInvoices.slice(
                 startIndex,
                 startIndex + pagination.pageSize,
               );
+              const totalPages = Math.ceil(filteredInvoices.length / pagination.pageSize);
+
               return (
                 <>
                   {paginatedInvoices.map((inv) => {
@@ -308,8 +439,23 @@ export default function InvoiceManagement() {
                     const grnVal = Number(grn?.accepted_value || 0);
                     const invVal = Number(inv.invoice_amount || 0);
 
+                    const prNumber =
+                      (Array.isArray(po?.purchase_requisitions)
+                        ? po?.purchase_requisitions[0]?.pr_number
+                        : po?.purchase_requisitions?.pr_number) ||
+                      po?.pr_number ||
+                      "—";
+
+                    const grnNumber =
+                      grn?.grn_number ||
+                      (inv.is_service_po ? "Service Certificate" : "—");
+
+                    const gstin =
+                      inv.gst_details_json?.gstin ||
+                      inv.vendors?.gst_number ||
+                      "—";
+
                     // Re-evaluate reconciliation from actual values at render time.
-                    // This catches stale DB records where match_status is incorrect.
                     const exceedsGrn = !inv.is_service_po && grn && invVal > grnVal + 1;
                     const exceedsPo = invVal > poVal + 1;
                     const hasValueMismatch = exceedsGrn || exceedsPo;
@@ -381,13 +527,42 @@ export default function InvoiceManagement() {
                                   </Badge>
                                 )}
                               </div>
-                              <p className="text-xs text-slate-500">
-                                Vendor:{" "}
-                                <span className="font-semibold text-slate-700 dark:text-slate-300">
-                                  {inv.vendors?.name}
-                                </span>{" "}
-                                • PO: {po?.po_number} • PR: {po?.purchase_requisitions?.pr_number}
-                              </p>
+                              <div className="text-xs text-slate-500 flex flex-wrap items-center gap-x-2 gap-y-1">
+                                <span>
+                                  Vendor:{" "}
+                                  <strong className="text-slate-700 dark:text-slate-300">
+                                    {inv.vendors?.name || "Direct"}
+                                  </strong>
+                                </span>
+                                <span>•</span>
+                                <span>
+                                  PO:{" "}
+                                  <strong className="font-mono text-slate-700 dark:text-slate-300">
+                                    {po?.po_number || "—"}
+                                  </strong>
+                                </span>
+                                <span>•</span>
+                                <span>
+                                  PR:{" "}
+                                  <strong className="font-mono text-slate-700 dark:text-slate-300">
+                                    {prNumber}
+                                  </strong>
+                                </span>
+                                <span>•</span>
+                                <span>
+                                  GRN:{" "}
+                                  <strong className="font-mono text-slate-700 dark:text-slate-300">
+                                    {grnNumber}
+                                  </strong>
+                                </span>
+                                <span>•</span>
+                                <span>
+                                  GSTIN:{" "}
+                                  <strong className="font-mono text-slate-700 dark:text-slate-300">
+                                    {gstin}
+                                  </strong>
+                                </span>
+                              </div>
                             </div>
 
                             <div className="flex items-center gap-2">
@@ -441,7 +616,7 @@ export default function InvoiceManagement() {
                                   ₹{poVal.toLocaleString("en-IN")}
                                 </span>
                                 <span className="text-[10px] text-slate-500 block mt-0.5">
-                                  PO: {po?.po_number}
+                                  PO: {po?.po_number || "—"} • PR: {prNumber}
                                 </span>
                               </div>
 
@@ -456,7 +631,7 @@ export default function InvoiceManagement() {
                                     : `₹${grnVal.toLocaleString("en-IN")}`}
                                 </span>
                                 <span className="text-[10px] text-slate-500 block mt-0.5">
-                                  GRN: {grn?.grn_number || "None"} ({grn?.status || "unlinked"})
+                                  GRN: {grnNumber} {grn?.status ? `(${grn.status})` : ""}
                                 </span>
                               </div>
 
@@ -497,6 +672,63 @@ export default function InvoiceManagement() {
                                 </div>
                               </div>
                             )}
+
+                            {/* Payment Settlement Details (when Paid) */}
+                            {isPaid && inv.payments && inv.payments.length > 0 && (
+                              <div className="p-3 bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg text-xs space-y-1.5 mt-2">
+                                <div className="flex items-center justify-between text-emerald-800 dark:text-emerald-300 font-semibold">
+                                  <span className="flex items-center gap-1.5">
+                                    <CreditCard className="w-4 h-4 text-emerald-600" /> Payment
+                                    Voucher Settled
+                                  </span>
+                                  <Badge
+                                    variant="outline"
+                                    className="text-emerald-700 border-emerald-400 bg-white dark:bg-slate-900 text-[10px]"
+                                  >
+                                    {(
+                                      inv.payments[0].payment_mode || "bank_transfer"
+                                    ).toUpperCase()}
+                                  </Badge>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-slate-600 dark:text-slate-400 pt-1">
+                                  <div>
+                                    <span className="text-slate-400 block text-[10px]">
+                                      Disbursed Amount
+                                    </span>
+                                    <span className="font-mono font-bold text-slate-800 dark:text-slate-100 text-xs">
+                                      ₹
+                                      {Number(
+                                        inv.payments[0].amount || invVal,
+                                      ).toLocaleString("en-IN")}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="text-slate-400 block text-[10px]">
+                                      Transaction / UTR Ref
+                                    </span>
+                                    <span className="font-mono font-semibold text-slate-800 dark:text-slate-100 text-xs">
+                                      {inv.payments[0].external_ref || "—"}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="text-slate-400 block text-[10px]">
+                                      Disbursement Date
+                                    </span>
+                                    <span className="text-slate-700 dark:text-slate-300 text-xs">
+                                      {inv.payments[0].paid_at
+                                        ? new Date(inv.payments[0].paid_at).toLocaleString()
+                                        : "Settled"}
+                                    </span>
+                                  </div>
+                                </div>
+                                {inv.payments[0].payment_terms_ref && (
+                                  <div className="pt-1 border-t border-emerald-100 dark:border-emerald-900/60 text-[11px] text-slate-600 dark:text-slate-300">
+                                    <span className="font-semibold text-slate-500">Remarks: </span>
+                                    {inv.payments[0].payment_terms_ref}
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </CardContent>
                       </Card>
@@ -505,9 +737,9 @@ export default function InvoiceManagement() {
 
                   <PaginationControls
                     currentPage={pagination.page}
-                    totalPages={pagination.totalPages}
+                    totalPages={totalPages || 1}
                     pageSize={pagination.pageSize}
-                    totalItems={pagination.total}
+                    totalItems={filteredInvoices.length}
                     currentItemsCount={paginatedInvoices.length}
                     onPageChange={setPage}
                     onPageSizeChange={setPageSize}
@@ -546,12 +778,65 @@ export default function InvoiceManagement() {
                 </Select>
               </div>
 
+              {selectedPoId &&
+                (() => {
+                  const po = pos.find((p) => p.id === selectedPoId);
+                  const poPr =
+                    (Array.isArray(po?.purchase_requisitions)
+                      ? po?.purchase_requisitions[0]?.pr_number
+                      : po?.purchase_requisitions?.pr_number) ||
+                    po?.pr_number ||
+                    "—";
+                  const matchedGrn = grns.find(
+                    (g) =>
+                      g.po_id === selectedPoId &&
+                      (g.status === "accepted" || g.status === "partially_accepted"),
+                  );
+                  return (
+                    <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border text-xs space-y-1 text-slate-600 dark:text-slate-400">
+                      <div>
+                        Linked PO:{" "}
+                        <strong className="font-mono text-slate-800 dark:text-slate-200">
+                          {po?.po_number}
+                        </strong>
+                      </div>
+                      <div>
+                        Linked PR:{" "}
+                        <strong className="font-mono text-slate-800 dark:text-slate-200">
+                          {poPr}
+                        </strong>
+                      </div>
+                      {!isServicePo && (
+                        <div>
+                          Goods Receipt Note:{" "}
+                          <strong className="font-mono text-slate-800 dark:text-slate-200">
+                            {matchedGrn
+                              ? `${matchedGrn.grn_number} (Accepted: ₹${Number(
+                                  matchedGrn.accepted_value || 0,
+                                ).toLocaleString("en-IN")})`
+                              : "No accepted GRN found"}
+                          </strong>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
               <div className="space-y-1">
                 <Label>Vendor Invoice Number</Label>
                 <Input
                   placeholder="e.g. INV-2026-0042"
                   value={invoiceNumber}
                   onChange={(e) => setInvoiceNumber(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label>Vendor GSTIN</Label>
+                <Input
+                  placeholder="e.g. 29AAACL1965L1Z1"
+                  value={vendorGstin}
+                  onChange={(e) => setVendorGstin(e.target.value)}
                 />
               </div>
 
@@ -661,6 +946,16 @@ export default function InvoiceManagement() {
                   placeholder="e.g. UTR-9876543210"
                   value={externalRef}
                   onChange={(e) => setExternalRef(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label>Payment Remarks / Settlement Note</Label>
+                <Textarea
+                  rows={2}
+                  placeholder="e.g. Full and final settlement against PO-2026-____"
+                  value={paymentRemarks}
+                  onChange={(e) => setPaymentRemarks(e.target.value)}
                 />
               </div>
             </div>
