@@ -286,12 +286,11 @@ export const createGrn = createServerFn({ method: "POST" })
 
     if (grnErr) return { ok: false as const, error: grnErr.message, code: "insert_grn_failed" };
 
-    // 4. Insert GRN Lines with explicit non-negative qty_rejected and accepted_total
+    // 4. Insert GRN Lines (qty_rejected is GENERATED ALWAYS by PostgreSQL)
     if (data.lines && data.lines.length > 0) {
       const lineRows = data.lines.map((l) => {
         const del = Number(l.qty_delivered) || 0;
         const acc = Math.min(del, Math.max(0, Number(l.qty_accepted) || 0));
-        const rej = Math.max(0, del - acc);
         const unitP = Number(l.unit_price) || 0;
         return {
           grn_id: grn.id,
@@ -299,7 +298,6 @@ export const createGrn = createServerFn({ method: "POST" })
           unit: l.unit ?? null,
           qty_delivered: del,
           qty_accepted: acc,
-          qty_rejected: rej,
           unit_price: unitP,
           accepted_total: acc * unitP,
           inspection_remarks: l.inspection_remarks ?? null,
@@ -307,7 +305,10 @@ export const createGrn = createServerFn({ method: "POST" })
       });
 
       const { error: lErr } = await mutationDb.from("grn_lines").insert(lineRows);
-      if (lErr) return { ok: false as const, error: lErr.message, code: "insert_grn_lines_failed" };
+      if (lErr) {
+        await mutationDb.from("grns").delete().eq("id", grn.id);
+        return { ok: false as const, error: lErr.message, code: "insert_grn_lines_failed" };
+      }
     }
 
     return { ok: true as const, grn, acceptedValue: acceptedVal };

@@ -284,7 +284,15 @@ export default function GrnManagement() {
       });
 
       if (!res.ok) {
-        toast({ title: "GRN Creation Blocked", description: res.error, variant: "destructive" });
+        const isOverDelivery =
+          res.code === "over_delivery_not_permitted" ||
+          res.error?.toLowerCase().includes("over-delivery") ||
+          res.error?.toLowerCase().includes("cumulative delivered");
+        toast({
+          title: isOverDelivery ? "Over-Delivery Blocked (SOP §8.6)" : "GRN Creation Blocked",
+          description: res.error,
+          variant: "destructive",
+        });
         return;
       }
 
@@ -714,15 +722,72 @@ export default function GrnManagement() {
                     <SelectValue placeholder="Select PO..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {issuedPos.map((po) => (
-                      <SelectItem key={po.id} value={po.id}>
-                        {po.po_number} — {po.vendors?.name} (₹
-                        {Number(po.total_value).toLocaleString("en-IN")})
-                      </SelectItem>
-                    ))}
+                    {issuedPos.map((po) => {
+                      const orderedQty = (po.purchase_requisitions?.pr_line_items ?? []).reduce(
+                        (sum: number, item: any) =>
+                          sum + (Number(item.net_qty_to_procure || item.qty_required) || 0),
+                        0,
+                      );
+                      const priorDelivered = (grns ?? [])
+                        .filter((g: any) => g.po_id === po.id && g.status !== "rejected")
+                        .reduce((sum: number, g: any) => {
+                          return (
+                            sum +
+                            (g.grn_lines ?? []).reduce(
+                              (lSum: number, l: any) => lSum + (Number(l.qty_delivered) || 0),
+                              0,
+                            )
+                          );
+                        }, 0);
+                      const isComplete = orderedQty > 0 && priorDelivered >= orderedQty;
+
+                      return (
+                        <SelectItem key={po.id} value={po.id}>
+                          {po.po_number} — {po.vendors?.name} (₹
+                          {Number(po.total_value).toLocaleString("en-IN")})
+                          {isComplete ? " [Fully Delivered]" : ""}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
+
+              {(() => {
+                const po = issuedPos.find((p) => p.id === selectedPoId);
+                if (!po) return null;
+                const orderedQty = (po.purchase_requisitions?.pr_line_items ?? []).reduce(
+                  (sum: number, item: any) =>
+                    sum + (Number(item.net_qty_to_procure || item.qty_required) || 0),
+                  0,
+                );
+                const priorDelivered = (grns ?? [])
+                  .filter((g: any) => g.po_id === po.id && g.status !== "rejected")
+                  .reduce((sum: number, g: any) => {
+                    return (
+                      sum +
+                      (g.grn_lines ?? []).reduce(
+                        (lSum: number, l: any) => lSum + (Number(l.qty_delivered) || 0),
+                        0,
+                      )
+                    );
+                  }, 0);
+                if (orderedQty > 0 && priorDelivered >= orderedQty) {
+                  return (
+                    <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                      <div>
+                        <span className="font-semibold">Notice (SOP §8.6):</span> This Purchase
+                        Order has already been fully delivered ({priorDelivered} of {orderedQty}{" "}
+                        units received). Gate recording is logged for physical audit, but creating
+                        another GRN for excess quantities will be blocked by the Over-Delivery
+                        Guard.
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
