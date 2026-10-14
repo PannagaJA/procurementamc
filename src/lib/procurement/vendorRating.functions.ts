@@ -79,17 +79,22 @@ export const submitVendorRating = createServerFn({ method: "POST" })
     const weightedScore = computeWeightedScore(data);
     const outcome = deriveOutcome(weightedScore);
 
-    // Guard: Debarment requires EVP approval sign-off
-    if (
-      outcome === "debarred" &&
-      !data.evp_approved_by &&
-      !held.includes("evp") &&
-      !held.includes("admin")
-    ) {
+    // Guard: Debarment requires explicit EVP authorization before final recording (SOP Annexure 4)
+    if (outcome === "debarred" && !held.includes("evp") && !held.includes("admin")) {
       return {
         ok: false as const,
-        error: `Debarment outcome (score ${weightedScore} < 40) requires explicit EVP authorization before final recording (SOP Annexure 4).`,
+        error: `SOP Annexure 4: Debarment outcome requires explicit EVP authorization before final recording. Please sign in as the Executive Vice President (evp@institution.edu) to authorize and countersign the debarment order.`,
         code: "evp_debarment_authorization_required",
+        weightedScore,
+        outcome,
+      };
+    }
+
+    if (outcome === "debarred" && !data.evp_approved_by?.trim()) {
+      return {
+        ok: false as const,
+        error: `Debarment outcome requires an EVP authorization reference or order number (e.g. EVP/AUTH/2026-10).`,
+        code: "evp_reference_required",
         weightedScore,
         outcome,
       };
@@ -101,20 +106,7 @@ export const submitVendorRating = createServerFn({ method: "POST" })
 
     let evpApproverUuid: string | null = null;
     if (outcome === "debarred") {
-      if (held.includes("evp") || held.includes("admin")) {
-        evpApproverUuid = context.userId;
-      } else if (isUuid(data.evp_approved_by)) {
-        evpApproverUuid = data.evp_approved_by!;
-      } else {
-        // Query designated EVP user from user_roles
-        const { data: evpRole } = await db
-          .from("user_roles")
-          .select("user_id")
-          .eq("role", "evp")
-          .limit(1)
-          .maybeSingle();
-        evpApproverUuid = evpRole?.user_id ?? context.userId;
-      }
+      evpApproverUuid = context.userId;
     }
 
     // Preserve the human-entered authorization reference string in notes

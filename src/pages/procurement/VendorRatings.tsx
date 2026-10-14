@@ -37,6 +37,7 @@ import {
   Award,
   PlusCircle,
   ShieldAlert,
+  ShieldCheck,
   CheckCircle2,
   AlertTriangle,
   RefreshCw,
@@ -47,9 +48,12 @@ import {
   ChevronUp,
   History,
 } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 
 export default function VendorRatings() {
   const { toast } = useToast();
+  const auth = useAuth();
+  const isEvpOrAdmin = auth.hasRole("evp") || auth.hasRole("admin");
   const [ratings, setRatings] = useState<any[]>([]);
   const { pagination, setPage, setPageSize, setTotal } = usePagination(10, 1);
   const [vendors, setVendors] = useState<any[]>([]);
@@ -140,6 +144,16 @@ export default function VendorRatings() {
       toast({
         title: "Select Vendor",
         description: "Please select a vendor to evaluate.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (liveScore < 40 && !isEvpOrAdmin) {
+      toast({
+        title: "EVP Countersignature Required",
+        description:
+          "SOP Annexure 4: Debarment outcome requires explicit EVP authorization before final recording. Please sign in as the Executive Vice President (evp@institution.edu) to authorize.",
         variant: "destructive",
       });
       return;
@@ -654,27 +668,44 @@ export default function VendorRatings() {
 
               {/* Debarment Warning + EVP Auth — shown only when score < 40 */}
               {liveScore < 40 && (
-                <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-300 dark:border-red-800 rounded-xl space-y-2">
-                  <div className="flex items-start gap-2 text-xs text-red-800 dark:text-red-200">
+                <div className="p-3.5 bg-red-50 dark:bg-red-950/40 border border-red-300 dark:border-red-800 rounded-xl space-y-2.5">
+                  <div className="flex items-start gap-2 text-xs text-red-900 dark:text-red-200">
                     <ShieldAlert className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-                    <div>
-                      <span className="font-semibold block">Debarment Outcome — EVP Authorization Required (SOP Annexure 4)</span>
-                      Score {liveScore} &lt; 40 triggers automatic vendor blacklisting. This action
-                      requires explicit Executive Vice President sign-off before it can be recorded.
-                      Enter the EVP&apos;s name or authorization reference below.
+                    <div className="space-y-1">
+                      <span className="font-bold block text-sm text-red-950 dark:text-red-100">
+                        Debarment Outcome — EVP Countersignature Lock (SOP Annexure 4)
+                      </span>
+                      <p className="text-red-800 dark:text-red-300">
+                        Score <strong>{liveScore} &lt; 40</strong> triggers automatic institutional vendor blacklisting. Under SOP Annexure 4, this action strictly requires authorization and countersignature from the Executive Vice President (EVP).
+                      </p>
+                      {!isEvpOrAdmin ? (
+                        <div className="p-2 bg-red-100/70 dark:bg-red-900/40 rounded border border-red-300 dark:border-red-800 text-[11px] font-medium text-red-900 dark:text-red-200">
+                          🔒 <strong>Access Locked:</strong> You are currently signed in as <u>{auth.user?.email || "Procurement Officer"}</u>. A procurement officer cannot finalize debarment unilaterally. Please sign in as <strong>evp@institution.edu</strong> to countersign and enforce this debarment order.
+                        </div>
+                      ) : (
+                        <div className="p-2 bg-emerald-100/70 dark:bg-emerald-950/40 rounded border border-emerald-300 dark:border-emerald-800 text-[11px] font-medium text-emerald-900 dark:text-emerald-200 flex items-center gap-1.5">
+                          <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                          <span>
+                            <strong>Executive Authority Verified:</strong> Signed in as {auth.user?.email}. Enter the formal authorization memo or order reference below to countersign.
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-red-800 dark:text-red-300 text-xs font-semibold">
-                      EVP Authorization Reference *
-                    </Label>
-                    <Input
-                      placeholder="e.g. EVP/AUTH/2026-10 or Name of EVP who approved"
-                      value={evpAuthRef}
-                      onChange={(e) => setEvpAuthRef(e.target.value)}
-                      className="border-red-400 focus:ring-red-500"
-                    />
-                  </div>
+
+                  {isEvpOrAdmin && (
+                    <div className="space-y-1 pt-1">
+                      <Label className="text-red-900 dark:text-red-200 text-xs font-semibold">
+                        EVP Authorization Reference / Order No. *
+                      </Label>
+                      <Input
+                        placeholder="e.g. EVP/AUTH/2026-10"
+                        value={evpAuthRef}
+                        onChange={(e) => setEvpAuthRef(e.target.value)}
+                        className="border-red-400 focus:ring-red-500 bg-white dark:bg-slate-900 text-xs"
+                      />
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -685,10 +716,26 @@ export default function VendorRatings() {
               </Button>
               <Button
                 onClick={handleSubmitRating}
-                disabled={submitting || !selectedVendorId || (liveScore < 40 && !evpAuthRef.trim())}
-                className="bg-purple-600 hover:bg-purple-700 text-white"
+                disabled={
+                  submitting ||
+                  !selectedVendorId ||
+                  (liveScore < 40 && isEvpOrAdmin && !evpAuthRef.trim())
+                }
+                className={
+                  liveScore < 40
+                    ? isEvpOrAdmin
+                      ? "bg-red-600 hover:bg-red-700 text-white"
+                      : "bg-red-700 hover:bg-red-800 text-white opacity-90"
+                    : "bg-purple-600 hover:bg-purple-700 text-white"
+                }
               >
-                {submitting ? "Recording..." : "Record Rating & Apply Status"}
+                {submitting
+                  ? "Processing..."
+                  : liveScore < 40
+                    ? isEvpOrAdmin
+                      ? "Authorize Debarment & Apply Blacklist"
+                      : "Attempt Finalize (EVP Lock Active)"
+                    : "Record Rating & Apply Status"}
               </Button>
             </DialogFooter>
           </DialogContent>
