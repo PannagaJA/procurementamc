@@ -43,6 +43,9 @@ import {
   Star,
   Building2,
   BarChart3,
+  ChevronDown,
+  ChevronUp,
+  History,
 } from "lucide-react";
 
 export default function VendorRatings() {
@@ -51,6 +54,7 @@ export default function VendorRatings() {
   const { pagination, setPage, setPageSize, setTotal } = usePagination(10, 1);
   const [vendors, setVendors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expandedHistory, setExpandedHistory] = useState<Record<string, boolean>>({});
 
   // Evaluation Form Modal
   const [rateOpen, setRateOpen] = useState(false);
@@ -78,7 +82,17 @@ export default function VendorRatings() {
       if (rRes?.ok) {
         const list = rRes.vendorRatings || [];
         setRatings(list);
-        setTotal(list.length);
+
+        // Group ratings by vendor_id to know unique count for pagination
+        const vendorMap = new Map<string, any[]>();
+        list.forEach((r: any) => {
+          const vId = r.vendor_id || r.vendors?.id;
+          if (!vendorMap.has(vId)) {
+            vendorMap.set(vId, []);
+          }
+          vendorMap.get(vId)!.push(r);
+        });
+        setTotal(vendorMap.size);
       }
       setVendors(vRes.data || []);
     } catch (e: any) {
@@ -211,25 +225,63 @@ export default function VendorRatings() {
             </Card>
           ) : (
             (() => {
+              // Group ratings by vendor ID preserving chronological sorting
+              const vendorGroupsMap = new Map<string, { vendor: any; latest: any; history: any[] }>();
+
+              ratings.forEach((r) => {
+                const vId = r.vendor_id || r.vendors?.id;
+                if (!vId) return;
+                if (!vendorGroupsMap.has(vId)) {
+                  vendorGroupsMap.set(vId, {
+                    vendor: r.vendors,
+                    latest: r,
+                    history: [],
+                  });
+                } else {
+                  vendorGroupsMap.get(vId)!.history.push(r);
+                }
+              });
+
+              const groupedVendors = Array.from(vendorGroupsMap.values());
               const startIndex = (pagination.page - 1) * pagination.pageSize;
-              const paginatedRatings = ratings.slice(
+              const paginatedGroups = groupedVendors.slice(
                 startIndex,
                 startIndex + pagination.pageSize,
               );
+
+              const getStatusBadge = (status: string) => {
+                switch (status) {
+                  case "empanelled":
+                    return <Badge className="bg-emerald-600/90 text-white hover:bg-emerald-600">Empanelled</Badge>;
+                  case "debarred":
+                  case "blacklisted":
+                    return <Badge className="bg-red-600 text-white hover:bg-red-600">Debarred / Blacklisted</Badge>;
+                  case "suspended":
+                    return <Badge className="bg-orange-600 text-white hover:bg-orange-600">Suspended</Badge>;
+                  case "applied":
+                    return <Badge className="bg-blue-600 text-white hover:bg-blue-600">Applied</Badge>;
+                  case "rejected":
+                    return <Badge variant="destructive">Rejected</Badge>;
+                  default:
+                    return <Badge variant="outline">{status}</Badge>;
+                }
+              };
+
               return (
                 <>
-                  {paginatedRatings.map((r) => {
-                    const vendor = r.vendors;
+                  {paginatedGroups.map(({ vendor, latest: r, history }) => {
+                    const isExpanded = expandedHistory[vendor?.id];
+                    const hasHistory = history.length > 0;
 
                     return (
                       <Card
-                        key={r.id}
+                        key={vendor?.id || r.id}
                         className="overflow-hidden border border-slate-200 dark:border-slate-800 hover:border-slate-300"
                       >
                         <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 pb-3">
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                             <div className="space-y-1">
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <span className="font-bold text-base text-slate-900 dark:text-slate-100">
                                   {vendor?.name}
                                 </span>
@@ -237,16 +289,24 @@ export default function VendorRatings() {
                                 <Badge variant="outline" className="text-xs">
                                   Period: {r.review_period}
                                 </Badge>
+                                {hasHistory && (
+                                  <Badge variant="secondary" className="text-[11px] font-normal gap-1">
+                                    <History className="w-3 h-3" />
+                                    {history.length} earlier {history.length === 1 ? "evaluation" : "evaluations"}
+                                  </Badge>
+                                )}
                               </div>
-                              <p className="text-xs text-slate-500">
-                                GST: {vendor?.gst_number || "N/A"} • Current Status in Master:{" "}
-                                <span className="font-semibold text-slate-700 dark:text-slate-300">
-                                  {vendor?.status}
+                              <div className="flex items-center gap-2 text-xs text-slate-500 flex-wrap">
+                                <span>GST: {vendor?.gst_number || "N/A"}</span>
+                                <span>•</span>
+                                <span className="flex items-center gap-1.5">
+                                  Current Status in Master:
+                                  {getStatusBadge(vendor?.status)}
                                 </span>
-                              </p>
+                              </div>
                             </div>
 
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-3">
                               <div className="text-right">
                                 <span className="text-[10px] text-slate-500 block uppercase font-bold">
                                   Weighted Score
@@ -258,6 +318,7 @@ export default function VendorRatings() {
                             </div>
                           </div>
                         </CardHeader>
+
                         <CardContent className="pt-4 text-sm space-y-3">
                           <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 bg-slate-50 dark:bg-slate-950 p-2.5 rounded-lg text-xs text-center">
                             <div className="p-1 border rounded bg-white dark:bg-slate-900">
@@ -318,6 +379,87 @@ export default function VendorRatings() {
                               {r.notes}
                             </div>
                           )}
+
+                          {hasHistory && (
+                            <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  setExpandedHistory((prev) => ({
+                                    ...prev,
+                                    [vendor?.id]: !prev[vendor?.id],
+                                  }))
+                                }
+                                className="text-xs h-7 px-2 text-purple-700 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 gap-1.5"
+                              >
+                                {isExpanded ? (
+                                  <>
+                                    <ChevronUp className="w-3.5 h-3.5" />
+                                    Hide Past Evaluations ({history.length})
+                                  </>
+                                ) : (
+                                  <>
+                                    <ChevronDown className="w-3.5 h-3.5" />
+                                    View Past Evaluations ({history.length})
+                                  </>
+                                )}
+                              </Button>
+
+                              {isExpanded && (
+                                <div className="mt-3 space-y-2.5 pl-3 border-l-2 border-purple-200 dark:border-purple-900">
+                                  {history.map((h: any) => (
+                                    <div
+                                      key={h.id}
+                                      className="p-3 bg-slate-50 dark:bg-slate-900/60 rounded-md text-xs space-y-2 border border-slate-200/80 dark:border-slate-800"
+                                    >
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                          {getOutcomeBadge(h.outcome)}
+                                          <Badge variant="outline" className="text-[10px]">
+                                            Period: {h.review_period}
+                                          </Badge>
+                                          <span className="text-[11px] text-slate-500">
+                                            {new Date(h.created_at).toLocaleDateString()}
+                                          </span>
+                                        </div>
+                                        <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                                          Score: {h.weighted_score} / 100
+                                        </span>
+                                      </div>
+
+                                      <div className="grid grid-cols-6 gap-1.5 text-[11px] text-center text-slate-600 dark:text-slate-400">
+                                        <div className="bg-white dark:bg-slate-950 p-1 rounded">
+                                          Q: {h.section_a_score}
+                                        </div>
+                                        <div className="bg-white dark:bg-slate-950 p-1 rounded">
+                                          D: {h.section_b_score}
+                                        </div>
+                                        <div className="bg-white dark:bg-slate-950 p-1 rounded">
+                                          P: {h.section_c_score}
+                                        </div>
+                                        <div className="bg-white dark:bg-slate-950 p-1 rounded">
+                                          S: {h.section_d_score}
+                                        </div>
+                                        <div className="bg-white dark:bg-slate-950 p-1 rounded">
+                                          Saf: {h.section_e_score ?? "N/A"}
+                                        </div>
+                                        <div className="bg-white dark:bg-slate-950 p-1 rounded">
+                                          R: {h.section_f_score}
+                                        </div>
+                                      </div>
+
+                                      {h.notes && (
+                                        <p className="text-[11px] text-slate-500 italic">
+                                          Remarks: {h.notes}
+                                        </p>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </CardContent>
                       </Card>
                     );
@@ -328,7 +470,7 @@ export default function VendorRatings() {
                     totalPages={pagination.totalPages}
                     pageSize={pagination.pageSize}
                     totalItems={pagination.total}
-                    currentItemsCount={paginatedRatings.length}
+                    currentItemsCount={paginatedGroups.length}
                     onPageChange={setPage}
                     onPageSizeChange={setPageSize}
                   />

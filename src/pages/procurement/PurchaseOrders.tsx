@@ -93,8 +93,8 @@ export default function PurchaseOrders() {
   const [selectedPrId, setSelectedPrId] = useState("");
   const [selectedVendorId, setSelectedVendorId] = useState("");
   const [scopeOfSupply, setScopeOfSupply] = useState("");
-  const [price, setPrice] = useState<number>(0);
-  const [taxes, setTaxes] = useState<number>(0);
+  const [price, setPrice] = useState<number | "">(0);
+  const [taxes, setTaxes] = useState<number | "">(0);
   const [deliveryTimeline, setDeliveryTimeline] = useState("30 days");
   const [paymentTerms, setPaymentTerms] = useState("100% on delivery and inspection");
   const [creating, setCreating] = useState(false);
@@ -102,8 +102,8 @@ export default function PurchaseOrders() {
   // Amend PO Modal
   const [amendOpen, setAmendOpen] = useState(false);
   const [activePo, setActivePo] = useState<any>(null);
-  const [newPrice, setNewPrice] = useState<number>(0);
-  const [newTaxes, setNewTaxes] = useState<number>(0);
+  const [newPrice, setNewPrice] = useState<number | "">(0);
+  const [newTaxes, setNewTaxes] = useState<number | "">(0);
   const [amendReason, setAmendReason] = useState("");
   const [amending, setAmending] = useState(false);
 
@@ -265,8 +265,8 @@ export default function PurchaseOrders() {
           type: poType,
           vendor_id: selectedVendorId,
           scope_of_supply: scopeOfSupply,
-          price,
-          taxes,
+          price: Number(price) || 0,
+          taxes: Number(taxes) || 0,
           delivery_timeline: deliveryTimeline,
           payment_terms: paymentTerms,
         },
@@ -354,8 +354,8 @@ export default function PurchaseOrders() {
       const res = await (amendPo as any)({
         data: {
           po_id: activePo.id,
-          new_price: newPrice,
-          new_taxes: newTaxes,
+          new_price: Number(newPrice) || 0,
+          new_taxes: Number(newTaxes) || 0,
           reason: amendReason,
         },
       });
@@ -463,7 +463,9 @@ export default function PurchaseOrders() {
 
     setSavingRc(true);
     try {
-      const validItems = rcRateItems.filter((i) => i.description.trim());
+      const validItems = rcRateItems
+        .filter((i) => i.description.trim())
+        .map((i) => ({ ...i, rate: Number(i.rate) || 0 }));
       const { data: newRc, error: rcErr } = await supabase
         .from("rate_contracts")
         .insert({
@@ -930,16 +932,18 @@ export default function PurchaseOrders() {
                   <Label>Base Price (₹)</Label>
                   <Input
                     type="number"
+                    placeholder="0"
                     value={price}
-                    onChange={(e) => setPrice(Number(e.target.value) || 0)}
+                    onChange={(e) => setPrice(e.target.value === "" ? "" : Number(e.target.value))}
                   />
                 </div>
                 <div className="space-y-1">
                   <Label>Taxes & GST (₹)</Label>
                   <Input
                     type="number"
+                    placeholder="0"
                     value={taxes}
-                    onChange={(e) => setTaxes(Number(e.target.value) || 0)}
+                    onChange={(e) => setTaxes(e.target.value === "" ? "" : Number(e.target.value))}
                   />
                 </div>
               </div>
@@ -1019,16 +1023,18 @@ export default function PurchaseOrders() {
                   <Label>New Price (₹)</Label>
                   <Input
                     type="number"
+                    placeholder="0"
                     value={newPrice}
-                    onChange={(e) => setNewPrice(Number(e.target.value) || 0)}
+                    onChange={(e) => setNewPrice(e.target.value === "" ? "" : Number(e.target.value))}
                   />
                 </div>
                 <div className="space-y-1">
                   <Label>New Taxes (₹)</Label>
                   <Input
                     type="number"
+                    placeholder="0"
                     value={newTaxes}
-                    onChange={(e) => setNewTaxes(Number(e.target.value) || 0)}
+                    onChange={(e) => setNewTaxes(e.target.value === "" ? "" : Number(e.target.value))}
                   />
                 </div>
               </div>
@@ -1203,9 +1209,13 @@ export default function PurchaseOrders() {
                         min="0"
                         step="0.01"
                         placeholder="Unit Rate (₹)"
-                        value={item.rate}
+                        value={item.rate === 0 && item.description === "" ? "" : item.rate}
                         onChange={(e) =>
-                          handleRcItemChange(index, "rate", parseFloat(e.target.value) || 0)
+                          handleRcItemChange(
+                            index,
+                            "rate",
+                            e.target.value === "" ? "" : parseFloat(e.target.value),
+                          )
                         }
                         className="h-8 text-xs w-28"
                       />
