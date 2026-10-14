@@ -89,4 +89,50 @@ Enhanced the **Create Purchase Order** modal:
 | **Rate Contract Validity** | SOP §6: 6-month validity window for rate contracts | ✅ Defaulted & enforced on registration |
 | **Vendor Empanelment Gate**| SOP §8.2: Only empanelled vendors may hold contracts | ✅ Strictly filtered by `status = 'empanelled'` |
 | **PO Linking Rule** | SOP §8.5 G5: Every PO must reference an approved PR | ✅ Required PR dropdown active on Rate Contract POs |
+| **Chart Hover & Tooltip Contrast** | High-contrast dark mode visualization | ✅ Removed white cursor background & fixed tooltip contrast |
 | **Build & Type Safety** | Zero TypeScript / Vite compilation errors | ✅ `tsc --noEmit` passed (0 errors), `vite build` clean |
+
+---
+
+## 4. Location Charts: Cursor Background & Tooltip Text Contrast Fix
+
+### Problem Statement
+1. **White Cursor Background on Bar Hover:** When hovering over columns in **Inventory by Location** (`Dashboard.tsx`), Recharts rendered a prominent white/light-grey rectangle behind the hovered bar, which looked jarring against the dark theme card.
+2. **Invisible Tooltip Text in Location Distribution:** When pointing the cursor at slices in the **Location Distribution** pie chart, Recharts rendered tooltip item text using hardcoded near-black styling (`rgb(51, 51, 51)`), making the item count (`Count : 311 items`) illegible against the dark popover background. Furthermore, the location name was omitted.
+
+### Implemented Solution
+1. **`src/pages/Dashboard.tsx`**:
+   - Added `cursor={{ fill: "transparent" }}` to `<Tooltip>` in `<BarChart>`, completely removing the white cursor background highlight on hover.
+   - Built custom high-contrast tooltip components `LocationBarTooltip` and `LocationPieTooltip` using Tailwind classes (`bg-popover text-popover-foreground border border-border shadow-xl px-3 py-2 rounded-lg`).
+   - Slices now display the location name in bold (`text-sm font-semibold`), alongside a slice-matching color indicator dot and bright, readable count text (`text-foreground`).
+   - Added `nameKey="location"` to `<Pie>` to ensure location names are correctly bound to tooltips and legends.
+   - Formatted `<Legend>` labels to render in `text-card-foreground text-xs font-medium`.
+2. **`src/pages/ViewerDashboard.tsx`**:
+   - Added `cursor={{ fill: "transparent" }}` to `<ReTooltip>` on the location bar chart for application-wide consistency.
+
+---
+
+## 5. Calendar / Date Picker Indicator Visibility Fix in Dark Mode
+
+### Problem Statement
+In dark mode, the browser's native calendar icon inside date inputs (`<input type="date">`, `<input type="datetime-local">`, etc.) rendered pitch-black or nearly invisible across the app (such as `/add` for Invoice Date and Approval Date, and `/procurement/orders` for Rate Contract validity dates). This made it difficult for users to see or trigger the calendar picker.
+
+### Root Cause
+1. **WebKit Double-Inversion:**
+   - Applying `color-scheme: dark` in Chrome/Chromium causes the browser to automatically render the picker glyph in white.
+   - The preexisting stylesheet also applied `filter: invert(1)`, which inverted the white icon into pitch-black (`#000000`).
+   - On dark navy and slate backgrounds (`#0f172a`, `#1e293b`), black on black was invisible.
+2. **Component Color-Scheme Default:**
+   - Reusable `<Input>` components did not explicitly declare dark color scheme utility classes.
+
+### Implemented Solution
+1. **`src/styles.css`**:
+   - Implemented `filter: brightness(0) invert(1) !important;` for all date, datetime, time, month, and week native picker indicators:
+     - `brightness(0)` reliably maps all color channels to black `(0, 0, 0)`.
+     - `invert(1)` then flips black into pure crisp white `(255, 255, 255)`.
+     - This guarantees the icon is 100% white regardless of whether the browser drew it black or white originally.
+   - Added hover state with drop shadow (`drop-shadow(0 0 2px rgba(255, 255, 255, 0.8))`) and `opacity: 1 !important;` for interactive feedback.
+2. **`src/components/ui/input.tsx`**:
+   - Added `dark:[color-scheme:dark]` to ensure native browser controls inside `<Input>` properly respond to dark mode.
+
+

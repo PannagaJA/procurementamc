@@ -50,6 +50,25 @@ export const prepareComparativeStatement = createServerFn({ method: "POST" })
   .validator((input: PrepareCsInput) => input)
   .handler(async ({ data, context }) => {
     const db = context.supabase as any;
+    const { getCallerRoles } = await import("@/server/procurement/roles");
+    const roles = await getCallerRoles(db, context.userId);
+    const held = roles.map((r) => r.role);
+
+    // SOP Flowchart Page 17: Only Procurement Team prepares the Comparative Statement
+    const isProcurementTeam =
+      held.includes("admin") ||
+      held.includes("procurement_officer") ||
+      held.includes("procurement_executive");
+
+    if (!isProcurementTeam) {
+      return {
+        ok: false as const,
+        error:
+          "Forbidden: Preparation of Comparative Statements (CS) is restricted to the Procurement Team. Purchase Committee and Executives evaluate and approve the CS (SOP §8.4).",
+        code: "forbidden_cs_preparation",
+      };
+    }
+
     const { resolveApprover, normalizeCategory } =
       await import("@/lib/procurement/authorityMatrix");
 
@@ -155,9 +174,31 @@ export const prepareComparativeStatement = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: existingCs } = await supabaseAdmin
       .from("comparative_statements")
-      .select("id")
+      .select("id, status, prepared_by, cs_number")
       .eq("rfq_id", data.rfq_id)
       .maybeSingle();
+
+    if (existingCs) {
+      if (existingCs.status === "approved") {
+        return {
+          ok: false as const,
+          error: `Comparative Statement ${existingCs.cs_number} has already been approved and cannot be re-prepared.`,
+          code: "cs_already_approved",
+        };
+      }
+      if (
+        existingCs.status === "submitted" &&
+        existingCs.prepared_by &&
+        existingCs.prepared_by !== context.userId &&
+        !held.includes("admin")
+      ) {
+        return {
+          ok: false as const,
+          error: `A Comparative Statement (${existingCs.cs_number}) has already been submitted and is currently pending approval. It cannot be overwritten by another user.`,
+          code: "cs_pending_approval_locked",
+        };
+      }
+    }
 
     const csPayload = {
       rfq_id: data.rfq_id,

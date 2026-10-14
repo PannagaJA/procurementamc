@@ -145,7 +145,11 @@ export const createPo = createServerFn({ method: "POST" })
         .single();
 
       if (directPrErr || !directPr) {
-        return { ok: false as const, error: "Purchase Requisition not found", code: "pr_not_found" };
+        return {
+          ok: false as const,
+          error: "Purchase Requisition not found",
+          code: "pr_not_found",
+        };
       }
       if (directPr.status !== "approved") {
         return {
@@ -351,7 +355,10 @@ export const issuePo = createServerFn({ method: "POST" })
 
     if (upErr) return { ok: false as const, error: upErr.message };
     if (!updated || updated.status !== "issued") {
-      return { ok: false as const, error: `Update did not persist. DB status is still "${updated?.status}".` };
+      return {
+        ok: false as const,
+        error: `Update did not persist. DB status is still "${updated?.status}".`,
+      };
     }
 
     return { ok: true as const, poId: po.id, status: "issued", poNumber: po.po_number };
@@ -515,16 +522,17 @@ export const listPurchaseOrders = createServerFn({ method: "GET" })
         *,
         purchase_requisitions (
           id, pr_number, category, scope, estimated_value, justification,
-          departments (id, name)
+          departments (id, name),
+          pr_line_items (id, description, net_qty_to_procure, est_unit_price, est_total, unit)
         ),
         comparative_statements (
           id, cs_number, status, recommended_total, is_lowest_price
         ),
         vendors (
-          id, name, gst_number, pan_number, status
+          id, name, gst_number, pan_number, registered_address, bank_details_json, status
         ),
         rate_contracts (
-          id, contract_number, title, valid_from, valid_to
+          id, contract_number, title, approved_rates_json, valid_from, valid_to
         ),
         po_amendments (
           id, old_value_total, new_value_total, reason, requires_reapproval, original_approver_role, new_approver_role, status, created_at

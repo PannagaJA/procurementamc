@@ -129,72 +129,86 @@ export async function assertNoPoSplitting(
 
   const projected = already + Number(newValue);
 
-  if (approved > 0 && projected > approved * (1 + PO_SPLIT_TOLERANCE)) {
-    throw ruleError(
-      "po_splitting",
-      `Purchase orders against ${pr.pr_number ?? prId} would total ₹${projected.toLocaleString("en-IN")}, ` +
-        `above the approved value of ₹${approved.toLocaleString("en-IN")}. ` +
-        `Splitting a requirement across orders is not permitted — raise a deviation approval instead.`,
-    );
-  }
-
-  // 30-day rolling window check for the same vendor
+  // 30-day rolling window check for the same vendor (SOP §7.5)
+  let priorPoMatch: any = null;
+  let recentVendorPos: any[] = [];
   if (vendorId) {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    const { data: recentVendorPos, error: rErr } = await db
+    const { data: recentPos, error: rErr } = await db
       .from("purchase_orders")
       .select("id, po_number, total_value, created_at, status, pr_id, department_id")
       .eq("vendor_id", vendorId)
       .gte("created_at", thirtyDaysAgo)
       .neq("status", "cancelled");
 
-    if (!rErr && recentVendorPos && recentVendorPos.length > 0) {
-      // Filter to same PR or same Department
-      const relatedPos = recentVendorPos.filter(
+    if (!rErr && recentPos && recentPos.length > 0) {
+      recentVendorPos = recentPos;
+      const related = recentPos.filter(
         (p: any) => p.pr_id === prId || (effectiveDeptId && p.department_id === effectiveDeptId),
       );
+      if (related.length > 0) {
+        priorPoMatch = related[0];
+      }
+    }
+  }
 
-      if (relatedPos.length > 0) {
-        const pastSum = relatedPos.reduce(
-          (sum: number, p: any) => sum + Number(p.total_value ?? 0),
-          0,
-        );
-        const combinedSum = pastSum + Number(newValue);
+  if (approved > 0 && projected > approved * (1 + PO_SPLIT_TOLERANCE)) {
+    const priorRef = priorPoMatch ? ` (${priorPoMatch.po_number})` : "";
+    throw ruleError(
+      "po_splitting",
+      `SOP §7.5 Anti-Splitting Governance: Prior purchase order${priorRef} exists for this vendor within 30 days. Consolidated procurement required. ` +
+        `Cumulative purchase orders against ${pr.pr_number ?? prId} would total ₹${projected.toLocaleString("en-IN")}, ` +
+        `exceeding the approved value of ₹${approved.toLocaleString("en-IN")}. ` +
+        `Splitting a requirement across orders to bypass higher sanction authorities is strictly prohibited per SOP §8.5 — raise a deviation approval instead.`,
+    );
+  }
 
-        // Fetch matrix rules to check tier escalation
-        const { data: matrixRules } = await db
-          .from("approval_matrix_rules")
-          .select("*")
-          .eq("active", true);
+  if (recentVendorPos.length > 0) {
+    // Filter to same PR or same Department
+    const relatedPos = recentVendorPos.filter(
+      (p: any) => p.pr_id === prId || (effectiveDeptId && p.department_id === effectiveDeptId),
+    );
 
-        if (matrixRules && matrixRules.length > 0) {
-          const { resolveApprover } = await import("@/lib/procurement/authorityMatrix");
-          const category = pr.category ?? "routine_consumable";
-          const singleTier = resolveApprover(category, Number(newValue), 0, matrixRules);
-          const combinedTier = resolveApprover(category, combinedSum, 0, matrixRules);
+    if (relatedPos.length > 0) {
+      const pastSum = relatedPos.reduce(
+        (sum: number, p: any) => sum + Number(p.total_value ?? 0),
+        0,
+      );
+      const combinedSum = pastSum + Number(newValue);
 
-          // Check if combined total escalates to a higher authority role than the individual PO
-          const roleHierarchy = [
-            "hod",
-            "principal",
-            "procurement_officer",
-            "purchase_committee",
-            "director_admin_finance",
-            "evp",
-          ];
-          const singleRank = roleHierarchy.indexOf(singleTier.role.toLowerCase());
-          const combinedRank = roleHierarchy.indexOf(combinedTier.role.toLowerCase());
+      // Fetch matrix rules to check tier escalation
+      const { data: matrixRules } = await db
+        .from("approval_matrix_rules")
+        .select("*")
+        .eq("active", true);
 
-          if (combinedRank > singleRank || (combinedTier.escalate && !singleTier.escalate)) {
-            // Procedure 3: Consolidated requirement automatically escalates approval authority to the higher tier
-            // (e.g. combined spend requires Principal instead of HOD).
-            return {
-              escalateRole: combinedTier.role,
-              combinedSum,
-              pastSum,
-              reason: `Consolidated 30-day orders to vendor total ₹${combinedSum.toLocaleString("en-IN")} (past: ₹${pastSum.toLocaleString("en-IN")}, current: ₹${Number(newValue).toLocaleString("en-IN")}). Escalated to ${combinedTier.role.toUpperCase()} approval (§VI).`,
-            };
-          }
+      if (matrixRules && matrixRules.length > 0) {
+        const { resolveApprover } = await import("@/lib/procurement/authorityMatrix");
+        const category = pr.category ?? "routine_consumable";
+        const singleTier = resolveApprover(category, Number(newValue), 0, matrixRules);
+        const combinedTier = resolveApprover(category, combinedSum, 0, matrixRules);
+
+        // Check if combined total escalates to a higher authority role than the individual PO
+        const roleHierarchy = [
+          "hod",
+          "principal",
+          "procurement_officer",
+          "purchase_committee",
+          "director_admin_finance",
+          "evp",
+        ];
+        const singleRank = roleHierarchy.indexOf(singleTier.role.toLowerCase());
+        const combinedRank = roleHierarchy.indexOf(combinedTier.role.toLowerCase());
+
+        if (combinedRank > singleRank || (combinedTier.escalate && !singleTier.escalate)) {
+          // Procedure 3: Consolidated requirement automatically escalates approval authority to the higher tier
+          // (e.g. combined spend requires Principal instead of HOD).
+          return {
+            escalateRole: combinedTier.role,
+            combinedSum,
+            pastSum,
+            reason: `Consolidated 30-day orders to vendor total ₹${combinedSum.toLocaleString("en-IN")} (past: ₹${pastSum.toLocaleString("en-IN")}, current: ₹${Number(newValue).toLocaleString("en-IN")}). Escalated to ${combinedTier.role.toUpperCase()} approval (§VI).`,
+          };
         }
       }
     }

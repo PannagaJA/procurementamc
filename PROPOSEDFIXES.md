@@ -24,3 +24,22 @@ Please refer to the full documentation at: [docs/PROPOSEDFIXES.md](file:///c:/Us
     - 6-month validity period window per SOP §6 (`valid_from` to `valid_to`).
     - Interactive Schedule of Negotiated Rates multi-line table (Item description, Unit, Unit Rate).
   - Enhanced Rate Contract PO creation to allow selecting approved Requisitions (PR) and auto-binding contract vendor & scope of supply.
+
+### 3. Location Charts: Cursor Background & Tooltip Contrast Fix
+- **Problem:**
+  - In "Inventory by Location", hovering over bars produced an unwanted white background rectangle.
+  - In "Location Distribution", pointing at pie slices displayed tooltip text in dark near-black font (`rgb(51, 51, 51)`), making the item count illegible on dark backgrounds.
+- **Solution in `Dashboard.tsx`:**
+  - Added `cursor={{ fill: "transparent" }}` to `<Tooltip>` in `<BarChart>` to eliminate the white hover background.
+  - Implemented high-contrast `LocationBarTooltip` and `LocationPieTooltip` components with theme-adaptive popover styling (`bg-popover text-popover-foreground border border-border shadow-xl px-3 py-2 rounded-lg`).
+  - Added `nameKey="location"` to `<Pie>` and formatted `<Legend>` labels for crisp contrast in both dark and light modes.
+
+### 4. Calendar / Date Picker Indicator Visibility Fix in Dark Mode
+- **Problem:**
+  - In dark mode, native calendar icons inside date inputs (`<input type="date">`, `<input type="datetime-local">`, etc.) rendered pitch-black, making them invisible against dark backgrounds across the application (e.g. `/add` Invoice Date, Approval Date, `/procurement/orders` Rate Contract validity dates).
+- **Solution in `styles.css` & `input.tsx`:**
+  - Applied `filter: brightness(0) invert(1) !important;` to `.dark input[type="date"]::-webkit-calendar-picker-indicator` (and time, datetime, month, week). This clamps any input color to black and flips it to pure crisp white (`#FFFFFF`) with 95% opacity.
+  - Added hover drop-shadow glow for enhanced interactive contrast.
+  - Added `dark:[color-scheme:dark]` to `src/components/ui/input.tsx`.
+
+
