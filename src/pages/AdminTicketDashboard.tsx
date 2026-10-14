@@ -226,9 +226,11 @@ const AdminTicketDashboard = () => {
         .select("*", { count: "exact" })
         .order("created_at", { ascending: false });
 
-      // By default, Admin should not see tickets awaiting Principal approval or closed tickets
-      if (filters.status === "all") {
-        // Hide tickets awaiting Principal approval, rejected by Principal, or already closed
+      // Status filtering:
+      // "all" -> shows all tickets
+      // "open" -> shows active/open tickets only
+      // otherwise -> exact status match
+      if (filters.status === "open") {
         query = query
           .neq("status", "pending_principal")
           .neq("status", "procure-rejected")
@@ -236,18 +238,7 @@ const AdminTicketDashboard = () => {
           .neq("status", "resolved")
           .neq("status", "completed")
           .neq("status", "procure-completed");
-      }
-
-      // Apply filters
-      console.debug(
-        "fetchAllTickets: applying filters",
-        filters,
-        "page",
-        pagination.page,
-        "pageSize",
-        pagination.pageSize,
-      );
-      if (filters.status !== "all") {
+      } else if (filters.status !== "all") {
         query = query.eq("status", filters.status);
       }
       if (filters.priority !== "all") {
@@ -741,17 +732,17 @@ const AdminTicketDashboard = () => {
 
       setIsAdmin(!!adminData);
 
-      // Check principle role
+      // Check principal role (supports both 'principal' and 'principle')
       const { data: principleData } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
-        .eq("role", "principle")
+        .in("role", ["principal", "principle"])
         .maybeSingle();
 
       setIsPrinciple(!!principleData);
 
-      // If neither admin nor principle, redirect
+      // If neither admin nor principal, redirect
       if (!adminData && !principleData) {
         navigate({ to: "/" });
         return;
@@ -1046,12 +1037,14 @@ const AdminTicketDashboard = () => {
                       <SelectValue placeholder="All Statuses" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">All Open Tickets</SelectItem>
+                      <SelectItem value="all">All Tickets</SelectItem>
+                      <SelectItem value="open">All Open / Active Tickets</SelectItem>
                       <SelectItem value="pending">Pending</SelectItem>
                       <SelectItem value="in-progress">In Progress</SelectItem>
                       <SelectItem value="waiting-for-user">Waiting for User</SelectItem>
                       <SelectItem value="resolved">Resolved</SelectItem>
                       <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="pending_principal">Pending Principal</SelectItem>
                       <SelectItem value="procure-in-progress">Procure In Progress</SelectItem>
                       <SelectItem value="procure-completed">Procure Completed</SelectItem>
                       <SelectItem value="procure-approved">Procure Approved</SelectItem>
@@ -1110,15 +1103,14 @@ const AdminTicketDashboard = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {tickets
-                    .filter(
-                      (t) =>
-                        t.status !== "resolved" &&
-                        t.status !== "completed" &&
-                        t.status !== "procure-completed",
-                    )
-                    .slice(0, 5)
-                    .map((ticket) => (
+                  {tickets.length === 0 ? (
+                    <tr>
+                      <td colSpan={10} className="px-4 py-8 text-center text-muted-foreground">
+                        No tickets found matching the selected filters.
+                      </td>
+                    </tr>
+                  ) : (
+                    tickets.map((ticket) => (
                     <tr key={ticket.id} className="border-t">
                       <td className="px-3 py-2">
                         <div className="font-semibold">{ticket.ticket_number}</div>
@@ -1196,7 +1188,7 @@ const AdminTicketDashboard = () => {
                         </Button>
                       </td>
                     </tr>
-                  ))}
+                  )))}
                 </tbody>
               </table>
             </div>

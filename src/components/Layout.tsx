@@ -191,13 +191,24 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
   const canSeeHodInventory = isHod || isRole("hod");
   const canSeeInventory = canSeeAdminItems || isRole("stores") || isPrinciple || isRole("principal");
   const canSeePrincipalApprovals = isPrinciple || isRole("principal") || canSeeAdminItems;
-  const canRaiseTickets =
-    !canSeeViewerItems &&
-    (canSeeAdminItems ||
+  const canRaiseTickets = Boolean(
+    user && (
+      canSeeAdminItems ||
       canSeeHodInventory ||
+      isPrinciple ||
+      isRole("principal") ||
       isRole("faculty") ||
       isRole("requester") ||
-      (!isRole("stores") && !isRole("finance") && !isRole("procurement_officer")));
+      isRole("stores") ||
+      isRole("finance") ||
+      isRole("procurement_officer") ||
+      isRole("procurement_executive") ||
+      isRole("purchase_committee") ||
+      isRole("librarian") ||
+      isRole("user") ||
+      !canSeeViewerItems
+    ),
+  );
 
   // Procurement (SOP) Module Permissions
   const canAccessHub =
@@ -217,7 +228,16 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
     canSeeAdminItems || hasAny(["hod", "principal", "principle", "evp", "director_admin_finance", "finance"]);
   const canAccessPr =
     canSeeAdminItems ||
-    hasAny(["faculty", "requester", "hod", "procurement_officer", "procurement_executive", "purchase_committee"]);
+    hasAny([
+      "faculty",
+      "user",
+      "staff",
+      "requester",
+      "hod",
+      "procurement_officer",
+      "procurement_executive",
+      "purchase_committee",
+    ]);
   const canAccessRfqs =
     canSeeAdminItems || hasAny(["procurement_officer", "procurement_executive", "purchase_committee"]);
   const canAccessCs =
@@ -236,7 +256,9 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
   const canAccessGrn = canSeeAdminItems || hasAny(["stores", "hod", "finance"]);
   const canAccessInvoices = canSeeAdminItems || hasAny(["finance"]);
   const canAccessEmergency =
-    canSeeAdminItems || hasAny(["evp", "director_admin_finance", "procurement_officer", "procurement_executive"]);
+    canSeeAdminItems ||
+    canAccessPr ||
+    hasAny(["evp", "director_admin_finance", "procurement_officer", "procurement_executive"]);
   const canAccessVendorRatings =
     canSeeAdminItems ||
     hasAny([
@@ -303,6 +325,8 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
                   (authCtx?.primaryRole === "hod" && "Head of Department (HOD)") ||
                   (authCtx?.primaryRole === "librarian" && "Librarian") ||
                   (authCtx?.primaryRole === "viewer" && "Viewer / Auditor") ||
+                  (authCtx?.primaryRole === "faculty" && "Faculty Requisitioner") ||
+                  (authCtx?.primaryRole === "user" && "Faculty / Academic Requisitioner") ||
                   (isAdmin ? "Administrator" : isPrinciple ? "Principal" : "Faculty / Staff Access")}
               </p>
             </div>

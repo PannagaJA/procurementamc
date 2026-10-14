@@ -47,6 +47,10 @@ import {
   RefreshCw,
   CreditCard,
   Clock,
+  FileText,
+  Plus,
+  Trash2,
+  Calendar,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 
@@ -57,6 +61,10 @@ export default function PurchaseOrders() {
   const { pagination, setPage, setPageSize, setTotal } = usePagination(10, 1);
   const [approvedCss, setApprovedCss] = useState<any[]>([]);
   const [rateContracts, setRateContracts] = useState<any[]>([]);
+  const [directPrs, setDirectPrs] = useState<any[]>([]);
+  const [vendorsList, setVendorsList] = useState<any[]>([]);
+  const [matrixRules, setMatrixRules] = useState<any[]>([]);
+  const [approvedPrs, setApprovedPrs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const getStatusBadge = (status: string) => {
@@ -79,7 +87,7 @@ export default function PurchaseOrders() {
 
   // Create PO Modal
   const [createOpen, setCreateOpen] = useState(false);
-  const [poType, setPoType] = useState<"regular" | "rate_contract">("regular");
+  const [poType, setPoType] = useState<"regular" | "rate_contract" | "direct_purchase">("regular");
   const [selectedCsId, setSelectedCsId] = useState("");
   const [selectedRcId, setSelectedRcId] = useState("");
   const [selectedPrId, setSelectedPrId] = useState("");
@@ -98,6 +106,24 @@ export default function PurchaseOrders() {
   const [newTaxes, setNewTaxes] = useState<number>(0);
   const [amendReason, setAmendReason] = useState("");
   const [amending, setAmending] = useState(false);
+
+  // Create Rate Contract Modal
+  const [rcOpen, setRcOpen] = useState(false);
+  const [rcVendorId, setRcVendorId] = useState("");
+  const [rcCategory, setRcCategory] = useState("routine_consumable");
+  const [rcTitle, setRcTitle] = useState("");
+  const [rcContractNumber, setRcContractNumber] = useState("");
+  const [rcValidFrom, setRcValidFrom] = useState(new Date().toISOString().split("T")[0]);
+  const [rcValidTo, setRcValidTo] = useState(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() + 6);
+    return d.toISOString().split("T")[0];
+  });
+  const [rcRateItems, setRcRateItems] = useState<
+    Array<{ description: string; unit: string; rate: number }>
+  >([{ description: "", unit: "pcs", rate: 0 }]);
+  const [savingRc, setSavingRc] = useState(false);
+  const [empanelledVendors, setEmpanelledVendors] = useState<any[]>([]);
 
   // General action state
   const [acting, setActing] = useState(false);
@@ -122,8 +148,47 @@ export default function PurchaseOrders() {
       }
 
       // Fetch active rate contracts
-      const { data: rcData } = await supabase.from("rate_contracts").select("*, vendors(id, name)");
+      const { data: rcData } = await supabase
+        .from("rate_contracts")
+        .select("*, vendors(id, name)")
+        .order("created_at", { ascending: false });
       setRateContracts(rcData || []);
+
+      // Fetch approved direct PRs (<= 5000 or small_value category)
+      const { data: prData } = await supabase
+        .from("purchase_requisitions")
+        .select(`
+          id, pr_number, estimated_value, category, justification,
+          departments (id, name),
+          pr_line_items (id, description, net_qty_to_procure, est_unit_price, est_total)
+        `)
+        .eq("status", "approved")
+        .order("created_at", { ascending: false });
+
+      // Filter eligible direct purchase PRs (<= 5000) that do not already have an active PO
+      const existingPoPrIds = new Set((poRes?.purchaseOrders || []).filter((o: any) => o.status !== "cancelled").map((o: any) => o.pr_id));
+      const eligiblePrs = (prData || []).filter(
+        (p: any) =>
+          (Number(p.estimated_value || 0) <= 5000 || p.category === "small_value") &&
+          !existingPoPrIds.has(p.id)
+      );
+      setDirectPrs(eligiblePrs);
+      setApprovedPrs(prData || []);
+
+      // Fetch empanelled / active vendors
+      const { data: vData } = await supabase
+        .from("vendors")
+        .select("id, name, gst_number, status")
+        .in("status", ["empanelled", "active"])
+        .order("name");
+      setVendorsList(vData || []);
+
+      // Fetch matrix rules for previewing approver
+      const { data: rules } = await supabase
+        .from("approval_matrix_rules")
+        .select("*")
+        .eq("active", true);
+      setMatrixRules(rules || []);
     } catch (e: any) {
       toast({ title: "Error loading data", description: e.message, variant: "destructive" });
     } finally {
@@ -135,19 +200,50 @@ export default function PurchaseOrders() {
     loadData();
   }, []);
 
-  // When CS selection changes in Create PO Modal
+  // When CS or Rate Contract selection changes in Create PO Modal
   useEffect(() => {
-    if (poType === "regular" && selectedCsId) {
-      const cs = approvedCss.find((c) => c.id === selectedCsId);
-      if (cs) {
-        setSelectedPrId(cs.pr_id || cs.rfqs?.purchase_requisitions?.id || "");
-        setSelectedVendorId(cs.recommended_vendor_id || "");
-        setPrice(Number(cs.recommended_total || 0));
-        setTaxes(0);
-        setScopeOfSupply(`Supply as per RFQ ${cs.rfqs?.rfq_number || ""}`);
+    if (poType === "regular") {
+      if (selectedCsId) {
+        const cs = approvedCss.find((c) => c.id === selectedCsId);
+        if (cs) {
+          setSelectedPrId(cs.pr_id || cs.rfqs?.purchase_requisitions?.id || "");
+          setSelectedVendorId(cs.recommended_vendor_id || "");
+          setPrice(Number(cs.recommended_total || 0));
+          setTaxes(0);
+          setScopeOfSupply(`Supply as per RFQ ${cs.rfqs?.rfq_number || ""}`);
+        }
+      }
+    } else if (poType === "rate_contract") {
+      if (selectedRcId) {
+        const rc = rateContracts.find((r) => r.id === selectedRcId);
+        if (rc) {
+          setSelectedVendorId(rc.vendor_id || rc.vendors?.id || "");
+          setScopeOfSupply(
+            `Supply against Rate Contract ${rc.contract_number} (${rc.title})`,
+          );
+        }
       }
     }
-  }, [selectedCsId, poType, approvedCss]);
+  }, [selectedCsId, selectedRcId, poType, approvedCss, rateContracts]);
+
+  // When direct PR selection changes in Create PO Modal
+  useEffect(() => {
+    if (poType === "direct_purchase" && selectedPrId) {
+      const pr = directPrs.find((p) => p.id === selectedPrId);
+      if (pr) {
+        setPrice(Number(pr.estimated_value || 0));
+        setTaxes(0);
+        const itemDescriptions = (pr.pr_line_items || [])
+          .map((i: any) => `${i.description} (Qty: ${i.net_qty_to_procure ?? 1})`)
+          .join(", ");
+        setScopeOfSupply(
+          itemDescriptions
+            ? `Direct procurement: ${itemDescriptions}`
+            : `Direct procurement as per PR ${pr.pr_number}`
+        );
+      }
+    }
+  }, [selectedPrId, poType, directPrs]);
 
   const handleCreatePo = async () => {
     if (!selectedPrId || !selectedVendorId || price <= 0) {
@@ -308,6 +404,112 @@ export default function PurchaseOrders() {
     }
   };
 
+  const openNewRcModal = () => {
+    const y = new Date().getFullYear();
+    const rand = Math.floor(1000 + Math.random() * 9000);
+    setRcContractNumber(`RC-${y}-${rand}`);
+    setRcVendorId(empanelledVendors[0]?.id || "");
+    setRcCategory("routine_consumable");
+    setRcTitle("");
+    const today = new Date().toISOString().split("T")[0];
+    const sixMonthsLater = new Date();
+    sixMonthsLater.setMonth(sixMonthsLater.getMonth() + 6);
+    setRcValidFrom(today);
+    setRcValidTo(sixMonthsLater.toISOString().split("T")[0]);
+    setRcRateItems([{ description: "", unit: "pcs", rate: 0 }]);
+    setRcOpen(true);
+  };
+
+  const handleAddRcItem = () => {
+    setRcRateItems((prev) => [...prev, { description: "", unit: "pcs", rate: 0 }]);
+  };
+
+  const handleRemoveRcItem = (index: number) => {
+    if (rcRateItems.length === 1) return;
+    setRcRateItems((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleRcItemChange = (index: number, field: string, val: any) => {
+    setRcRateItems((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, [field]: val } : item)),
+    );
+  };
+
+  const handleCreateRateContract = async () => {
+    if (!rcVendorId) {
+      toast({
+        title: "Vendor Required",
+        description: "Please select an empanelled vendor for this rate contract.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!rcTitle.trim()) {
+      toast({
+        title: "Title Required",
+        description: "Please enter a descriptive agreement title.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!rcValidFrom || !rcValidTo || rcValidTo <= rcValidFrom) {
+      toast({
+        title: "Invalid Validity Dates",
+        description: "Expiry date (Valid To) must be after Start date (Valid From).",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSavingRc(true);
+    try {
+      const validItems = rcRateItems.filter((i) => i.description.trim());
+      const { data: newRc, error: rcErr } = await supabase
+        .from("rate_contracts")
+        .insert({
+          contract_number: rcContractNumber.trim() || `RC-${Date.now()}`,
+          vendor_id: rcVendorId,
+          category: rcCategory,
+          title: rcTitle.trim(),
+          approved_rates_json: validItems,
+          valid_from: rcValidFrom,
+          valid_to: rcValidTo,
+          created_by: auth.userId || null,
+        })
+        .select("*, vendors(id, name)")
+        .single();
+
+      if (rcErr) throw rcErr;
+
+      toast({
+        title: "Rate Contract Created Successfully",
+        description: `Agreement ${newRc.contract_number} has been registered.`,
+      });
+      setRcOpen(false);
+
+      // Refresh rate contracts
+      const { data: rcData } = await supabase
+        .from("rate_contracts")
+        .select("*, vendors(id, name)")
+        .order("created_at", { ascending: false });
+      setRateContracts(rcData || []);
+
+      // If Create PO modal was open, auto-select this new contract
+      if (createOpen) {
+        setPoType("rate_contract");
+        setSelectedRcId(newRc.id);
+      }
+    } catch (e: any) {
+      toast({
+        title: "Error creating rate contract",
+        description: e.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSavingRc(false);
+    }
+  };
+
   return (
     <Layout>
       <div className="max-w-6xl mx-auto space-y-6 pb-12">
@@ -330,12 +532,21 @@ export default function PurchaseOrders() {
             {(auth.hasRole("admin") ||
               auth.hasRole("procurement_officer") ||
               auth.hasRole("procurement_executive")) && (
-              <Button
-                onClick={() => setCreateOpen(true)}
-                className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
-              >
-                <PlusCircle className="w-4 h-4" /> Create PO
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  onClick={openNewRcModal}
+                  className="gap-2 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+                >
+                  <FileText className="w-4 h-4" /> + New Rate Contract
+                </Button>
+                <Button
+                  onClick={() => setCreateOpen(true)}
+                  className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                >
+                  <PlusCircle className="w-4 h-4" /> Create PO
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -389,8 +600,14 @@ export default function PurchaseOrders() {
 
                             <div className="flex items-center gap-2 self-end sm:self-auto">
                               {isPending &&
-                                (auth.hasRole("admin") ||
-                                (po.current_approver_role && auth.hasRole(po.current_approver_role)) ? (
+                                ((auth.hasRole("admin") ||
+                                  (po.current_approver_role &&
+                                    auth.hasRole(po.current_approver_role) &&
+                                    (po.current_approver_role !== "hod" ||
+                                      !auth.departmentId ||
+                                      !po.department_id ||
+                                      auth.departmentId === po.department_id ||
+                                      auth.departmentId === po.purchase_requisitions?.departments?.id))) ? (
                                   <Button
                                     size="sm"
                                     onClick={() => handleApprovePo(po)}
@@ -562,12 +779,13 @@ export default function PurchaseOrders() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="regular">Regular Order (Approved CS)</SelectItem>
+                      <SelectItem value="direct_purchase">Direct Purchase (≤ ₹5,000 / Small Value PR)</SelectItem>
                       <SelectItem value="rate_contract">Rate Contract Order</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                {poType === "regular" ? (
+                {poType === "regular" && (
                   <div className="space-y-1">
                     <Label>Approved Comparative Statement</Label>
                     <Select value={selectedCsId} onValueChange={setSelectedCsId}>
@@ -584,9 +802,20 @@ export default function PurchaseOrders() {
                       </SelectContent>
                     </Select>
                   </div>
-                ) : (
+                )}
+
+                {poType === "rate_contract" && (
                   <div className="space-y-1">
-                    <Label>Active Rate Contract</Label>
+                    <div className="flex items-center justify-between">
+                      <Label>Active Rate Contract</Label>
+                      <button
+                        type="button"
+                        onClick={openNewRcModal}
+                        className="text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold hover:underline"
+                      >
+                        + New Contract
+                      </button>
+                    </div>
                     <Select value={selectedRcId} onValueChange={setSelectedRcId}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select Rate Contract..." />
@@ -601,7 +830,90 @@ export default function PurchaseOrders() {
                     </Select>
                   </div>
                 )}
+
+                {poType === "direct_purchase" && (
+                  <div className="space-y-1">
+                    <Label>Approved Purchase Requisition (≤ ₹5,000)</Label>
+                    <Select value={selectedPrId} onValueChange={setSelectedPrId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Approved PR..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {directPrs.length === 0 ? (
+                          <SelectItem value="none" disabled>
+                            No approved low-value PRs found
+                          </SelectItem>
+                        ) : (
+                          directPrs.map((pr) => (
+                            <SelectItem key={pr.id} value={pr.id}>
+                              {pr.pr_number} — {pr.departments?.name || "Dept"} (₹
+                              {Number(pr.estimated_value).toLocaleString("en-IN")})
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
+
+              {poType === "rate_contract" && (
+                <div className="space-y-1">
+                  <Label>Approved Purchase Requisition (PR) *</Label>
+                  <Select
+                    value={selectedPrId}
+                    onValueChange={(val) => {
+                      setSelectedPrId(val);
+                      const pr = approvedPrs.find((p) => p.id === val);
+                      if (pr && (!price || price === 0)) {
+                        setPrice(Number(pr.estimated_value || 0));
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select approved PR to fulfill..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {approvedPrs.length === 0 ? (
+                        <SelectItem value="_none" disabled>
+                          No approved requisitions available
+                        </SelectItem>
+                      ) : (
+                        approvedPrs.map((pr) => (
+                          <SelectItem key={pr.id} value={pr.id}>
+                            {pr.pr_number} — {pr.category} (₹
+                            {Number(pr.estimated_value || 0).toLocaleString("en-IN")})
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {poType === "direct_purchase" && (
+                <div className="space-y-1">
+                  <Label>Select Empanelled Vendor *</Label>
+                  <Select value={selectedVendorId} onValueChange={setSelectedVendorId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select Empanelled Vendor..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {vendorsList.length === 0 ? (
+                        <SelectItem value="none" disabled>
+                          No empanelled vendors found
+                        </SelectItem>
+                      ) : (
+                        vendorsList.map((v) => (
+                          <SelectItem key={v.id} value={v.id}>
+                            {v.name} {v.gst_number ? `(${v.gst_number})` : ""}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div className="space-y-1">
                 <Label>Scope of Supply / Order Description</Label>
@@ -638,6 +950,17 @@ export default function PurchaseOrders() {
                   ₹{(Number(price) + Number(taxes)).toLocaleString("en-IN")}
                 </span>
               </div>
+
+              {poType === "direct_purchase" && (
+                <div className="p-2.5 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 flex items-center justify-between text-xs">
+                  <span className="font-medium text-blue-700 dark:text-blue-300">Target Approval Authority:</span>
+                  <Badge className="bg-blue-600 text-white font-bold uppercase text-[11px]">
+                    {Number(price) + Number(taxes) <= 2000
+                      ? `${directPrs.find((p) => p.id === selectedPrId)?.departments?.name || "Dept"} HOD (≤ ₹2,000)`
+                      : "Principal (≤ ₹5,000)"}
+                  </Badge>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
@@ -731,6 +1054,187 @@ export default function PurchaseOrders() {
                 className="bg-amber-600 hover:bg-amber-700 text-white"
               >
                 {amending ? "Amending..." : "Submit Amendment"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal: Create Rate Contract */}
+        <Dialog open={rcOpen} onOpenChange={setRcOpen}>
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-indigo-600" />
+                Register Master Rate Contract (§8.2, §8.4)
+              </DialogTitle>
+              <DialogDescription>
+                Establish fixed pre-negotiated unit rates with an empanelled vendor. Orders placed
+                under this agreement bypass RFQ tendering.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Contract Number *</Label>
+                  <Input
+                    value={rcContractNumber}
+                    onChange={(e) => setRcContractNumber(e.target.value)}
+                    placeholder="e.g. RC-2026-001"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Category *</Label>
+                  <Select value={rcCategory} onValueChange={setRcCategory}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="routine_consumable">Routine Consumables</SelectItem>
+                      <SelectItem value="services_amc">Services & AMC</SelectItem>
+                      <SelectItem value="maintenance">Facility Maintenance</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label>Empanelled Vendor *</Label>
+                <Select value={rcVendorId} onValueChange={setRcVendorId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select active empanelled vendor..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {empanelledVendors.length === 0 ? (
+                      <SelectItem value="_none" disabled>
+                        No empanelled vendors found
+                      </SelectItem>
+                    ) : (
+                      empanelledVendors.map((v) => (
+                        <SelectItem key={v.id} value={v.id}>
+                          {v.name} {v.gst_number ? `(${v.gst_number})` : ""}
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label>Agreement Title *</Label>
+                <Input
+                  value={rcTitle}
+                  onChange={(e) => setRcTitle(e.target.value)}
+                  placeholder="e.g. Annual Stationery & Lab Supplies Agreement"
+                />
+              </div>
+
+              <div className="p-3 bg-indigo-50/60 dark:bg-indigo-950/20 border border-indigo-200/50 dark:border-indigo-900/30 rounded-lg space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-indigo-900 dark:text-indigo-200 flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5" /> Validity Window (6-Month Cap per SOP §6)
+                  </span>
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] bg-indigo-100/50 text-indigo-700 dark:text-indigo-300"
+                  >
+                    SOP §6 / §8.2 Compliant
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Valid From *</Label>
+                    <Input
+                      type="date"
+                      value={rcValidFrom}
+                      onChange={(e) => setRcValidFrom(e.target.value)}
+                      className="h-8 text-xs bg-white dark:bg-slate-900"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Valid To *</Label>
+                    <Input
+                      type="date"
+                      value={rcValidTo}
+                      onChange={(e) => setRcValidTo(e.target.value)}
+                      className="h-8 text-xs bg-white dark:bg-slate-900"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Rate Items Schedule */}
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                    Schedule of Negotiated Rates
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleAddRcItem}
+                    className="h-7 text-xs text-indigo-600 dark:text-indigo-400 gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add Item Line
+                  </Button>
+                </div>
+
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  {rcRateItems.map((item, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800"
+                    >
+                      <Input
+                        placeholder="Item description / code..."
+                        value={item.description}
+                        onChange={(e) => handleRcItemChange(index, "description", e.target.value)}
+                        className="h-8 text-xs flex-1"
+                      />
+                      <Input
+                        placeholder="Unit (pcs, box...)"
+                        value={item.unit}
+                        onChange={(e) => handleRcItemChange(index, "unit", e.target.value)}
+                        className="h-8 text-xs w-24"
+                      />
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="Unit Rate (₹)"
+                        value={item.rate}
+                        onChange={(e) =>
+                          handleRcItemChange(index, "rate", parseFloat(e.target.value) || 0)
+                        }
+                        className="h-8 text-xs w-28"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveRcItem(index)}
+                        disabled={rcRateItems.length === 1}
+                        className="h-8 w-8 p-0 text-slate-400 hover:text-red-600"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setRcOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCreateRateContract}
+                disabled={savingRc || !rcVendorId || !rcTitle.trim()}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              >
+                {savingRc ? "Saving Contract..." : "Register Rate Contract"}
               </Button>
             </DialogFooter>
           </DialogContent>

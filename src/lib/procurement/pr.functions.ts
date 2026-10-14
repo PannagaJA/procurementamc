@@ -76,6 +76,14 @@ export const createPr = createServerFn({ method: "POST" })
       }
     }
 
+    if (data.is_recurring && (!data.recurring_frequency || !data.recurring_frequency.trim())) {
+      return {
+        ok: false as const,
+        error: "Recurring frequency is required when Recurring Requirement is enabled (SOP §8.1).",
+        code: "recurring_frequency_required",
+      };
+    }
+
     const resolved = await resolve(db, canonicalCat, data.department_id, value);
 
     const { data: pr, error } = await db
@@ -209,6 +217,17 @@ async function decide(
       throw new ForbiddenError(
         `This requisition routes to "${resolved.role}". You hold: ${held.join(", ") || "no procurement role"}.`,
       );
+    }
+    // If the approval requires HOD, ensure the caller is HOD for this PR's department
+    if (!held.includes("admin") && resolved.role === "hod") {
+      const isHodForDept = roles.some(
+        (r) => r.role === "hod" && r.department_id && r.department_id === pr.department_id,
+      );
+      if (!isHodForDept) {
+        throw new ForbiddenError(
+          "You are not the designated Head of Department (HOD) for this requisition's department.",
+        );
+      }
     }
   } catch (e: any) {
     return { ok: false as const, error: e.message };

@@ -89,11 +89,18 @@ export function resolveApprover(
   rules: MatrixRule[],
 ): ResolvedApprover {
   const canonicalCat = normalizeCategory(category);
+  // SOP §VI: Orders up to ₹5,000 are Small Value / Direct Purchase across operational and departmental categories
+  const isDirectPurchaseValue = txnValue <= 5000;
+
   const applicable = (rules ?? [])
     .filter(
       (r) =>
         r.active !== false &&
-        (r.category === canonicalCat || normalizeCategory(r.category) === canonicalCat),
+        (r.category === canonicalCat ||
+          normalizeCategory(r.category) === canonicalCat ||
+          (isDirectPurchaseValue &&
+            (r.category === "small_value" ||
+              normalizeCategory(r.category) === "small_value"))),
     )
     // cheapest authority first — first-approver-wins between overlapping roles (Q2)
     .sort((a, b) => limit(a.per_txn_limit) - limit(b.per_txn_limit));

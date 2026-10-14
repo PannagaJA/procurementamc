@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,8 +40,7 @@ type LineItem = {
 };
 
 const CATEGORIES = [
-  { value: "small_value", label: "Small Value / Direct Purchase (≤ ₹5,000)" },
-  { value: "routine_consumable", label: "Routine Consumables (Rate Contract)" },
+  { value: "routine_consumable", label: "Routine Consumables" },
   { value: "equipment_asset", label: "Equipment & Asset Procurement" },
   { value: "software", label: "Software & Cloud Licenses" },
   { value: "academic_research", label: "Academic & Research Material" },
@@ -59,7 +59,7 @@ export default function RaiseRequisition() {
 
   // Form State
   const [departmentId, setDepartmentId] = useState<string>("");
-  const [category, setCategory] = useState<string>("small_value");
+  const [category, setCategory] = useState<string>("routine_consumable");
   const [scope, setScope] = useState<"academic" | "operational">("operational");
   const [budgetHead, setBudgetHead] = useState<string>("");
   const [isEmergency, setIsEmergency] = useState<boolean>(false);
@@ -79,13 +79,21 @@ export default function RaiseRequisition() {
     },
   ]);
 
+  const { departmentId: userDeptId } = useAuth();
+
   // Load initial data (departments, matrix rules)
   useEffect(() => {
     async function loadData() {
       const { data: depts } = await supabase.from("departments").select("id, name").order("name");
       if (depts && depts.length > 0) {
         setDepartments(depts);
-        setDepartmentId(depts[0].id);
+        // Default to the logged-in user's assigned department if present, else first department
+        setDepartmentId((prev) => {
+          if (userDeptId && depts.some((d) => d.id === userDeptId)) {
+            return userDeptId;
+          }
+          return prev || depts[0].id;
+        });
       }
 
       const { data: rules } = await supabase
@@ -97,7 +105,14 @@ export default function RaiseRequisition() {
       }
     }
     loadData();
-  }, []);
+  }, [userDeptId]);
+
+  // Keep departmentId synced if userDeptId loads after initial fetch
+  useEffect(() => {
+    if (userDeptId && departments.some((d) => d.id === userDeptId)) {
+      setDepartmentId(userDeptId);
+    }
+  }, [userDeptId, departments]);
 
   // Compute item totals and estimated total value
   const computedItems = useMemo(() => {
@@ -159,6 +174,14 @@ export default function RaiseRequisition() {
     }
     if (!justification.trim()) {
       toast({ title: "Please provide a justification", variant: "destructive" });
+      return;
+    }
+    if (isRecurring && (!recurringFrequency || !recurringFrequency.trim())) {
+      toast({
+        title: "Recurring Frequency Required",
+        description: "Please specify the frequency (e.g. Monthly, Quarterly) for this recurring requisition.",
+        variant: "destructive",
+      });
       return;
     }
     const validItems = lineItems.filter((i) => i.description.trim().length > 0);
@@ -569,7 +592,10 @@ export default function RaiseRequisition() {
                         type="checkbox"
                         id="isRecurring"
                         checked={isRecurring}
-                        onChange={(e) => setIsRecurring(e.target.checked)}
+                        onChange={(e) => {
+                          setIsRecurring(e.target.checked);
+                          if (!e.target.checked) setRecurringFrequency("");
+                        }}
                         className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                       />
                       <div className="space-y-1.5 flex-1">
@@ -580,12 +606,57 @@ export default function RaiseRequisition() {
                           Recurring Requirement
                         </Label>
                         {isRecurring && (
-                          <Input
-                            placeholder="e.g. Monthly, Quarterly"
-                            value={recurringFrequency}
-                            onChange={(e) => setRecurringFrequency(e.target.value)}
-                            className="h-8 text-xs mt-1"
-                          />
+                          <div className="space-y-2 mt-1.5">
+                            <Select
+                              value={
+                                ["Monthly", "Bi-Monthly", "Quarterly", "Half-Yearly", "Annually"].includes(
+                                  recurringFrequency,
+                                )
+                                  ? recurringFrequency
+                                  : recurringFrequency
+                                  ? "Custom"
+                                  : ""
+                              }
+                              onValueChange={(val) => {
+                                if (val === "Custom") {
+                                  setRecurringFrequency("");
+                                } else {
+                                  setRecurringFrequency(val);
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="h-8 text-xs bg-white dark:bg-slate-800">
+                                <SelectValue placeholder="Select frequency (Required) *" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Monthly">Monthly (12x / year)</SelectItem>
+                                <SelectItem value="Bi-Monthly">Bi-Monthly (Every 2 months)</SelectItem>
+                                <SelectItem value="Quarterly">Quarterly (Every 3 months)</SelectItem>
+                                <SelectItem value="Half-Yearly">Half-Yearly (Every 6 months)</SelectItem>
+                                <SelectItem value="Annually">Annually (Once a year)</SelectItem>
+                                <SelectItem value="Custom">Custom frequency...</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            {(![
+                              "Monthly",
+                              "Bi-Monthly",
+                              "Quarterly",
+                              "Half-Yearly",
+                              "Annually",
+                            ].includes(recurringFrequency) ||
+                              recurringFrequency === "") && (
+                              <Input
+                                placeholder="Enter custom frequency (e.g. Every 45 days) *"
+                                value={recurringFrequency}
+                                onChange={(e) => setRecurringFrequency(e.target.value)}
+                                className="h-8 text-xs bg-white dark:bg-slate-800"
+                                required
+                              />
+                            )}
+                            <p className="text-[11px] text-blue-600 dark:text-blue-400">
+                              💡 Routine recurring items qualify for a 6-month Master Rate Contract with Procurement under SOP §8.2.
+                            </p>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -641,7 +712,9 @@ export default function RaiseRequisition() {
                     Target Approval Authority
                   </span>
                   <div className="text-2xl font-black tracking-tight capitalize">
-                    {liveRouting.role.replace(/_/g, " ")}
+                    {liveRouting.role === "hod"
+                      ? `${departments.find((d) => d.id === departmentId)?.name || "Department"} HOD`
+                      : liveRouting.role.replace(/_/g, " ")}
                   </div>
                   <div className="text-xs text-indigo-100">
                     {liveRouting.escalate ? (

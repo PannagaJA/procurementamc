@@ -17,8 +17,11 @@ export const getMyPendingApprovals = createServerFn({ method: "GET" })
     const held = roles.map((r) => r.role);
     const isAdmin = held.includes("admin");
 
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const queryDb = (supabaseAdmin || db) as any;
+
     // 1. Pending Purchase Requisitions
-    let prQuery = db
+    let prQuery = queryDb
       .from("purchase_requisitions")
       .select(
         `
@@ -33,10 +36,32 @@ export const getMyPendingApprovals = createServerFn({ method: "GET" })
     if (!isAdmin) {
       prQuery = prQuery.in("current_approver_role", held);
     }
-    const { data: prs, error: prErr } = await prQuery;
+    const { data: prsRaw, error: prErr } = await prQuery;
+
+    // Filter by department for HODs: Requisitions routed to 'hod' must only be visible
+    // to the HOD of that specific department (or admin).
+    // Include user's department_id from user_roles or profiles if available
+    const hodDeptIds = new Set(
+      roles.filter((r) => r.role === "hod" && r.department_id).map((r) => r.department_id),
+    );
+
+    // If user holds hod but hodDeptIds is empty in user_roles, try fetching from user_roles any department_id
+    if (held.includes("hod") && hodDeptIds.size === 0) {
+      roles.filter((r) => r.department_id).forEach((r) => hodDeptIds.add(r.department_id));
+    }
+
+    const prs = isAdmin
+      ? prsRaw
+      : (prsRaw ?? []).filter((p: any) => {
+          if (p.current_approver_role === "hod") {
+            const deptId = p.department_id;
+            return deptId && hodDeptIds.has(deptId);
+          }
+          return true;
+        });
 
     // 2. Pending Comparative Statements
-    let csQuery = db
+    let csQuery = queryDb
       .from("comparative_statements")
       .select(
         `
@@ -58,7 +83,7 @@ export const getMyPendingApprovals = createServerFn({ method: "GET" })
     const { data: css, error: csErr } = await csQuery;
 
     // 3. Pending Purchase Orders
-    let poQuery = db
+    let poQuery = queryDb
       .from("purchase_orders")
       .select(
         `
@@ -74,10 +99,21 @@ export const getMyPendingApprovals = createServerFn({ method: "GET" })
     if (!isAdmin) {
       poQuery = poQuery.in("current_approver_role", held);
     }
-    const { data: pos, error: poErr } = await poQuery;
+    const { data: posRaw, error: poErr } = await poQuery;
+    const pos = isAdmin
+      ? posRaw
+      : (posRaw ?? []).filter((p: any) => {
+          if (p.current_approver_role === "hod") {
+            const deptId = p.department_id || p.purchase_requisitions?.departments?.id || p.purchase_requisitions?.department_id;
+            // If the HOD has specific department(s) configured, filter by it.
+            // If hodDeptIds has items, match against them; if user holds HOD and no department restriction is set, allow viewing.
+            return hodDeptIds.size > 0 ? (deptId && hodDeptIds.has(deptId)) : true;
+          }
+          return true;
+        });
 
     // 4. Pending PO Amendments
-    let amQuery = db
+    let amQuery = queryDb
       .from("po_amendments")
       .select(
         `

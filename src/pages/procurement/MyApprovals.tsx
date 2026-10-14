@@ -59,6 +59,7 @@ export default function MyApprovals() {
   >("pr_approve");
   const [activeItem, setActiveItem] = useState<any>(null);
   const [remarks, setRemarks] = useState("");
+  const [activeTab, setActiveTab] = useState<string>("prs");
 
   const loadData = async () => {
     setLoading(true);
@@ -66,6 +67,12 @@ export default function MyApprovals() {
       const res = await (getMyPendingApprovals as any)();
       if (res?.ok) {
         setData(res);
+        // If PR has 0 items but PO has items, default activeTab to pos
+        if ((res.prs || []).length === 0 && (res.purchaseOrders || []).length > 0) {
+          setActiveTab("pos");
+        } else if ((res.prs || []).length === 0 && (res.comparativeStatements || []).length > 0) {
+          setActiveTab("css");
+        }
       }
     } catch (e: any) {
       toast({ title: "Error loading approvals", description: e.message, variant: "destructive" });
@@ -235,7 +242,7 @@ export default function MyApprovals() {
         </div>
 
         {/* Tabs for PR, CS, PO, Amendments, Invoices, Emergency */}
-        <Tabs defaultValue="prs" className="space-y-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <div className="w-full overflow-x-auto pb-1 scrollbar-none">
             <TabsList className="inline-flex w-auto min-w-full sm:min-w-0 sm:grid sm:grid-cols-6 h-auto p-1.5 gap-1.5 bg-slate-200/70 dark:bg-slate-800/80 rounded-xl">
               <TabsTrigger

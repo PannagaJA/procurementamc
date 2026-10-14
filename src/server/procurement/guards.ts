@@ -69,13 +69,21 @@ export async function assertVendorEmpanelled(db: Db, vendorId: string): Promise<
  *    approval tier than either PO individually received, it is BLOCKED unless a deviation
  *    approval exists (§7.5, Day 2 DoD).
  */
+export type PoSplittingEscalation = {
+  escalateRole: string;
+  combinedSum: number;
+  pastSum: number;
+  reason: string;
+} | null;
+
 export async function assertNoPoSplitting(
   db: Db,
   prId: string,
   newValue: number,
   vendorId?: string,
   departmentId?: string,
-): Promise<void> {
+  csId?: string,
+): Promise<PoSplittingEscalation> {
   const { data: pr, error: prErr } = await db
     .from("purchase_requisitions")
     .select("id, pr_number, estimated_value, department_id, category")
@@ -104,14 +112,28 @@ export async function assertNoPoSplitting(
   }
 
   const already = (pos ?? []).reduce((s: number, p: any) => s + Number(p.total_value ?? 0), 0);
-  const approved = Number(pr.estimated_value ?? 0);
+  let approved = Number(pr.estimated_value ?? 0);
+
+  // If a Comparative Statement (CS) was approved by the designated authority following competitive bidding,
+  // the approved CS recommended amount is the authorized procurement cap for this requirement.
+  if (csId) {
+    const { data: cs } = await db
+      .from("comparative_statements")
+      .select("id, status, recommended_total")
+      .eq("id", csId)
+      .maybeSingle();
+    if (cs && cs.status === "approved" && Number(cs.recommended_total ?? 0) > 0) {
+      approved = Math.max(approved, Number(cs.recommended_total));
+    }
+  }
+
   const projected = already + Number(newValue);
 
   if (approved > 0 && projected > approved * (1 + PO_SPLIT_TOLERANCE)) {
     throw ruleError(
       "po_splitting",
       `Purchase orders against ${pr.pr_number ?? prId} would total ₹${projected.toLocaleString("en-IN")}, ` +
-        `above the approved requisition value of ₹${approved.toLocaleString("en-IN")}. ` +
+        `above the approved value of ₹${approved.toLocaleString("en-IN")}. ` +
         `Splitting a requirement across orders is not permitted — raise a deviation approval instead.`,
     );
   }
@@ -164,27 +186,21 @@ export async function assertNoPoSplitting(
           const combinedRank = roleHierarchy.indexOf(combinedTier.role.toLowerCase());
 
           if (combinedRank > singleRank || (combinedTier.escalate && !singleTier.escalate)) {
-            // Check if deviation approval exists
-            const { data: dev } = await db
-              .from("deviation_approvals")
-              .select("id, status")
-              .eq("pr_id", prId)
-              .eq("status", "approved")
-              .maybeSingle();
-
-            if (!dev) {
-              throw ruleError(
-                "po_splitting_window",
-                `PO-splitting detected: Vendor has existing orders totaling ₹${pastSum.toLocaleString("en-IN")} within 30 days. ` +
-                  `Combined total of ₹${combinedSum.toLocaleString("en-IN")} requires "${combinedTier.role}" approval (individual PO requires "${singleTier.role}"). ` +
-                  `Requires deviation approval before proceeding.`,
-              );
-            }
+            // Procedure 3: Consolidated requirement automatically escalates approval authority to the higher tier
+            // (e.g. combined spend requires Principal instead of HOD).
+            return {
+              escalateRole: combinedTier.role,
+              combinedSum,
+              pastSum,
+              reason: `Consolidated 30-day orders to vendor total ₹${combinedSum.toLocaleString("en-IN")} (past: ₹${pastSum.toLocaleString("en-IN")}, current: ₹${Number(newValue).toLocaleString("en-IN")}). Escalated to ${combinedTier.role.toUpperCase()} approval (§VI).`,
+            };
           }
         }
       }
     }
   }
+
+  return null;
 }
 
 /** Three-way match: PO ↔ GRN ↔ Invoice must agree before payment (§8.7). */
