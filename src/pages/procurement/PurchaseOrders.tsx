@@ -51,8 +51,10 @@ import {
   Plus,
   Trash2,
   Calendar,
+  Printer,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { PoPrintPreviewModal } from "@/components/procurement/PoPrintPreviewModal";
 
 export default function PurchaseOrders() {
   const { toast } = useToast();
@@ -107,6 +109,15 @@ export default function PurchaseOrders() {
   const [amendReason, setAmendReason] = useState("");
   const [amending, setAmending] = useState(false);
 
+  // Print Preview Modal
+  const [printOpen, setPrintOpen] = useState(false);
+  const [selectedPoForPrint, setSelectedPoForPrint] = useState<any>(null);
+
+  const handleOpenPrintPreview = (po: any) => {
+    setSelectedPoForPrint(po);
+    setPrintOpen(true);
+  };
+
   // Create Rate Contract Modal
   const [rcOpen, setRcOpen] = useState(false);
   const [rcVendorId, setRcVendorId] = useState("");
@@ -157,20 +168,26 @@ export default function PurchaseOrders() {
       // Fetch approved direct PRs (<= 5000 or small_value category)
       const { data: prData } = await supabase
         .from("purchase_requisitions")
-        .select(`
+        .select(
+          `
           id, pr_number, estimated_value, category, justification,
           departments (id, name),
           pr_line_items (id, description, net_qty_to_procure, est_unit_price, est_total)
-        `)
+        `,
+        )
         .eq("status", "approved")
         .order("created_at", { ascending: false });
 
       // Filter eligible direct purchase PRs (<= 5000) that do not already have an active PO
-      const existingPoPrIds = new Set((poRes?.purchaseOrders || []).filter((o: any) => o.status !== "cancelled").map((o: any) => o.pr_id));
+      const existingPoPrIds = new Set(
+        (poRes?.purchaseOrders || [])
+          .filter((o: any) => o.status !== "cancelled")
+          .map((o: any) => o.pr_id),
+      );
       const eligiblePrs = (prData || []).filter(
         (p: any) =>
           (Number(p.estimated_value || 0) <= 5000 || p.category === "small_value") &&
-          !existingPoPrIds.has(p.id)
+          !existingPoPrIds.has(p.id),
       );
       setDirectPrs(eligiblePrs);
       setApprovedPrs(prData || []);
@@ -218,9 +235,7 @@ export default function PurchaseOrders() {
         const rc = rateContracts.find((r) => r.id === selectedRcId);
         if (rc) {
           setSelectedVendorId(rc.vendor_id || rc.vendors?.id || "");
-          setScopeOfSupply(
-            `Supply against Rate Contract ${rc.contract_number} (${rc.title})`,
-          );
+          setScopeOfSupply(`Supply against Rate Contract ${rc.contract_number} (${rc.title})`);
         }
       }
     }
@@ -239,7 +254,7 @@ export default function PurchaseOrders() {
         setScopeOfSupply(
           itemDescriptions
             ? `Direct procurement: ${itemDescriptions}`
-            : `Direct procurement as per PR ${pr.pr_number}`
+            : `Direct procurement as per PR ${pr.pr_number}`,
         );
       }
     }
@@ -588,28 +603,53 @@ export default function PurchaseOrders() {
                                 <span className="font-mono text-base font-bold text-slate-900 dark:text-white">
                                   {po.po_number}
                                 </span>
-                                <Badge className={getStatusBadge(po.status)}>{po.status?.toUpperCase()}</Badge>
+                                <Badge className={getStatusBadge(po.status)}>
+                                  {po.status?.toUpperCase()}
+                                </Badge>
                                 <Badge variant="outline" className="text-xs capitalize">
                                   {po.po_type?.replace("_", " ")}
                                 </Badge>
                               </div>
                               <div className="text-xs text-slate-500 flex flex-wrap items-center gap-x-4 gap-y-1">
-                                <span>Vendor: <strong className="text-slate-700 dark:text-slate-300">{po.vendors?.name || "N/A"}</strong></span>
-                                {pr && <span>PR: <strong className="text-slate-700 dark:text-slate-300">{pr.pr_number}</strong></span>}
+                                <span>
+                                  Vendor:{" "}
+                                  <strong className="text-slate-700 dark:text-slate-300">
+                                    {po.vendors?.name || "N/A"}
+                                  </strong>
+                                </span>
+                                {pr && (
+                                  <span>
+                                    PR:{" "}
+                                    <strong className="text-slate-700 dark:text-slate-300">
+                                      {pr.pr_number}
+                                    </strong>
+                                  </span>
+                                )}
                                 <span>Created: {new Date(po.created_at).toLocaleDateString()}</span>
                               </div>
                             </div>
 
                             <div className="flex items-center gap-2 self-end sm:self-auto">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleOpenPrintPreview(po)}
+                                className="gap-1.5 text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-300 dark:hover:bg-indigo-950/40"
+                                title="Print Preview & Formal Institutional PDF"
+                              >
+                                <Printer className="w-3.5 h-3.5" /> Print / PDF
+                              </Button>
+
                               {isPending &&
-                                ((auth.hasRole("admin") ||
-                                  (po.current_approver_role &&
-                                    auth.hasRole(po.current_approver_role) &&
-                                    (po.current_approver_role !== "hod" ||
-                                      !auth.departmentId ||
-                                      !po.department_id ||
-                                      auth.departmentId === po.department_id ||
-                                      auth.departmentId === po.purchase_requisitions?.departments?.id))) ? (
+                                (auth.hasRole("admin") ||
+                                (po.current_approver_role &&
+                                  auth.hasRole(po.current_approver_role) &&
+                                  (po.current_approver_role !== "hod" ||
+                                    !auth.departmentId ||
+                                    !po.department_id ||
+                                    auth.departmentId === po.department_id ||
+                                    auth.departmentId ===
+                                      po.purchase_requisitions?.departments?.id)) ? (
                                   <Button
                                     size="sm"
                                     onClick={() => handleApprovePo(po)}
@@ -691,7 +731,9 @@ export default function PurchaseOrders() {
                               </span>
                             </div>
                             <div>
-                              <span className="text-slate-400 block font-medium">Approver Role:</span>
+                              <span className="text-slate-400 block font-medium">
+                                Approver Role:
+                              </span>
                               <span className="font-semibold uppercase text-slate-700 dark:text-slate-300">
                                 {po.current_approver_role || "N/A"}
                               </span>
@@ -699,19 +741,28 @@ export default function PurchaseOrders() {
                           </div>
 
                           <div className="space-y-1 text-xs">
-                            <span className="font-semibold text-slate-700 dark:text-slate-300">Scope of Supply:</span>
-                            <p className="text-slate-600 dark:text-slate-400">{po.scope_of_supply || "Standard institutional procurement supply."}</p>
+                            <span className="font-semibold text-slate-700 dark:text-slate-300">
+                              Scope of Supply:
+                            </span>
+                            <p className="text-slate-600 dark:text-slate-400">
+                              {po.scope_of_supply || "Standard institutional procurement supply."}
+                            </p>
                           </div>
 
                           {amendments.length > 0 && (
                             <div className="border-t border-slate-100 dark:border-slate-800 pt-3 space-y-2">
                               <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-300">
-                                <History className="w-3.5 h-3.5 text-amber-500" /> Amendment History ({amendments.length})
+                                <History className="w-3.5 h-3.5 text-amber-500" /> Amendment History
+                                ({amendments.length})
                               </div>
                               <div className="space-y-1.5">
                                 {amendments.map((am: any) => {
-                                  const oldVal = Number(am.old_value_total ?? am.previous_total_value ?? 0);
-                                  const newVal = Number(am.new_value_total ?? am.new_total_value ?? 0);
+                                  const oldVal = Number(
+                                    am.old_value_total ?? am.previous_total_value ?? 0,
+                                  );
+                                  const newVal = Number(
+                                    am.new_value_total ?? am.new_total_value ?? 0,
+                                  );
                                   return (
                                     <div
                                       key={am.id}
@@ -719,9 +770,12 @@ export default function PurchaseOrders() {
                                     >
                                       <div>
                                         <span className="font-medium text-slate-800 dark:text-slate-200">
-                                          ₹{oldVal.toLocaleString("en-IN")} → ₹{newVal.toLocaleString("en-IN")}
+                                          ₹{oldVal.toLocaleString("en-IN")} → ₹
+                                          {newVal.toLocaleString("en-IN")}
                                         </span>
-                                        <span className="text-slate-500 block sm:inline sm:ml-2">({am.reason})</span>
+                                        <span className="text-slate-500 block sm:inline sm:ml-2">
+                                          ({am.reason})
+                                        </span>
                                       </div>
                                       <div className="flex items-center gap-1.5 shrink-0">
                                         {am.requires_reapproval ? (
@@ -729,8 +783,14 @@ export default function PurchaseOrders() {
                                             Escalated to {am.new_approver_role?.toUpperCase()}
                                           </Badge>
                                         ) : (
-                                          <Badge variant="outline" className="text-[10px] text-slate-600 dark:text-slate-300">
-                                            Within Tier {am.original_approver_role ? `(${am.original_approver_role.toUpperCase()})` : "Approved"}
+                                          <Badge
+                                            variant="outline"
+                                            className="text-[10px] text-slate-600 dark:text-slate-300"
+                                          >
+                                            Within Tier{" "}
+                                            {am.original_approver_role
+                                              ? `(${am.original_approver_role.toUpperCase()})`
+                                              : "Approved"}
                                           </Badge>
                                         )}
                                       </div>
@@ -781,7 +841,9 @@ export default function PurchaseOrders() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="regular">Regular Order (Approved CS)</SelectItem>
-                      <SelectItem value="direct_purchase">Direct Purchase (≤ ₹5,000 / Small Value PR)</SelectItem>
+                      <SelectItem value="direct_purchase">
+                        Direct Purchase (≤ ₹5,000 / Small Value PR)
+                      </SelectItem>
                       <SelectItem value="rate_contract">Rate Contract Order</SelectItem>
                     </SelectContent>
                   </Select>
@@ -957,7 +1019,9 @@ export default function PurchaseOrders() {
 
               {poType === "direct_purchase" && (
                 <div className="p-2.5 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 flex items-center justify-between text-xs">
-                  <span className="font-medium text-blue-700 dark:text-blue-300">Target Approval Authority:</span>
+                  <span className="font-medium text-blue-700 dark:text-blue-300">
+                    Target Approval Authority:
+                  </span>
                   <Badge className="bg-blue-600 text-white font-bold uppercase text-[11px]">
                     {Number(price) + Number(taxes) <= 2000
                       ? `${directPrs.find((p) => p.id === selectedPrId)?.departments?.name || "Dept"} HOD (≤ ₹2,000)`
@@ -1025,7 +1089,9 @@ export default function PurchaseOrders() {
                     type="number"
                     placeholder="0"
                     value={newPrice}
-                    onChange={(e) => setNewPrice(e.target.value === "" ? "" : Number(e.target.value))}
+                    onChange={(e) =>
+                      setNewPrice(e.target.value === "" ? "" : Number(e.target.value))
+                    }
                   />
                 </div>
                 <div className="space-y-1">
@@ -1034,7 +1100,9 @@ export default function PurchaseOrders() {
                     type="number"
                     placeholder="0"
                     value={newTaxes}
-                    onChange={(e) => setNewTaxes(e.target.value === "" ? "" : Number(e.target.value))}
+                    onChange={(e) =>
+                      setNewTaxes(e.target.value === "" ? "" : Number(e.target.value))
+                    }
                   />
                 </div>
               </div>
@@ -1249,6 +1317,9 @@ export default function PurchaseOrders() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Formal Institutional Print Preview & PDF Modal */}
+        <PoPrintPreviewModal open={printOpen} onOpenChange={setPrintOpen} po={selectedPoForPrint} />
       </div>
     </Layout>
   );
