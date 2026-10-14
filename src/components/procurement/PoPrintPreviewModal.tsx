@@ -147,9 +147,17 @@ export function PoPrintPreviewModal({ open, onOpenChange, po }: PoPrintPreviewMo
       doc.text(`Status: ${(po.status || "DRAFT").toUpperCase()}`, 168, 45.5);
 
       // Metadata 2-Column Box
+      const prApprovalDate = pr?.approved_at
+        ? new Date(pr.approved_at).toLocaleDateString("en-IN", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          })
+        : null;
+
       const orderInfoBody = [
         [
-          `PO Date: ${poDateFormatted}\nPO Type: ${(po.po_type || "regular").toUpperCase().replace("_", " ")}\nPR Ref: ${pr?.pr_number || "Direct"}\nDept: ${pr?.departments?.name || "General Central Stores"}\nApprover: ${(po.current_approver_role || "Competent Authority").toUpperCase()}`,
+          `PO Date: ${poDateFormatted}\nPO Type: ${(po.po_type || "regular").toUpperCase().replace("_", " ")}\nPR Ref: ${pr?.pr_number || "Direct"}${prApprovalDate ? ` (Apprv: ${prApprovalDate})` : ""}\nDept: ${pr?.departments?.name || "General Central Stores"}\nApprover: ${(po.current_approver_role || "Competent Authority").toUpperCase()}`,
           `SUPPLIER / VENDOR DETAILS:\n${vendor?.name || "N/A"}\nGSTIN: ${vendor?.gst_number || "N/A"}\nPAN: ${vendor?.pan_number || "N/A"}\nAddress: ${vendor?.registered_address || "Registered Address on file"}\nContact: ${bankDetails.contact_email || bankDetails.contact_phone || "On File"}`,
         ],
       ];
@@ -290,7 +298,7 @@ export function PoPrintPreviewModal({ open, onOpenChange, po }: PoPrintPreviewMo
       });
 
       // Signatures Block
-      const sigY = Math.max(afterTableY + 28, 240);
+      const sigY = Math.max(afterTableY + 22, 228);
       doc.setDrawColor(203, 213, 225);
       doc.setLineWidth(0.3);
       doc.line(14, sigY, 196, sigY);
@@ -335,6 +343,31 @@ export function PoPrintPreviewModal({ open, onOpenChange, po }: PoPrintPreviewMo
       if (approvedDateFormatted) {
         doc.text(`Approved Date: ${approvedDateFormatted}`, 145, sigY + 18);
       }
+
+      // Circulation Copy Endorsement (SOP §8.5, Page 20)
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      doc.setTextColor(71, 85, 105);
+      doc.text("CIRCULATION COPY ENDORSEMENT (SOP §8.5):", 14, sigY + 23);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(6.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text(
+        `1. Indenting User Department (${pr?.departments?.name || "User Dept"}) — for user technical verification & acceptance`,
+        14,
+        sigY + 27,
+      );
+      doc.text(
+        "2. Central Stores & Inventory Division — for delivery tracking, inward inspection, and GRN preparation",
+        14,
+        sigY + 30.5,
+      );
+      doc.text(
+        "3. Finance & Accounts Division — for 3-way match (PO ↔ DC ↔ GRN ↔ Invoice) and payment clearance",
+        14,
+        sigY + 34,
+      );
+      doc.text("4. Supplier Master Record — procurement compliance audit trail", 14, sigY + 37.5);
 
       // Footer note
       doc.setFontSize(6.5);
@@ -509,6 +542,11 @@ export function PoPrintPreviewModal({ open, onOpenChange, po }: PoPrintPreviewMo
                     <span className="text-slate-500 font-medium">Requisition (PR):</span>
                     <span className="col-span-2 font-mono font-semibold text-slate-800">
                       {pr?.pr_number || "Direct Indent"}
+                      {pr?.approved_at && (
+                        <span className="text-[10px] font-normal text-slate-500 block">
+                          Approved on: {new Date(pr.approved_at).toLocaleDateString("en-IN")}
+                        </span>
+                      )}
                     </span>
 
                     <span className="text-slate-500 font-medium">Department:</span>
@@ -751,6 +789,32 @@ export function PoPrintPreviewModal({ open, onOpenChange, po }: PoPrintPreviewMo
                     <div className="text-[9.5px] text-slate-500">
                       Competent Sanctioning Authority
                     </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Circulation Copy Endorsement (SOP §8.5, Page 20) */}
+              <div className="border border-slate-200 rounded p-3 bg-slate-50/70 space-y-1.5 text-[10.5px]">
+                <div className="font-bold text-slate-800 text-[11px] uppercase border-b border-slate-200 pb-1 flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5 text-indigo-700" /> Formal Copy Circulation
+                  Endorsement (SOP §8.5)
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-slate-600 pt-0.5">
+                  <div>
+                    <strong className="text-slate-800">1. Indenting User Dept:</strong>{" "}
+                    {pr?.departments?.name || "User Department"} (Technical acceptance)
+                  </div>
+                  <div>
+                    <strong className="text-slate-800">2. Central Stores & Inventory:</strong>{" "}
+                    Delivery tracking, inspection & GRN
+                  </div>
+                  <div>
+                    <strong className="text-slate-800">3. Finance & Accounts:</strong> 3-way match &
+                    payment clearance
+                  </div>
+                  <div>
+                    <strong className="text-slate-800">4. Supplier Master Record:</strong>{" "}
+                    Procurement audit trail
                   </div>
                 </div>
               </div>

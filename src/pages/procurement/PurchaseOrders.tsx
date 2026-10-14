@@ -139,6 +139,15 @@ export default function PurchaseOrders() {
   // General action state
   const [acting, setActing] = useState(false);
 
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const recentPoForVendor = (orders || []).find((o: any) => {
+    if (o.status === "cancelled") return false;
+    const isSameVendor = selectedVendorId && o.vendor_id === selectedVendorId;
+    const isSamePr = selectedPrId && o.pr_id === selectedPrId;
+    const isRecent = new Date(o.created_at) >= thirtyDaysAgo;
+    return isRecent && (isSameVendor || isSamePr);
+  });
+
   const loadData = async () => {
     setLoading(true);
     try {
@@ -288,7 +297,17 @@ export default function PurchaseOrders() {
       });
 
       if (!res.ok) {
-        toast({ title: "PO Creation Blocked", description: res.error, variant: "destructive" });
+        const isSplitting =
+          res.code === "po_splitting" ||
+          res.error?.includes("SOP §7.5") ||
+          res.error?.toLowerCase().includes("splitting");
+        toast({
+          title: isSplitting
+            ? "Anti-Splitting Protection (SOP §7.5)"
+            : "Failed to create purchase order",
+          description: res.error,
+          variant: "destructive",
+        });
         return;
       }
 
@@ -1043,6 +1062,20 @@ export default function PurchaseOrders() {
                   <Input value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} />
                 </div>
               </div>
+
+              {recentPoForVendor && (
+                <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                  <div>
+                    <span className="font-semibold">SOP §7.5 Anti-Splitting Notice:</span> A prior
+                    purchase order (
+                    <strong className="font-mono">{recentPoForVendor.po_number}</strong>) was issued
+                    to this vendor within the last 30 days. Consolidated procurement required.
+                    Splitting purchases to bypass sanction thresholds is strictly prohibited (SOP
+                    §8.5).
+                  </div>
+                </div>
+              )}
             </div>
 
             <DialogFooter>
