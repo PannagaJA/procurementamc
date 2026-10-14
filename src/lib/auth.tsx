@@ -105,13 +105,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           localStorage.removeItem("amc_roles");
           localStorage.removeItem("amc_user_id");
-        } catch (e) {}
+        } catch (e) { }
         return;
       }
 
       try {
         localStorage.setItem("amc_user_id", authUser.id);
-      } catch (e) {}
+      } catch (e) { }
 
       const { data: roleData, error } = await supabase
         .from("user_roles")
@@ -125,7 +125,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setRoles(fetchedRoles);
         try {
           localStorage.setItem("amc_roles", JSON.stringify(fetchedRoles));
-        } catch (e) {}
+        } catch (e) { }
       }
     } catch (err) {
       console.error("AuthProvider load failed", err);
@@ -146,7 +146,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           localStorage.removeItem("amc_roles");
           localStorage.removeItem("amc_user_id");
-        } catch (e) {}
+        } catch (e) { }
         setLoading(false);
       } else {
         load();
