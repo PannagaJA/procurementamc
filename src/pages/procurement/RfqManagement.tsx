@@ -245,12 +245,21 @@ export default function RfqManagement() {
 
     setRecording(true);
     try {
+      const sanitizedLines = quoteLines.map((l) => ({
+        ...l,
+        quantity: typeof l.quantity === "number" ? l.quantity : (Number(l.quantity) || 1),
+        unit_price: typeof l.unit_price === "number" ? l.unit_price : (Number(l.unit_price) || 0),
+        tax_amount: typeof l.tax_amount === "number" ? l.tax_amount : (Number(l.tax_amount) || 0),
+        delivery_days: l.delivery_days === "" || l.delivery_days === null || l.delivery_days === undefined ? 7 : Number(l.delivery_days),
+        warranty_months: l.warranty_months === "" || l.warranty_months === null || l.warranty_months === undefined ? 12 : Number(l.warranty_months),
+      }));
+
       const res = await (recordQuotationResponse as any)({
         data: {
           rfq_id: quoteRfq.id,
           vendor_id: quoteVendorId,
           quotation_ref: quotationRef,
-          lines: quoteLines,
+          lines: sanitizedLines,
         },
       });
 
@@ -699,9 +708,10 @@ export default function RfqManagement() {
                         <Label className="text-[10px]">Quantity</Label>
                         <Input
                           type="number"
-                          value={line.quantity}
+                          placeholder="1"
+                          value={line.quantity ?? ""}
                           onChange={(e) => {
-                            const val = Number(e.target.value) || 1;
+                            const val = e.target.value === "" ? "" : Number(e.target.value);
                             setQuoteLines((prev) =>
                               prev.map((l, i) => (i === idx ? { ...l, quantity: val } : l)),
                             );
@@ -712,35 +722,103 @@ export default function RfqManagement() {
                         <Label className="text-[10px]">Unit Price (₹)</Label>
                         <Input
                           type="number"
-                          value={line.unit_price}
+                          placeholder="0"
+                          value={line.unit_price ?? ""}
                           onChange={(e) => {
-                            const val = Number(e.target.value) || 0;
+                            const val = e.target.value === "" ? "" : Number(e.target.value);
                             setQuoteLines((prev) =>
-                              prev.map((l, i) => (i === idx ? { ...l, unit_price: val } : l)),
+                              prev.map((l, i) => {
+                                if (i !== idx) return l;
+                                const updated = { ...l, unit_price: val };
+                                if (l.tax_mode === "percent") {
+                                  const p = typeof val === "number" ? val : 0;
+                                  const q = typeof l.quantity === "number" ? l.quantity : 1;
+                                  const rate = typeof l.tax_rate === "number" ? l.tax_rate : 18;
+                                  updated.tax_amount = Number(((q * p * rate) / 100).toFixed(2));
+                                }
+                                return updated;
+                              }),
                             );
                           }}
                         />
                       </div>
                       <div>
-                        <Label className="text-[10px]">Taxes (₹)</Label>
-                        <Input
-                          type="number"
-                          value={line.tax_amount}
-                          onChange={(e) => {
-                            const val = Number(e.target.value) || 0;
-                            setQuoteLines((prev) =>
-                              prev.map((l, i) => (i === idx ? { ...l, tax_amount: val } : l)),
-                            );
-                          }}
-                        />
+                        <div className="flex items-center justify-between">
+                          <Label className="text-[10px]">
+                            {line.tax_mode === "percent" ? "Tax Rate (%)" : "Taxes (₹)"}
+                          </Label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newMode = line.tax_mode === "percent" ? "amount" : "percent";
+                              setQuoteLines((prev) =>
+                                prev.map((l, i) => {
+                                  if (i !== idx) return l;
+                                  const q = typeof l.quantity === "number" ? l.quantity : 1;
+                                  const p = typeof l.unit_price === "number" ? l.unit_price : 0;
+                                  if (newMode === "percent") {
+                                    const base = q * p;
+                                    const currentTax = typeof l.tax_amount === "number" ? l.tax_amount : 0;
+                                    const rate = base > 0 ? Number(((currentTax / base) * 100).toFixed(2)) : 18;
+                                    return { ...l, tax_mode: "percent", tax_rate: rate };
+                                  } else {
+                                    const rate = typeof l.tax_rate === "number" ? l.tax_rate : 18;
+                                    const amt = Number(((q * p * rate) / 100).toFixed(2));
+                                    return { ...l, tax_mode: "amount", tax_amount: amt };
+                                  }
+                                }),
+                              );
+                            }}
+                            className="text-[9px] text-blue-600 dark:text-blue-400 hover:underline font-semibold"
+                          >
+                            Switch to {line.tax_mode === "percent" ? "₹ (Amt)" : "% (Rate)"}
+                          </button>
+                        </div>
+                        {line.tax_mode === "percent" ? (
+                          <div className="space-y-1">
+                            <Input
+                              type="number"
+                              placeholder="18"
+                              value={line.tax_rate ?? ""}
+                              onChange={(e) => {
+                                const val = e.target.value === "" ? "" : Number(e.target.value);
+                                setQuoteLines((prev) =>
+                                  prev.map((l, i) => {
+                                    if (i !== idx) return l;
+                                    const q = typeof l.quantity === "number" ? l.quantity : 1;
+                                    const p = typeof l.unit_price === "number" ? l.unit_price : 0;
+                                    const rate = typeof val === "number" ? val : 0;
+                                    const calculatedTax = Number(((q * p * rate) / 100).toFixed(2));
+                                    return { ...l, tax_rate: val, tax_amount: calculatedTax };
+                                  }),
+                                );
+                              }}
+                            />
+                            <span className="text-[10px] text-slate-500 block text-right font-mono">
+                              = ₹{Number(line.tax_amount || 0).toLocaleString("en-IN")}
+                            </span>
+                          </div>
+                        ) : (
+                          <Input
+                            type="number"
+                            placeholder="0"
+                            value={line.tax_amount ?? ""}
+                            onChange={(e) => {
+                              const val = e.target.value === "" ? "" : Number(e.target.value);
+                              setQuoteLines((prev) =>
+                                prev.map((l, i) => (i === idx ? { ...l, tax_amount: val } : l)),
+                              );
+                            }}
+                          />
+                        )}
                       </div>
                       <div>
                         <Label className="text-[10px]">Total (₹)</Label>
                         <div className="p-2 font-mono font-bold bg-white dark:bg-slate-950 border rounded text-right">
                           ₹
                           {(
-                            line.quantity * line.unit_price +
-                            Number(line.tax_amount)
+                            (Number(line.quantity) || 0) * (Number(line.unit_price) || 0) +
+                            (Number(line.tax_amount) || 0)
                           ).toLocaleString("en-IN")}
                         </div>
                       </div>
@@ -751,9 +829,10 @@ export default function RfqManagement() {
                         <Label className="text-[10px]">Delivery (Days)</Label>
                         <Input
                           type="number"
-                          value={line.delivery_days}
+                          placeholder="7"
+                          value={line.delivery_days ?? ""}
                           onChange={(e) => {
-                            const val = Number(e.target.value) || 7;
+                            const val = e.target.value === "" ? "" : Number(e.target.value);
                             setQuoteLines((prev) =>
                               prev.map((l, i) => (i === idx ? { ...l, delivery_days: val } : l)),
                             );
@@ -764,9 +843,10 @@ export default function RfqManagement() {
                         <Label className="text-[10px]">Warranty (Months)</Label>
                         <Input
                           type="number"
-                          value={line.warranty_months}
+                          placeholder="12"
+                          value={line.warranty_months ?? ""}
                           onChange={(e) => {
-                            const val = Number(e.target.value) || 12;
+                            const val = e.target.value === "" ? "" : Number(e.target.value);
                             setQuoteLines((prev) =>
                               prev.map((l, i) => (i === idx ? { ...l, warranty_months: val } : l)),
                             );

@@ -110,6 +110,49 @@ export const recordDelivery = createServerFn({ method: "POST" })
     return { ok: true as const, challan };
   });
 
+export const deleteDeliveryChallan = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: { challan_id: string }) => input)
+  .handler(async ({ data, context }) => {
+    try {
+      await verifyCallerRole(
+        context,
+        ["stores", "procurement_officer", "procurement_executive", "admin"],
+        "cancel or delete delivery challan",
+      );
+    } catch (e: any) {
+      return { ok: false as const, error: e.message, code: "forbidden" };
+    }
+
+    const mutationDb = await getMutationDb(context);
+
+    // Verify no GRN has been linked to this challan
+    const { data: grn } = await mutationDb
+      .from("grns")
+      .select("id, grn_number")
+      .eq("delivery_challan_id", data.challan_id)
+      .maybeSingle();
+
+    if (grn) {
+      return {
+        ok: false as const,
+        error: `Cannot dismiss challan: Goods Receipt Note ${grn.grn_number} is already generated for this challan.`,
+        code: "grn_already_exists",
+      };
+    }
+
+    const { error: delErr } = await mutationDb
+      .from("delivery_challans")
+      .delete()
+      .eq("id", data.challan_id);
+
+    if (delErr) {
+      return { ok: false as const, error: delErr.message, code: "delete_failed" };
+    }
+
+    return { ok: true as const };
+  });
+
 export const createGrn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: CreateGrnInput) => input)
@@ -236,6 +279,36 @@ export const createGrn = createServerFn({ method: "POST" })
       };
     }
 
+    // Validate each line:
+    // 1. Delivered qty must be > 0
+    // 2. Accepted qty cannot exceed Delivered qty (0 <= qty_accepted <= qty_delivered)
+    // 3. Accepted qty cannot be negative
+    for (const line of data.lines ?? []) {
+      const delivered = Number(line.qty_delivered) || 0;
+      const accepted = Number(line.qty_accepted) || 0;
+      if (delivered <= 0) {
+        return {
+          ok: false as const,
+          error: `Delivered quantity must be greater than zero for item "${line.description}".`,
+          code: "invalid_delivered_quantity",
+        };
+      }
+      if (accepted < 0) {
+        return {
+          ok: false as const,
+          error: "Accepted quantity cannot be negative.",
+          code: "negative_accepted_quantity",
+        };
+      }
+      if (accepted > delivered) {
+        return {
+          ok: false as const,
+          error: `Accepted quantity (${accepted}) cannot exceed delivered quantity (${delivered}) for item "${line.description}".`,
+          code: "accepted_exceeds_delivered",
+        };
+      }
+    }
+
     // 3. Create GRN
     const initialStatus = data.requires_technical_inspection === false ? "accepted" : "pending";
 
@@ -256,20 +329,28 @@ export const createGrn = createServerFn({ method: "POST" })
 
     if (grnErr) return { ok: false as const, error: grnErr.message, code: "insert_grn_failed" };
 
-    // 4. Insert GRN Lines
+    // 4. Insert GRN Lines (qty_rejected is GENERATED ALWAYS by PostgreSQL)
     if (data.lines && data.lines.length > 0) {
-      const lineRows = data.lines.map((l) => ({
-        grn_id: grn.id,
-        description: l.description,
-        unit: l.unit ?? null,
-        qty_delivered: Number(l.qty_delivered) || 0,
-        qty_accepted: Number(l.qty_accepted) || 0,
-        unit_price: Number(l.unit_price) || 0,
-        inspection_remarks: l.inspection_remarks ?? null,
-      }));
+      const lineRows = data.lines.map((l) => {
+        const del = Number(l.qty_delivered) || 0;
+        const acc = Math.min(del, Math.max(0, Number(l.qty_accepted) || 0));
+        const unitP = Number(l.unit_price) || 0;
+        return {
+          grn_id: grn.id,
+          description: l.description,
+          unit: l.unit ?? null,
+          qty_delivered: del,
+          qty_accepted: acc,
+          unit_price: unitP,
+          inspection_remarks: l.inspection_remarks ?? null,
+        };
+      });
 
       const { error: lErr } = await mutationDb.from("grn_lines").insert(lineRows);
-      if (lErr) return { ok: false as const, error: lErr.message, code: "insert_grn_lines_failed" };
+      if (lErr) {
+        await mutationDb.from("grns").delete().eq("id", grn.id);
+        return { ok: false as const, error: lErr.message, code: "insert_grn_lines_failed" };
+      }
     }
 
     return { ok: true as const, grn, acceptedValue: acceptedVal };

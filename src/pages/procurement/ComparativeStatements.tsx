@@ -293,7 +293,6 @@ export default function ComparativeStatements() {
 
           <div className="flex items-center gap-2">
             {(auth.hasRole("admin") ||
-              auth.hasRole("purchase_committee") ||
               auth.hasRole("procurement_officer") ||
               auth.hasRole("procurement_executive")) && (
               <Button

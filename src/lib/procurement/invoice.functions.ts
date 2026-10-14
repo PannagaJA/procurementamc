@@ -33,6 +33,7 @@ export type RecordPaymentInput = {
   payment_mode?: "bank_transfer" | "neft" | "rtgs" | "cheque" | "upi";
   payment_terms_ref?: string | null;
   external_ref?: string | null;
+  remarks?: string | null;
 };
 
 export function evaluateThreeWayMatch(
@@ -335,7 +336,7 @@ export const recordPayment = createServerFn({ method: "POST" })
         po_id: inv.po_id,
         amount: paymentAmount,
         payment_mode: data.payment_mode || "bank_transfer",
-        payment_terms_ref: data.payment_terms_ref ?? null,
+        payment_terms_ref: data.remarks || data.payment_terms_ref || null,
         external_ref: data.external_ref ?? null,
         paid_by: context.userId,
       })
@@ -403,7 +404,7 @@ export const listInvoices = createServerFn({ method: "GET" })
         ),
         vendors (id, name, gst_number, pan_number),
         grns (id, grn_number, accepted_value, status),
-        payments (id, amount, paid_at, payment_mode, external_ref)
+        payments (id, amount, paid_at, payment_mode, external_ref, payment_terms_ref)
       `,
       )
       .order("created_at", { ascending: false });
