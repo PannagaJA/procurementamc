@@ -129,7 +129,7 @@ export const submitVendorRating = createServerFn({ method: "POST" })
 
     if (rErr) return { ok: false as const, error: rErr.message, code: "insert_rating_failed" };
 
-    // 2. Automatically flip vendor status in Master if suspended or debarred
+    // 2. Automatically synchronize vendor status in Master based on evaluation outcome
     if (outcome === "suspended") {
       await supabaseAdmin
         .from("vendors")
@@ -143,9 +143,22 @@ export const submitVendorRating = createServerFn({ method: "POST" })
 
       await supabaseAdmin.from("vendor_blacklist").insert({
         vendor_id: data.vendor_id,
-        reason: data.notes || `Debarred via Performance Evaluation (Score: ${weightedScore}/100, Period: ${data.review_period})`,
+        reason:
+          data.notes ||
+          `Debarred via Performance Evaluation (Score: ${weightedScore}/100, Period: ${data.review_period})`,
         blacklisted_by: context.userId,
       });
+    } else if (outcome === "preferred" || outcome === "active" || outcome === "active_notice") {
+      // Reinstated or active standing: update status to 'empanelled' and clear blacklist
+      await supabaseAdmin
+        .from("vendors")
+        .update({ status: "empanelled", updated_at: new Date().toISOString() })
+        .eq("id", data.vendor_id);
+
+      await supabaseAdmin
+        .from("vendor_blacklist")
+        .delete()
+        .eq("vendor_id", data.vendor_id);
     }
 
 

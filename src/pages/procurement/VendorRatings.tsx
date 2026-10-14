@@ -231,9 +231,10 @@ export default function VendorRatings() {
               ratings.forEach((r) => {
                 const vId = r.vendor_id || r.vendors?.id;
                 if (!vId) return;
+                const liveVendor = vendors.find((v) => v.id === vId) || r.vendors;
                 if (!vendorGroupsMap.has(vId)) {
                   vendorGroupsMap.set(vId, {
-                    vendor: r.vendors,
+                    vendor: liveVendor,
                     latest: r,
                     history: [],
                   });
