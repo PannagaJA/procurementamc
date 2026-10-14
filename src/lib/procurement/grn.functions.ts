@@ -110,6 +110,49 @@ export const recordDelivery = createServerFn({ method: "POST" })
     return { ok: true as const, challan };
   });
 
+export const deleteDeliveryChallan = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: { challan_id: string }) => input)
+  .handler(async ({ data, context }) => {
+    try {
+      await verifyCallerRole(
+        context,
+        ["stores", "procurement_officer", "procurement_executive", "admin"],
+        "cancel or delete delivery challan",
+      );
+    } catch (e: any) {
+      return { ok: false as const, error: e.message, code: "forbidden" };
+    }
+
+    const mutationDb = await getMutationDb(context);
+
+    // Verify no GRN has been linked to this challan
+    const { data: grn } = await mutationDb
+      .from("grns")
+      .select("id, grn_number")
+      .eq("delivery_challan_id", data.challan_id)
+      .maybeSingle();
+
+    if (grn) {
+      return {
+        ok: false as const,
+        error: `Cannot dismiss challan: Goods Receipt Note ${grn.grn_number} is already generated for this challan.`,
+        code: "grn_already_exists",
+      };
+    }
+
+    const { error: delErr } = await mutationDb
+      .from("delivery_challans")
+      .delete()
+      .eq("id", data.challan_id);
+
+    if (delErr) {
+      return { ok: false as const, error: delErr.message, code: "delete_failed" };
+    }
+
+    return { ok: true as const };
+  });
+
 export const createGrn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: CreateGrnInput) => input)

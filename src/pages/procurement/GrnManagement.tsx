@@ -28,6 +28,7 @@ import { PaginationControls } from "@/components/PaginationControls";
 import { supabase } from "@/integrations/supabase/client";
 import {
   recordDelivery,
+  deleteDeliveryChallan,
   createGrn,
   securityVerify,
   technicalVerify,
@@ -44,6 +45,7 @@ import {
   RefreshCw,
   PackageCheck,
   AlertTriangle,
+  Trash2,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 
@@ -219,6 +221,41 @@ export default function GrnManagement() {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
       setRecordingDelivery(false);
+    }
+  };
+
+  const [dismissingId, setDismissingId] = useState<string | null>(null);
+
+  const handleDismissChallan = async (challanId: string, challanNumber: string) => {
+    if (
+      !confirm(
+        `Are you sure you want to dismiss Delivery Challan ${challanNumber}? (e.g. over-delivered, cancelled, or returned to vendor)`,
+      )
+    ) {
+      return;
+    }
+    setDismissingId(challanId);
+    try {
+      const res = await (deleteDeliveryChallan as any)({
+        data: { challan_id: challanId },
+      });
+      if (!res.ok) {
+        toast({
+          title: "Failed to dismiss challan",
+          description: res.error,
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({
+        title: "Challan Dismissed",
+        description: `Delivery Challan ${challanNumber} has been removed from Awaiting GRN.`,
+      });
+      loadData();
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setDismissingId(null);
     }
   };
 
@@ -437,17 +474,29 @@ export default function GrnManagement() {
                     {c.received_at ? new Date(c.received_at).toLocaleString() : "Just now"}
                   </p>
                 </div>
-                <Button
-                  size="sm"
-                  className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 shrink-0"
-                  onClick={() => {
-                    setGrnPoId(c.po_id || "");
-                    setSelectedChallanId(c.id);
-                    setGrnOpen(true);
-                  }}
-                >
-                  <PlusCircle className="w-3.5 h-3.5" /> Create GRN
-                </Button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200 dark:border-rose-900/50 dark:hover:bg-rose-950/40 gap-1"
+                    disabled={dismissingId === c.id}
+                    onClick={() => handleDismissChallan(c.id, c.challan_number || "DC-PENDING")}
+                    title="Dismiss or remove invalid/excess delivery challan"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> Dismiss
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+                    onClick={() => {
+                      setGrnPoId(c.po_id || "");
+                      setSelectedChallanId(c.id);
+                      setGrnOpen(true);
+                    }}
+                  >
+                    <PlusCircle className="w-3.5 h-3.5" /> Create GRN
+                  </Button>
+                </div>
               </Card>
             ))}
           </div>
