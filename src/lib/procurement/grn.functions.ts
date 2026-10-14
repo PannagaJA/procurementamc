@@ -236,6 +236,36 @@ export const createGrn = createServerFn({ method: "POST" })
       };
     }
 
+    // Validate each line:
+    // 1. Delivered qty must be > 0
+    // 2. Accepted qty cannot exceed Delivered qty (0 <= qty_accepted <= qty_delivered)
+    // 3. Accepted qty cannot be negative
+    for (const line of data.lines ?? []) {
+      const delivered = Number(line.qty_delivered) || 0;
+      const accepted = Number(line.qty_accepted) || 0;
+      if (delivered <= 0) {
+        return {
+          ok: false as const,
+          error: `Delivered quantity must be greater than zero for item "${line.description}".`,
+          code: "invalid_delivered_quantity",
+        };
+      }
+      if (accepted < 0) {
+        return {
+          ok: false as const,
+          error: "Accepted quantity cannot be negative.",
+          code: "negative_accepted_quantity",
+        };
+      }
+      if (accepted > delivered) {
+        return {
+          ok: false as const,
+          error: `Accepted quantity (${accepted}) cannot exceed delivered quantity (${delivered}) for item "${line.description}".`,
+          code: "accepted_exceeds_delivered",
+        };
+      }
+    }
+
     // 3. Create GRN
     const initialStatus = data.requires_technical_inspection === false ? "accepted" : "pending";
 
@@ -256,17 +286,25 @@ export const createGrn = createServerFn({ method: "POST" })
 
     if (grnErr) return { ok: false as const, error: grnErr.message, code: "insert_grn_failed" };
 
-    // 4. Insert GRN Lines
+    // 4. Insert GRN Lines with explicit non-negative qty_rejected and accepted_total
     if (data.lines && data.lines.length > 0) {
-      const lineRows = data.lines.map((l) => ({
-        grn_id: grn.id,
-        description: l.description,
-        unit: l.unit ?? null,
-        qty_delivered: Number(l.qty_delivered) || 0,
-        qty_accepted: Number(l.qty_accepted) || 0,
-        unit_price: Number(l.unit_price) || 0,
-        inspection_remarks: l.inspection_remarks ?? null,
-      }));
+      const lineRows = data.lines.map((l) => {
+        const del = Number(l.qty_delivered) || 0;
+        const acc = Math.min(del, Math.max(0, Number(l.qty_accepted) || 0));
+        const rej = Math.max(0, del - acc);
+        const unitP = Number(l.unit_price) || 0;
+        return {
+          grn_id: grn.id,
+          description: l.description,
+          unit: l.unit ?? null,
+          qty_delivered: del,
+          qty_accepted: acc,
+          qty_rejected: rej,
+          unit_price: unitP,
+          accepted_total: acc * unitP,
+          inspection_remarks: l.inspection_remarks ?? null,
+        };
+      });
 
       const { error: lErr } = await mutationDb.from("grn_lines").insert(lineRows);
       if (lErr) return { ok: false as const, error: lErr.message, code: "insert_grn_lines_failed" };

@@ -61,7 +61,7 @@ export default function GrnManagement() {
   // Record Delivery Modal
   const [deliveryOpen, setDeliveryOpen] = useState(false);
   const [selectedPoId, setSelectedPoId] = useState("");
-  const [packagesCount, setPackagesCount] = useState(1);
+  const [packagesCount, setPackagesCount] = useState<number | "">(1);
   const [carrierDetails, setCarrierDetails] = useState("");
   const [deliveryRemarks, setDeliveryRemarks] = useState("");
   const [recordingDelivery, setRecordingDelivery] = useState(false);
@@ -87,7 +87,10 @@ export default function GrnManagement() {
       const [grnRes, poRes, challanRes] = await Promise.all([
         (listGrns as any)(),
         (listPurchaseOrders as any)({ status: "issued" }),
-        supabase.from("delivery_challans").select("*, purchase_orders(po_number, vendors(name))").order("received_at", { ascending: false }),
+        supabase
+          .from("delivery_challans")
+          .select("*, purchase_orders(po_number, vendors(name))")
+          .order("received_at", { ascending: false }),
       ]);
 
       if (grnRes?.ok) {
@@ -103,7 +106,9 @@ export default function GrnManagement() {
         setTotal(dedupedList.length);
 
         // Compute which challans already have a GRN so we can show orphaned ones
-        const linkedChallanIds = new Set(dedupedList.map((g: any) => g.delivery_challan_id).filter(Boolean));
+        const linkedChallanIds = new Set(
+          dedupedList.map((g: any) => g.delivery_challan_id).filter(Boolean),
+        );
         const allChallans: any[] = challanRes.data || [];
         setChallans(allChallans);
         setUnlinkedChallans(allChallans.filter((c) => !linkedChallanIds.has(c.id)));
@@ -138,7 +143,10 @@ export default function GrnManagement() {
       const candidateList = relevantUnlinked.length > 0 ? relevantUnlinked : allRelevant;
 
       let challanIdToUse = selectedChallanId;
-      if (candidateList.length > 0 && (!selectedChallanId || !candidateList.some((c) => c.id === selectedChallanId))) {
+      if (
+        candidateList.length > 0 &&
+        (!selectedChallanId || !candidateList.some((c) => c.id === selectedChallanId))
+      ) {
         challanIdToUse = candidateList[0].id;
         setSelectedChallanId(challanIdToUse);
       }
@@ -148,12 +156,14 @@ export default function GrnManagement() {
       const totalPrice = Number(po.price || po.total_value || 0);
 
       // Estimate total PO ordered items from requisition or scope
-      const poTotalQty = (po.purchase_requisitions?.pr_line_items ?? []).reduce(
-        (sum: number, item: any) => sum + (Number(item.net_qty_to_procure) || 0),
-        0,
-      ) || pkgCount;
+      const poTotalQty =
+        (po.purchase_requisitions?.pr_line_items ?? []).reduce(
+          (sum: number, item: any) => sum + (Number(item.net_qty_to_procure) || 0),
+          0,
+        ) || pkgCount;
 
-      const unitPrice = poTotalQty > 0 ? Math.round((totalPrice / poTotalQty) * 100) / 100 : totalPrice;
+      const unitPrice =
+        poTotalQty > 0 ? Math.round((totalPrice / poTotalQty) * 100) / 100 : totalPrice;
 
       setGrnLines([
         {
@@ -183,7 +193,7 @@ export default function GrnManagement() {
       const res = await (recordDelivery as any)({
         data: {
           po_id: selectedPoId,
-          packages_count: packagesCount,
+          packages_count: packagesCount === "" ? 1 : Math.max(1, Number(packagesCount)),
           carrier_details: carrierDetails,
           remarks: deliveryRemarks,
           items_json: [],
@@ -222,14 +232,54 @@ export default function GrnManagement() {
       return;
     }
 
+    for (const l of grnLines) {
+      const delivered = Number(l.qty_delivered || 0);
+      const accepted = Number(l.qty_accepted || 0);
+      if (delivered <= 0) {
+        toast({
+          title: "Invalid Delivered Quantity",
+          description: `Delivered quantity for "${l.description}" must be greater than zero.`,
+          variant: "destructive",
+        });
+        return;
+      }
+      if (accepted > delivered) {
+        toast({
+          title: "Accepted Quantity Exceeded",
+          description: `Accepted quantity (${accepted}) cannot exceed delivered quantity (${delivered}) for "${l.description}".`,
+          variant: "destructive",
+        });
+        return;
+      }
+      if (accepted < 0) {
+        toast({
+          title: "Invalid Accepted Quantity",
+          description: `Accepted quantity cannot be negative for "${l.description}".`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     setCreatingGrn(true);
     try {
+      const sanitizedLines = grnLines.map((l) => {
+        const del = Number(l.qty_delivered || 0);
+        const acc = Math.min(del, Math.max(0, Number(l.qty_accepted || 0)));
+        return {
+          ...l,
+          qty_delivered: del,
+          qty_accepted: acc,
+          unit_price: Number(l.unit_price || 0),
+        };
+      });
+
       const res = await (createGrn as any)({
         data: {
           po_id: grnPoId,
           delivery_challan_id: selectedChallanId,
           requires_technical_inspection: requiresTechInspection,
-          lines: grnLines,
+          lines: sanitizedLines,
         },
       });
 
@@ -255,7 +305,11 @@ export default function GrnManagement() {
     try {
       const res = await (securityVerify as any)({ data: { grn_id: grnId } });
       if (!res.ok) {
-        toast({ title: "Security Verification Failed", description: res.error, variant: "destructive" });
+        toast({
+          title: "Security Verification Failed",
+          description: res.error,
+          variant: "destructive",
+        });
         return;
       }
       toast({ title: "Security Verified", description: "Package inward verified at stores gate." });
@@ -351,7 +405,10 @@ export default function GrnManagement() {
                     <span className="font-mono font-bold text-sm text-slate-900 dark:text-slate-100">
                       {c.challan_number || "DC-PENDING"}
                     </span>
-                    <Badge variant="outline" className="text-xs border-amber-500 text-amber-700 dark:text-amber-400">
+                    <Badge
+                      variant="outline"
+                      className="text-xs border-amber-500 text-amber-700 dark:text-amber-400"
+                    >
                       Awaiting GRN
                     </Badge>
                   </div>
@@ -359,16 +416,17 @@ export default function GrnManagement() {
                     PO:{" "}
                     <span className="font-semibold text-slate-700 dark:text-slate-300">
                       {c.purchase_orders?.po_number || "—"}
-                    </span>
-                    {" "}• Vendor:{" "}
+                    </span>{" "}
+                    • Vendor:{" "}
                     <span className="font-semibold text-slate-700 dark:text-slate-300">
                       {c.purchase_orders?.vendors?.name || "—"}
-                    </span>
-                    {" "}• Packages: {c.packages_count ?? 1}
+                    </span>{" "}
+                    • Packages: {c.packages_count ?? 1}
                     {c.carrier_details && ` • ${c.carrier_details}`}
                   </p>
                   <p className="text-xs text-slate-400">
-                    Received: {c.received_at ? new Date(c.received_at).toLocaleString() : "Just now"}
+                    Received:{" "}
+                    {c.received_at ? new Date(c.received_at).toLocaleString() : "Just now"}
                   </p>
                 </div>
                 <Button
@@ -406,23 +464,25 @@ export default function GrnManagement() {
           </div>
           {loading ? (
             <div className="p-8 text-center text-slate-500">Loading Goods Receipt Notes...</div>
-          ) : (() => {
-            // Filter by closed toggle
-            const visibleGrns = showClosed
-              ? grns
-              : grns.filter((g) => g.status !== "accepted" && g.status !== "rejected");
-            if (visibleGrns.length === 0) return (
-              <Card className="text-center p-8">
-                <p className="text-slate-500">
-                  {grns.length === 0
-                    ? "No Goods Receipt Notes created yet. Record a Delivery Challan first, then create a GRN."
-                    : "All GRNs are closed. Enable \"Show accepted / rejected\" to view them."}
-                </p>
-              </Card>
-            );
-            const startIndex = (pagination.page - 1) * pagination.pageSize;
-            const paginatedGrns = visibleGrns.slice(startIndex, startIndex + pagination.pageSize);
-            return (
+          ) : (
+            (() => {
+              // Filter by closed toggle
+              const visibleGrns = showClosed
+                ? grns
+                : grns.filter((g) => g.status !== "accepted" && g.status !== "rejected");
+              if (visibleGrns.length === 0)
+                return (
+                  <Card className="text-center p-8">
+                    <p className="text-slate-500">
+                      {grns.length === 0
+                        ? "No Goods Receipt Notes created yet. Record a Delivery Challan first, then create a GRN."
+                        : 'All GRNs are closed. Enable "Show accepted / rejected" to view them.'}
+                    </p>
+                  </Card>
+                );
+              const startIndex = (pagination.page - 1) * pagination.pageSize;
+              const paginatedGrns = visibleGrns.slice(startIndex, startIndex + pagination.pageSize);
+              return (
                 <>
                   {paginatedGrns.map((grn) => {
                     const po = grn.purchase_orders;
@@ -430,19 +490,26 @@ export default function GrnManagement() {
                     const isPending = grn.status === "pending";
                     const isAccepted = grn.status === "accepted";
                     const lines = grn.grn_lines || [];
-                    const isSecurityDone = Boolean(grn.security_verified_at || (grn as any).security_inward_done);
+                    const isSecurityDone = Boolean(
+                      grn.security_verified_at || (grn as any).security_inward_done,
+                    );
                     const isTechDone = Boolean(
                       grn.technical_verified_at ||
                       (grn as any).technical_inspection_done ||
-                      isAccepted
+                      isAccepted,
                     );
-                    const acceptedTotal = Number(grn.accepted_value ?? grn.total_accepted_value ?? 0);
-                    const rejectedTotal =
-                      lines.reduce(
-                        (sum: number, l: any) =>
-                          sum + (Number(l.qty_rejected || 0) * Number(l.unit_price || 0)),
-                        0,
-                      ) || Number(grn.total_rejected_value ?? 0);
+                    const acceptedTotal = Number(
+                      grn.accepted_value ?? grn.total_accepted_value ?? 0,
+                    );
+                    const rejectedTotal = Math.max(
+                      0,
+                      lines.reduce((sum: number, l: any) => {
+                        const del = Number(l.qty_delivered || 0);
+                        const acc = Number(l.qty_accepted || 0);
+                        const rej = Math.max(0, Number(l.qty_rejected ?? del - acc));
+                        return sum + rej * Number(l.unit_price || 0);
+                      }, 0) || Number(grn.total_rejected_value ?? 0),
+                    );
 
                     return (
                       <Card
@@ -533,11 +600,13 @@ export default function GrnManagement() {
                               <span className="font-semibold flex items-center gap-1 mt-0.5">
                                 {isSecurityDone ? (
                                   <>
-                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> Done
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />{" "}
+                                    Done
                                   </>
                                 ) : (
                                   <>
-                                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" /> Pending
+                                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />{" "}
+                                    Pending
                                   </>
                                 )}
                               </span>
@@ -549,11 +618,13 @@ export default function GrnManagement() {
                                   "Not Applicable"
                                 ) : isTechDone ? (
                                   <>
-                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> Done
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />{" "}
+                                    Done
                                   </>
                                 ) : (
                                   <>
-                                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" /> Awaiting
+                                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />{" "}
+                                    Awaiting
                                   </>
                                 )}
                               </span>
@@ -575,22 +646,32 @@ export default function GrnManagement() {
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y">
-                                  {lines.map((l: any) => (
-                                    <tr key={l.id}>
-                                      <td className="p-2 font-medium">{l.description}</td>
-                                      <td className="p-2 text-right">{l.qty_delivered}</td>
-                                      <td className="p-2 text-right font-semibold text-emerald-600">
-                                        {l.qty_accepted}
-                                      </td>
-                                      <td className="p-2 text-right text-red-500">{l.qty_rejected}</td>
-                                      <td className="p-2 text-right font-mono">
-                                        ₹{Number(l.unit_price).toLocaleString("en-IN")}
-                                      </td>
-                                      <td className="p-2 text-right font-mono font-bold">
-                                        ₹{Number(l.accepted_total).toLocaleString("en-IN")}
-                                      </td>
-                                    </tr>
-                                  ))}
+                                  {lines.map((l: any) => {
+                                    const qtyDel = Number(l.qty_delivered || 0);
+                                    const qtyAcc = Number(l.qty_accepted || 0);
+                                    const qtyRej = Math.max(
+                                      0,
+                                      Number(l.qty_rejected ?? qtyDel - qtyAcc),
+                                    );
+                                    const unitP = Number(l.unit_price || 0);
+                                    const lineTotal = Number(l.accepted_total ?? qtyAcc * unitP);
+                                    return (
+                                      <tr key={l.id}>
+                                        <td className="p-2 font-medium">{l.description}</td>
+                                        <td className="p-2 text-right">{qtyDel}</td>
+                                        <td className="p-2 text-right font-semibold text-emerald-600">
+                                          {qtyAcc}
+                                        </td>
+                                        <td className="p-2 text-right text-red-500">{qtyRej}</td>
+                                        <td className="p-2 text-right font-mono">
+                                          ₹{unitP.toLocaleString("en-IN")}
+                                        </td>
+                                        <td className="p-2 text-right font-mono font-bold">
+                                          ₹{lineTotal.toLocaleString("en-IN")}
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
                                 </tbody>
                               </table>
                             </div>
@@ -612,7 +693,7 @@ export default function GrnManagement() {
                 </>
               );
             })()
-          }
+          )}
         </div>
 
         {/* Modal: Record Delivery Challan */}
@@ -648,8 +729,18 @@ export default function GrnManagement() {
                   <Label>Packages / Boxes Count</Label>
                   <Input
                     type="number"
+                    min="1"
+                    placeholder="1"
                     value={packagesCount}
-                    onChange={(e) => setPackagesCount(Number(e.target.value) || 1)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "") {
+                        setPackagesCount("");
+                      } else {
+                        const n = parseInt(val, 10);
+                        setPackagesCount(isNaN(n) ? "" : n);
+                      }
+                    }}
                   />
                 </div>
                 <div className="space-y-1">
@@ -725,7 +816,8 @@ export default function GrnManagement() {
                     <SelectContent>
                       {(unlinkedChallans.length > 0 ? unlinkedChallans : challans).map((c) => (
                         <SelectItem key={c.id} value={c.id}>
-                          {c.challan_number} (PO: {c.purchase_orders?.po_number || "Ref"}) — {c.packages_count ?? 1} pkgs
+                          {c.challan_number} (PO: {c.purchase_orders?.po_number || "Ref"}) —{" "}
+                          {c.packages_count ?? 1} pkgs
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -758,25 +850,59 @@ export default function GrnManagement() {
                       <Label className="text-[10px]">Delivered Qty</Label>
                       <Input
                         type="number"
+                        min="1"
+                        placeholder="1"
                         value={line.qty_delivered}
                         onChange={(e) => {
-                          const val = Number(e.target.value) || 0;
+                          const val = e.target.value;
+                          const numVal = val === "" ? "" : Number(val);
                           setGrnLines((prev) =>
-                            prev.map((l, i) => (i === idx ? { ...l, qty_delivered: val } : l)),
+                            prev.map((l, i) => {
+                              if (i !== idx) return l;
+                              const newAccepted =
+                                numVal !== "" &&
+                                typeof l.qty_accepted === "number" &&
+                                l.qty_accepted > numVal
+                                  ? numVal
+                                  : l.qty_accepted;
+                              return { ...l, qty_delivered: numVal, qty_accepted: newAccepted };
+                            }),
                           );
                         }}
                       />
                     </div>
                     <div>
-                      <Label className="text-[10px]">Accepted Qty</Label>
+                      <div className="flex items-center justify-between">
+                        <Label className="text-[10px]">Accepted Qty</Label>
+                        <span className="text-[9px] text-slate-400 font-mono">
+                          Max: {Number(line.qty_delivered) || 0}
+                        </span>
+                      </div>
                       <Input
                         type="number"
+                        min="0"
+                        max={
+                          typeof line.qty_delivered === "number" ? line.qty_delivered : undefined
+                        }
+                        placeholder="0"
                         value={line.qty_accepted}
                         onChange={(e) => {
-                          const val = Number(e.target.value) || 0;
-                          setGrnLines((prev) =>
-                            prev.map((l, i) => (i === idx ? { ...l, qty_accepted: val } : l)),
-                          );
+                          const val = e.target.value;
+                          if (val === "") {
+                            setGrnLines((prev) =>
+                              prev.map((l, i) => (i === idx ? { ...l, qty_accepted: "" } : l)),
+                            );
+                          } else {
+                            let numVal = Number(val);
+                            if (isNaN(numVal) || numVal < 0) numVal = 0;
+                            const maxDelivered = Number(line.qty_delivered || 0);
+                            if (maxDelivered > 0 && numVal > maxDelivered) {
+                              numVal = maxDelivered;
+                            }
+                            setGrnLines((prev) =>
+                              prev.map((l, i) => (i === idx ? { ...l, qty_accepted: numVal } : l)),
+                            );
+                          }
                         }}
                       />
                     </div>
@@ -784,18 +910,37 @@ export default function GrnManagement() {
                       <Label className="text-[10px]">Unit Price (₹)</Label>
                       <Input
                         type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="0"
                         value={line.unit_price}
                         onChange={(e) => {
-                          const val = Number(e.target.value) || 0;
+                          const val = e.target.value;
                           setGrnLines((prev) =>
-                            prev.map((l, i) => (i === idx ? { ...l, unit_price: val } : l)),
+                            prev.map((l, i) =>
+                              i === idx ? { ...l, unit_price: val === "" ? "" : Number(val) } : l,
+                            ),
                           );
                         }}
                       />
                     </div>
                   </div>
-                  <div className="text-right font-mono font-bold text-slate-900 dark:text-white pt-1">
-                    Accepted Total: ₹{(line.qty_accepted * line.unit_price).toLocaleString("en-IN")}
+                  <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-200/60 dark:border-slate-800">
+                    <span className="text-slate-500 font-mono text-[11px]">
+                      Rejected Qty:{" "}
+                      <strong className="text-amber-600 dark:text-amber-400 font-bold">
+                        {Math.max(
+                          0,
+                          (Number(line.qty_delivered) || 0) - (Number(line.qty_accepted) || 0),
+                        )}
+                      </strong>
+                    </span>
+                    <span className="font-mono font-bold text-slate-900 dark:text-white">
+                      Accepted Total: ₹
+                      {(
+                        (Number(line.qty_accepted) || 0) * (Number(line.unit_price) || 0)
+                      ).toLocaleString("en-IN")}
+                    </span>
                   </div>
                 </div>
               ))}

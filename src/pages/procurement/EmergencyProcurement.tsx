@@ -62,10 +62,10 @@ export default function EmergencyProcurement() {
   const [departmentId, setDepartmentId] = useState("");
   const [vendorId, setVendorId] = useState("");
   const [description, setDescription] = useState("");
-  const [estimatedCost, setEstimatedCost] = useState<number>(0);
+  const [estimatedCost, setEstimatedCost] = useState<number | "">(0);
   const [reasonFailed, setReasonFailed] = useState("");
   const [isPostFacto, setIsPostFacto] = useState(false);
-  const [quotesCount, setQuotesCount] = useState(1);
+  const [quotesCount, setQuotesCount] = useState<number | "">(1);
   const [priceReasonableness, setPriceReasonableness] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -112,7 +112,10 @@ export default function EmergencyProcurement() {
   const usagePercent = Math.min(100, Math.round((runningTotal / capLimit) * 100));
 
   const handleRequest = async () => {
-    if (!description.trim() || !reasonFailed.trim() || estimatedCost <= 0) {
+    const costNum = Number(estimatedCost || 0);
+    const quotesNum = quotesCount === "" ? 1 : Math.max(1, Number(quotesCount));
+
+    if (!description.trim() || !reasonFailed.trim() || costNum <= 0) {
       toast({
         title: "Validation Error",
         description: "Please complete all required fields.",
@@ -121,10 +124,10 @@ export default function EmergencyProcurement() {
       return;
     }
 
-    if (estimatedCost > remaining) {
+    if (costNum > remaining) {
       toast({
         title: "Statutory Cap Exceeded",
-        description: `Cost ₹${estimatedCost.toLocaleString("en-IN")} exceeds remaining annual headroom ₹${remaining.toLocaleString("en-IN")}.`,
+        description: `Cost ₹${costNum.toLocaleString("en-IN")} exceeds remaining annual headroom ₹${remaining.toLocaleString("en-IN")}.`,
         variant: "destructive",
       });
       return;
@@ -137,10 +140,10 @@ export default function EmergencyProcurement() {
           department_id: departmentId || null,
           vendor_id: vendorId || null,
           description,
-          estimated_cost: estimatedCost,
+          estimated_cost: costNum,
           reason_standard_process_failed: reasonFailed,
           is_post_facto: isPostFacto,
-          quotations_obtained_count: quotesCount,
+          quotations_obtained_count: quotesNum,
           price_reasonableness_note: priceReasonableness || null,
         },
       });
@@ -299,10 +302,7 @@ export default function EmergencyProcurement() {
             (() => {
               const allItems = data?.emergencyProcurements || [];
               const startIndex = (pagination.page - 1) * pagination.pageSize;
-              const paginatedItems = allItems.slice(
-                startIndex,
-                startIndex + pagination.pageSize,
-              );
+              const paginatedItems = allItems.slice(startIndex, startIndex + pagination.pageSize);
               return (
                 <>
                   {paginatedItems.map((ep: any) => {
@@ -510,16 +510,30 @@ export default function EmergencyProcurement() {
                   <Label>Estimated Cost (₹)</Label>
                   <Input
                     type="number"
+                    min="0"
+                    placeholder="0"
                     value={estimatedCost}
-                    onChange={(e) => setEstimatedCost(Number(e.target.value) || 0)}
+                    onChange={(e) =>
+                      setEstimatedCost(e.target.value === "" ? "" : Number(e.target.value))
+                    }
                   />
                 </div>
                 <div className="space-y-1">
                   <Label>Quotes Obtained Count</Label>
                   <Input
                     type="number"
+                    min="1"
+                    placeholder="1"
                     value={quotesCount}
-                    onChange={(e) => setQuotesCount(Number(e.target.value) || 1)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "") {
+                        setQuotesCount("");
+                      } else {
+                        const n = parseInt(val, 10);
+                        setQuotesCount(isNaN(n) ? "" : n);
+                      }
+                    }}
                   />
                 </div>
               </div>

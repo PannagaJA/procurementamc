@@ -64,7 +64,7 @@ export default function InvoiceManagement() {
   const [selectedPoId, setSelectedPoId] = useState("");
   const [selectedGrnId, setSelectedGrnId] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState("");
-  const [invoiceAmount, setInvoiceAmount] = useState<number>(0);
+  const [invoiceAmount, setInvoiceAmount] = useState<number | "">(0);
   const [isServicePo, setIsServicePo] = useState(false);
   const [serviceCertUrl, setServiceCertUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -72,7 +72,7 @@ export default function InvoiceManagement() {
   // Payment Modal
   const [payOpen, setPayOpen] = useState(false);
   const [activeInvoice, setActiveInvoice] = useState<any>(null);
-  const [payAmount, setPayAmount] = useState<number>(0);
+  const [payAmount, setPayAmount] = useState<number | "">(0);
   const [paymentMode, setPaymentMode] = useState<
     "bank_transfer" | "neft" | "rtgs" | "cheque" | "upi"
   >("bank_transfer");
@@ -142,7 +142,7 @@ export default function InvoiceManagement() {
           po_id: selectedPoId,
           grn_id: isServicePo ? null : selectedGrnId || null,
           invoice_number: invoiceNumber,
-          invoice_amount: invoiceAmount,
+          invoice_amount: Number(invoiceAmount || 0),
           is_service_po: isServicePo,
           service_completion_cert_url: serviceCertUrl || null,
         },
@@ -212,13 +212,14 @@ export default function InvoiceManagement() {
   };
 
   const handleRecordPayment = async () => {
-    if (!activeInvoice || payAmount <= 0) return;
+    const amountNum = Number(payAmount || 0);
+    if (!activeInvoice || amountNum <= 0) return;
     setPaying(true);
     try {
       const res = await (recordPayment as any)({
         data: {
           invoice_id: activeInvoice.id,
-          amount: payAmount,
+          amount: amountNum,
           payment_mode: paymentMode,
           payment_terms_ref: paymentTermsRef,
           external_ref: externalRef,
@@ -313,11 +314,36 @@ export default function InvoiceManagement() {
                     const exceedsPo = invVal > poVal + 1;
                     const hasValueMismatch = exceedsGrn || exceedsPo;
                     const reconciliationLabel = (() => {
-                      if (isPaid) return { icon: "💰", text: "Settled", cls: "text-indigo-700 dark:text-indigo-300" };
-                      if (isApproved) return { icon: "✅", text: "Approved for Disbursement", cls: "text-emerald-700 dark:text-emerald-300" };
-                      if (hasValueMismatch) return { icon: "❌", text: "Amount Mismatch — Not Reconciled", cls: "text-red-700 dark:text-red-400 font-semibold" };
-                      if (isMatched) return { icon: "✅", text: "Fully Reconciled", cls: "text-emerald-700 dark:text-emerald-300" };
-                      if (isOnHold) return { icon: "⚠️", text: "Verification Hold", cls: "text-amber-700 dark:text-amber-400" };
+                      if (isPaid)
+                        return {
+                          icon: "💰",
+                          text: "Settled",
+                          cls: "text-indigo-700 dark:text-indigo-300",
+                        };
+                      if (isApproved)
+                        return {
+                          icon: "✅",
+                          text: "Approved for Disbursement",
+                          cls: "text-emerald-700 dark:text-emerald-300",
+                        };
+                      if (hasValueMismatch)
+                        return {
+                          icon: "❌",
+                          text: "Amount Mismatch — Not Reconciled",
+                          cls: "text-red-700 dark:text-red-400 font-semibold",
+                        };
+                      if (isMatched)
+                        return {
+                          icon: "✅",
+                          text: "Fully Reconciled",
+                          cls: "text-emerald-700 dark:text-emerald-300",
+                        };
+                      if (isOnHold)
+                        return {
+                          icon: "⚠️",
+                          text: "Verification Hold",
+                          cls: "text-amber-700 dark:text-amber-400",
+                        };
                       return { icon: "⏳", text: "Pending", cls: "text-slate-500" };
                     })();
 
@@ -533,8 +559,13 @@ export default function InvoiceManagement() {
                 <Label>Claimed Invoice Amount (₹)</Label>
                 <Input
                   type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0"
                   value={invoiceAmount}
-                  onChange={(e) => setInvoiceAmount(Number(e.target.value) || 0)}
+                  onChange={(e) =>
+                    setInvoiceAmount(e.target.value === "" ? "" : Number(e.target.value))
+                  }
                 />
               </div>
 
@@ -613,8 +644,13 @@ export default function InvoiceManagement() {
                   <Label>Payment Amount (₹)</Label>
                   <Input
                     type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0"
                     value={payAmount}
-                    onChange={(e) => setPayAmount(Number(e.target.value) || 0)}
+                    onChange={(e) =>
+                      setPayAmount(e.target.value === "" ? "" : Number(e.target.value))
+                    }
                   />
                 </div>
               </div>
