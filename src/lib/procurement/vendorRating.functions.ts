@@ -95,10 +95,35 @@ export const submitVendorRating = createServerFn({ method: "POST" })
       };
     }
 
-    const evpApprover =
-      held.includes("evp") || held.includes("admin")
-        ? context.userId
-        : (data.evp_approved_by ?? null);
+    const isUuid = (val?: string | null) =>
+      typeof val === "string" &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+
+    let evpApproverUuid: string | null = null;
+    if (outcome === "debarred") {
+      if (held.includes("evp") || held.includes("admin")) {
+        evpApproverUuid = context.userId;
+      } else if (isUuid(data.evp_approved_by)) {
+        evpApproverUuid = data.evp_approved_by!;
+      } else {
+        // Query designated EVP user from user_roles
+        const { data: evpRole } = await db
+          .from("user_roles")
+          .select("user_id")
+          .eq("role", "evp")
+          .limit(1)
+          .maybeSingle();
+        evpApproverUuid = evpRole?.user_id ?? context.userId;
+      }
+    }
+
+    // Preserve the human-entered authorization reference string in notes
+    let finalNotes = data.notes ?? null;
+    if (data.evp_approved_by && !isUuid(data.evp_approved_by)) {
+      finalNotes = finalNotes
+        ? `${finalNotes}\n[EVP Authorization Reference: ${data.evp_approved_by.trim()}]`
+        : `[EVP Authorization Reference: ${data.evp_approved_by.trim()}]`;
+    }
 
     // Service-role client required for all writes below:
     // - "Vendor ratings direct writes denied" (WITH CHECK false) blocks INSERT on vendor_ratings.
@@ -119,10 +144,10 @@ export const submitVendorRating = createServerFn({ method: "POST" })
         section_f_score: data.section_f_score,
         weighted_score: weightedScore,
         outcome,
-        notes: data.notes ?? null,
+        notes: finalNotes,
         reviewed_by: context.userId,
         countersigned_by: data.countersigned_by ?? null,
-        evp_approved_by: evpApprover,
+        evp_approved_by: evpApproverUuid,
       })
       .select("*")
       .single();
