@@ -15,6 +15,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import {
   Plus,
@@ -26,8 +34,18 @@ import {
   Building2,
   Layers,
   IndianRupee,
+  TableProperties,
+  ExternalLink,
+  Shield,
+  FileCheck2,
+  Check,
 } from "lucide-react";
-import { resolveApprover, normalizeCategory } from "@/lib/procurement/authorityMatrix";
+import {
+  resolveApprover,
+  normalizeCategory,
+  AUTHORITY_MATRIX_DEFINITIONS,
+  formatRoleTitle,
+} from "@/lib/procurement/authorityMatrix";
 import { createPr } from "@/lib/procurement/pr.functions";
 
 type LineItem = {
@@ -40,12 +58,13 @@ type LineItem = {
 };
 
 const CATEGORIES = [
-  { value: "routine_consumable", label: "Routine Consumables" },
-  { value: "equipment_asset", label: "Equipment & Asset Procurement" },
-  { value: "software", label: "Software & Cloud Licenses" },
+  { value: "small_value", label: "Small Value Orders (Direct Purchase)" },
+  { value: "routine_consumable", label: "Routine Consumables (Rate Contract)" },
+  { value: "equipment_asset", label: "Equipment & Assets / Lab Equipment" },
+  { value: "software", label: "Software Licenses & Cloud Subscriptions" },
   { value: "academic_research", label: "Academic & Research Material" },
-  { value: "services_amc", label: "Services & Annual Maintenance (AMC)" },
-  { value: "maintenance", label: "Facility Maintenance & Repairs" },
+  { value: "services_amc", label: "Services (AMC / Contractual Agreements)" },
+  { value: "maintenance", label: "Maintenance & Repairs" },
 ];
 
 export default function RaiseRequisition() {
@@ -135,6 +154,37 @@ export default function RaiseRequisition() {
   const liveRouting = useMemo(() => {
     return resolveApprover(category, totalEstimatedValue, 0, matrixRules);
   }, [category, totalEstimatedValue, matrixRules]);
+
+  const [matrixModalOpen, setMatrixModalOpen] = useState(false);
+
+  // Match current active tier in AUTHORITY_MATRIX_DEFINITIONS
+  const activeTierId = useMemo(() => {
+    const normCat = normalizeCategory(category);
+    if (liveRouting.escalate) {
+      return "evp_escalation";
+    }
+    if (normCat === "small_value") {
+      if (liveRouting.role === "hod") return "small_value_hod";
+      if (liveRouting.role === "principal") return "small_value_principal";
+      if (liveRouting.role === "procurement_officer") return "small_value_po";
+      return "small_value_hod";
+    }
+    if (normCat === "routine_consumable") {
+      return "routine_consumables";
+    }
+    if (
+      [
+        "equipment_asset",
+        "software",
+        "academic_research",
+        "services_amc",
+        "maintenance",
+      ].includes(normCat)
+    ) {
+      return "equipment_assets_services";
+    }
+    return null;
+  }, [category, liveRouting]);
 
   const handleAddItem = () => {
     setLineItems((prev) => [
@@ -682,10 +732,13 @@ export default function RaiseRequisition() {
             <Card className="sticky top-24 border-2 border-indigo-500/40 bg-gradient-to-br from-indigo-50/50 via-white to-slate-50 dark:from-indigo-950/20 dark:via-slate-900 dark:to-slate-900 shadow-md">
               <CardHeader className="pb-3 border-b border-indigo-100 dark:border-slate-800">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-                    SOP Engine
+                  <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
+                    <Shield className="w-3.5 h-3.5" /> SOP §VI Compliance
                   </span>
-                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold uppercase">Live Engine</span>
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  </div>
                 </div>
                 <CardTitle className="text-base font-bold text-slate-900 dark:text-slate-100">
                   Authority Matrix Live Routing
@@ -699,7 +752,7 @@ export default function RaiseRequisition() {
                 <div className="p-3 rounded-lg bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
                   <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
                     <IndianRupee className="w-4 h-4 text-slate-500" />
-                    <span>Requisition Value:</span>
+                    <span className="font-medium text-xs">Requisition Value:</span>
                   </div>
                   <span className="text-lg font-black text-slate-900 dark:text-slate-100">
                     ₹{totalEstimatedValue.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
@@ -707,70 +760,285 @@ export default function RaiseRequisition() {
                 </div>
 
                 {/* Resolved Role Display */}
-                <div className="p-4 rounded-xl bg-indigo-600 text-white shadow-sm space-y-1">
-                  <span className="text-xs uppercase text-indigo-200 font-medium">
+                <div
+                  className={`p-4 rounded-xl text-white shadow-sm space-y-1 ${
+                    liveRouting.escalate
+                      ? "bg-gradient-to-br from-amber-600 to-rose-700"
+                      : "bg-gradient-to-br from-indigo-600 to-blue-700"
+                  }`}
+                >
+                  <span className="text-xs uppercase text-indigo-100 font-semibold tracking-wider">
                     Target Approval Authority
                   </span>
-                  <div className="text-2xl font-black tracking-tight capitalize">
+                  <div className="text-2xl font-black tracking-tight">
                     {liveRouting.role === "hod"
                       ? `${departments.find((d) => d.id === departmentId)?.name || "Department"} HOD`
-                      : liveRouting.role.replace(/_/g, " ")}
+                      : formatRoleTitle(liveRouting.role)}
                   </div>
-                  <div className="text-xs text-indigo-100">
+                  <div className="text-xs text-white/90">
                     {liveRouting.escalate ? (
-                      <span className="inline-flex items-center gap-1 font-semibold text-amber-300">
-                        <AlertTriangle className="w-3.5 h-3.5" /> Escalated (Exceeds Band Cap)
+                      <span className="inline-flex items-center gap-1 font-bold text-amber-200">
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-300" /> Escalated to EVP / Trustees (Exceeds Delegated Band)
                       </span>
                     ) : (
-                      "✓ Within standard delegated approval band"
+                      <span className="inline-flex items-center gap-1 font-semibold text-emerald-200">
+                        <Check className="w-3.5 h-3.5" /> Within standard delegated approval band
+                      </span>
                     )}
                   </div>
                 </div>
 
-                {/* Proof Cases Quick Guide */}
-                <div className="space-y-2 pt-2 text-xs border-t border-slate-200 dark:border-slate-800">
-                  <span className="font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">
-                    Approval Authority Matrix Thresholds:
-                  </span>
-                  <ul className="space-y-1.5 text-slate-600 dark:text-slate-400">
-                    <li className="flex items-start gap-1.5">
-                      <span className="font-semibold text-emerald-600">₹1,500 Small Value:</span>{" "}
-                      Routes to <strong>HOD</strong> (≤ ₹2,000 txn limit)
-                    </li>
-                    <li className="flex items-start gap-1.5">
-                      <span className="font-semibold text-blue-600">₹4,500 Small Value:</span>{" "}
-                      Routes to <strong>Principal</strong> (≤ ₹5,000 txn limit)
-                    </li>
-                    <li className="flex items-start gap-1.5">
-                      <span className="font-semibold text-amber-600">₹15,000 Equipment:</span>{" "}
-                      Escalates to <strong>EVP</strong> (exceeds ₹10,000 cap)
-                    </li>
-                  </ul>
-                </div>
-
-                {/* Quotations & Requirements */}
-                <div className="p-3 rounded-lg bg-slate-100 dark:bg-slate-800 space-y-1.5 text-xs text-slate-700 dark:text-slate-300">
-                  <div className="flex justify-between">
-                    <span>Min. Quotations:</span>
-                    <strong className="text-slate-900 dark:text-slate-100">
-                      {liveRouting.minQuotations} Quotes
+                {/* Quotations & Procurement Method */}
+                <div className="p-3 rounded-lg bg-slate-100 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 space-y-2 text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-600 dark:text-slate-400 font-medium">Procurement Method:</span>
+                    <strong
+                      className="text-slate-900 dark:text-slate-100 text-right max-w-[200px] truncate"
+                      title={
+                        normalizeCategory(category) === "routine_consumable"
+                          ? "Rate Contract with Vendors approved by EVP/Trustees (Min 3 quotes, 6 mo validity)"
+                          : normalizeCategory(category) === "small_value"
+                          ? "Direct Purchase"
+                          : "Comparative Quotations with Approved Vendors (Minimum 3)"
+                      }
+                    >
+                      {normalizeCategory(category) === "routine_consumable"
+                        ? "Rate Contract (6-mo validity)"
+                        : normalizeCategory(category) === "small_value"
+                        ? "Direct Purchase"
+                        : "Comparative Quotations (Min 3)"}
                     </strong>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Rate Contract Required:</span>
-                    <strong className="text-slate-900 dark:text-slate-100">
-                      {liveRouting.requiresRateContract ? "Yes" : "No"}
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-600 dark:text-slate-400 font-medium">Min. Quotations:</span>
+                    <strong className="text-slate-900 dark:text-slate-100 font-bold">
+                      {liveRouting.minQuotations > 0 ? `${liveRouting.minQuotations} Quotes` : "0 (Direct Purchase)"}
                     </strong>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-600 dark:text-slate-400 font-medium">Rate Contract Required:</span>
+                    <Badge variant={liveRouting.requiresRateContract ? "default" : "outline"} className="text-[10px] h-5">
+                      {liveRouting.requiresRateContract ? "Yes (6 Mo Validity)" : "No"}
+                    </Badge>
                   </div>
                 </div>
 
-                <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-200">
-                  <strong>Authority Rule:</strong> {liveRouting.reason}
+                {/* Authority Rule Explanation */}
+                <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 space-y-1">
+                  <div className="font-bold flex items-center gap-1.5 text-amber-950 dark:text-amber-100">
+                    <FileCheck2 className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Authority Rule Engine:</span>
+                  </div>
+                  <p className="text-[11px] leading-relaxed text-amber-800 dark:text-amber-300">
+                    {liveRouting.reason}
+                  </p>
+                </div>
+
+                {/* VI. AUTHORITY MATRIX - LIVE TIERS & APPROVED LIMITS */}
+                <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                      <TableProperties className="w-3.5 h-3.5 text-indigo-600" />
+                      VI. Authority Matrix Tiers
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setMatrixModalOpen(true)}
+                      className="h-6 px-1.5 text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700"
+                    >
+                      Full Matrix View <ExternalLink className="w-3 h-3 ml-1" />
+                    </Button>
+                  </div>
+
+                  <div className="space-y-1.5 text-[11px]">
+                    {AUTHORITY_MATRIX_DEFINITIONS.map((tier) => {
+                      const isActive = activeTierId === tier.id;
+                      return (
+                        <div
+                          key={tier.id}
+                          className={`p-2 rounded-lg border transition-all ${
+                            isActive
+                              ? "bg-indigo-50/90 dark:bg-indigo-950/50 border-indigo-400 dark:border-indigo-600 ring-1 ring-indigo-400 shadow-sm"
+                              : "bg-white/60 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75 hover:opacity-100"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-1 mb-0.5">
+                            <span className="font-bold text-slate-800 dark:text-slate-100 truncate">
+                              {tier.procurementType}
+                            </span>
+                            {isActive ? (
+                              <Badge className="bg-indigo-600 text-white text-[9px] px-1.5 py-0 h-4 font-bold shrink-0">
+                                ACTIVE
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 text-slate-500 shrink-0">
+                                {tier.approvalAuthority}
+                              </Badge>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-1 text-[10px] text-slate-600 dark:text-slate-400 pt-0.5">
+                            <div>
+                              <span className="text-slate-400 block text-[9px] uppercase font-semibold">Limit / Txn</span>
+                              <span className="font-semibold text-slate-700 dark:text-slate-200">{tier.txnLimitFormatted}</span>
+                            </div>
+                            <div>
+                              <span className="text-slate-400 block text-[9px] uppercase font-semibold">Limit / Month</span>
+                              <span className="font-semibold text-slate-700 dark:text-slate-200">{tier.monthLimitFormatted}</span>
+                            </div>
+                          </div>
+
+                          <div className="mt-1 pt-1 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10px]">
+                            <span className="text-slate-500 truncate">{tier.procurementMethod}</span>
+                            <span className="font-bold text-slate-700 dark:text-slate-300 shrink-0 ml-1">
+                              &rarr; {tier.approvalAuthority}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </div>
         </div>
+
+        {/* Full Authority Matrix Modal (Exact Representation of Image 0) */}
+        <Dialog open={matrixModalOpen} onOpenChange={setMatrixModalOpen}>
+          <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <div className="flex items-center justify-between border-b pb-3">
+                <div>
+                  <DialogTitle className="text-xl font-extrabold flex items-center gap-2 text-slate-900 dark:text-white">
+                    <TableProperties className="w-5 h-5 text-indigo-600" />
+                    VI. AUTHORITY MATRIX
+                  </DialogTitle>
+                  <DialogDescription className="text-xs text-slate-500 mt-1">
+                    Official Institutional delegations of financial authority, approved procurement methods, and approval authorities per SOP §VI.
+                  </DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+
+            <div className="py-2">
+              <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm">
+                <table className="w-full text-xs text-left border-collapse">
+                  <thead className="bg-slate-100 dark:bg-slate-800/90 text-slate-800 dark:text-slate-200 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+                    <tr>
+                      <th className="p-3 border-r border-slate-200 dark:border-slate-800">Procurement Type</th>
+                      <th className="p-3 border-r border-slate-200 dark:border-slate-800">Procurement Method</th>
+                      <th className="p-3 border-r border-slate-200 dark:border-slate-800">Limit (Per Transaction)</th>
+                      <th className="p-3 border-r border-slate-200 dark:border-slate-800">Limit (Per Month)</th>
+                      <th className="p-3">Approval Authority</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                    {/* Row 1 */}
+                    <tr className={activeTierId === "small_value_hod" ? "bg-indigo-50/70 dark:bg-indigo-950/40 font-semibold" : ""}>
+                      <td className="p-3 font-medium border-r border-slate-200 dark:border-slate-800">Small Value Orders</td>
+                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">Direct Purchase</td>
+                      <td className="p-3 border-r border-slate-200 dark:border-slate-800 font-mono">Up to ₹2,000</td>
+                      <td className="p-3 border-r border-slate-200 dark:border-slate-800 font-mono">Up to ₹5,000</td>
+                      <td className="p-3 font-bold text-slate-900 dark:text-white">
+                        HOD
+                        {activeTierId === "small_value_hod" && (
+                          <Badge className="ml-2 bg-indigo-600 text-white text-[10px]">ACTIVE</Badge>
+                        )}
+                      </td>
+                    </tr>
+                    {/* Row 2 */}
+                    <tr className={activeTierId === "small_value_principal" ? "bg-indigo-50/70 dark:bg-indigo-950/40 font-semibold" : ""}>
+                      <td className="p-3 font-medium border-r border-slate-200 dark:border-slate-800">Small Value Orders</td>
+                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">Direct Purchase</td>
+                      <td className="p-3 border-r border-slate-200 dark:border-slate-800 font-mono">Up to ₹5,000</td>
+                      <td className="p-3 border-r border-slate-200 dark:border-slate-800 font-mono">Up to ₹30,000</td>
+                      <td className="p-3 font-bold text-slate-900 dark:text-white">
+                        Principals
+                        {activeTierId === "small_value_principal" && (
+                          <Badge className="ml-2 bg-indigo-600 text-white text-[10px]">ACTIVE</Badge>
+                        )}
+                      </td>
+                    </tr>
+                    {/* Row 3 */}
+                    <tr className={activeTierId === "small_value_po" ? "bg-indigo-50/70 dark:bg-indigo-950/40 font-semibold" : ""}>
+                      <td className="p-3 font-medium border-r border-slate-200 dark:border-slate-800">Small Value Orders</td>
+                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">Direct Purchase</td>
+                      <td className="p-3 border-r border-slate-200 dark:border-slate-800 font-mono">Up to ₹5,000</td>
+                      <td className="p-3 border-r border-slate-200 dark:border-slate-800 font-mono">Up to ₹30,000</td>
+                      <td className="p-3 font-bold text-slate-900 dark:text-white">
+                        Procurement Officer
+                        {activeTierId === "small_value_po" && (
+                          <Badge className="ml-2 bg-indigo-600 text-white text-[10px]">ACTIVE</Badge>
+                        )}
+                      </td>
+                    </tr>
+                    {/* Row 4 */}
+                    <tr className={activeTierId === "routine_consumables" ? "bg-indigo-50/70 dark:bg-indigo-950/40 font-semibold" : ""}>
+                      <td className="p-3 font-medium border-r border-slate-200 dark:border-slate-800">Routine Consumables</td>
+                      <td className="p-3 border-r border-slate-200 dark:border-slate-800 text-[11px]">
+                        Rate Contract with Vendors approved by EVP/Trustees<br />
+                        <span className="text-slate-500 dark:text-slate-400">
+                          (Minimum 3 quotations at the time of rate finalisation) <strong>Validity: 6 months</strong>
+                        </span>
+                      </td>
+                      <td className="p-3 border-r border-slate-200 dark:border-slate-800 italic">As per approved rate contract</td>
+                      <td className="p-3 border-r border-slate-200 dark:border-slate-800 font-mono">Up to ₹1,00,000</td>
+                      <td className="p-3 font-bold text-slate-900 dark:text-white">
+                        Procurement Officer
+                        {activeTierId === "routine_consumables" && (
+                          <Badge className="ml-2 bg-indigo-600 text-white text-[10px]">ACTIVE</Badge>
+                        )}
+                      </td>
+                    </tr>
+                    {/* Row 5 */}
+                    <tr className={activeTierId === "equipment_assets_services" ? "bg-indigo-50/70 dark:bg-indigo-950/40 font-semibold" : ""}>
+                      <td className="p-3 font-medium border-r border-slate-200 dark:border-slate-800">
+                        Equipment &amp; Assets / Software Licenses Academic &amp; Research<br />
+                        <span className="text-slate-500">Services (e.g., AMC, Contractual agreements)</span><br />
+                        <span className="text-slate-500">Maintenance &amp; Repairs</span>
+                      </td>
+                      <td className="p-3 border-r border-slate-200 dark:border-slate-800 text-[11px]">
+                        Comparative Quotations with Approved Vendors <strong>(Minimum 3)</strong>
+                      </td>
+                      <td className="p-3 border-r border-slate-200 dark:border-slate-800 font-mono">Up to ₹10,000</td>
+                      <td className="p-3 border-r border-slate-200 dark:border-slate-800 font-mono">Up to ₹50,000</td>
+                      <td className="p-3 font-bold text-slate-900 dark:text-white">
+                        Purchase Committee
+                        {activeTierId === "equipment_assets_services" && (
+                          <Badge className="ml-2 bg-indigo-600 text-white text-[10px]">ACTIVE</Badge>
+                        )}
+                      </td>
+                    </tr>
+                    {/* Escalation Row */}
+                    <tr className={activeTierId === "evp_escalation" ? "bg-amber-50/80 dark:bg-amber-950/50 font-semibold" : "bg-slate-50/50 dark:bg-slate-900/40"}>
+                      <td className="p-3 font-medium border-r border-slate-200 dark:border-slate-800 text-amber-900 dark:text-amber-200">
+                        High Value / Above Limits / Unscheduled
+                      </td>
+                      <td className="p-3 border-r border-slate-200 dark:border-slate-800 text-[11px] text-amber-800 dark:text-amber-300">
+                        Executive Sanction / Board of Trustees Formal Approval
+                      </td>
+                      <td className="p-3 border-r border-slate-200 dark:border-slate-800 font-mono text-amber-900 dark:text-amber-200">
+                        &gt; ₹10,000 (Assets/Services) / &gt; ₹1,00,000 (Consumables)
+                      </td>
+                      <td className="p-3 border-r border-slate-200 dark:border-slate-800 font-mono text-amber-900 dark:text-amber-200">
+                        Exceeds Monthly Band Caps
+                      </td>
+                      <td className="p-3 font-bold text-amber-900 dark:text-amber-200">
+                        Executive Vice President (EVP) / Trustees
+                        {activeTierId === "evp_escalation" && (
+                          <Badge className="ml-2 bg-amber-600 text-white text-[10px]">ACTIVE (ESCALATED)</Badge>
+                        )}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );

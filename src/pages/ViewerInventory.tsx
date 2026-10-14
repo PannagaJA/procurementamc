@@ -12,7 +12,7 @@ import { useAuth } from "@/lib/auth";
 const ViewerInventory = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { primaryRole } = useAuth();
+  const { primaryRole, loading: authLoading, hasRole } = useAuth();
 
   const [departmentName, setDepartmentName] = useState<string | null>(null);
   const { pagination, setPage, setPageSize, setTotal } = usePagination(12, 1);
@@ -36,8 +36,11 @@ const ViewerInventory = () => {
   }, [pagination.page, pagination.pageSize, setTotal, toast]);
 
   useEffect(() => {
-    if (primaryRole !== "viewer") navigate({ to: "/" });
-  }, [primaryRole, navigate]);
+    if (authLoading) return;
+    if (!hasRole("viewer") && primaryRole !== "viewer" && !hasRole("admin")) {
+      navigate({ to: "/" });
+    }
+  }, [authLoading, primaryRole, hasRole, navigate]);
   useEffect(() => {
     fetchItems();
   }, [fetchItems]);

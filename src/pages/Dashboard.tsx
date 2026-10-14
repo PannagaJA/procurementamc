@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/lib/auth";
+import { useAuth, getRoleDefaultPath } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -98,37 +98,26 @@ const Dashboard = () => {
   const [filteredItems, setFilteredItems] = useState<any[]>([]);
 
   // Check user role and redirect accordingly
-  const { primaryRole } = useAuth();
+  const { primaryRole, loading: authLoading } = useAuth();
 
   useEffect(() => {
     // If auth hasn't loaded yet, don't redirect
+    if (authLoading) return;
     if (!primaryRole) return;
 
-    // Redirect based on primary role
-    switch (primaryRole) {
-      case "admin":
-        // keep the main dashboard for admins
-        break;
-      case "hod":
-        navigate({ to: "/hod" });
-        return;
-      case "principle":
-        navigate({ to: "/principal" });
-        return;
-      case "librarian":
-        navigate({ to: "/librarian" });
-        return;
-      case "viewer":
-        navigate({ to: "/viewer" });
-        return;
-      default:
-        break;
+    // Redirect to role-specific dashboard if not staff/faculty/admin
+    const target = getRoleDefaultPath(primaryRole);
+    if (target !== "/" && window.location.pathname === "/") {
+      navigate({ to: target });
+      return;
     }
-  }, [primaryRole, navigate]);
+  }, [primaryRole, authLoading, navigate]);
 
   useEffect(() => {
+    if (authLoading) return;
+    if (primaryRole && getRoleDefaultPath(primaryRole) !== "/") return;
     fetchDashboardData();
-  }, []);
+  }, [authLoading, primaryRole]);
 
   const fetchDashboardData = async () => {
     try {
@@ -292,7 +281,8 @@ const Dashboard = () => {
     }
   };
 
-  if (loading) {
+  const isRedirecting = !authLoading && primaryRole && getRoleDefaultPath(primaryRole) !== "/";
+  if (loading || authLoading || isRedirecting) {
     return (
       <Layout>
         <div className="space-y-8 animate-in fade-in-0 duration-500">
