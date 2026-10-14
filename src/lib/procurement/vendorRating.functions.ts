@@ -31,6 +31,7 @@ export type SubmitRatingInput = RatingScores & {
   notes?: string | null;
   countersigned_by?: string | null;
   evp_approved_by?: string | null;
+  submit_for_countersignature?: boolean;
 };
 
 export function computeWeightedScore(scores: RatingScores): number {
@@ -74,30 +75,35 @@ export const submitVendorRating = createServerFn({ method: "POST" })
 
     const roles = await getCallerRoles(db, context.userId);
     const held = roles.map((r) => r.role);
+    const isEvpOrAdmin = held.includes("evp") || held.includes("admin");
 
     // Compute weighted score & outcome
     const weightedScore = computeWeightedScore(data);
     const outcome = deriveOutcome(weightedScore);
 
     // Guard: Debarment requires explicit EVP authorization before final recording (SOP Annexure 4)
-    if (outcome === "debarred" && !held.includes("evp") && !held.includes("admin")) {
-      return {
-        ok: false as const,
-        error: `SOP Annexure 4: Debarment outcome requires explicit EVP authorization before final recording. Please sign in as the Executive Vice President (evp@institution.edu) to authorize and countersign the debarment order.`,
-        code: "evp_debarment_authorization_required",
-        weightedScore,
-        outcome,
-      };
-    }
-
-    if (outcome === "debarred" && !data.evp_approved_by?.trim()) {
-      return {
-        ok: false as const,
-        error: `Debarment outcome requires an EVP authorization reference or order number (e.g. EVP/AUTH/2026-10).`,
-        code: "evp_reference_required",
-        weightedScore,
-        outcome,
-      };
+    if (outcome === "debarred") {
+      if (!isEvpOrAdmin) {
+        if (!data.submit_for_countersignature) {
+          return {
+            ok: false as const,
+            error: `SOP Annexure 4: Debarment outcome requires explicit EVP authorization before final recording. Please route to the Executive Vice President (evp@institution.edu) for countersignature.`,
+            code: "evp_debarment_authorization_required",
+            weightedScore,
+            outcome,
+          };
+        }
+      } else {
+        if (!data.evp_approved_by?.trim()) {
+          return {
+            ok: false as const,
+            error: `Debarment outcome requires an EVP authorization reference or order number (e.g. EVP/AUTH/2026-10).`,
+            code: "evp_reference_required",
+            weightedScore,
+            outcome,
+          };
+        }
+      }
     }
 
     const isUuid = (val?: string | null) =>
@@ -105,16 +111,22 @@ export const submitVendorRating = createServerFn({ method: "POST" })
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
 
     let evpApproverUuid: string | null = null;
-    if (outcome === "debarred") {
+    if (outcome === "debarred" && isEvpOrAdmin) {
       evpApproverUuid = context.userId;
     }
 
-    // Preserve the human-entered authorization reference string in notes
+    // Preserve notes or reference string
     let finalNotes = data.notes ?? null;
-    if (data.evp_approved_by && !isUuid(data.evp_approved_by)) {
-      finalNotes = finalNotes
-        ? `${finalNotes}\n[EVP Authorization Reference: ${data.evp_approved_by.trim()}]`
-        : `[EVP Authorization Reference: ${data.evp_approved_by.trim()}]`;
+    if (outcome === "debarred") {
+      if (evpApproverUuid && data.evp_approved_by && !isUuid(data.evp_approved_by)) {
+        finalNotes = finalNotes
+          ? `${finalNotes}\n[EVP Authorization Reference: ${data.evp_approved_by.trim()}]`
+          : `[EVP Authorization Reference: ${data.evp_approved_by.trim()}]`;
+      } else if (!evpApproverUuid) {
+        finalNotes = finalNotes
+          ? `${finalNotes}\n[Pending EVP Countersignature: Submitted by Procurement Officer]`
+          : `[Pending EVP Countersignature: Submitted by Procurement Officer]`;
+      }
     }
 
     // Service-role client required for all writes below:
@@ -153,18 +165,22 @@ export const submitVendorRating = createServerFn({ method: "POST" })
         .update({ status: "suspended", updated_at: new Date().toISOString() })
         .eq("id", data.vendor_id);
     } else if (outcome === "debarred") {
-      await supabaseAdmin
-        .from("vendors")
-        .update({ status: "debarred", updated_at: new Date().toISOString() })
-        .eq("id", data.vendor_id);
+      if (evpApproverUuid) {
+        // Only flip to debarred if authorized by EVP
+        await supabaseAdmin
+          .from("vendors")
+          .update({ status: "debarred", updated_at: new Date().toISOString() })
+          .eq("id", data.vendor_id);
 
-      await supabaseAdmin.from("vendor_blacklist").insert({
-        vendor_id: data.vendor_id,
-        reason:
-          data.notes ||
-          `Debarred via Performance Evaluation (Score: ${weightedScore}/100, Period: ${data.review_period})`,
-        blacklisted_by: context.userId,
-      });
+        await supabaseAdmin.from("vendor_blacklist").insert({
+          vendor_id: data.vendor_id,
+          reason:
+            finalNotes ||
+            `Debarred via Performance Evaluation (Score: ${weightedScore}/100, Period: ${data.review_period})`,
+          blacklisted_by: context.userId,
+        });
+      }
+      // If pending EVP countersignature, vendor status in Master remains unchanged until countersigned
     } else if (outcome === "preferred" || outcome === "active" || outcome === "active_notice") {
       // Reinstated or active standing: update status to 'empanelled' and clear blacklist
       await supabaseAdmin
@@ -178,13 +194,83 @@ export const submitVendorRating = createServerFn({ method: "POST" })
         .eq("vendor_id", data.vendor_id);
     }
 
-
     return {
       ok: true as const,
       rating,
       weightedScore,
       outcome,
+      pendingCountersignature: outcome === "debarred" && !evpApproverUuid,
     };
+  });
+
+export const countersignDebarment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator(
+    (input: {
+      rating_id: string;
+      evp_reference: string;
+    }) => input,
+  )
+  .handler(async ({ data, context }) => {
+    const db = context.supabase as any;
+    const { getCallerRoles } = await import("@/server/procurement/roles");
+    const roles = await getCallerRoles(db, context.userId);
+    const held = roles.map((r) => r.role);
+
+    if (!held.includes("evp") && !held.includes("admin")) {
+      return {
+        ok: false as const,
+        error: "Debarment countersignature requires the Executive Vice President (EVP) or Admin role.",
+      };
+    }
+
+    if (!data.evp_reference?.trim()) {
+      return {
+        ok: false as const,
+        error: "Please enter a valid EVP Authorization Reference or Order Number.",
+      };
+    }
+
+    const { data: rating, error: rErr } = await db
+      .from("vendor_ratings")
+      .select("id, vendor_id, outcome, weighted_score, review_period, notes")
+      .eq("id", data.rating_id)
+      .single();
+
+    if (rErr || !rating) {
+      return { ok: false as const, error: "Rating record not found." };
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const updatedNotes = rating.notes
+      ? `${rating.notes}\n[EVP Debarment Countersignature Ref: ${data.evp_reference.trim()}]`
+      : `[EVP Debarment Countersignature Ref: ${data.evp_reference.trim()}]`;
+
+    // 1. Update rating with EVP approval
+    await supabaseAdmin
+      .from("vendor_ratings")
+      .update({
+        evp_approved_by: context.userId,
+        notes: updatedNotes,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", rating.id);
+
+    // 2. Flip vendor status in master to debarred
+    await supabaseAdmin
+      .from("vendors")
+      .update({ status: "debarred", updated_at: new Date().toISOString() })
+      .eq("id", rating.vendor_id);
+
+    // 3. Add to vendor_blacklist
+    await supabaseAdmin.from("vendor_blacklist").insert({
+      vendor_id: rating.vendor_id,
+      reason: updatedNotes,
+      blacklisted_by: context.userId,
+    });
+
+    return { ok: true as const };
   });
 
 export const listVendorRatings = createServerFn({ method: "GET" })
