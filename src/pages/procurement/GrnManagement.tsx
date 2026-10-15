@@ -35,6 +35,7 @@ import {
   listGrns,
 } from "@/lib/procurement/grn.functions";
 import { listPurchaseOrders } from "@/lib/procurement/po.functions";
+import { poUnitRate } from "@/lib/procurement/poRates";
 import {
   Truck,
   PlusCircle,
@@ -188,11 +189,14 @@ export default function GrnManagement() {
         setGrnLines(
           prLineItems.map((item: any) => {
             const qty = Number(item.net_qty_to_procure || item.qty_required) || 1;
+            // PO rate (vendor's quoted price) — the server values the GRN at this same rate.
             const unitPrice =
-              Number(item.est_unit_price) ||
-              (qty > 0 && Number(item.est_total)
-                ? Math.round((Number(item.est_total) / qty) * 100) / 100
-                : 0);
+              Math.round(
+                poUnitRate(
+                  { ...po, purchase_requisitions: { pr_line_items: prLineItems } },
+                  item.description,
+                ) * 100,
+              ) / 100;
             return {
               description: item.description || po.scope_of_supply || "Material Supply",
               unit: item.unit || "units",
@@ -1169,21 +1173,13 @@ export default function GrnManagement() {
                       />
                     </div>
                     <div>
-                      <Label className="text-[10px]">Unit Price (₹)</Label>
+                      <Label className="text-[10px]">PO Rate (₹)</Label>
                       <Input
                         type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder="0"
                         value={line.unit_price}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setGrnLines((prev) =>
-                            prev.map((l, i) =>
-                              i === idx ? { ...l, unit_price: val === "" ? "" : Number(val) } : l,
-                            ),
-                          );
-                        }}
+                        readOnly
+                        title="Set from the purchase order; goods are valued at the PO rate."
+                        className="bg-muted/50 cursor-not-allowed"
                       />
                     </div>
                   </div>
