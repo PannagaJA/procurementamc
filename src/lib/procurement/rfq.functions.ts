@@ -434,6 +434,14 @@ export const getRfqForVendor = createServerFn({ method: "POST" })
     };
   });
 
+/** Earliest acceptable quotation validity (YYYY-MM-DD): 30 days after the response deadline (or today if none/past). */
+export function minValidityDate(deadline?: string | null): string {
+  const now = new Date();
+  const base = deadline ? new Date(deadline) : now;
+  const start = base < now ? now : base;
+  return new Date(start.getTime() + 30 * 86_400_000).toISOString().slice(0, 10);
+}
+
 export const submitRfqQuotationResponse = createServerFn({ method: "POST" })
   .validator(
     (input: {
@@ -516,6 +524,29 @@ export const submitRfqQuotationResponse = createServerFn({ method: "POST" })
       };
     }
 
+    // Public endpoint — re-validate what the form enforces.
+    const invalid = (error: string) => ({ ok: false as const, error, code: "invalid_input" });
+    if (!(Number(data.total_amount) > 0)) return invalid("Total amount must be greater than 0.");
+    const days = Number(data.delivery_days);
+    if (!Number.isInteger(days) || days < 1 || days > 365)
+      return invalid("Delivery time must be whole days between 1 and 365.");
+    const minValidity = minValidityDate(rfqState.response_deadline);
+    if (!data.quotation_validity || data.quotation_validity < minValidity)
+      return invalid(`Quotation validity must be on or after ${minValidity}.`);
+    if (!data.payment_terms?.trim() || !data.contact_person?.trim() || !data.contact_phone?.trim())
+      return invalid("Payment terms, contact person and contact phone are required.");
+
+    // quotation_lines has no columns for these, so they ride along in technical_remarks.
+    // ponytail: free-text storage; add real columns if CS needs to compare payment terms.
+    const commercialTerms = [
+      data.notes,
+      `Payment Terms: ${data.payment_terms.trim()}`,
+      `Valid Until: ${data.quotation_validity}`,
+      `Contact: ${data.contact_person.trim()}, ${data.contact_phone.trim()}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
     // Prepare quotation lines
     let lineItems = data.lines;
     if (!lineItems || lineItems.length === 0) {
@@ -528,7 +559,7 @@ export const submitRfqQuotationResponse = createServerFn({ method: "POST" })
       const { data: prItems } = await supabaseAdmin
         .from("pr_line_items")
         .select("id, description, net_qty_to_procure, unit, est_unit_price")
-        .eq("pr_id", rfqRow?.pr_id);
+        .eq("pr_id", rfqRow?.pr_id ?? "");
 
       if (prItems && prItems.length > 0) {
         const perItemPrice = data.total_amount / prItems.length;
@@ -539,10 +570,10 @@ export const submitRfqQuotationResponse = createServerFn({ method: "POST" })
           unit: pi.unit || "pcs",
           unit_price: perItemPrice / (Number(pi.net_qty_to_procure) || 1),
           tax_amount: 0,
-          delivery_days: data.delivery_days || 7,
+          delivery_days: days,
           warranty_months: 12,
           meets_technical_spec: true,
-          technical_remarks: data.notes || null,
+          technical_remarks: commercialTerms,
         }));
       } else {
         lineItems = [
@@ -553,10 +584,10 @@ export const submitRfqQuotationResponse = createServerFn({ method: "POST" })
             unit: "lot",
             unit_price: data.total_amount,
             tax_amount: 0,
-            delivery_days: data.delivery_days || 7,
+            delivery_days: days,
             warranty_months: 12,
             meets_technical_spec: true,
-            technical_remarks: data.notes || null,
+            technical_remarks: commercialTerms,
           },
         ];
       }
@@ -584,10 +615,10 @@ export const submitRfqQuotationResponse = createServerFn({ method: "POST" })
         unit_price: price,
         tax_amount: tax,
         total_price: total,
-        delivery_days: l.delivery_days ?? (data.delivery_days || 7),
+        delivery_days: l.delivery_days ?? days,
         warranty_months: l.warranty_months ?? 12,
         meets_technical_spec: l.meets_technical_spec !== false,
-        technical_remarks: l.technical_remarks ?? (data.notes || null),
+        technical_remarks: l.technical_remarks ?? commercialTerms,
         quotation_ref: data.quotation_ref ?? null,
       };
     });

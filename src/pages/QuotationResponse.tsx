@@ -42,7 +42,11 @@ import {
   Phone,
 } from "lucide-react";
 import { verifyVendorAccessToken } from "@/lib/quotationAuth";
-import { getRfqForVendor, submitRfqQuotationResponse } from "@/lib/procurement/rfq.functions";
+import {
+  getRfqForVendor,
+  minValidityDate,
+  submitRfqQuotationResponse,
+} from "@/lib/procurement/rfq.functions";
 
 // Helper to extract labeled values from the response description text
 function extractFromDescription(desc: string, label: string) {
@@ -61,16 +65,19 @@ const responseSchema = z.object({
       const num = parseFloat(val);
       return !isNaN(num) && num > 0;
     }, "Total amount must be a valid number greater than 0"),
-  deliveryTime: z.string().min(1, "Delivery time is required"),
-  contactPerson: z.string().min(1, "Contact person is required"),
+  deliveryTime: z
+    .string()
+    .min(1, "Delivery time is required")
+    .refine((v) => /^\d+$/.test(v) && +v >= 1 && +v <= 365, "Enter whole days between 1 and 365"),
+  contactPerson: z.string().trim().min(2, "Contact person is required"),
+  // Same rule as vendor empanelment: 10–15 digits, optional leading +.
   contactPhone: z
     .string()
-    .min(5, "Contact phone is required")
-    .refine((v) => {
-      // basic phone validation: allow digits, spaces, +, -, (, )
-      return /^[0-9+()\s-]{5,}$/.test(v);
-    }, "Enter a valid phone number"),
-  paymentTerms: z.string().min(1, "Payment terms are required"),
+    .refine(
+      (v) => /^\+?[0-9]{10,15}$/.test(v.replace(/[\s-]/g, "")),
+      "Enter a valid phone number (10–15 digits)",
+    ),
+  paymentTerms: z.string().trim().min(3, "Payment terms are required"),
   additionalNotes: z.string().optional(),
   quotationValidity: z
     .string()
@@ -347,6 +354,14 @@ export default function QuotationResponse() {
       return;
     }
 
+    const minValidity = minValidityDate(quotation.last_reply_date);
+    if (data.quotationValidity < minValidity) {
+      form.setError("quotationValidity", {
+        message: `Validity must be on or after ${minValidity} (30 days from the response deadline).`,
+      });
+      return;
+    }
+
     if (quotation.isRfq) {
       if (quotation.status === "closed" || quotation.status === "cancelled") {
         toast({
@@ -367,12 +382,12 @@ export default function QuotationResponse() {
             vendor_id: quotation.vendorId || "",
             token,
             total_amount: parseFloat(data.totalAmount),
-            delivery_days: parseInt(data.deliveryTime) || 7,
+            delivery_days: Number(data.deliveryTime),
             payment_terms: data.paymentTerms,
             contact_person: data.contactPerson,
             contact_phone: data.contactPhone,
             notes: `${data.description}${data.additionalNotes ? ` | ${data.additionalNotes}` : ""}`,
-            quotation_validity: data.quotationValidity || null,
+            quotation_validity: data.quotationValidity,
           },
         });
 
@@ -413,7 +428,7 @@ export default function QuotationResponse() {
       const responseData = {
         quotation_id: quotation.id,
         company_email: quotation.company_email,
-        description: `${data.description}\n\nDelivery Time: ${data.deliveryTime}\nContact Person: ${data.contactPerson}\nContact Phone: ${data.contactPhone}\nPayment Terms: ${data.paymentTerms}${data.additionalNotes ? `\n\nAdditional Notes: ${data.additionalNotes}` : ""}`,
+        description: `${data.description}\n\nDelivery Time: ${data.deliveryTime} days\nContact Person: ${data.contactPerson}\nContact Phone: ${data.contactPhone}\nPayment Terms: ${data.paymentTerms}${data.additionalNotes ? `\n\nAdditional Notes: ${data.additionalNotes}` : ""}`,
         total_amount: parseFloat(data.totalAmount),
         quotation_validity: data.quotationValidity || null,
         terms_accepted: data.termsAccepted === true,
@@ -929,13 +944,20 @@ export default function QuotationResponse() {
                         <FormItem>
                           <FormLabel className="flex items-center gap-2">
                             <Truck className="h-4 w-4" />
-                            Delivery Time *
+                            Delivery Time (days) *
                           </FormLabel>
                           <FormControl>
-                            <Input placeholder="e.g., 2-3 weeks, 10 business days" {...field} />
+                            <Input
+                              type="number"
+                              min={1}
+                              max={365}
+                              step={1}
+                              placeholder="e.g., 14"
+                              {...field}
+                            />
                           </FormControl>
                           <FormDescription>
-                            Expected delivery time after order confirmation
+                            Calendar days from purchase order issue to delivery
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -954,10 +976,15 @@ export default function QuotationResponse() {
                             Quotation Validity Date *
                           </FormLabel>
                           <FormControl>
-                            <Input type="date" {...field} />
+                            <Input
+                              type="date"
+                              min={minValidityDate(quotation?.last_reply_date)}
+                              {...field}
+                            />
                           </FormControl>
                           <FormDescription>
-                            Date until which this quotation is valid.
+                            Must be on or after {minValidityDate(quotation?.last_reply_date)} (30
+                            days from the response deadline).
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
