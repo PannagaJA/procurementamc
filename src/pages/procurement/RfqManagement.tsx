@@ -42,8 +42,10 @@ import {
   Clock,
   RefreshCw,
   Eye,
+  Copy,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { computeVendorAccessToken } from "@/lib/quotationAuth";
 
 export default function RfqManagement() {
   const { toast } = useToast();
@@ -152,6 +154,25 @@ export default function RfqManagement() {
     setSendOpen(true);
   };
 
+  const handleCopyVendorLink = async (rfqId: string, vendorId: string, vendorName?: string) => {
+    try {
+      const token = await computeVendorAccessToken(rfqId, vendorId);
+      const url = `${window.location.origin}/quotation/${rfqId}?vendorId=${vendorId}&token=${token}`;
+      await navigator.clipboard.writeText(url);
+      toast({
+        title: "Vendor Link Copied",
+        description: `Private quotation link for ${vendorName || "vendor"} copied to clipboard.`,
+      });
+    } catch (err) {
+      console.error("Failed to copy link:", err);
+      toast({
+        title: "Copy Failed",
+        description: "Could not copy link to clipboard.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleSendRfq = async () => {
     if (!activeRfq) return;
     const minReq = activeRfq.required_min_quotations || 3;
@@ -178,9 +199,60 @@ export default function RfqManagement() {
         return;
       }
 
+      // Dispatch quotation invitation emails using Edge Function
+      let emailsDispatched = 0;
+      let emailNotice = "";
+
+      if (res.vendors && res.vendors.length > 0) {
+        for (const v of res.vendors) {
+          const vEmail = (v.bank_details_json as any)?.email;
+          const token = await computeVendorAccessToken(res.rfqId, v.id);
+          const publicQuotationUrl = `${window.location.origin}/quotation/${res.rfqId}?vendorId=${v.id}&token=${token}`;
+
+          if (vEmail) {
+            try {
+              const emailRes = await supabase.functions.invoke("send-quotation-email", {
+                body: {
+                  quotationId: res.rfqId,
+                  companyEmails: [vEmail],
+                  publicQuotationUrl,
+                  vendorName: v.name,
+                  quotationData: {
+                    productName: `RFQ: ${res.rfq?.rfq_number || "Request for Quotation"}`,
+                    categoryName: res.rfq?.purchase_requisitions?.category || "General Procurement",
+                    description:
+                      res.rfq?.purchase_requisitions?.scope ||
+                      res.rfq?.purchase_requisitions?.justification ||
+                      "Goods / services requirement for AMC institutions.",
+                    quantity: 1,
+                    lastReplyDate: res.rfq?.response_deadline || "Within stipulated window",
+                  },
+                },
+              });
+
+              if (!emailRes.error && emailRes.data?.ok !== false && !emailRes.data?.error) {
+                emailsDispatched++;
+              } else {
+                emailNotice =
+                  emailRes.data?.message ||
+                  emailRes.error?.message ||
+                  "Email rejected by provider";
+              }
+            } catch (callErr: any) {
+              emailNotice = callErr?.message;
+            }
+          }
+        }
+      }
+
       toast({
-        title: "RFQ Sent",
-        description: `Sent to ${res.sentCount} empanelled vendors successfully.`,
+        title: "RFQ Dispatched",
+        description:
+          emailsDispatched > 0
+            ? `RFQ sent to ${res.sentCount} vendors. Dispatched ${emailsDispatched} invitation emails.`
+            : emailNotice
+              ? `RFQ sent to ${res.sentCount} vendors. Email notice: ${emailNotice}. You can copy private links directly from each vendor badge.`
+              : `RFQ sent to ${res.sentCount} vendors. Quotation links generated and ready to copy.`,
       });
       setSendOpen(false);
       loadData();
@@ -472,6 +544,22 @@ export default function RfqManagement() {
                                         <span className="text-[11px] text-amber-600 dark:text-amber-400">
                                           <Clock className="w-3 h-3 inline mr-0.5" /> Pending
                                         </span>
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          className="h-5 px-1.5 text-[10px] text-slate-600 hover:text-slate-900 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold ml-0.5"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleCopyVendorLink(
+                                              rfq.id,
+                                              rv.vendor_id,
+                                              rv.vendors?.name,
+                                            );
+                                          }}
+                                          title="Copy Vendor's Private Quotation Link"
+                                        >
+                                          <Copy className="w-3 h-3 mr-0.5" /> Copy Link
+                                        </Button>
                                         {(auth.hasRole("admin") ||
                                           auth.hasRole("procurement_officer") ||
                                           auth.hasRole("procurement_executive")) &&

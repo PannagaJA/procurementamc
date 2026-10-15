@@ -32,6 +32,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { AlertCircle, CheckCircle, Clock, DollarSign, Package, Truck, User, ShieldAlert, Phone } from "lucide-react";
 import { verifyVendorAccessToken } from "@/lib/quotationAuth";
+import { submitRfqQuotationResponse } from "@/lib/procurement/rfq.functions";
 
 // Helper to extract labeled values from the response description text
 function extractFromDescription(desc: string, label: string) {
@@ -87,6 +88,9 @@ export default function QuotationResponse() {
     status?: string | null;
     admin_status?: string | null;
     categories?: { name: string } | null;
+    isRfq?: boolean;
+    vendorId?: string;
+    vendorName?: string;
   } | null>(null);
   const [existingResponse, setExistingResponse] = useState<{
     id: string;
@@ -121,8 +125,12 @@ export default function QuotationResponse() {
     if (!id) return;
 
     try {
-      // Fetch quotation with admin_status
-      const { data: quotationData, error: quotationError } = await supabase
+      let resolvedQuotation: any = null;
+      const searchParams = new URLSearchParams(window.location.search || location.search);
+      const token = searchParams.get("token");
+
+      // 1. Try fetching from quotations table
+      const { data: quotationData } = await supabase
         .from("quotations")
         .select(
           `
@@ -131,19 +139,70 @@ export default function QuotationResponse() {
         `,
         )
         .eq("id", id)
-        .single();
+        .maybeSingle();
 
-      if (quotationError) {
-        console.error("Error fetching quotation:", quotationError);
-        throw quotationError;
+      if (quotationData) {
+        resolvedQuotation = quotationData;
+      } else {
+        // 2. Fallback: Check if id matches an RFQ ID
+        const { data: rfqData } = await supabase
+          .from("rfqs")
+          .select(
+            `
+            *,
+            purchase_requisitions (id, pr_number, category, scope, estimated_value, justification),
+            pr_line_items (*)
+          `,
+          )
+          .eq("id", id)
+          .maybeSingle();
+
+        if (rfqData) {
+          const rfqVendorId = searchParams.get("vendorId") || "";
+          let vendorName = "Invited Vendor";
+          let vendorEmail = "";
+
+          if (rfqVendorId) {
+            const { data: vData } = await supabase
+              .from("vendors")
+              .select("id, name, bank_details_json")
+              .eq("id", rfqVendorId)
+              .maybeSingle();
+            if (vData) {
+              vendorName = vData.name;
+              vendorEmail = (vData.bank_details_json as any)?.email || "";
+            }
+          }
+
+          resolvedQuotation = {
+            id: rfqData.id,
+            product_name: `RFQ ${rfqData.rfq_number}`,
+            description:
+              rfqData.purchase_requisitions?.scope ||
+              rfqData.purchase_requisitions?.justification ||
+              "Requisitioned goods/services requirement for AMC institutions.",
+            quantity: 1,
+            last_reply_date: rfqData.response_deadline,
+            status: rfqData.status,
+            company_email: vendorEmail || vendorName,
+            categories: {
+              name: rfqData.purchase_requisitions?.category || "Institutional Procurement",
+            },
+            isRfq: true,
+            vendorId: rfqVendorId,
+            vendorName,
+            rfq: rfqData,
+          };
+        }
       }
 
-      setQuotation(quotationData);
+      if (!resolvedQuotation) {
+        throw new Error("Quotation or RFQ requirement not found");
+      }
+
+      setQuotation(resolvedQuotation);
 
       // Verify vendor-specific access token
-      const searchParams = new URLSearchParams(window.location.search || location.search);
-      const token = searchParams.get("token");
-
       const isInternalStaff =
         primaryRole === "admin" ||
         primaryRole === "procurement_officer" ||
@@ -160,9 +219,13 @@ export default function QuotationResponse() {
           return;
         }
 
+        const vendorIdentifier = resolvedQuotation.isRfq
+          ? resolvedQuotation.vendorId
+          : resolvedQuotation.company_email;
+
         const isValid = await verifyVendorAccessToken(
-          quotationData.id,
-          quotationData.company_email,
+          resolvedQuotation.id,
+          vendorIdentifier,
           token,
         );
 
@@ -177,28 +240,39 @@ export default function QuotationResponse() {
       }
 
       // Fetch existing response if any
-      const { data: responseData, error: responseError } = await supabase
-        .from("quotation_responses")
-        .select("*")
-        .eq("quotation_id", id)
-        .maybeSingle();
+      if (resolvedQuotation.isRfq && resolvedQuotation.vendorId) {
+        const { data: existingLines } = await supabase
+          .from("quotation_lines")
+          .select("*")
+          .eq("rfq_id", id)
+          .eq("vendor_id", resolvedQuotation.vendorId);
 
-      console.log("Response query result:", { responseData, responseError });
-      console.log("Quotation data:", quotationData);
-
-      if (responseError) {
-        console.error("Error fetching response:", responseError);
-        // If there's any error, treat as no response
-      } else if (responseData) {
-        console.log("Found existing response:", responseData);
-        setExistingResponse(responseData);
+        if (existingLines && existingLines.length > 0) {
+          const total = existingLines.reduce(
+            (acc: number, l: any) => acc + Number(l.total_price || 0),
+            0,
+          );
+          setExistingResponse({
+            id: existingLines[0].id,
+            quotation_id: id,
+            company_email: resolvedQuotation.company_email,
+            description: existingLines[0].technical_remarks || "Quotation lines recorded",
+            total_amount: total,
+            submitted_at: existingLines[0].submitted_at,
+          });
+        }
       } else {
-        console.log("No existing response found");
-        // If status is 'responded' but no response exists, reset status to 'sent'
-        if (quotationData.status === "responded") {
-          console.log("Status is responded but no response found, resetting status");
+        const { data: responseData, error: responseError } = await supabase
+          .from("quotation_responses")
+          .select("*")
+          .eq("quotation_id", id)
+          .maybeSingle();
+
+        if (responseData) {
+          setExistingResponse(responseData);
+        } else if (resolvedQuotation.status === "responded" && !resolvedQuotation.isRfq) {
           await supabase.from("quotations").update({ status: "sent" }).eq("id", id);
-          quotationData.status = "sent";
+          resolvedQuotation.status = "sent";
         }
       }
     } catch (error) {
@@ -211,7 +285,7 @@ export default function QuotationResponse() {
     } finally {
       setIsLoading(false);
     }
-  }, [id, toast]);
+  }, [id, primaryRole, location.search, toast]);
 
   useEffect(() => {
     fetchQuotationAndResponse();
@@ -235,6 +309,57 @@ export default function QuotationResponse() {
         description: "The response deadline for this quotation has passed.",
         variant: "destructive",
       });
+      return;
+    }
+
+    if (quotation.isRfq) {
+      if (quotation.status === "closed" || quotation.status === "cancelled") {
+        toast({
+          title: "RFQ Closed",
+          description: "This RFQ is no longer accepting responses.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setIsSubmitting(true);
+      try {
+        const searchParams = new URLSearchParams(window.location.search || location.search);
+        const token = searchParams.get("token") || "";
+        const res = await submitRfqQuotationResponse({
+          data: {
+            rfq_id: quotation.id,
+            vendor_id: quotation.vendorId || "",
+            token,
+            total_amount: parseFloat(data.totalAmount),
+            delivery_days: parseInt(data.deliveryTime) || 7,
+            payment_terms: data.paymentTerms,
+            contact_person: data.contactPerson,
+            contact_phone: data.contactPhone,
+            notes: `${data.description}${data.additionalNotes ? ` | ${data.additionalNotes}` : ""}`,
+            quotation_validity: data.quotationValidity || null,
+          },
+        });
+
+        if (!res?.ok) {
+          toast({
+            title: "Submission Failed",
+            description: (res as any)?.error || "Failed to submit response.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        toast({
+          title: "Quotation Submitted Successfully!",
+          description: "Your commercial response has been logged for evaluation.",
+        });
+        await fetchQuotationAndResponse();
+      } catch (err: any) {
+        toast({ title: "Error", description: err.message, variant: "destructive" });
+      } finally {
+        setIsSubmitting(false);
+      }
       return;
     }
 
@@ -377,7 +502,11 @@ export default function QuotationResponse() {
   const isExpired = quotation?.last_reply_date
     ? new Date() > new Date(quotation.last_reply_date)
     : false;
-  const hasResponded = quotation ? quotation.status === "responded" && !!existingResponse : false;
+  const hasResponded = quotation
+    ? quotation.isRfq
+      ? !!existingResponse
+      : quotation.status === "responded" && !!existingResponse
+    : false;
 
   console.log("UI State:", {
     quotationStatus: quotation?.status,
