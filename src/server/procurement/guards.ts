@@ -219,65 +219,6 @@ export async function assertNoPoSplitting(
   return null;
 }
 
-/** Three-way match: PO ↔ GRN ↔ Invoice must agree before payment (§8.7). */
-export async function assertThreeWayMatch(
-  db: Db,
-  poId: string,
-  grnId: string,
-  invoiceId: string,
-): Promise<void> {
-  const [po, grn, inv] = await Promise.all([
-    db.from("purchase_orders").select("id, total_value").eq("id", poId).maybeSingle(),
-    db
-      .from("goods_receipt_notes")
-      .select("id, po_id, accepted_value, status")
-      .eq("id", grnId)
-      .maybeSingle(),
-    db.from("invoices").select("id, po_id, grn_id, amount").eq("id", invoiceId).maybeSingle(),
-  ]);
-
-  if (!po?.data)
-    throw ruleError("po_not_found", "Three-way match failed: the purchase order does not exist.");
-  if (!grn?.data)
-    throw ruleError(
-      "grn_not_found",
-      "Three-way match failed: the goods receipt note does not exist.",
-    );
-  if (!inv?.data)
-    throw ruleError("invoice_not_found", "Three-way match failed: the invoice does not exist.");
-
-  if (grn.data.po_id !== poId) {
-    throw ruleError(
-      "grn_po_mismatch",
-      "Three-way match failed: the goods receipt note belongs to a different purchase order.",
-    );
-  }
-  if (inv.data.po_id !== poId || (inv.data.grn_id && inv.data.grn_id !== grnId)) {
-    throw ruleError(
-      "invoice_po_mismatch",
-      "Three-way match failed: the invoice does not reference this purchase order and receipt note.",
-    );
-  }
-  if (grn.data.status !== "accepted") {
-    throw ruleError(
-      "grn_not_accepted",
-      `Three-way match failed: goods receipt is "${grn.data.status}", not accepted.`,
-    );
-  }
-  if (Number(inv.data.amount) > Number(grn.data.accepted_value ?? 0)) {
-    throw ruleError(
-      "invoice_exceeds_receipt",
-      `Three-way match failed: invoice of ₹${Number(inv.data.amount).toLocaleString("en-IN")} exceeds accepted goods value of ₹${Number(grn.data.accepted_value ?? 0).toLocaleString("en-IN")}.`,
-    );
-  }
-  if (Number(inv.data.amount) > Number(po.data.total_value ?? 0)) {
-    throw ruleError(
-      "invoice_exceeds_po",
-      `Three-way match failed: invoice exceeds the purchase order value of ₹${Number(po.data.total_value ?? 0).toLocaleString("en-IN")}.`,
-    );
-  }
-}
-
 /** Emergency procurement aggregate annual cap of ₹10,00,000 (SOP §9). */
 export async function assertEmergencyCapNotExceeded(db: Db, newValue: number): Promise<void> {
   const yearStart = new Date(new Date().getFullYear(), 3, 1); // Indian FY starts 1 April
