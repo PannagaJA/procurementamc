@@ -20,7 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getMyPendingApprovals, getMyApprovalHistory } from "@/lib/procurement/approvals.functions";
 import { approvePr, rejectPr, escalateToEvp } from "@/lib/procurement/pr.functions";
 import { approveCs, rejectCs } from "@/lib/procurement/cs.functions";
-import { approvePo } from "@/lib/procurement/po.functions";
+import { approvePo, rejectPo } from "@/lib/procurement/po.functions";
 import { approveInvoice } from "@/lib/procurement/invoice.functions";
 import { approveEmergency } from "@/lib/procurement/emergency.functions";
 import {
@@ -67,7 +67,9 @@ export default function MyApprovals() {
     | "cs_approve"
     | "cs_reject"
     | "po_approve"
+    | "po_reject"
     | "am_approve"
+    | "am_reject"
     | "inv_approve"
     | "ep_approve"
     | "ep_reject"
@@ -175,6 +177,25 @@ export default function MyApprovals() {
         toast({
           title: "Purchase Order Approved",
           description: `PO ${activeItem.po_number} approved.`,
+        });
+      } else if (dialogType === "po_reject" || dialogType === "am_reject") {
+        // An amendment awaiting re-approval is decided on its purchase order.
+        const poId = dialogType === "am_reject" ? activeItem.po_id : activeItem.id;
+        const res = await (rejectPo as any)({ data: { po_id: poId, remarks } });
+        if (!res.ok) throw new Error(res.error);
+        toast({
+          title: dialogType === "am_reject" ? "Amendment Rejected" : "Purchase Order Rejected",
+          description:
+            res.status === "amendment_rejected"
+              ? "The order is back to its previous value."
+              : "The purchase order was cancelled.",
+        });
+      } else if (dialogType === "am_approve") {
+        const res = await (approvePo as any)({ data: { po_id: activeItem.po_id, remarks } });
+        if (!res.ok) throw new Error(res.error);
+        toast({
+          title: "Amendment Approved",
+          description: `${activeItem.purchase_orders?.po_number ?? "Order"} approved at the new value.`,
         });
       } else if (dialogType === "inv_approve") {
         const res = await (approveInvoice as any)({ data: { invoice_id: activeItem.id, remarks } });
@@ -513,6 +534,14 @@ export default function MyApprovals() {
                       >
                         <CheckCircle className="w-3.5 h-3.5" /> Approve PO
                       </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleOpenAction(po, "po_reject")}
+                        className="gap-1"
+                      >
+                        <XCircle className="w-3.5 h-3.5" /> Reject
+                      </Button>
                     </div>
                   </CardHeader>
                   <CardContent className="p-4 pt-2 text-xs space-y-1">
@@ -566,6 +595,14 @@ export default function MyApprovals() {
                         className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
                       >
                         <CheckCircle className="w-3.5 h-3.5" /> Approve Amendment
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleOpenAction(am, "am_reject")}
+                        className="gap-1"
+                      >
+                        <XCircle className="w-3.5 h-3.5" /> Reject
                       </Button>
                     </div>
                   </CardHeader>

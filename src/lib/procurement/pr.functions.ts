@@ -33,6 +33,35 @@ function monthKey(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
 }
 
+const APPROVER_CHAIN = [
+  "hod",
+  "principal",
+  "procurement_officer",
+  "purchase_committee",
+  "director_admin_finance",
+  "evp",
+];
+
+/**
+ * Nobody approves their own requisition: if the requester holds the routed role (an HOD for
+ * their own department), route to the next authority up the chain instead.
+ */
+async function independentApprover(
+  requesterId: string | null,
+  departmentId: string | null,
+  role: string,
+): Promise<string> {
+  if (!requesterId) return role;
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { getCallerRoles } = await import("@/server/procurement/roles");
+  const theirs = await getCallerRoles(supabaseAdmin as any, requesterId);
+  const holds = (r: string) =>
+    theirs.some((x) => x.role === r && (r !== "hod" || x.department_id === departmentId));
+  if (!holds(role)) return role;
+  const from = APPROVER_CHAIN.indexOf(role);
+  return APPROVER_CHAIN.slice(from + 1).find((r) => !holds(r)) ?? "evp";
+}
+
 /** Load matrix rules + month-to-date spend and resolve the approver. */
 async function resolve(db: any, category: string, departmentId: string | null, value: number) {
   const { resolveApprover, normalizeCategory } = await import("@/lib/procurement/authorityMatrix");
@@ -85,6 +114,11 @@ export const createPr = createServerFn({ method: "POST" })
     }
 
     const resolved = await resolve(db, canonicalCat, data.department_id, value);
+    const approverRole = await independentApprover(context.userId, data.department_id, resolved.role);
+    const routingReason =
+      approverRole === resolved.role
+        ? resolved.reason
+        : `${resolved.reason} Routed to the ${approverRole.replace(/_/g, " ").toUpperCase()} because the requester holds the ${resolved.role.replace(/_/g, " ").toUpperCase()} role.`;
 
     const { data: pr, error } = await db
       .from("purchase_requisitions")
@@ -102,8 +136,8 @@ export const createPr = createServerFn({ method: "POST" })
         justification: data.justification,
         market_survey_notes: data.market_survey_notes,
         source: "app",
-        current_approver_role: resolved.role,
-        routing_reason: resolved.reason,
+        current_approver_role: approverRole,
+        routing_reason: routingReason,
       })
       .select("id, pr_number, status")
       .single();
@@ -141,9 +175,9 @@ export const createPr = createServerFn({ method: "POST" })
       ok: true as const,
       pr,
       routing: {
-        role: resolved.role,
+        role: approverRole,
         escalate: resolved.escalate,
-        reason: resolved.reason,
+        reason: routingReason,
         minQuotations: resolved.minQuotations,
         requiresRateContract: resolved.requiresRateContract,
       },
@@ -192,12 +226,26 @@ async function decide(
   const { data: pr, error } = await db
     .from("purchase_requisitions")
     .select(
-      "id, pr_number, status, category, estimated_value, department_id, current_approver_role",
+      "id, pr_number, status, category, estimated_value, department_id, current_approver_role, requested_by",
     )
     .eq("id", data.pr_id)
     .maybeSingle();
   if (error) return { ok: false as const, error: error.message };
   if (!pr) return { ok: false as const, error: "That purchase requisition does not exist." };
+
+  // Only open requisitions can be decided, and never by the person who raised them.
+  if (!["submitted", "under_review", "escalated_to_evp"].includes(pr.status)) {
+    return { ok: false as const, error: `${pr.pr_number} is already "${pr.status}" and can't be changed.` };
+  }
+  if (pr.requested_by && pr.requested_by === context.userId) {
+    return {
+      ok: false as const,
+      error: "You raised this requisition, so another approver must decide it.",
+    };
+  }
+  if (decision === "escalated" && pr.status === "escalated_to_evp") {
+    return { ok: false as const, error: `${pr.pr_number} is already with the EVP.` };
+  }
 
   // Re-derive the authorised role from the matrix — never trust the stored value alone.
   const resolved = await resolve(
@@ -207,19 +255,24 @@ async function decide(
     Number(pr.estimated_value) || 0,
   );
 
+  // Once escalated, only the EVP decides — not the original matrix approver.
+  const routedRole =
+    pr.status === "escalated_to_evp"
+      ? "evp"
+      : await independentApprover(pr.requested_by, pr.department_id, resolved.role);
   const allowed =
     decision === "escalated"
-      ? [resolved.role, "director_admin_finance", "purchase_committee"]
-      : [resolved.role];
+      ? [routedRole, "director_admin_finance", "purchase_committee"]
+      : [routedRole];
 
   try {
     if (!held.includes("admin") && !allowed.some((a) => held.includes(a))) {
       throw new ForbiddenError(
-        `This requisition routes to "${resolved.role}". You hold: ${held.join(", ") || "no procurement role"}.`,
+        `This requisition is waiting for the ${routedRole.replace(/_/g, " ").toUpperCase()}. You don't hold that role.`,
       );
     }
     // If the approval requires HOD, ensure the caller is HOD for this PR's department
-    if (!held.includes("admin") && resolved.role === "hod") {
+    if (!held.includes("admin") && routedRole === "hod") {
       const isHodForDept = roles.some(
         (r) => r.role === "hod" && r.department_id && r.department_id === pr.department_id,
       );
