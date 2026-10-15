@@ -30,8 +30,8 @@ import {
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { AlertCircle, CheckCircle, Clock, DollarSign, Package, Truck, User } from "lucide-react";
-import { Phone } from "lucide-react";
+import { AlertCircle, CheckCircle, Clock, DollarSign, Package, Truck, User, ShieldAlert, Phone } from "lucide-react";
+import { verifyVendorAccessToken } from "@/lib/quotationAuth";
 
 // Helper to extract labeled values from the response description text
 function extractFromDescription(desc: string, label: string) {
@@ -98,6 +98,8 @@ export default function QuotationResponse() {
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [accessDenied, setAccessDenied] = useState(false);
+  const [accessDeniedReason, setAccessDeniedReason] = useState("");
   const { toast } = useToast();
 
   const form = useForm<ResponseForm>({
@@ -137,6 +139,42 @@ export default function QuotationResponse() {
       }
 
       setQuotation(quotationData);
+
+      // Verify vendor-specific access token
+      const searchParams = new URLSearchParams(window.location.search || location.search);
+      const token = searchParams.get("token");
+
+      const isInternalStaff =
+        primaryRole === "admin" ||
+        primaryRole === "procurement_officer" ||
+        primaryRole === "procurement_executive" ||
+        primaryRole === "viewer";
+
+      if (!isInternalStaff) {
+        if (!token) {
+          setAccessDenied(true);
+          setAccessDeniedReason(
+            "Missing vendor access token. To protect vendor privacy and pricing confidentiality, each invited vendor must access the quotation using their unique private link.",
+          );
+          setIsLoading(false);
+          return;
+        }
+
+        const isValid = await verifyVendorAccessToken(
+          quotationData.id,
+          quotationData.company_email,
+          token,
+        );
+
+        if (!isValid) {
+          setAccessDenied(true);
+          setAccessDeniedReason(
+            "Invalid or unauthorized quotation access token. Each vendor receives a unique, private link that cannot be shared or accessed by other vendors.",
+          );
+          setIsLoading(false);
+          return;
+        }
+      }
 
       // Fetch existing response if any
       const { data: responseData, error: responseError } = await supabase
@@ -289,6 +327,35 @@ export default function QuotationResponse() {
         <Card>
           <CardContent className="py-8">
             <div className="text-center">Loading quotation details...</div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (accessDenied) {
+    return (
+      <div className="container mx-auto py-16 px-4 max-w-md">
+        <Card className="border-rose-200 dark:border-rose-900 shadow-xl bg-card">
+          <CardHeader className="text-center pb-2">
+            <div className="mx-auto w-12 h-12 bg-rose-100 dark:bg-rose-950/60 rounded-full flex items-center justify-center mb-2">
+              <ShieldAlert className="w-6 h-6 text-rose-600 dark:text-rose-400" />
+            </div>
+            <CardTitle className="text-xl font-bold text-slate-900 dark:text-white">
+              Access Restricted
+            </CardTitle>
+            <CardDescription className="text-xs text-rose-700 dark:text-rose-400 font-medium">
+              Vendor-Specific Protected Link
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 pt-2 text-center text-sm text-slate-600 dark:text-slate-400">
+            <p>{accessDeniedReason}</p>
+            <div className="p-3 bg-slate-100 dark:bg-slate-900 rounded-lg text-xs font-mono text-slate-500 break-all">
+              Quotation Ref: {id}
+            </div>
+            <p className="text-xs text-slate-400">
+              If you are an invited vendor, please ensure you clicked the unique quotation link sent to your registered email address.
+            </p>
           </CardContent>
         </Card>
       </div>

@@ -23,6 +23,7 @@ import {
   Eye,
   Ban,
   ShieldAlert,
+  Pencil,
 } from "lucide-react";
 import {
   Dialog,
@@ -38,6 +39,7 @@ import {
   rejectEmpanelment,
   listVendorsForReview,
   blacklistVendor,
+  updateVendorContact,
 } from "@/lib/procurement/vendors.functions";
 import { useAuth } from "@/lib/auth";
 
@@ -56,8 +58,18 @@ export default function VendorManagement() {
   const [debarVendorId, setDebarVendorId] = useState<string | null>(null);
   const [debarReason, setDebarReason] = useState("");
 
+  // Edit Contact State (Admin / EVP)
+  const [editingVendor, setEditingVendor] = useState<any | null>(null);
+  const [editContactPerson, setEditContactPerson] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [isUpdatingContact, setIsUpdatingContact] = useState(false);
+
   // Apply Form State
   const [name, setName] = useState("");
+  const [contactPerson, setContactPerson] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [gstNumber, setGstNumber] = useState("");
   const [panNumber, setPanNumber] = useState("");
@@ -97,8 +109,48 @@ export default function VendorManagement() {
 
   const handleApply = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Comprehensive mandatory field validation
     if (!name.trim()) {
-      toast({ title: "Vendor name is required", variant: "destructive" });
+      toast({ title: "Validation Error", description: "Vendor Legal Name is required.", variant: "destructive" });
+      return;
+    }
+    if (!contactPerson.trim()) {
+      toast({ title: "Validation Error", description: "Contact Person name is required.", variant: "destructive" });
+      return;
+    }
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email.trim() || !emailPattern.test(email.trim())) {
+      toast({ title: "Validation Error", description: "A valid Email Address is required (e.g. contact@vendor.com).", variant: "destructive" });
+      return;
+    }
+    const cleanPhone = phone.trim().replace(/[\s-]/g, "");
+    if (!cleanPhone || !/^\+?[0-9]{10,15}$/.test(cleanPhone)) {
+      toast({ title: "Validation Error", description: "A valid 10-digit Phone/Mobile number is required.", variant: "destructive" });
+      return;
+    }
+    if (!address.trim()) {
+      toast({ title: "Validation Error", description: "Registered Address is required.", variant: "destructive" });
+      return;
+    }
+    if (!gstNumber.trim() || gstNumber.trim().length < 15) {
+      toast({ title: "Validation Error", description: "A valid 15-character GSTIN is required.", variant: "destructive" });
+      return;
+    }
+    if (!panNumber.trim() || panNumber.trim().length < 10) {
+      toast({ title: "Validation Error", description: "A valid 10-character PAN number is required.", variant: "destructive" });
+      return;
+    }
+    if (!bankName.trim()) {
+      toast({ title: "Validation Error", description: "Bank Name is required.", variant: "destructive" });
+      return;
+    }
+    if (!accountNo.trim()) {
+      toast({ title: "Validation Error", description: "Bank Account Number is required.", variant: "destructive" });
+      return;
+    }
+    if (!ifsc.trim() || ifsc.trim().length < 11) {
+      toast({ title: "Validation Error", description: "A valid 11-character Bank IFSC code is required.", variant: "destructive" });
       return;
     }
 
@@ -107,13 +159,19 @@ export default function VendorManagement() {
       const res = await applyEmpanelment({
         data: {
           name: name.trim(),
-          registered_address: address.trim() || null,
-          gst_number: gstNumber.trim().toUpperCase() || null,
-          pan_number: panNumber.trim().toUpperCase() || null,
+          contact_person: contactPerson.trim(),
+          email: email.trim().toLowerCase(),
+          phone: cleanPhone,
+          registered_address: address.trim(),
+          gst_number: gstNumber.trim().toUpperCase(),
+          pan_number: panNumber.trim().toUpperCase(),
           bank_details: {
             account_number: accountNo.trim(),
             ifsc_code: ifsc.trim().toUpperCase(),
             bank_name: bankName.trim(),
+            contact_person: contactPerson.trim(),
+            email: email.trim().toLowerCase(),
+            phone: cleanPhone,
           },
         },
       });
@@ -133,6 +191,9 @@ export default function VendorManagement() {
       });
 
       setName("");
+      setContactPerson("");
+      setEmail("");
+      setPhone("");
       setAddress("");
       setGstNumber("");
       setPanNumber("");
@@ -294,6 +355,91 @@ export default function VendorManagement() {
     }
   };
 
+  const handleOpenEditContact = (vendor: any) => {
+    setEditingVendor(vendor);
+    setEditContactPerson(vendor.bank_details_json?.contact_person || "");
+    setEditEmail(vendor.bank_details_json?.email || "");
+    setEditPhone(vendor.bank_details_json?.phone || "");
+  };
+
+  const handleSaveContact = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingVendor) return;
+
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!editEmail.trim() || !emailPattern.test(editEmail.trim())) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a valid email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const cleanPhone = editPhone.trim().replace(/[\s-]/g, "");
+    if (!cleanPhone || !/^\+?[0-9]{10,15}$/.test(cleanPhone)) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter a valid phone number (10-15 digits).",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsUpdatingContact(true);
+      const res = await updateVendorContact({
+        data: {
+          vendor_id: editingVendor.id,
+          email: editEmail.trim(),
+          phone: editPhone.trim(),
+          contact_person: editContactPerson.trim() || null,
+        },
+      });
+
+      if (!res?.ok) {
+        toast({
+          title: "Update Failed",
+          description: (res as any)?.error || "Failed to update vendor contact.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Contact Updated",
+        description: `Successfully updated contact details for ${editingVendor.name}.`,
+      });
+
+      // Update local state
+      setVendors((prev) =>
+        prev.map((v) =>
+          v.id === editingVendor.id
+            ? { ...v, bank_details_json: res.updatedDetails }
+            : v,
+        ),
+      );
+
+      if (viewDetailsVendor && viewDetailsVendor.id === editingVendor.id) {
+        setViewDetailsVendor({
+          ...viewDetailsVendor,
+          bank_details_json: res.updatedDetails,
+        });
+      }
+
+      setEditingVendor(null);
+    } catch (err: any) {
+      console.error("Error updating vendor contact:", err);
+      toast({
+        title: "Error",
+        description: err.message || "Failed to update contact info.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdatingContact(false);
+    }
+  };
+
   const appliedVendors = vendors.filter((v) => v.status === "applied");
   const reviewVendors = vendors.filter((v) => v.status === "under_review");
   const empanelledVendors = vendors.filter((v) => v.status === "empanelled");
@@ -387,7 +533,9 @@ export default function VendorManagement() {
                 <form onSubmit={handleApply} className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="vname">Vendor Legal Name *</Label>
+                      <Label htmlFor="vname">
+                        Vendor Legal Name <span className="text-destructive">*</span>
+                      </Label>
                       <Input
                         id="vname"
                         placeholder="e.g. Apex Scientific Instruments Ltd."
@@ -397,30 +545,79 @@ export default function VendorManagement() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="vaddress">Registered Address</Label>
+                      <Label htmlFor="vcontact">
+                        Contact Person Name <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="vcontact"
+                        placeholder="e.g. Rajesh Kumar (Key Account Manager)"
+                        value={contactPerson}
+                        onChange={(e) => setContactPerson(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="vemail">
+                        Official Email Address <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="vemail"
+                        type="email"
+                        placeholder="e.g. sales@apexinstruments.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="vphone">
+                        Phone / Mobile Number <span className="text-destructive">*</span>
+                      </Label>
+                      <Input
+                        id="vphone"
+                        type="tel"
+                        placeholder="e.g. +91 9876543210"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="vaddress">
+                        Registered Office Address <span className="text-destructive">*</span>
+                      </Label>
                       <Input
                         id="vaddress"
-                        placeholder="Street, City, State, PIN"
+                        placeholder="Plot No, Industrial Area, Street, City, State, PIN"
                         value={address}
                         onChange={(e) => setAddress(e.target.value)}
+                        required
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="vgst">GSTIN Number</Label>
+                      <Label htmlFor="vgst">
+                        GSTIN Number <span className="text-destructive">*</span>
+                      </Label>
                       <Input
                         id="vgst"
-                        placeholder="29AAAAA0000A1Z5"
+                        placeholder="29AAAAA0000A1Z5 (15 characters)"
                         value={gstNumber}
-                        onChange={(e) => setGstNumber(e.target.value)}
+                        onChange={(e) => setGstNumber(e.target.value.toUpperCase())}
+                        maxLength={15}
+                        required
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="vpan">PAN Number</Label>
+                      <Label htmlFor="vpan">
+                        PAN Number <span className="text-destructive">*</span>
+                      </Label>
                       <Input
                         id="vpan"
-                        placeholder="AAAAA0000A"
+                        placeholder="AAAAA0000A (10 characters)"
                         value={panNumber}
-                        onChange={(e) => setPanNumber(e.target.value)}
+                        onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
+                        maxLength={10}
+                        required
                       />
                     </div>
                   </div>
@@ -431,30 +628,40 @@ export default function VendorManagement() {
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="vbank">Bank Name</Label>
+                        <Label htmlFor="vbank">
+                          Bank Name <span className="text-destructive">*</span>
+                        </Label>
                         <Input
                           id="vbank"
                           placeholder="e.g. State Bank of India"
                           value={bankName}
                           onChange={(e) => setBankName(e.target.value)}
+                          required
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="vacc">Account Number</Label>
+                        <Label htmlFor="vacc">
+                          Account Number <span className="text-destructive">*</span>
+                        </Label>
                         <Input
                           id="vacc"
                           placeholder="e.g. 987654321012"
                           value={accountNo}
                           onChange={(e) => setAccountNo(e.target.value)}
+                          required
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="vifsc">IFSC Code</Label>
+                        <Label htmlFor="vifsc">
+                          IFSC Code <span className="text-destructive">*</span>
+                        </Label>
                         <Input
                           id="vifsc"
-                          placeholder="SBIN0001234"
+                          placeholder="SBIN0001234 (11 characters)"
                           value={ifsc}
-                          onChange={(e) => setIfsc(e.target.value)}
+                          onChange={(e) => setIfsc(e.target.value.toUpperCase())}
+                          maxLength={11}
+                          required
                         />
                       </div>
                     </div>
@@ -784,6 +991,16 @@ export default function VendorManagement() {
                             </div>
                             
                             <div className="flex-shrink-0 flex items-center gap-2">
+                              {(userRoles.includes("evp") || userRoles.includes("admin")) && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 text-xs font-medium text-blue-600 hover:text-blue-700 bg-blue-50/50 hover:bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-900 shadow-sm"
+                                  onClick={() => handleOpenEditContact(v)}
+                                >
+                                  <Pencil className="w-3.5 h-3.5 mr-1.5" /> Edit Contact
+                                </Button>
+                              )}
                               {(userRoles.includes("evp") || userRoles.includes("admin")) && !isDebarred && (
                                 <Button
                                   variant="destructive"
@@ -856,10 +1073,41 @@ export default function VendorManagement() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Registration Info */}
                 <div className="space-y-3">
-                  <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 border-b border-slate-200 dark:border-slate-800 pb-1">
-                    Registration Information
-                  </h4>
+                  <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-1">
+                    <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                      Registration Information
+                    </h4>
+                    {(userRoles.includes("evp") || userRoles.includes("admin")) && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950 font-medium"
+                        onClick={() => handleOpenEditContact(viewDetailsVendor)}
+                      >
+                        <Pencil className="w-3 h-3 mr-1" /> Edit
+                      </Button>
+                    )}
+                  </div>
                   <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Contact Person</span>
+                      <span className="font-medium text-slate-900 dark:text-white">
+                        {viewDetailsVendor.bank_details_json?.contact_person || "N/A"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Email</span>
+                      <span className="font-medium text-slate-900 dark:text-white">
+                        {viewDetailsVendor.bank_details_json?.email || "N/A"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Phone</span>
+                      <span className="font-medium text-slate-900 dark:text-white">
+                        {viewDetailsVendor.bank_details_json?.phone || "N/A"}
+                      </span>
+                    </div>
                     <div className="flex justify-between">
                       <span className="text-slate-500">GSTIN</span>
                       <span className="font-medium text-slate-900 dark:text-white">{viewDetailsVendor.gst_number || "N/A"}</span>
@@ -953,6 +1201,80 @@ export default function VendorManagement() {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Vendor Contact Dialog */}
+      <Dialog open={!!editingVendor} onOpenChange={(open) => !open && setEditingVendor(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <Building2 className="w-5 h-5 text-blue-600" />
+              Edit Vendor Contact Information
+            </DialogTitle>
+            <DialogDescription>
+              Update contact person, email address, and phone number for {editingVendor?.name}.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSaveContact} className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label htmlFor="editContactPerson">Contact Person Name</Label>
+              <Input
+                id="editContactPerson"
+                placeholder="e.g. Rajesh Kumar (Key Account Manager)"
+                value={editContactPerson}
+                onChange={(e) => setEditContactPerson(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="editEmail">
+                Official Email Address <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="editEmail"
+                type="email"
+                placeholder="e.g. sales@vendor.com"
+                value={editEmail}
+                onChange={(e) => setEditEmail(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="editPhone">
+                Phone / Mobile Number <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="editPhone"
+                placeholder="e.g. +91 9876543210"
+                value={editPhone}
+                onChange={(e) => setEditPhone(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4 border-t">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setEditingVendor(null)}
+                disabled={isUpdatingContact}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+                disabled={isUpdatingContact}
+              >
+                {isUpdatingContact ? "Saving..." : "Save Contact Info"}
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
     </Layout>
