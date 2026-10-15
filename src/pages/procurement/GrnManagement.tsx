@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { FilterSelect, statusFilterOptions, applyFilter } from "@/components/FilterSelect";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ import {
   listGrns,
 } from "@/lib/procurement/grn.functions";
 import { listPurchaseOrders } from "@/lib/procurement/po.functions";
+import { poUnitRate } from "@/lib/procurement/poRates";
 import {
   Truck,
   PlusCircle,
@@ -58,7 +60,7 @@ export default function GrnManagement() {
   const [challans, setChallans] = useState<any[]>([]);
   const [unlinkedChallans, setUnlinkedChallans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showClosed, setShowClosed] = useState(false);
+  const [grnFilter, setGrnFilter] = useState("active");
 
   // Record Delivery Modal
   const [deliveryOpen, setDeliveryOpen] = useState(false);
@@ -188,11 +190,14 @@ export default function GrnManagement() {
         setGrnLines(
           prLineItems.map((item: any) => {
             const qty = Number(item.net_qty_to_procure || item.qty_required) || 1;
+            // PO rate (vendor's quoted price) — the server values the GRN at this same rate.
             const unitPrice =
-              Number(item.est_unit_price) ||
-              (qty > 0 && Number(item.est_total)
-                ? Math.round((Number(item.est_total) / qty) * 100) / 100
-                : 0);
+              Math.round(
+                poUnitRate(
+                  { ...po, purchase_requisitions: { pr_line_items: prLineItems } },
+                  item.description,
+                ) * 100,
+              ) / 100;
             return {
               description: item.description || po.scope_of_supply || "Material Supply",
               unit: item.unit || "units",
@@ -496,6 +501,8 @@ export default function GrnManagement() {
     }
   };
 
+  const grnFilterOptions = statusFilterOptions(grns, (g: any) => g.status, ["accepted", "rejected"]);
+
   return (
     <Layout>
       <div className="max-w-6xl mx-auto space-y-6 pb-12">
@@ -549,7 +556,7 @@ export default function GrnManagement() {
               >
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-sm text-slate-900 dark:text-slate-100">
+                    <span className="font-mono font-bold whitespace-nowrap text-sm text-slate-900 dark:text-slate-100">
                       {c.challan_number || "DC-PENDING"}
                     </span>
                     <Badge
@@ -608,52 +615,30 @@ export default function GrnManagement() {
 
         {/* GRN List */}
         <div className="space-y-4">
-          {/* Active / History Filter */}
-          <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
-            <Button
-              variant={!showClosed ? "default" : "outline"}
-              size="sm"
-              onClick={() => {
-                setShowClosed(false);
-                setPage(1);
-              }}
-              className="text-xs h-8 gap-1.5"
-            >
-              Active GRNs
-              <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
-                {grns.filter((g) => g.status !== "accepted" && g.status !== "rejected").length}
-              </Badge>
-            </Button>
-            <Button
-              variant={showClosed ? "default" : "outline"}
-              size="sm"
-              onClick={() => {
-                setShowClosed(true);
-                setPage(1);
-              }}
-              className="text-xs h-8 gap-1.5 text-slate-600 dark:text-slate-400"
-            >
-              History
-              <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
-                {grns.filter((g) => g.status === "accepted" || g.status === "rejected").length}
-              </Badge>
-            </Button>
-          </div>
+          {/* Status filter */}
+          <FilterSelect
+            value={grnFilter}
+            onChange={(v) => {
+              setGrnFilter(v);
+              setPage(1);
+            }}
+            options={grnFilterOptions}
+            title="Filter goods receipts"
+          />
+
           {loading ? (
             <div className="p-8 text-center text-slate-500">Loading Goods Receipt Notes...</div>
           ) : (
             (() => {
               // Filter by closed toggle
-              const visibleGrns = showClosed
-                ? grns
-                : grns.filter((g) => g.status !== "accepted" && g.status !== "rejected");
+              const visibleGrns = applyFilter(grns, grnFilterOptions, grnFilter);
               if (visibleGrns.length === 0)
                 return (
                   <Card className="text-center p-8">
                     <p className="text-slate-500">
                       {grns.length === 0
                         ? "No Goods Receipt Notes created yet. Record a Delivery Challan first, then create a GRN."
-                        : 'All GRNs are closed. Enable "Show accepted / rejected" to view them.'}
+                        : "No goods receipts match this filter. Choose History or All to see accepted and rejected GRNs."}
                     </p>
                   </Card>
                 );
@@ -697,7 +682,7 @@ export default function GrnManagement() {
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                             <div className="space-y-1">
                               <div className="flex items-center gap-2">
-                                <span className="font-mono font-bold text-base text-slate-900 dark:text-slate-100">
+                                <span className="font-mono font-bold whitespace-nowrap text-base text-slate-900 dark:text-slate-100">
                                   {grn.grn_number || "GRN-PENDING"}
                                 </span>
                                 <Badge
@@ -762,13 +747,13 @@ export default function GrnManagement() {
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                             <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
                               <span className="text-slate-500 block">Accepted Total</span>
-                              <span className="font-mono font-bold text-sm text-emerald-600 dark:text-emerald-400">
+                              <span className="font-mono font-bold whitespace-nowrap text-sm text-emerald-600 dark:text-emerald-400">
                                 ₹{acceptedTotal.toLocaleString("en-IN")}
                               </span>
                             </div>
                             <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
                               <span className="text-slate-500 block">Rejected Total</span>
-                              <span className="font-mono font-bold text-sm text-red-600 dark:text-red-400">
+                              <span className="font-mono font-bold whitespace-nowrap text-sm text-red-600 dark:text-red-400">
                                 ₹{rejectedTotal.toLocaleString("en-IN")}
                               </span>
                             </div>
@@ -1169,21 +1154,13 @@ export default function GrnManagement() {
                       />
                     </div>
                     <div>
-                      <Label className="text-[10px]">Unit Price (₹)</Label>
+                      <Label className="text-[10px]">PO Rate (₹)</Label>
                       <Input
                         type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder="0"
                         value={line.unit_price}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setGrnLines((prev) =>
-                            prev.map((l, i) =>
-                              i === idx ? { ...l, unit_price: val === "" ? "" : Number(val) } : l,
-                            ),
-                          );
-                        }}
+                        readOnly
+                        title="Set from the purchase order; goods are valued at the PO rate."
+                        className="bg-muted/50 cursor-not-allowed"
                       />
                     </div>
                   </div>
@@ -1197,7 +1174,7 @@ export default function GrnManagement() {
                         )}
                       </strong>
                     </span>
-                    <span className="font-mono font-bold text-slate-900 dark:text-white">
+                    <span className="font-mono font-bold whitespace-nowrap text-slate-900 dark:text-white">
                       Accepted Total: ₹
                       {(
                         (Number(line.qty_accepted) || 0) * (Number(line.unit_price) || 0)

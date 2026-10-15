@@ -215,7 +215,7 @@ export const createGrn = createServerFn({ method: "POST" })
     // 2. Fetch PO & check over-delivery
     const { data: po, error: poErr } = await mutationDb
       .from("purchase_orders")
-      .select("id, po_number, pr_id, price, taxes, total_value")
+      .select("id, po_number, pr_id, price, taxes, total_value, cs_id, vendor_id")
       .eq("id", data.po_id)
       .single();
 
@@ -226,8 +226,22 @@ export const createGrn = createServerFn({ method: "POST" })
     // Directly query PR line items to get the authoritative ordered quantity
     const { data: prLines } = await mutationDb
       .from("pr_line_items")
-      .select("net_qty_to_procure, qty_required")
+      .select("description, net_qty_to_procure, qty_required, est_unit_price, est_total")
       .eq("pr_id", po.pr_id);
+
+    // Value received goods at the PO's own rates (never a client-entered price), so the
+    // GRN accepted value is comparable with the PO and invoice in the three-way match.
+    const { quotedLinesByPo } = await import("@/server/procurement/quotes");
+    const quotedLines = (await quotedLinesByPo(mutationDb, [po])).get(po.id) ?? [];
+    const { poUnitRate } = await import("@/lib/procurement/poRates");
+    const rateCtx = {
+      ...po,
+      quoted_lines: quotedLines,
+      purchase_requisitions: { pr_line_items: prLines ?? [] },
+    };
+    // No line data on the PO at all: fall back to the entered price (capped by the PO total below).
+    const rateOf = (description: string, entered?: number) =>
+      Math.round((poUnitRate(rateCtx, description) || Number(entered) || 0) * 100) / 100;
 
     let poOrderedQty = (prLines ?? []).reduce(
       (sum: number, item: any) => sum + (Number(item.net_qty_to_procure || item.qty_required) || 0),
@@ -236,7 +250,7 @@ export const createGrn = createServerFn({ method: "POST" })
 
     // Fallback if PR line items was not found: derive from PO value / unit price
     if (poOrderedQty === 0 && data.lines && data.lines.length > 0) {
-      const lineUnit = Number(data.lines[0].unit_price) || 0;
+      const lineUnit = rateOf(data.lines[0].description, data.lines[0].unit_price);
       if (lineUnit > 0) {
         poOrderedQty = Math.round(Number(po.price || po.total_value || 0) / lineUnit);
       }
@@ -249,14 +263,14 @@ export const createGrn = createServerFn({ method: "POST" })
     );
     const totalAccepted = (data.lines ?? []).reduce((s, l) => s + (Number(l.qty_accepted) || 0), 0);
     const acceptedVal = (data.lines ?? []).reduce(
-      (s, l) => s + Number(l.qty_accepted) * (Number(l.unit_price) || 0),
+      (s, l) => s + Number(l.qty_accepted) * rateOf(l.description, l.unit_price),
       0,
     );
 
     // Fetch prior GRNs for this PO to check cumulative delivered qty
     const { data: priorGrns } = await mutationDb
       .from("grns")
-      .select("id, accepted_value, grn_lines (qty_delivered, qty_accepted)")
+      .select("id, status, accepted_value, grn_lines (qty_delivered, qty_accepted)")
       .eq("po_id", data.po_id);
 
     const priorDelivered = (priorGrns ?? []).reduce((sum: number, g: any) => {
@@ -276,6 +290,17 @@ export const createGrn = createServerFn({ method: "POST" })
         ok: false as const,
         error: `This GRN would bring the total received quantity to ${cumulativeDelivered}, more than the ${poOrderedQty} ordered on the PO. Reduce the accepted quantity.`,
         code: "over_delivery_not_permitted",
+      };
+    }
+
+    const priorAccepted = (priorGrns ?? [])
+      .filter((g: any) => g.status !== "rejected")
+      .reduce((s: number, g: any) => s + Number(g.accepted_value || 0), 0);
+    if (priorAccepted + acceptedVal > Number(po.total_value || 0) + 1) {
+      return {
+        ok: false as const,
+        error: `Goods accepted on this PO would be worth Rs. ${(priorAccepted + acceptedVal).toLocaleString("en-IN")}, more than the PO total of Rs. ${Number(po.total_value || 0).toLocaleString("en-IN")}. Check the accepted quantities.`,
+        code: "grn_value_exceeds_po",
       };
     }
 
@@ -334,7 +359,7 @@ export const createGrn = createServerFn({ method: "POST" })
       const lineRows = data.lines.map((l) => {
         const del = Number(l.qty_delivered) || 0;
         const acc = Math.min(del, Math.max(0, Number(l.qty_accepted) || 0));
-        const unitP = Number(l.unit_price) || 0;
+        const unitP = rateOf(l.description, l.unit_price);
         return {
           grn_id: grn.id,
           description: l.description,

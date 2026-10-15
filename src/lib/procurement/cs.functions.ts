@@ -283,21 +283,24 @@ export const approveCs = createServerFn({ method: "POST" })
     // Use supabaseAdmin for the read too, in case RLS blocks SELECT
     const { data: cs, error } = await supabaseAdmin
       .from("comparative_statements")
-      .select("id, status, current_approver_role, cs_number")
+      .select("id, status, current_approver_role, cs_number, prepared_by")
       .eq("id", data.cs_id)
       .maybeSingle();
 
     if (error || !cs) return { ok: false as const, error: "Comparative Statement not found" };
 
-    if (cs.status === "approved") {
-      return { ok: true as const, csId: cs.id, status: "approved", note: "Already approved" };
+    if (cs.status !== "submitted") {
+      return { ok: false as const, error: `This comparative statement is "${cs.status}", not awaiting a decision.` };
+    }
+    if (cs.prepared_by && cs.prepared_by === context.userId) {
+      return { ok: false as const, error: "You prepared this comparative statement, so another approver must decide it." };
     }
 
     const requiredRole = cs.current_approver_role;
     if (!held.includes("admin") && requiredRole && !held.includes(requiredRole)) {
       return {
         ok: false as const,
-        error: `This CS requires "${requiredRole}" approval. You hold: ${held.join(", ") || "none"}.`,
+        error: `This comparative statement is waiting for the ${requiredRole.replace(/_/g, " ").toUpperCase()}.`,
       };
     }
 
@@ -339,17 +342,24 @@ export const rejectCs = createServerFn({ method: "POST" })
 
     const { data: cs, error } = await supabaseAdmin
       .from("comparative_statements")
-      .select("id, status, current_approver_role")
+      .select("id, status, current_approver_role, prepared_by")
       .eq("id", data.cs_id)
       .maybeSingle();
 
     if (error || !cs) return { ok: false as const, error: "Comparative Statement not found" };
 
+    if (cs.status !== "submitted") {
+      return { ok: false as const, error: `This comparative statement is "${cs.status}", not awaiting a decision.` };
+    }
+    if (cs.prepared_by && cs.prepared_by === context.userId) {
+      return { ok: false as const, error: "You prepared this comparative statement, so another approver must decide it." };
+    }
+
     const requiredRole = cs.current_approver_role;
     if (!held.includes("admin") && requiredRole && !held.includes(requiredRole)) {
       return {
         ok: false as const,
-        error: `This CS requires "${requiredRole}" authorization. You hold: ${held.join(", ") || "none"}.`,
+        error: `This comparative statement is waiting for the ${requiredRole.replace(/_/g, " ").toUpperCase()}.`,
       };
     }
 

@@ -51,6 +51,24 @@ function monthKey(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
 }
 
+/** Why the caller may not approve/reject this PO, or null if they may. */
+function poDecisionError(
+  po: { status: string; current_approver_role: string | null; created_by: string | null; department_id: string | null; po_number: string | null },
+  roles: { role: string; department_id: string | null }[],
+  userId: string,
+): string | null {
+  const held = roles.map((r) => r.role);
+  if (po.status !== "pending_approval") return `${po.po_number} is "${po.status}", not awaiting approval.`;
+  if (po.created_by && po.created_by === userId) return "You created this purchase order, so another approver must decide it.";
+  const required = po.current_approver_role;
+  if (held.includes("admin") || !required) return null;
+  if (!held.includes(required)) return `This purchase order is waiting for the ${required.replace(/_/g, " ").toUpperCase()}.`;
+  if (required === "hod" && !roles.some((r) => r.role === "hod" && r.department_id === po.department_id)) {
+    return "This purchase order belongs to another department.";
+  }
+  return null;
+}
+
 export const createPo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: CreatePoInput) => input)
@@ -95,7 +113,7 @@ export const createPo = createServerFn({ method: "POST" })
       }
       const { data: cs, error: csErr } = await db
         .from("comparative_statements")
-        .select("id, status, recommended_vendor_id")
+        .select("id, status, recommended_vendor_id, recommended_total, pr_id, cs_number")
         .eq("id", data.cs_id)
         .single();
 
@@ -110,6 +128,38 @@ export const createPo = createServerFn({ method: "POST" })
           ok: false as const,
           error: `This Comparative Statement is "${cs.status}". It must be approved before a purchase order can be created.`,
           code: "cs_not_approved",
+        };
+      }
+      if (cs.pr_id && cs.pr_id !== data.pr_id) {
+        return { ok: false as const, error: `${cs.cs_number} belongs to a different requisition.`, code: "cs_pr_mismatch" };
+      }
+      if (cs.recommended_vendor_id && cs.recommended_vendor_id !== data.vendor_id) {
+        return {
+          ok: false as const,
+          error: `The purchase order must go to the vendor awarded in ${cs.cs_number}.`,
+          code: "cs_vendor_mismatch",
+        };
+      }
+      const poTotal = (Number(data.price) || 0) + (Number(data.taxes) || 0);
+      if (cs.recommended_total && poTotal > Number(cs.recommended_total) + 1) {
+        return {
+          ok: false as const,
+          error: `The order total (Rs. ${poTotal.toLocaleString("en-IN")}) is more than the approved quote in ${cs.cs_number} (Rs. ${Number(cs.recommended_total).toLocaleString("en-IN")}).`,
+          code: "cs_total_exceeded",
+        };
+      }
+      const { data: existingPo } = await db
+        .from("purchase_orders")
+        .select("po_number")
+        .eq("cs_id", data.cs_id)
+        .neq("status", "cancelled")
+        .limit(1)
+        .maybeSingle();
+      if (existingPo) {
+        return {
+          ok: false as const,
+          error: `${cs.cs_number} already has purchase order ${existingPo.po_number}.`,
+          code: "cs_already_ordered",
         };
       }
     } else if (data.type === "rate_contract") {
@@ -137,35 +187,12 @@ export const createPo = createServerFn({ method: "POST" })
         };
       }
     } else if (data.type === "direct_purchase") {
-      // Direct Purchase (SOP §VI, §8.5): ≤ ₹5,000 small value purchase linked directly to approved PR
-      const { data: directPr, error: directPrErr } = await db
-        .from("purchase_requisitions")
-        .select("id, status, estimated_value, category, pr_number")
-        .eq("id", data.pr_id)
-        .single();
-
-      if (directPrErr || !directPr) {
-        return {
-          ok: false as const,
-          error: "Purchase Requisition not found",
-          code: "pr_not_found",
-        };
-      }
-      if (directPr.status !== "approved") {
-        return {
-          ok: false as const,
-          error: `Cannot create direct PO: Requisition ${directPr.pr_number} is "${directPr.status}", not approved.`,
-          code: "pr_not_approved",
-        };
-      }
-      const val = Number(data.price) + Number(data.taxes);
-      if (val > 5000) {
-        return {
-          ok: false as const,
-          error: `Direct purchases are limited to ₹5,000 (this order totals ₹${val.toLocaleString("en-IN")}). Use a Comparative Statement or rate contract for larger amounts.`,
-          code: "direct_purchase_limit_exceeded",
-        };
-      }
+      return {
+        ok: false as const,
+        error:
+          "Direct purchases are now awarded from the RFQ page: invite vendors, then award the PO to one of the quotes received.",
+        code: "direct_purchase_via_rfq",
+      };
     }
 
     // 3. Guard: Vendor must be empanelled & active
@@ -280,22 +307,14 @@ export const approvePo = createServerFn({ method: "POST" })
 
     const { data: po, error } = await supabaseAdmin
       .from("purchase_orders")
-      .select("id, status, current_approver_role, po_number")
+      .select("id, status, current_approver_role, po_number, created_by, department_id")
       .eq("id", data.po_id)
       .maybeSingle();
 
     if (error || !po) return { ok: false as const, error: "Purchase Order not found" };
 
-    if (po.status === "approved") {
-      return { ok: true as const, poId: po.id, status: "approved", note: "Already approved" };
-    }
-
-    const requiredRole = po.current_approver_role;
-    if (!held.includes("admin") && requiredRole && !held.includes(requiredRole)) {
-      throw new ForbiddenError(
-        `This Purchase Order requires "${requiredRole}" approval. You hold: ${held.join(", ") || "none"}.`,
-      );
-    }
+    const authError = poDecisionError(po, roles, context.userId);
+    if (authError) return { ok: false as const, error: authError };
 
     const { data: updated, error: upErr } = await supabaseAdmin
       .from("purchase_orders")
@@ -318,7 +337,73 @@ export const approvePo = createServerFn({ method: "POST" })
       };
     }
 
+    // Approving a re-routed amendment closes that amendment too.
+    await supabaseAdmin
+      .from("po_amendments")
+      .update({ status: "approved", approved_by: context.userId, approved_at: new Date().toISOString() })
+      .eq("po_id", po.id)
+      .eq("status", "pending");
+
     return { ok: true as const, poId: po.id, status: "approved" };
+  });
+
+/**
+ * Reject a PO awaiting approval. A new order is cancelled; a re-routed amendment is
+ * rejected and the order goes back to its previous value and status.
+ */
+export const rejectPo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: { po_id: string; remarks: string }) => input)
+  .handler(async ({ data, context }) => {
+    if (!data.remarks?.trim()) return { ok: false as const, error: "Enter a reason for rejecting this purchase order." };
+    const { getCallerRoles } = await import("@/server/procurement/roles");
+    const roles = await getCallerRoles(context.supabase as any, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: po } = await supabaseAdmin
+      .from("purchase_orders")
+      .select("id, status, current_approver_role, po_number, created_by, department_id, taxes, issued_at")
+      .eq("id", data.po_id)
+      .maybeSingle();
+    if (!po) return { ok: false as const, error: "Purchase Order not found" };
+    const authError = poDecisionError(po, roles, context.userId);
+    if (authError) return { ok: false as const, error: authError };
+
+    const now = new Date().toISOString();
+    const { data: amendment } = await supabaseAdmin
+      .from("po_amendments")
+      .select("id, old_value_total, changed_fields_json, original_approver_role")
+      .eq("po_id", po.id)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (amendment) {
+      const prev = (amendment.changed_fields_json as any)?.previous ?? {};
+      const oldTaxes = prev.taxes ?? Number(po.taxes || 0);
+      await supabaseAdmin.from("po_amendments").update({ status: "rejected", approved_by: context.userId, approved_at: now }).eq("id", amendment.id);
+      const { error } = await supabaseAdmin
+        .from("purchase_orders")
+        .update({
+          price: prev.price ?? Number(amendment.old_value_total) - oldTaxes,
+          taxes: oldTaxes,
+          status: prev.status ?? (po.issued_at ? "issued" : "approved"),
+          current_approver_role: amendment.original_approver_role ?? po.current_approver_role,
+          routing_reason: `Amendment rejected: ${data.remarks.trim()}`,
+          updated_at: now,
+        })
+        .eq("id", po.id);
+      if (error) return { ok: false as const, error: error.message };
+      return { ok: true as const, status: "amendment_rejected" };
+    }
+
+    const { error } = await supabaseAdmin
+      .from("purchase_orders")
+      .update({ status: "cancelled", routing_reason: `Rejected: ${data.remarks.trim()}`, updated_at: now })
+      .eq("id", po.id);
+    if (error) return { ok: false as const, error: error.message };
+    return { ok: true as const, status: "cancelled" };
   });
 
 export const issuePo = createServerFn({ method: "POST" })
@@ -394,10 +479,39 @@ export const amendPo = createServerFn({ method: "POST" })
 
     if (poErr || !po) return { ok: false as const, error: "Purchase Order not found" };
 
+    const { getCallerRoles } = await import("@/server/procurement/roles");
+    const amendHeld = (await getCallerRoles(db, context.userId)).map((r) => r.role);
+    if (!["admin", "procurement_officer"].some((r) => amendHeld.includes(r))) {
+      return { ok: false as const, error: "Only the procurement officer can amend purchase orders." };
+    }
+    if (!["approved", "issued", "amended"].includes(po.status)) {
+      return { ok: false as const, error: `${po.po_number} is "${po.status}" and can't be amended.` };
+    }
+    if (!data.reason?.trim()) return { ok: false as const, error: "Enter the reason for this amendment." };
+
     const oldTotal = Number(po.price || 0) + Number(po.taxes || 0);
     const newPrice = Number(data.new_price) || 0;
     const newTaxes = Number(data.new_taxes) || 0;
     const newTotal = newPrice + newTaxes;
+
+    // Never reduce an order below what has already been received or billed.
+    const [{ data: grns }, { data: invs }] = await Promise.all([
+      supabaseAdmin.from("grns").select("accepted_value, status").eq("po_id", po.id),
+      supabaseAdmin.from("invoices").select("invoice_amount, match_status").eq("po_id", po.id),
+    ]);
+    const received = (grns ?? [])
+      .filter((g: any) => g.status === "accepted" || g.status === "partially_accepted")
+      .reduce((sum: number, g: any) => sum + Number(g.accepted_value || 0), 0);
+    const billed = (invs ?? [])
+      .filter((i: any) => ["matched", "approved", "paid"].includes(i.match_status))
+      .reduce((sum: number, i: any) => sum + Number(i.invoice_amount || 0), 0);
+    const floor = Math.max(received, billed);
+    if (newTotal + 1 < floor) {
+      return {
+        ok: false as const,
+        error: `The new total (Rs. ${newTotal.toLocaleString("en-IN")}) is below what has already been received or billed (Rs. ${floor.toLocaleString("en-IN")}).`,
+      };
+    }
 
     // Guard: Check PO splitting on delta
     const delta = newTotal - oldTotal;
@@ -461,7 +575,10 @@ export const amendPo = createServerFn({ method: "POST" })
         original_approver_role: originalRole,
         new_approver_role: resolvedNew.role,
         status: requiresReapproval ? "pending" : "approved",
-        changed_fields_json: data.changed_fields ?? {},
+        changed_fields_json: {
+          ...(data.changed_fields ?? {}),
+          previous: { price: Number(po.price || 0), taxes: Number(po.taxes || 0), status: po.status },
+        },
         created_by: context.userId,
       })
       .select("*")
@@ -534,7 +651,7 @@ export const listPurchaseOrders = createServerFn({ method: "GET" })
         `
         *,
         purchase_requisitions (
-          id, pr_number, category, scope, estimated_value, justification,
+          id, pr_number, category, scope, estimated_value, justification, requested_by, department_id,
           departments (id, name),
           pr_line_items (id, description, net_qty_to_procure, qty_required, est_unit_price, est_total, unit)
         ),
@@ -558,24 +675,30 @@ export const listPurchaseOrders = createServerFn({ method: "GET" })
     if (data?.vendor_id) query = query.eq("vendor_id", data.vendor_id);
     if (data?.status) query = query.eq("status", data.status);
 
-    const { data: list, error } = await query;
+    const { data: allOrders, error } = await query;
     if (error) return { ok: false as const, error: error.message };
 
-    // Attach the awarded vendor's quoted lines (via CS -> RFQ) so the PO document shows real prices.
-    const rfqIds = [
-      ...new Set((list ?? []).map((po: any) => po.comparative_statements?.rfq_id).filter(Boolean)),
+    // This reads with the service role, so scope visibility here: procurement, finance, stores and
+    // executive roles see every PO; an HOD sees their department's; anyone else only POs for PRs they raised.
+    const { getCallerRoles } = await import("@/server/procurement/roles");
+    const callerRoles = await getCallerRoles(context.supabase as any, context.userId);
+    const held = callerRoles.map((r) => r.role);
+    const SEE_ALL = [
+      "admin", "evp", "director_admin_finance", "purchase_committee", "principal",
+      "procurement_officer", "procurement_executive", "finance", "stores",
     ];
-    const { data: qLines } = rfqIds.length
-      ? await db
-          .from("quotation_lines")
-          .select("rfq_id, vendor_id, description, quantity, unit, unit_price, tax_amount, total_price")
-          .in("rfq_id", rfqIds)
-      : { data: [] };
-    const purchaseOrders = (list ?? []).map((po: any) => ({
-      ...po,
-      quoted_lines: (qLines ?? []).filter(
-        (l: any) => l.rfq_id === po.comparative_statements?.rfq_id && l.vendor_id === po.vendor_id,
-      ),
-    }));
+    const hodDepts = new Set(callerRoles.filter((r) => r.role === "hod" && r.department_id).map((r) => r.department_id));
+    const list = held.some((r) => SEE_ALL.includes(r))
+      ? (allOrders ?? [])
+      : (allOrders ?? []).filter(
+          (po: any) =>
+            hodDepts.has(po.department_id ?? po.purchase_requisitions?.department_id) ||
+            po.purchase_requisitions?.requested_by === context.userId,
+        );
+
+    // Attach the awarded vendor's quoted lines so the PO document shows real prices.
+    const { quotedLinesByPo } = await import("@/server/procurement/quotes");
+    const quoted = await quotedLinesByPo(db, list);
+    const purchaseOrders = list.map((po: any) => ({ ...po, quoted_lines: quoted.get(po.id) ?? [] }));
     return { ok: true as const, purchaseOrders };
   });

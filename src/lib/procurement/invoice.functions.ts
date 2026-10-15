@@ -10,6 +10,15 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import {
+  evaluateThreeWayMatch,
+  normalizeInvoiceNumber,
+  LIVE_INVOICE_STATUSES,
+  SERVICE_CATEGORIES,
+  type MatchContext,
+} from "@/lib/procurement/threeWayMatch";
+
+export { evaluateThreeWayMatch, normalizeInvoiceNumber };
 
 export type SubmitInvoiceInput = {
   po_id: string;
@@ -36,143 +45,123 @@ export type RecordPaymentInput = {
   remarks?: string | null;
 };
 
-export function evaluateThreeWayMatch(
-  po: { total_value: number; status: string; type?: string },
-  grn: { accepted_value: number; status: string } | null,
-  invoiceAmount: number,
-  isServicePo = false,
-  serviceCertUrl?: string | null,
-): { matchStatus: "matched" | "on_hold"; holdReason: string | null } {
-  const invAmt = Number(invoiceAmount) || 0;
-  const poVal = Number(po.total_value) || 0;
-
-  // Service PO exception per SOP §I2
-  if (isServicePo && serviceCertUrl && serviceCertUrl.trim()) {
-    if (invAmt > poVal + 1) {
-      return {
-        matchStatus: "on_hold",
-        holdReason: `Invoice amount ₹${invAmt.toLocaleString("en-IN")} exceeds service purchase order value ₹${poVal.toLocaleString("en-IN")}.`,
-      };
-    }
-    return { matchStatus: "matched", holdReason: null };
-  }
-
-  // Regular goods PO requires accepted GRN
-  if (!grn) {
-    return {
-      matchStatus: "on_hold",
-      holdReason: "Three-way match pending: No Goods Receipt Note (GRN) linked to this invoice.",
-    };
-  }
-
-  if (grn.status !== "accepted" && grn.status !== "partially_accepted") {
-    return {
-      matchStatus: "on_hold",
-      holdReason: `Three-way match failed: Goods Receipt Note is "${grn.status}", not accepted.`,
-    };
-  }
-
-  const grnAccepted = Number(grn.accepted_value) || 0;
-
-  if (invAmt > grnAccepted + 1) {
-    return {
-      matchStatus: "on_hold",
-      holdReason: `Three-way match failed: Invoice amount (₹${invAmt.toLocaleString("en-IN")}) exceeds accepted goods value (₹${grnAccepted.toLocaleString("en-IN")}) per GRN.`,
-    };
-  }
-
-  if (invAmt > poVal + 1) {
-    return {
-      matchStatus: "on_hold",
-      holdReason: `Three-way match failed: Invoice amount (₹${invAmt.toLocaleString("en-IN")}) exceeds Purchase Order total (₹${poVal.toLocaleString("en-IN")}).`,
-    };
-  }
-
-  return { matchStatus: "matched", holdReason: null };
+/** Loads PO total, accepted GRN value and other live invoices for a PO (service-role client). */
+async function loadMatchContext(
+  admin: any,
+  poId: string,
+  opts: { excludeInvoiceId?: string; isServicePo?: boolean; serviceCertUrl?: string | null },
+): Promise<MatchContext & { poNumber: string; vendorId: string; isServiceCategory: boolean }> {
+  const [{ data: po }, { data: grns }, { data: invoices }] = await Promise.all([
+    admin
+      .from("purchase_orders")
+      .select("id, po_number, vendor_id, total_value, purchase_requisitions (category)")
+      .eq("id", poId)
+      .single(),
+    admin.from("grns").select("accepted_value, status").eq("po_id", poId),
+    admin.from("invoices").select("id, invoice_amount, match_status").eq("po_id", poId),
+  ]);
+  const isServiceCategory = SERVICE_CATEGORIES.includes(po?.purchase_requisitions?.category);
+  return {
+    poNumber: po?.po_number,
+    vendorId: po?.vendor_id,
+    isServiceCategory,
+    poTotal: Number(po?.total_value || 0),
+    acceptedGrnTotal: (grns ?? [])
+      .filter((g: any) => g.status === "accepted" || g.status === "partially_accepted")
+      .reduce((s: number, g: any) => s + Number(g.accepted_value || 0), 0),
+    otherInvoiced: (invoices ?? [])
+      .filter(
+        (i: any) =>
+          i.id !== opts.excludeInvoiceId && LIVE_INVOICE_STATUSES.includes(i.match_status),
+      )
+      .reduce((s: number, i: any) => s + Number(i.invoice_amount || 0), 0),
+    serviceException: !!(isServiceCategory && opts.isServicePo && opts.serviceCertUrl?.trim()),
+  };
 }
 
 export const submitInvoice = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: SubmitInvoiceInput) => input)
   .handler(async ({ data, context }) => {
-    const db = context.supabase as any;
-
-    // 1. Fetch PO details
-    const { data: po, error: poErr } = await db
-      .from("purchase_orders")
-      .select("id, po_number, vendor_id, total_value, status, type")
-      .eq("id", data.po_id)
-      .single();
-
-    if (poErr || !po) {
-      return { ok: false as const, error: "Purchase Order not found", code: "po_not_found" };
-    }
-
-    const effectiveVendorId = data.vendor_id || po.vendor_id;
-
-    // 2. Duplicate invoice number check against this vendor
-    const { data: dup } = await db
-      .from("invoices")
-      .select("id, invoice_number")
-      .eq("vendor_id", effectiveVendorId)
-      .eq("invoice_number", data.invoice_number.trim())
-      .maybeSingle();
-
-    if (dup) {
+    const { getCallerRoles } = await import("@/server/procurement/roles");
+    const held = (await getCallerRoles(context.supabase as any, context.userId)).map((r) => r.role);
+    if (
+      !["admin", "finance", "director_admin_finance", "procurement_officer"].some((r) =>
+        held.includes(r),
+      )
+    ) {
       return {
         ok: false as const,
-        error: `Duplicate invoice detected: Invoice "${data.invoice_number}" has already been submitted for this vendor.`,
+        error: "Only Finance or the procurement team can submit invoices.",
+        code: "forbidden",
+      };
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const invoiceNumber = normalizeInvoiceNumber(data.invoice_number);
+    if (!invoiceNumber)
+      return { ok: false as const, error: "Enter the invoice number.", code: "invalid_input" };
+
+    const ctx = await loadMatchContext(supabaseAdmin, data.po_id, {
+      isServicePo: data.is_service_po,
+      serviceCertUrl: data.service_completion_cert_url,
+    });
+    if (!ctx.poNumber)
+      return { ok: false as const, error: "Purchase Order not found", code: "po_not_found" };
+    if (data.is_service_po && !ctx.isServiceCategory) {
+      return {
+        ok: false as const,
+        error: `${ctx.poNumber} is not a services order, so a completion certificate can't replace the goods receipt.`,
+        code: "not_service_po",
+      };
+    }
+
+    // Duplicate invoice number for this vendor (ignoring case and invisible characters).
+    const { data: vendorInvoices } = await supabaseAdmin
+      .from("invoices")
+      .select("invoice_number")
+      .eq("vendor_id", ctx.vendorId);
+    if (
+      (vendorInvoices ?? []).some(
+        (i: any) => normalizeInvoiceNumber(i.invoice_number) === invoiceNumber,
+      )
+    ) {
+      return {
+        ok: false as const,
+        error: `Invoice "${invoiceNumber}" has already been submitted for this vendor.`,
         code: "duplicate_invoice_number",
       };
     }
 
-    // 3. Fetch GRN if provided
-    let grnData: any = null;
-    if (data.grn_id) {
-      const { data: grn } = await db
+    const { matchStatus, holdReason } = evaluateThreeWayMatch(ctx, data.invoice_amount);
+
+    // Link the most recent accepted GRN for reference (the match itself is cumulative).
+    let grnId = data.grn_id ?? null;
+    if (!grnId && !ctx.serviceException) {
+      const { data: latest } = await supabaseAdmin
         .from("grns")
-        .select("id, accepted_value, status")
-        .eq("id", data.grn_id)
-        .maybeSingle();
-      grnData = grn;
-    } else {
-      // Find latest accepted GRN for this PO if not explicitly passed
-      const { data: latestGrn } = await db
-        .from("grns")
-        .select("id, accepted_value, status")
+        .select("id")
         .eq("po_id", data.po_id)
+        .in("status", ["accepted", "partially_accepted"])
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      grnData = latestGrn;
+      grnId = latest?.id ?? null;
     }
 
-    // 4. Run Three-Way Match Engine
-    const { matchStatus, holdReason } = evaluateThreeWayMatch(
-      po,
-      grnData,
-      data.invoice_amount,
-      data.is_service_po ?? false,
-      data.service_completion_cert_url,
-    );
-
-    // 5. Insert Invoice
-    // Use service-role client to bypass RLS INSERT restriction on invoices.
-    // All business gates (duplicate check, 3-way match) are enforced above in application code.
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: invoice, error: insErr } = await supabaseAdmin
       .from("invoices")
       .insert({
         po_id: data.po_id,
-        vendor_id: effectiveVendorId,
-        grn_id: grnData?.id ?? data.grn_id ?? null,
-        invoice_number: data.invoice_number.trim(),
+        vendor_id: ctx.vendorId,
+        grn_id: grnId,
+        invoice_number: invoiceNumber,
         invoice_amount: Number(data.invoice_amount) || 0,
         gst_details_json: data.gst_details_json ?? {},
         is_duplicate_check_passed: true,
         match_status: matchStatus,
         hold_reason: holdReason,
-        is_service_po: data.is_service_po ?? false,
+        is_service_po: ctx.serviceException,
         service_completion_cert_url: data.service_completion_cert_url ?? null,
         submitted_by: context.userId,
       })
@@ -181,44 +170,34 @@ export const submitInvoice = createServerFn({ method: "POST" })
 
     if (insErr) return { ok: false as const, error: insErr.message, code: "insert_invoice_failed" };
 
-    return {
-      ok: true as const,
-      invoice,
-      matchStatus,
-      holdReason,
-    };
+    return { ok: true as const, invoice, matchStatus, holdReason };
   });
 
 export const runThreeWayMatch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: { invoice_id: string }) => input)
-  .handler(async ({ data, context }) => {
-    const db = context.supabase as any;
-
-    const { data: inv, error: invErr } = await db
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: inv } = await supabaseAdmin
       .from("invoices")
-      .select(
-        `
-        *,
-        purchase_orders (id, total_value, status, type),
-        grns (id, accepted_value, status)
-      `,
-      )
+      .select("id, po_id, invoice_amount, match_status, is_service_po, service_completion_cert_url")
       .eq("id", data.invoice_id)
       .single();
+    if (!inv) return { ok: false as const, error: "Invoice not found" };
+    if (inv.match_status === "approved" || inv.match_status === "paid") {
+      return {
+        ok: false as const,
+        error: `This invoice is already ${inv.match_status}; it can't be re-matched.`,
+      };
+    }
 
-    if (invErr || !inv) return { ok: false as const, error: "Invoice not found" };
+    const ctx = await loadMatchContext(supabaseAdmin, inv.po_id, {
+      excludeInvoiceId: inv.id,
+      isServicePo: inv.is_service_po,
+      serviceCertUrl: inv.service_completion_cert_url,
+    });
+    const { matchStatus, holdReason } = evaluateThreeWayMatch(ctx, inv.invoice_amount);
 
-    const { matchStatus, holdReason } = evaluateThreeWayMatch(
-      inv.purchase_orders,
-      inv.grns,
-      inv.invoice_amount,
-      inv.is_service_po,
-      inv.service_completion_cert_url,
-    );
-
-    // Use service-role client: direct UPDATE on invoices is denied for authenticated users.
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error: upErr } = await supabaseAdmin
       .from("invoices")
       .update({
@@ -227,7 +206,6 @@ export const runThreeWayMatch = createServerFn({ method: "POST" })
         updated_at: new Date().toISOString(),
       })
       .eq("id", inv.id);
-
     if (upErr) return { ok: false as const, error: upErr.message };
 
     return { ok: true as const, matchStatus, holdReason };
@@ -257,23 +235,47 @@ export const approveInvoice = createServerFn({ method: "POST" })
 
     const { data: inv, error: invErr } = await db
       .from("invoices")
-      .select("id, invoice_number, match_status, hold_reason, invoice_amount")
+      .select(
+        "id, po_id, invoice_number, match_status, hold_reason, invoice_amount, is_service_po, service_completion_cert_url",
+      )
       .eq("id", data.invoice_id)
       .single();
 
     if (invErr || !inv) return { ok: false as const, error: "Invoice not found" };
 
-    // Strict Gate: Cannot approve invoice if not matched
     if (inv.match_status !== "matched") {
       return {
         ok: false as const,
-        error: `Cannot approve invoice "${inv.invoice_number}": Three-way match is "${inv.match_status}". Reason: ${inv.hold_reason || "Discrepancy detected between PO, GRN, and Invoice."}`,
+        error:
+          `Invoice "${inv.invoice_number}" can't be approved while it is "${inv.match_status}". ${inv.hold_reason || ""}`.trim(),
         code: "three_way_match_not_passed",
       };
     }
 
-    // Use service-role client: direct UPDATE on invoices is denied for authenticated users.
+    // Re-run the match on current data: the PO may have been amended or other invoices paid since.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const ctx = await loadMatchContext(supabaseAdmin, inv.po_id, {
+      excludeInvoiceId: inv.id,
+      isServicePo: inv.is_service_po,
+      serviceCertUrl: inv.service_completion_cert_url,
+    });
+    const recheck = evaluateThreeWayMatch(ctx, inv.invoice_amount);
+    if (recheck.matchStatus !== "matched") {
+      await supabaseAdmin
+        .from("invoices")
+        .update({
+          match_status: "on_hold",
+          hold_reason: recheck.holdReason,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", inv.id);
+      return {
+        ok: false as const,
+        error: `Invoice "${inv.invoice_number}" no longer matches and was put on hold: ${recheck.holdReason}`,
+        code: "three_way_match_not_passed",
+      };
+    }
+
     const { error: upErr } = await supabaseAdmin
       .from("invoices")
       .update({
@@ -300,7 +302,11 @@ export const recordPayment = createServerFn({ method: "POST" })
     const roles = await getCallerRoles(db, context.userId);
     const held = roles.map((r) => r.role);
 
-    if (!held.includes("admin") && !held.includes("director_admin_finance") && !held.includes("finance")) {
+    if (
+      !held.includes("admin") &&
+      !held.includes("director_admin_finance") &&
+      !held.includes("finance")
+    ) {
       throw new ForbiddenError(
         `Recording payment requires Finance role authorization. You hold: ${held.join(", ") || "none"}.`,
       );
@@ -324,6 +330,13 @@ export const recordPayment = createServerFn({ method: "POST" })
     }
 
     const paymentAmount = Number(data.amount) || Number(inv.invoice_amount) || 0;
+    if (Math.abs(paymentAmount - Number(inv.invoice_amount)) > 1) {
+      return {
+        ok: false as const,
+        error: `Payment must equal the approved invoice amount of Rs. ${Number(inv.invoice_amount).toLocaleString("en-IN")} (entered Rs. ${paymentAmount.toLocaleString("en-IN")}).`,
+        code: "payment_amount_mismatch",
+      };
+    }
 
     // Service-role client: both payments INSERT and invoices UPDATE are blocked for authenticated users.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -350,7 +363,6 @@ export const recordPayment = createServerFn({ method: "POST" })
       .from("invoices")
       .update({ match_status: "paid", updated_at: new Date().toISOString() })
       .eq("id", inv.id);
-
 
     // 3. Check PO settlement and close PO if fully invoiced
     if (inv.po_id) {

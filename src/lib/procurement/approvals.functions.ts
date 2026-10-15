@@ -50,15 +50,14 @@ export const getMyPendingApprovals = createServerFn({ method: "GET" })
       roles.filter((r) => r.department_id).forEach((r) => hodDeptIds.add(r.department_id));
     }
 
-    const prs = isAdmin
-      ? prsRaw
-      : (prsRaw ?? []).filter((p: any) => {
+    // Nobody is shown items they raised/created themselves — another approver must decide them.
+    const prs = (isAdmin ? (prsRaw ?? []) : (prsRaw ?? []).filter((p: any) => {
           if (p.current_approver_role === "hod") {
             const deptId = p.department_id;
             return deptId && hodDeptIds.has(deptId);
           }
           return true;
-        });
+        })).filter((p: any) => p.requested_by !== context.userId);
 
     // 2. Pending Comparative Statements
     let csQuery = queryDb
@@ -80,7 +79,8 @@ export const getMyPendingApprovals = createServerFn({ method: "GET" })
     if (!isAdmin) {
       csQuery = csQuery.in("current_approver_role", held);
     }
-    const { data: css, error: csErr } = await csQuery;
+    const { data: cssRaw, error: csErr } = await csQuery;
+    const css = (cssRaw ?? []).filter((c: any) => c.prepared_by !== context.userId);
 
     // 3. Pending Purchase Orders
     let poQuery = queryDb
@@ -100,17 +100,15 @@ export const getMyPendingApprovals = createServerFn({ method: "GET" })
       poQuery = poQuery.in("current_approver_role", held);
     }
     const { data: posRaw, error: poErr } = await poQuery;
-    const pos = isAdmin
-      ? posRaw
-      : (posRaw ?? []).filter((p: any) => {
+    const pos = (isAdmin ? (posRaw ?? []) : (posRaw ?? []).filter((p: any) => {
           if (p.current_approver_role === "hod") {
             const deptId = p.department_id || p.purchase_requisitions?.departments?.id || p.purchase_requisitions?.department_id;
             // If the HOD has specific department(s) configured, filter by it.
             // If hodDeptIds has items, match against them; if user holds HOD and no department restriction is set, allow viewing.
-            return hodDeptIds.size > 0 ? (deptId && hodDeptIds.has(deptId)) : true;
+            return Boolean(deptId && hodDeptIds.has(deptId));
           }
           return true;
-        });
+        })).filter((p: any) => p.created_by !== context.userId);
 
     // 4. Pending PO Amendments
     let amQuery = queryDb
@@ -131,7 +129,8 @@ export const getMyPendingApprovals = createServerFn({ method: "GET" })
     if (!isAdmin) {
       amQuery = amQuery.in("new_approver_role", held);
     }
-    const { data: amendments, error: amErr } = await amQuery;
+    const { data: amendmentsRaw, error: amErr } = await amQuery;
+    const amendments = (amendmentsRaw ?? []).filter((a: any) => a.created_by !== context.userId);
 
     // 5. Pending Invoices (Matched & awaiting approval by Finance / Procurement Officer)
     let invQuery = db

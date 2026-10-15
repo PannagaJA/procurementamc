@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { FilterSelect, statusFilterOptions, applyFilter } from "@/components/FilterSelect";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -64,12 +65,11 @@ export default function PurchaseOrders() {
   const { pagination, setPage, setPageSize, setTotal } = usePagination(10, 1);
   const [approvedCss, setApprovedCss] = useState<any[]>([]);
   const [rateContracts, setRateContracts] = useState<any[]>([]);
-  const [directPrs, setDirectPrs] = useState<any[]>([]);
   const [vendorsList, setVendorsList] = useState<any[]>([]);
   const [matrixRules, setMatrixRules] = useState<any[]>([]);
   const [approvedPrs, setApprovedPrs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<"active" | "history">("active");
+  const [statusFilter, setStatusFilter] = useState("active");
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -91,7 +91,7 @@ export default function PurchaseOrders() {
 
   // Create PO Modal
   const [createOpen, setCreateOpen] = useState(false);
-  const [poType, setPoType] = useState<"regular" | "rate_contract" | "direct_purchase">("regular");
+  const [poType, setPoType] = useState<"regular" | "rate_contract">("regular");
   const [selectedCsId, setSelectedCsId] = useState("");
   const [selectedRcId, setSelectedRcId] = useState("");
   const [selectedPrId, setSelectedPrId] = useState("");
@@ -183,7 +183,7 @@ export default function PurchaseOrders() {
         .order("created_at", { ascending: false });
       setRateContracts(rcData || []);
 
-      // Fetch approved direct PRs (<= 5000 or small_value category)
+      // Approved PRs without an active PO (for rate-contract orders)
       const { data: prData } = await supabase
         .from("purchase_requisitions")
         .select(
@@ -202,12 +202,6 @@ export default function PurchaseOrders() {
           .filter((o: any) => o.status !== "cancelled")
           .map((o: any) => o.pr_id),
       );
-      const eligiblePrs = (prData || []).filter(
-        (p: any) =>
-          (Number(p.estimated_value || 0) <= 5000 || p.category === "small_value") &&
-          !existingPoPrIds.has(p.id),
-      );
-      setDirectPrs(eligiblePrs);
       setApprovedPrs((prData || []).filter((p: any) => !existingPoPrIds.has(p.id)));
 
       // Fetch empanelled / active vendors
@@ -259,24 +253,6 @@ export default function PurchaseOrders() {
     }
   }, [selectedCsId, selectedRcId, poType, approvedCss, rateContracts]);
 
-  // When direct PR selection changes in Create PO Modal
-  useEffect(() => {
-    if (poType === "direct_purchase" && selectedPrId) {
-      const pr = directPrs.find((p) => p.id === selectedPrId);
-      if (pr) {
-        setPrice(Number(pr.estimated_value || 0));
-        setTaxes(0);
-        const itemDescriptions = (pr.pr_line_items || [])
-          .map((i: any) => `${i.description} (Qty: ${i.net_qty_to_procure ?? 1})`)
-          .join(", ");
-        setScopeOfSupply(
-          itemDescriptions
-            ? `Direct procurement: ${itemDescriptions}`
-            : `Direct procurement as per PR ${pr.pr_number}`,
-        );
-      }
-    }
-  }, [selectedPrId, poType, directPrs]);
 
   const handleCreatePo = async () => {
     if (!selectedPrId || !selectedVendorId || Number(price) <= 0) {
@@ -570,6 +546,12 @@ export default function PurchaseOrders() {
     }
   };
 
+  const poFilterOptions = statusFilterOptions(orders, (o: any) => o.status, [
+    "closed",
+    "cancelled",
+    "partially_closed",
+  ]);
+
   return (
     <Layout>
       <div className="max-w-6xl mx-auto space-y-6 pb-12">
@@ -611,31 +593,16 @@ export default function PurchaseOrders() {
           </div>
         </div>
 
-        {/* Active / History Filter */}
-        <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
-          <Button
-            variant={statusFilter === "active" ? "default" : "outline"}
-            size="sm"
-            onClick={() => { setStatusFilter("active"); setPage(1); }}
-            className="text-xs h-8 gap-1.5"
-          >
-            Active Orders
-            <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
-              {orders.filter((o) => !["closed", "cancelled", "partially_closed"].includes(o.status)).length}
-            </Badge>
-          </Button>
-          <Button
-            variant={statusFilter === "history" ? "default" : "outline"}
-            size="sm"
-            onClick={() => { setStatusFilter("history"); setPage(1); }}
-            className="text-xs h-8 gap-1.5 text-slate-600 dark:text-slate-400"
-          >
-            History
-            <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
-              {orders.filter((o) => ["closed", "cancelled", "partially_closed"].includes(o.status)).length}
-            </Badge>
-          </Button>
-        </div>
+        {/* Status filter */}
+        <FilterSelect
+          value={statusFilter}
+          onChange={(v) => {
+            setStatusFilter(v);
+            setPage(1);
+          }}
+          options={poFilterOptions}
+          title="Filter purchase orders"
+        />
 
         {/* PO List */}
         <div className="space-y-4">
@@ -649,9 +616,13 @@ export default function PurchaseOrders() {
             </Card>
           ) : (
             (() => {
-              const filteredOrders = statusFilter === "history"
-                ? orders.filter((o) => ["closed", "cancelled", "partially_closed"].includes(o.status))
-                : orders.filter((o) => !["closed", "cancelled", "partially_closed"].includes(o.status));
+              const filteredOrders = applyFilter(orders, poFilterOptions, statusFilter);
+              if (filteredOrders.length === 0)
+                return (
+                  <Card className="text-center p-8 text-sm text-muted-foreground">
+                    No purchase orders match this filter. Choose History or All to see others.
+                  </Card>
+                );
               const startIndex = (pagination.page - 1) * pagination.pageSize;
               const paginatedOrders = filteredOrders.slice(startIndex, startIndex + pagination.pageSize);
               return (
@@ -879,9 +850,9 @@ export default function PurchaseOrders() {
 
                   <PaginationControls
                     currentPage={pagination.page}
-                    totalPages={pagination.totalPages}
+                    totalPages={Math.max(1, Math.ceil(filteredOrders.length / pagination.pageSize))}
                     pageSize={pagination.pageSize}
-                    totalItems={pagination.total}
+                    totalItems={filteredOrders.length}
                     currentItemsCount={paginatedOrders.length}
                     onPageChange={setPage}
                     onPageSizeChange={setPageSize}
@@ -912,12 +883,12 @@ export default function PurchaseOrders() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="regular">Regular Order (Approved CS)</SelectItem>
-                      <SelectItem value="direct_purchase">
-                        Direct Purchase (≤ ₹5,000 / Small Value PR)
-                      </SelectItem>
                       <SelectItem value="rate_contract">Rate Contract Order</SelectItem>
                     </SelectContent>
                   </Select>
+                  <p className="text-[11px] text-muted-foreground">
+                    Direct purchases are awarded from the RFQ page after vendors quote.
+                  </p>
                 </div>
 
                 {poType === "regular" && (
@@ -966,30 +937,6 @@ export default function PurchaseOrders() {
                   </div>
                 )}
 
-                {poType === "direct_purchase" && (
-                  <div className="space-y-1">
-                    <Label>Approved Purchase Requisition (≤ ₹5,000)</Label>
-                    <Select value={selectedPrId} onValueChange={setSelectedPrId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select Approved PR..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {directPrs.length === 0 ? (
-                          <SelectItem value="none" disabled>
-                            No approved low-value PRs found
-                          </SelectItem>
-                        ) : (
-                          directPrs.map((pr) => (
-                            <SelectItem key={pr.id} value={pr.id}>
-                              {pr.pr_number} — {pr.departments?.name || "Dept"} (₹
-                              {Number(pr.estimated_value).toLocaleString("en-IN")})
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
               </div>
 
               {poType === "rate_contract" && (
@@ -1026,29 +973,6 @@ export default function PurchaseOrders() {
                 </div>
               )}
 
-              {poType === "direct_purchase" && (
-                <div className="space-y-1">
-                  <Label>Select Empanelled Vendor *</Label>
-                  <Select value={selectedVendorId} onValueChange={setSelectedVendorId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Empanelled Vendor..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {vendorsList.length === 0 ? (
-                        <SelectItem value="none" disabled>
-                          No empanelled vendors found
-                        </SelectItem>
-                      ) : (
-                        vendorsList.map((v) => (
-                          <SelectItem key={v.id} value={v.id}>
-                            {v.name} {v.gst_number ? `(${v.gst_number})` : ""}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
 
               <div className="space-y-1">
                 <Label>Scope of Supply / Order Description</Label>
@@ -1083,23 +1007,11 @@ export default function PurchaseOrders() {
 
               <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg flex items-center justify-between text-xs">
                 <span className="font-medium text-slate-500">Calculated Total PO Value:</span>
-                <span className="font-mono font-bold text-base text-slate-900 dark:text-white">
+                <span className="font-mono font-bold whitespace-nowrap text-base text-slate-900 dark:text-white">
                   ₹{(Number(price) + Number(taxes)).toLocaleString("en-IN")}
                 </span>
               </div>
 
-              {poType === "direct_purchase" && (
-                <div className="p-2.5 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 flex items-center justify-between text-xs">
-                  <span className="font-medium text-blue-700 dark:text-blue-300">
-                    Target Approval Authority:
-                  </span>
-                  <Badge className="bg-blue-600 text-white font-bold uppercase text-[11px]">
-                    {Number(price) + Number(taxes) <= 2000
-                      ? `${directPrs.find((p) => p.id === selectedPrId)?.departments?.name || "Dept"} HOD (≤ ₹2,000)`
-                      : "Principal (≤ ₹5,000)"}
-                  </Badge>
-                </div>
-              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
@@ -1157,7 +1069,7 @@ export default function PurchaseOrders() {
             <div className="space-y-4 py-2">
               <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded text-xs">
                 <span className="text-slate-500 block">Current Total Value:</span>
-                <span className="font-mono font-bold text-sm text-slate-800 dark:text-slate-200">
+                <span className="font-mono font-bold whitespace-nowrap text-sm text-slate-800 dark:text-slate-200">
                   ₹
                   {(Number(activePo?.price || 0) + Number(activePo?.taxes || 0)).toLocaleString(
                     "en-IN",

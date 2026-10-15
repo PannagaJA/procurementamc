@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { FilterSelect } from "@/components/FilterSelect";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getMyPendingApprovals, getMyApprovalHistory } from "@/lib/procurement/approvals.functions";
 import { approvePr, rejectPr, escalateToEvp } from "@/lib/procurement/pr.functions";
 import { approveCs, rejectCs } from "@/lib/procurement/cs.functions";
-import { approvePo } from "@/lib/procurement/po.functions";
+import { approvePo, rejectPo } from "@/lib/procurement/po.functions";
 import { approveInvoice } from "@/lib/procurement/invoice.functions";
 import { approveEmergency } from "@/lib/procurement/emergency.functions";
 import {
@@ -66,7 +67,9 @@ export default function MyApprovals() {
     | "cs_approve"
     | "cs_reject"
     | "po_approve"
+    | "po_reject"
     | "am_approve"
+    | "am_reject"
     | "inv_approve"
     | "ep_approve"
     | "ep_reject"
@@ -174,6 +177,25 @@ export default function MyApprovals() {
         toast({
           title: "Purchase Order Approved",
           description: `PO ${activeItem.po_number} approved.`,
+        });
+      } else if (dialogType === "po_reject" || dialogType === "am_reject") {
+        // An amendment awaiting re-approval is decided on its purchase order.
+        const poId = dialogType === "am_reject" ? activeItem.po_id : activeItem.id;
+        const res = await (rejectPo as any)({ data: { po_id: poId, remarks } });
+        if (!res.ok) throw new Error(res.error);
+        toast({
+          title: dialogType === "am_reject" ? "Amendment Rejected" : "Purchase Order Rejected",
+          description:
+            res.status === "amendment_rejected"
+              ? "The order is back to its previous value."
+              : "The purchase order was cancelled.",
+        });
+      } else if (dialogType === "am_approve") {
+        const res = await (approvePo as any)({ data: { po_id: activeItem.po_id, remarks } });
+        if (!res.ok) throw new Error(res.error);
+        toast({
+          title: "Amendment Approved",
+          description: `${activeItem.purchase_orders?.po_number ?? "Order"} approved at the new value.`,
         });
       } else if (dialogType === "inv_approve") {
         const res = await (approveInvoice as any)({ data: { invoice_id: activeItem.id, remarks } });
@@ -333,94 +355,18 @@ export default function MyApprovals() {
 
         {/* Tabs for PR, CS, PO, Amendments, Invoices, Emergency */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          {/* Filter Bar with Filter Button Dropdown + Filter Option Buttons */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-100/90 dark:bg-slate-900/90 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
-            {/* Filter Dropdown Button */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="gap-2 bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-700 font-semibold shadow-sm text-xs h-9 justify-between md:justify-start"
-                >
-                  <span className="flex items-center gap-1.5">
-                    <Filter className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    <span className="text-slate-500 font-normal">Filter:</span>
-                    <strong className="text-slate-900 dark:text-white font-semibold">
-                      {filterOptions.find((f) => f.id === activeTab)?.fullLabel || "All"}
-                    </strong>
-                  </span>
-                  <Badge variant="secondary" className="px-1.5 py-0 text-[11px] ml-1">
-                    {filterOptions.find((f) => f.id === activeTab)?.count ?? 0}
-                  </Badge>
-                  <ChevronDown className="w-3.5 h-3.5 opacity-60 ml-0.5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-64 p-1.5 shadow-lg">
-                <DropdownMenuLabel className="text-xs text-slate-500 font-semibold px-2 py-1.5">
-                  Filter by Category
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {filterOptions.map((opt) => {
-                  const Icon = opt.icon;
-                  const isSelected = activeTab === opt.id;
-                  return (
-                    <DropdownMenuItem
-                      key={opt.id}
-                      onClick={() => setActiveTab(opt.id)}
-                      className={`gap-2.5 cursor-pointer py-2 px-2.5 rounded-lg text-xs font-medium ${
-                        isSelected
-                          ? "bg-slate-100 dark:bg-slate-800 font-bold text-slate-900 dark:text-white"
-                          : ""
-                      }`}
-                    >
-                      <Icon className={`w-4 h-4 ${opt.color}`} />
-                      <span className="flex-1">{opt.fullLabel}</span>
-                      <Badge
-                        variant={isSelected ? "default" : "secondary"}
-                        className="text-[10px] px-1.5 py-0"
-                      >
-                        {opt.count}
-                      </Badge>
-                    </DropdownMenuItem>
-                  );
-                })}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Quick Filter Buttons */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
-              {filterOptions.map((opt) => {
-                const Icon = opt.icon;
-                const isSelected = activeTab === opt.id;
-                return (
-                  <Button
-                    key={opt.id}
-                    variant={isSelected ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setActiveTab(opt.id)}
-                    className={`text-xs h-8 px-2.5 gap-1.5 whitespace-nowrap rounded-lg transition-all ${
-                      isSelected
-                        ? "shadow-sm font-semibold"
-                        : "bg-white/80 dark:bg-slate-950/80 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700"
-                    }`}
-                  >
-                    <Icon className={`w-3.5 h-3.5 ${isSelected ? "text-white" : opt.color}`} />
-                    <span>{opt.label}</span>
-                    <Badge
-                      variant={isSelected ? "secondary" : "outline"}
-                      className={`px-1.5 py-0 text-[10px] ml-0.5 ${
-                        isSelected
-                          ? "bg-white/20 text-white border-transparent"
-                          : "border-slate-300 dark:border-slate-700"
-                      }`}
-                    >
-                      {opt.count}
-                    </Badge>
-                  </Button>
-                );
-              })}
-            </div>
-          </div>
+          <FilterSelect
+            value={activeTab}
+            onChange={setActiveTab}
+            options={filterOptions.map((o) => ({
+              id: o.id,
+              label: o.fullLabel,
+              count: o.count,
+              icon: o.icon,
+              color: o.color,
+            }))}
+            title="Show approvals for"
+          />
 
           {/* Requisitions Tab */}
           <TabsContent value="prs" className="space-y-3">
@@ -435,8 +381,8 @@ export default function MyApprovals() {
                 <Card key={pr.id} className="border border-slate-200 dark:border-slate-800">
                   <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold">{pr.pr_number}</span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono font-bold whitespace-nowrap">{pr.pr_number}</span>
                         <Badge variant="outline">{pr.category}</Badge>
                         <Badge variant="secondary">{pr.status.toUpperCase()}</Badge>
                       </div>
@@ -445,7 +391,7 @@ export default function MyApprovals() {
                         {Number(pr.estimated_value).toLocaleString("en-IN")}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(pr, "pr_approve")}
@@ -503,8 +449,8 @@ export default function MyApprovals() {
                 <Card key={cs.id} className="border border-slate-200 dark:border-slate-800">
                   <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold">{cs.cs_number}</span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono font-bold whitespace-nowrap">{cs.cs_number}</span>
                         <Badge variant="outline">
                           {cs.is_lowest_price ? "L1 Lowest" : "Non-Lowest Quote"}
                         </Badge>
@@ -517,7 +463,7 @@ export default function MyApprovals() {
                         • Total: ₹{Number(cs.recommended_total).toLocaleString("en-IN")}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(cs, "cs_approve")}
@@ -567,8 +513,8 @@ export default function MyApprovals() {
                 <Card key={po.id} className="border border-slate-200 dark:border-slate-800">
                   <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold">{po.po_number}</span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono font-bold whitespace-nowrap">{po.po_number}</span>
                         <Badge variant="outline">{po.type.toUpperCase()}</Badge>
                       </div>
                       <p className="text-xs text-slate-500 mt-1">
@@ -580,13 +526,21 @@ export default function MyApprovals() {
                         {(Number(po.price || 0) + Number(po.taxes || 0)).toLocaleString("en-IN")}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(po, "po_approve")}
                         className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
                       >
                         <CheckCircle className="w-3.5 h-3.5" /> Approve PO
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleOpenAction(po, "po_reject")}
+                        className="gap-1"
+                      >
+                        <XCircle className="w-3.5 h-3.5" /> Reject
                       </Button>
                     </div>
                   </CardHeader>
@@ -620,8 +574,8 @@ export default function MyApprovals() {
                 <Card key={am.id} className="border border-slate-200 dark:border-slate-800">
                   <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono font-bold whitespace-nowrap">
                           {am.purchase_orders?.po_number} Amendment
                         </span>
                         <Badge variant="outline" className="text-purple-700 border-purple-400">
@@ -634,13 +588,21 @@ export default function MyApprovals() {
                         {Number(am.new_value_total).toLocaleString("en-IN")}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(am, "am_approve")}
                         className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
                       >
                         <CheckCircle className="w-3.5 h-3.5" /> Approve Amendment
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleOpenAction(am, "am_reject")}
+                        className="gap-1"
+                      >
+                        <XCircle className="w-3.5 h-3.5" /> Reject
                       </Button>
                     </div>
                   </CardHeader>
@@ -668,8 +630,8 @@ export default function MyApprovals() {
                 <Card key={inv.id} className="border border-slate-200 dark:border-slate-800">
                   <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold">Invoice: {inv.invoice_number}</span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono font-bold whitespace-nowrap">Invoice: {inv.invoice_number}</span>
                         <Badge variant="outline" className="text-emerald-700 border-emerald-400">
                           3-Way Matched
                         </Badge>
@@ -679,7 +641,7 @@ export default function MyApprovals() {
                         ₹{Number(inv.invoice_amount).toLocaleString("en-IN")}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(inv, "inv_approve")}
@@ -707,8 +669,8 @@ export default function MyApprovals() {
                 <Card key={ep.id} className="border border-slate-200 dark:border-slate-800">
                   <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold">{ep.emergency_number}</span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono font-bold whitespace-nowrap">{ep.emergency_number}</span>
                         <Badge variant="outline" className="text-amber-700 border-amber-400">
                           {ep.is_post_facto ? "Post-Facto Ratification" : "Emergency Request"}
                         </Badge>
@@ -718,7 +680,7 @@ export default function MyApprovals() {
                         {Number(ep.estimated_cost).toLocaleString("en-IN")}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(ep, "ep_approve")}
@@ -856,11 +818,11 @@ export default function MyApprovals() {
                       >
                         <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                           <div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                               <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
                                 PR
                               </Badge>
-                              <span className="font-mono font-bold">{pr.pr_number}</span>
+                              <span className="font-mono font-bold whitespace-nowrap">{pr.pr_number}</span>
                               <Badge variant="outline">{pr.category}</Badge>
                               <Badge
                                 variant={
@@ -908,11 +870,11 @@ export default function MyApprovals() {
                       >
                         <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                           <div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                               <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
                                 CS
                               </Badge>
-                              <span className="font-mono font-bold">{cs.cs_number}</span>
+                              <span className="font-mono font-bold whitespace-nowrap">{cs.cs_number}</span>
                               <Badge
                                 variant={
                                   isApproved ? "default" : isRejected ? "destructive" : "secondary"
@@ -951,11 +913,11 @@ export default function MyApprovals() {
                       >
                         <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                           <div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                               <Badge className="bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300">
                                 PO
                               </Badge>
-                              <span className="font-mono font-bold">{po.po_number}</span>
+                              <span className="font-mono font-bold whitespace-nowrap">{po.po_number}</span>
                               <Badge variant="outline">{po.vendors?.name || "Vendor"}</Badge>
                               <Badge
                                 variant={po.status === "issued" ? "default" : "secondary"}
@@ -993,11 +955,11 @@ export default function MyApprovals() {
                       >
                         <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                           <div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                               <Badge className="bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300">
                                 Invoice
                               </Badge>
-                              <span className="font-mono font-bold">{inv.invoice_number}</span>
+                              <span className="font-mono font-bold whitespace-nowrap">{inv.invoice_number}</span>
                               <Badge variant="outline">{inv.vendors?.name || "Vendor"}</Badge>
                               <Badge
                                 variant={inv.match_status === "paid" ? "default" : "secondary"}

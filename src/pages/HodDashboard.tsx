@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { FilterSelect, statusFilterOptions, applyFilter } from "@/components/FilterSelect";
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
@@ -98,7 +99,7 @@ const HodDashboard = () => {
   // PRs & Approvals state
   const [deptPrs, setDeptPrs] = useState<any[]>([]);
   const [loadingPrs, setLoadingPrs] = useState(false);
-  const [prFilter, setPrFilter] = useState<"active" | "history">("active");
+  const [prFilter, setPrFilter] = useState("active");
 
   const fetchTickets = useCallback(async () => {
     setLoading(true);
@@ -366,6 +367,8 @@ const HodDashboard = () => {
       </Layout>
     );
 
+  const prFilterOptions = statusFilterOptions(deptPrs, (p: any) => p.status, ["approved", "rejected", "closed"]);
+
   return (
     <Layout>
       <div className="container mx-auto py-6 px-4">
@@ -452,7 +455,7 @@ const HodDashboard = () => {
                       </td>
                       <td className="px-3 py-2 align-middle">
                         {t.sla?.respondDaysOver ? (
-                          <Badge className="bg-rose-100 text-rose-800">{`${t.sla.respondDaysOver}d overdue`}</Badge>
+                          <Badge className="bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300">{`${t.sla.respondDaysOver}d overdue`}</Badge>
                         ) : (
                           <span className="text-sm text-muted-foreground">
                             {t.sla?.respondByDisplay}
@@ -498,43 +501,13 @@ const HodDashboard = () => {
                     PRs
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant={prFilter === "active" ? "default" : "outline"}
-                    onClick={() => setPrFilter("active")}
-                    className="text-xs h-8 gap-1.5"
-                  >
-                    Active PRs
-                    <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
-                      {
-                        deptPrs.filter(
-                          (p) =>
-                            p.status !== "approved" &&
-                            p.status !== "rejected" &&
-                            p.status !== "closed",
-                        ).length
-                      }
-                    </Badge>
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant={prFilter === "history" ? "default" : "outline"}
-                    onClick={() => setPrFilter("history")}
-                    className="text-xs h-8 gap-1.5 text-slate-600 dark:text-slate-400"
-                  >
-                    History
-                    <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
-                      {
-                        deptPrs.filter(
-                          (p) =>
-                            p.status === "approved" ||
-                            p.status === "rejected" ||
-                            p.status === "closed",
-                        ).length
-                      }
-                    </Badge>
-                  </Button>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+                  <FilterSelect
+                    value={prFilter}
+                    onChange={setPrFilter}
+                    options={prFilterOptions}
+                    title="Filter requisitions"
+                  />
                   <Button
                     size="sm"
                     variant="outline"
@@ -553,20 +526,7 @@ const HodDashboard = () => {
                 </div>
               ) : (
                 (() => {
-                  const filtered =
-                    prFilter === "history"
-                      ? deptPrs.filter(
-                          (p) =>
-                            p.status === "approved" ||
-                            p.status === "rejected" ||
-                            p.status === "closed",
-                        )
-                      : deptPrs.filter(
-                          (p) =>
-                            p.status !== "approved" &&
-                            p.status !== "rejected" &&
-                            p.status !== "closed",
-                        );
+                  const filtered = applyFilter(deptPrs, prFilterOptions, prFilter);
 
                   if (filtered.length === 0) {
                     return (

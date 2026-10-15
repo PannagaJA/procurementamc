@@ -298,3 +298,14 @@ export function resolveApprover(
     requiresRateContract: highest.requires_rate_contract === true,
   };
 }
+
+/** Matrix methods for small-value buying that need no Comparative Statement. */
+export const DIRECT_PURCHASE_METHODS = ["direct_purchase", "small_value_po"];
+
+/**
+ * True when the resolved band is a direct / small-value purchase: the officer collects vendor
+ * quotes and awards the PO directly (no CS). Driven by approval_matrix_rules.method.
+ */
+export function isDirectPurchase(resolved: ResolvedApprover): boolean {
+  return !resolved.escalate && DIRECT_PURCHASE_METHODS.includes(resolved.rule?.method ?? "");
+}

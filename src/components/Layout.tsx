@@ -562,7 +562,7 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
                         <span className="truncate">Approve Tickets</span>
                       </div>
                       {pendingPrincipalCount > 0 && (
-                        <span className="inline-flex items-center justify-center min-w-[28px] h-6 px-2 rounded-full bg-red-100 text-red-800 text-xs font-semibold">
+                        <span className="inline-flex items-center justify-center min-w-[28px] h-6 px-2 rounded-full bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300 text-xs font-semibold">
                           {pendingPrincipalCount}
                         </span>
                       )}
@@ -926,7 +926,7 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
                     <span className="truncate">Approve Tickets</span>
                   </div>
                   {pendingPrincipalCount > 0 && (
-                    <span className="inline-flex items-center justify-center min-w-[28px] h-6 px-2 rounded-full bg-red-100 text-red-800 text-xs font-semibold">
+                    <span className="inline-flex items-center justify-center min-w-[28px] h-6 px-2 rounded-full bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300 text-xs font-semibold">
                       {pendingPrincipalCount}
                     </span>
                   )}

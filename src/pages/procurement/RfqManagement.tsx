@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { FilterSelect, statusFilterOptions, applyFilter } from "@/components/FilterSelect";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,8 +30,8 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   createRfq,
   sendRfq,
-  recordQuotationResponse,
   listRfqs,
+  awardDirectPurchase,
 } from "@/lib/procurement/rfq.functions";
 import {
   Send,
@@ -43,6 +44,7 @@ import {
   RefreshCw,
   Eye,
   Copy,
+  Award,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { computeVendorAccessToken } from "@/lib/quotationAuth";
@@ -55,7 +57,7 @@ export default function RfqManagement() {
   const [approvedPrs, setApprovedPrs] = useState<any[]>([]);
   const [empanelledVendors, setEmpanelledVendors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [rfqFilter, setRfqFilter] = useState<"active" | "history">("active");
+  const [rfqFilter, setRfqFilter] = useState("active");
 
   // Create RFQ Modal
   const [createOpen, setCreateOpen] = useState(false);
@@ -70,13 +72,13 @@ export default function RfqManagement() {
   const [selectedVendorIds, setSelectedVendorIds] = useState<string[]>([]);
   const [sending, setSending] = useState(false);
 
+  // Direct purchase award (no CS)
+  const [awardRfq, setAwardRfq] = useState<any>(null);
+  const [awardVendorId, setAwardVendorId] = useState("");
+  const [awardReason, setAwardReason] = useState("");
+  const [awarding, setAwarding] = useState(false);
+
   // Record Quote Modal
-  const [quoteOpen, setQuoteOpen] = useState(false);
-  const [quoteRfq, setQuoteRfq] = useState<any>(null);
-  const [quoteVendorId, setQuoteVendorId] = useState("");
-  const [quotationRef, setQuotationRef] = useState("");
-  const [quoteLines, setQuoteLines] = useState<any[]>([]);
-  const [recording, setRecording] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -146,6 +148,49 @@ export default function RfqManagement() {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
       setCreating(false);
+    }
+  };
+
+  /** One row per vendor that quoted: total, slowest line's delivery days, name. Lowest first. */
+  const quoteSummary = (rfq: any) => {
+    const byVendor = new Map<string, { vendorId: string; name: string; total: number; days: number }>();
+    for (const l of rfq?.quotation_lines ?? []) {
+      const name = rfq.rfq_vendors?.find((rv: any) => rv.vendor_id === l.vendor_id)?.vendors?.name ?? "Vendor";
+      const row = byVendor.get(l.vendor_id) ?? { vendorId: l.vendor_id, name, total: 0, days: 0 };
+      row.total += Number(l.total_price || 0);
+      row.days = Math.max(row.days, Number(l.delivery_days || 0));
+      byVendor.set(l.vendor_id, row);
+    }
+    return [...byVendor.values()].sort((a, b) => a.total - b.total);
+  };
+
+  const handleOpenAward = (rfq: any) => {
+    setAwardRfq(rfq);
+    setAwardVendorId(quoteSummary(rfq)[0]?.vendorId ?? "");
+    setAwardReason("");
+  };
+
+  const handleAward = async () => {
+    if (!awardRfq || !awardVendorId) return;
+    setAwarding(true);
+    try {
+      const res = await (awardDirectPurchase as any)({
+        data: { rfq_id: awardRfq.id, vendor_id: awardVendorId, justification: awardReason },
+      });
+      if (!res.ok) {
+        toast({ title: "Could not award", description: res.error, variant: "destructive" });
+        return;
+      }
+      toast({
+        title: "Purchase Order Created",
+        description: `${res.po.po_number} sent for ${String(res.po.current_approver_role).replace(/_/g, " ").toUpperCase()} approval.`,
+      });
+      setAwardRfq(null);
+      loadData();
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setAwarding(false);
     }
   };
 
@@ -271,95 +316,7 @@ export default function RfqManagement() {
     }
   };
 
-  const handleOpenRecordQuote = async (rfq: any, initialVendorId?: string) => {
-    setQuoteRfq(rfq);
-    setQuoteVendorId(initialVendorId || rfq.rfq_vendors?.[0]?.vendor_id || "");
-    setQuotationRef("");
-
-    // Fetch line items for this PR
-    const { data: items } = await supabase.from("pr_line_items").select("*").eq("pr_id", rfq.pr_id);
-
-    if (items && items.length > 0) {
-      setQuoteLines(
-        items.map((i) => ({
-          pr_line_item_id: i.id,
-          description: i.description,
-          quantity: Number(i.net_qty_to_procure) || 1,
-          unit: i.unit || "pcs",
-          unit_price: Number(i.est_unit_price) || 0,
-          tax_amount: 0,
-          delivery_days: 7,
-          warranty_months: 12,
-          meets_technical_spec: true,
-          technical_remarks: "",
-        })),
-      );
-    } else {
-      setQuoteLines([
-        {
-          description: rfq.purchase_requisitions?.justification || "Required items",
-          quantity: 1,
-          unit: "lot",
-          unit_price: Number(rfq.purchase_requisitions?.estimated_value) || 0,
-          tax_amount: 0,
-          delivery_days: 7,
-          warranty_months: 12,
-          meets_technical_spec: true,
-          technical_remarks: "",
-        },
-      ]);
-    }
-
-    setQuoteOpen(true);
-  };
-
-  const handleRecordQuote = async () => {
-    if (!quoteRfq || !quoteVendorId) {
-      toast({
-        title: "Select Vendor",
-        description: "Please select an invited vendor.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setRecording(true);
-    try {
-      const sanitizedLines = quoteLines.map((l) => ({
-        ...l,
-        quantity: typeof l.quantity === "number" ? l.quantity : (Number(l.quantity) || 1),
-        unit_price: typeof l.unit_price === "number" ? l.unit_price : (Number(l.unit_price) || 0),
-        tax_amount: typeof l.tax_amount === "number" ? l.tax_amount : (Number(l.tax_amount) || 0),
-        delivery_days: l.delivery_days === "" || l.delivery_days === null || l.delivery_days === undefined ? 7 : Number(l.delivery_days),
-        warranty_months: l.warranty_months === "" || l.warranty_months === null || l.warranty_months === undefined ? 12 : Number(l.warranty_months),
-      }));
-
-      const res = await (recordQuotationResponse as any)({
-        data: {
-          rfq_id: quoteRfq.id,
-          vendor_id: quoteVendorId,
-          quotation_ref: quotationRef,
-          lines: sanitizedLines,
-        },
-      });
-
-      if (!res.ok) {
-        toast({ title: "Failed to record quote", description: res.error, variant: "destructive" });
-        return;
-      }
-
-      toast({
-        title: "Quotation Recorded",
-        description: `Saved ${res.linesCount} quotation line items.`,
-      });
-      setQuoteOpen(false);
-      loadData();
-    } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
-    } finally {
-      setRecording(false);
-    }
-  };
+  const rfqFilterOptions = statusFilterOptions(rfqs, (r: any) => r.status, ["closed", "cancelled"]);
 
   return (
     <Layout>
@@ -379,7 +336,7 @@ export default function RfqManagement() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {(auth.hasRole("admin") ||
               auth.hasRole("procurement_officer") ||
               auth.hasRole("procurement_executive")) && (
@@ -393,31 +350,16 @@ export default function RfqManagement() {
           </div>
         </div>
 
-        {/* Active / History Filter */}
-        <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
-          <Button
-            variant={rfqFilter === "active" ? "default" : "outline"}
-            size="sm"
-            onClick={() => { setRfqFilter("active"); setPage(1); }}
-            className="text-xs h-8 gap-1.5"
-          >
-            Active RFQs
-            <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
-              {rfqs.filter((r) => r.status !== "closed").length}
-            </Badge>
-          </Button>
-          <Button
-            variant={rfqFilter === "history" ? "default" : "outline"}
-            size="sm"
-            onClick={() => { setRfqFilter("history"); setPage(1); }}
-            className="text-xs h-8 gap-1.5 text-slate-600 dark:text-slate-400"
-          >
-            History
-            <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
-              {rfqs.filter((r) => r.status === "closed").length}
-            </Badge>
-          </Button>
-        </div>
+        {/* Status filter */}
+        <FilterSelect
+          value={rfqFilter}
+          onChange={(v) => {
+            setRfqFilter(v);
+            setPage(1);
+          }}
+          options={rfqFilterOptions}
+          title="Filter RFQs"
+        />
 
         {/* RFQ List */}
         <div className="space-y-4">
@@ -431,9 +373,13 @@ export default function RfqManagement() {
             </Card>
           ) : (
             (() => {
-              const filteredRfqs = rfqFilter === "history"
-                ? rfqs.filter((r) => r.status === "closed")
-                : rfqs.filter((r) => r.status !== "closed");
+              const filteredRfqs = applyFilter(rfqs, rfqFilterOptions, rfqFilter);
+              if (filteredRfqs.length === 0)
+                return (
+                  <Card className="text-center p-8 text-sm text-muted-foreground">
+                    No RFQs match this filter. Choose History or All to see others.
+                  </Card>
+                );
               const startIndex = (pagination.page - 1) * pagination.pageSize;
               const paginatedRfqs = filteredRfqs.slice(startIndex, startIndex + pagination.pageSize);
               return (
@@ -453,8 +399,8 @@ export default function RfqManagement() {
                         <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 pb-3">
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                             <div className="space-y-1">
-                              <div className="flex items-center gap-2">
-                                <span className="font-mono font-bold text-base text-slate-900 dark:text-slate-100">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-mono font-bold whitespace-nowrap text-base text-slate-900 dark:text-slate-100">
                                   {rfq.rfq_number || "RFQ-PENDING"}
                                 </span>
                                 <Badge
@@ -471,6 +417,11 @@ export default function RfqManagement() {
                                 <Badge variant="outline" className="text-xs">
                                   Min {minReq} Quotes Required
                                 </Badge>
+                                {rfq.is_direct && (
+                                  <Badge className="text-xs bg-teal-100 text-teal-800 hover:bg-teal-100 dark:bg-teal-950 dark:text-teal-300">
+                                    Direct purchase · no CS
+                                  </Badge>
+                                )}
                               </div>
                               <p className="text-xs text-slate-500">
                                 PR Ref:{" "}
@@ -482,7 +433,7 @@ export default function RfqManagement() {
                               </p>
                             </div>
 
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                               {(auth.hasRole("admin") ||
                                 auth.hasRole("procurement_officer") ||
                                 auth.hasRole("procurement_executive")) && (
@@ -496,16 +447,23 @@ export default function RfqManagement() {
                                       <Send className="w-3.5 h-3.5" /> Invite Vendors
                                     </Button>
                                   )}
-                                  {rfq.status === "sent" && (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => handleOpenRecordQuote(rfq)}
-                                      className="gap-1 text-xs border-blue-600 bg-blue-50 text-blue-800 hover:bg-blue-100 hover:text-blue-950 dark:border-blue-500/60 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-900/60 dark:hover:text-blue-100 transition-colors"
-                                    >
-                                      <PlusCircle className="w-3.5 h-3.5" /> Record Quotation
-                                    </Button>
-                                  )}
+                                  {rfq.status === "sent" &&
+                                    rfq.is_direct &&
+                                    (auth.hasRole("admin") || auth.hasRole("procurement_officer")) && (
+                                      <Button
+                                        size="sm"
+                                        onClick={() => handleOpenAward(rfq)}
+                                        disabled={quoteSummary(rfq).length === 0}
+                                        title={
+                                          quoteSummary(rfq).length === 0
+                                            ? "Waiting for vendor quotations"
+                                            : "Choose a vendor and create the purchase order"
+                                        }
+                                        className="gap-1 bg-teal-600 hover:bg-teal-700 text-white"
+                                      >
+                                        <Award className="w-3.5 h-3.5" /> Award PO
+                                      </Button>
+                                    )}
                                 </>
                               )}
                             </div>
@@ -597,22 +555,6 @@ export default function RfqManagement() {
                                         >
                                           <Copy className="w-3 h-3 mr-0.5" /> Copy Link
                                         </Button>
-                                        {(auth.hasRole("admin") ||
-                                          auth.hasRole("procurement_officer") ||
-                                          auth.hasRole("procurement_executive")) &&
-                                          rfq.status === "sent" && (
-                                            <Button
-                                              size="sm"
-                                              variant="ghost"
-                                              className="h-5 px-1.5 text-[10px] text-blue-600 hover:text-blue-800 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/60 font-semibold ml-0.5"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleOpenRecordQuote(rfq, rv.vendor_id);
-                                              }}
-                                            >
-                                              + Record Quote
-                                            </Button>
-                                          )}
                                       </div>
                                     )}
                                   </div>
@@ -627,9 +569,9 @@ export default function RfqManagement() {
 
                   <PaginationControls
                     currentPage={pagination.page}
-                    totalPages={pagination.totalPages}
+                    totalPages={Math.max(1, Math.ceil(filteredRfqs.length / pagination.pageSize))}
                     pageSize={pagination.pageSize}
-                    totalItems={pagination.total}
+                    totalItems={filteredRfqs.length}
                     currentItemsCount={paginatedRfqs.length}
                     onPageChange={setPage}
                     onPageSizeChange={setPageSize}
@@ -781,238 +723,83 @@ export default function RfqManagement() {
           </DialogContent>
         </Dialog>
 
-        {/* Modal: Record Quotation Response */}
-        <Dialog open={quoteOpen} onOpenChange={setQuoteOpen}>
-          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        {/* Modal: Award direct purchase */}
+        <Dialog open={!!awardRfq} onOpenChange={(o) => !o && setAwardRfq(null)}>
+          <DialogContent className="max-w-lg">
             <DialogHeader>
-              <DialogTitle>Record Vendor Quotation</DialogTitle>
+              <DialogTitle>Award Purchase Order</DialogTitle>
               <DialogDescription>
-                Capture quotation lines, unit pricing, taxes, and technical compliance check.
+                {awardRfq?.rfq_number} is a direct purchase. Choose the vendor; the purchase order is
+                created at their quoted price and sent for approval. No Comparative Statement is needed.
               </DialogDescription>
             </DialogHeader>
-
-            <div className="space-y-4 py-2">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Responding Vendor</Label>
-                  <Select value={quoteVendorId} onValueChange={setQuoteVendorId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select vendor..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {quoteRfq?.rfq_vendors?.map((rv: any) => (
-                        <SelectItem key={rv.vendor_id} value={rv.vendor_id}>
-                          {rv.vendors?.name || rv.vendor_id}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Quotation Reference / Invoice No</Label>
-                  <Input
-                    placeholder="e.g. QUOT-2026-99"
-                    value={quotationRef}
-                    onChange={(e) => setQuotationRef(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              {/* Line items table */}
-              <div className="space-y-3">
-                <Label>Line Item Pricing & Technical Compliance</Label>
-                {quoteLines.map((line, idx) => (
-                  <div
-                    key={idx}
-                    className="p-3 border rounded-lg bg-slate-50 dark:bg-slate-900 space-y-3 text-xs"
-                  >
-                    <div className="font-semibold text-slate-800 dark:text-slate-200">
-                      Item #{idx + 1}: {line.description}
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      <div>
-                        <Label className="text-[10px]">Quantity</Label>
-                        <Input
-                          type="number"
-                          placeholder="1"
-                          value={line.quantity ?? ""}
-                          onChange={(e) => {
-                            const val = e.target.value === "" ? "" : Number(e.target.value);
-                            setQuoteLines((prev) =>
-                              prev.map((l, i) => (i === idx ? { ...l, quantity: val } : l)),
-                            );
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-[10px]">Unit Price (₹)</Label>
-                        <Input
-                          type="number"
-                          placeholder="0"
-                          value={line.unit_price ?? ""}
-                          onChange={(e) => {
-                            const val = e.target.value === "" ? "" : Number(e.target.value);
-                            setQuoteLines((prev) =>
-                              prev.map((l, i) => {
-                                if (i !== idx) return l;
-                                const updated = { ...l, unit_price: val };
-                                if (l.tax_mode === "percent") {
-                                  const p = typeof val === "number" ? val : 0;
-                                  const q = typeof l.quantity === "number" ? l.quantity : 1;
-                                  const rate = typeof l.tax_rate === "number" ? l.tax_rate : 18;
-                                  updated.tax_amount = Number(((q * p * rate) / 100).toFixed(2));
-                                }
-                                return updated;
-                              }),
-                            );
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <div className="flex items-center justify-between">
-                          <Label className="text-[10px]">
-                            {line.tax_mode === "percent" ? "Tax Rate (%)" : "Taxes (₹)"}
-                          </Label>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const newMode = line.tax_mode === "percent" ? "amount" : "percent";
-                              setQuoteLines((prev) =>
-                                prev.map((l, i) => {
-                                  if (i !== idx) return l;
-                                  const q = typeof l.quantity === "number" ? l.quantity : 1;
-                                  const p = typeof l.unit_price === "number" ? l.unit_price : 0;
-                                  if (newMode === "percent") {
-                                    const base = q * p;
-                                    const currentTax = typeof l.tax_amount === "number" ? l.tax_amount : 0;
-                                    const rate = base > 0 ? Number(((currentTax / base) * 100).toFixed(2)) : 18;
-                                    return { ...l, tax_mode: "percent", tax_rate: rate };
-                                  } else {
-                                    const rate = typeof l.tax_rate === "number" ? l.tax_rate : 18;
-                                    const amt = Number(((q * p * rate) / 100).toFixed(2));
-                                    return { ...l, tax_mode: "amount", tax_amount: amt };
-                                  }
-                                }),
-                              );
-                            }}
-                            className="text-[9px] text-blue-600 dark:text-blue-400 hover:underline font-semibold"
-                          >
-                            Switch to {line.tax_mode === "percent" ? "₹ (Amt)" : "% (Rate)"}
-                          </button>
-                        </div>
-                        {line.tax_mode === "percent" ? (
-                          <div className="space-y-1">
-                            <Input
-                              type="number"
-                              placeholder="18"
-                              value={line.tax_rate ?? ""}
-                              onChange={(e) => {
-                                const val = e.target.value === "" ? "" : Number(e.target.value);
-                                setQuoteLines((prev) =>
-                                  prev.map((l, i) => {
-                                    if (i !== idx) return l;
-                                    const q = typeof l.quantity === "number" ? l.quantity : 1;
-                                    const p = typeof l.unit_price === "number" ? l.unit_price : 0;
-                                    const rate = typeof val === "number" ? val : 0;
-                                    const calculatedTax = Number(((q * p * rate) / 100).toFixed(2));
-                                    return { ...l, tax_rate: val, tax_amount: calculatedTax };
-                                  }),
-                                );
-                              }}
-                            />
-                            <span className="text-[10px] text-slate-500 block text-right font-mono">
-                              = ₹{Number(line.tax_amount || 0).toLocaleString("en-IN")}
-                            </span>
-                          </div>
-                        ) : (
-                          <Input
-                            type="number"
-                            placeholder="0"
-                            value={line.tax_amount ?? ""}
-                            onChange={(e) => {
-                              const val = e.target.value === "" ? "" : Number(e.target.value);
-                              setQuoteLines((prev) =>
-                                prev.map((l, i) => (i === idx ? { ...l, tax_amount: val } : l)),
-                              );
-                            }}
-                          />
-                        )}
-                      </div>
-                      <div>
-                        <Label className="text-[10px]">Total (₹)</Label>
-                        <div className="p-2 font-mono font-bold bg-white dark:bg-slate-950 border rounded text-right">
-                          ₹
-                          {(
-                            (Number(line.quantity) || 0) * (Number(line.unit_price) || 0) +
-                            (Number(line.tax_amount) || 0)
-                          ).toLocaleString("en-IN")}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-2 border-t">
-                      <div>
-                        <Label className="text-[10px]">Delivery (Days)</Label>
-                        <Input
-                          type="number"
-                          placeholder="7"
-                          value={line.delivery_days ?? ""}
-                          onChange={(e) => {
-                            const val = e.target.value === "" ? "" : Number(e.target.value);
-                            setQuoteLines((prev) =>
-                              prev.map((l, i) => (i === idx ? { ...l, delivery_days: val } : l)),
-                            );
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-[10px]">Warranty (Months)</Label>
-                        <Input
-                          type="number"
-                          placeholder="12"
-                          value={line.warranty_months ?? ""}
-                          onChange={(e) => {
-                            const val = e.target.value === "" ? "" : Number(e.target.value);
-                            setQuoteLines((prev) =>
-                              prev.map((l, i) => (i === idx ? { ...l, warranty_months: val } : l)),
-                            );
-                          }}
-                        />
-                      </div>
-                      <div className="flex items-center space-x-2 pt-4">
-                        <Checkbox
-                          id={`spec-${idx}`}
-                          checked={line.meets_technical_spec}
-                          onCheckedChange={(checked) => {
-                            setQuoteLines((prev) =>
-                              prev.map((l, i) =>
-                                i === idx ? { ...l, meets_technical_spec: !!checked } : l,
-                              ),
-                            );
-                          }}
-                        />
-                        <Label
-                          htmlFor={`spec-${idx}`}
-                          className="text-xs cursor-pointer font-medium"
+            {(() => {
+              const quotes = quoteSummary(awardRfq);
+              const lowest = quotes[0]?.total ?? 0;
+              const chosen = quotes.find((q) => q.vendorId === awardVendorId);
+              const notLowest = !!chosen && chosen.total > lowest + 1;
+              return (
+                <div className="space-y-3">
+                  <div role="radiogroup" className="space-y-2">
+                    {quotes.map((q, idx) => {
+                      const selected = q.vendorId === awardVendorId;
+                      return (
+                        <button
+                          key={q.vendorId}
+                          type="button"
+                          role="radio"
+                          aria-checked={selected}
+                          onClick={() => setAwardVendorId(q.vendorId)}
+                          className={`w-full text-left rounded-lg border p-3 flex items-center justify-between gap-3 transition-colors ${
+                            selected ? "border-teal-600 bg-teal-50 dark:bg-teal-950/40" : "hover:bg-muted/50"
+                          }`}
                         >
-                          Meets Spec
-                        </Label>
-                      </div>
-                    </div>
+                          <span className="min-w-0">
+                            <span className="font-semibold block truncate">{q.name}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {q.days ? `Delivery in ${q.days} days` : "Delivery not specified"}
+                            </span>
+                          </span>
+                          <span className="text-right shrink-0">
+                            <span className="font-mono font-bold whitespace-nowrap block">₹{q.total.toLocaleString("en-IN")}</span>
+                            {idx === 0 && (
+                              <Badge className="text-[10px] bg-emerald-600 hover:bg-emerald-600">Lowest</Badge>
+                            )}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
-                ))}
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setQuoteOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleRecordQuote} disabled={recording || !quoteVendorId}>
-                {recording ? "Saving..." : "Save Quotation Response"}
-              </Button>
-            </DialogFooter>
+                  <p className="text-xs text-muted-foreground">
+                    {quotes.length} of {awardRfq?.rfq_vendors?.length ?? 0} invited vendors have quoted.
+                  </p>
+                  {notLowest && (
+                    <div className="space-y-1.5">
+                      <Label htmlFor="award-reason">Why not the lowest quote? *</Label>
+                      <Textarea
+                        id="award-reason"
+                        rows={3}
+                        value={awardReason}
+                        onChange={(e) => setAwardReason(e.target.value)}
+                        placeholder="e.g. faster delivery, better warranty, lowest bidder failed specification…"
+                      />
+                    </div>
+                  )}
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setAwardRfq(null)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleAward}
+                      disabled={awarding || !awardVendorId || (notLowest && !awardReason.trim())}
+                      className="bg-teal-600 hover:bg-teal-700 text-white"
+                    >
+                      {awarding ? "Creating…" : "Create Purchase Order"}
+                    </Button>
+                  </DialogFooter>
+                </div>
+              );
+            })()}
           </DialogContent>
         </Dialog>
       </div>
