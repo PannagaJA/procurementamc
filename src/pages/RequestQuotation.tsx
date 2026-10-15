@@ -188,6 +188,7 @@ export default function RequestQuotation() {
       const emailPromises = quotations.map(async (quotation) => {
         let publicQuotationUrl = "";
         let emailDispatched = false;
+        let emailErrorDetail = "";
         try {
           const link = await (getQuotationLink as any)({
             data: { quotation_id: quotation.id, origin: publicAppOrigin() },
@@ -208,24 +209,34 @@ export default function RequestQuotation() {
               },
             },
           });
-          if (!res.error && res.data?.ok !== false) {
+          if (!res.error && res.data?.ok !== false && !res.data?.error) {
             emailDispatched = true;
+          } else {
+            emailErrorDetail =
+              res.data?.message ||
+              res.error?.message ||
+              "Email service rejected delivery.";
           }
-        } catch (callErr) {
+        } catch (callErr: any) {
+          emailErrorDetail = callErr?.message || "Failed to contact edge function.";
           console.warn("send-quotation-email edge function call notice:", callErr);
         }
 
-        return { quotation, publicQuotationUrl, emailDispatched };
+        return { quotation, publicQuotationUrl, emailDispatched, emailErrorDetail };
       });
 
       const dispatchResults = await Promise.all(emailPromises);
       const allMailed = dispatchResults.every((r) => r.emailDispatched);
+      const firstError = dispatchResults.find((r) => r.emailErrorDetail)?.emailErrorDetail;
 
       toast({
-        title: "Quotation Requests Created!",
+        title: allMailed ? "Quotation Requests Sent!" : "Quotation Requests Created",
         description: allMailed
-          ? "Quotation requests and personalized invitations dispatched via email."
-          : `Created ${quotations.length} quotation request(s) with isolated vendor links. You can copy each vendor's private link directly from the View tab.`,
+          ? "Personalized vendor quotation invitations dispatched via email."
+          : firstError
+            ? `Saved with isolated link, but email delivery failed: ${firstError}`
+            : `Created ${quotations.length} quotation request(s). You can copy each vendor's private link directly from the View tab.`,
+        variant: allMailed ? "default" : "destructive",
       });
 
       form.reset();
