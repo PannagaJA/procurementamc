@@ -11,7 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { Printer, Download, X, Building2, CheckCircle2, ShieldCheck, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { numberToWordsInr } from "@/lib/numberToWords";
-import { buildPoPdf } from "@/lib/procurement/poPdf";
+import { buildPoPdf, poLineRows } from "@/lib/procurement/poPdf";
+
+const inr = (n: number | null) => (n === null ? "—" : `₹${n.toLocaleString("en-IN")}`);
 
 interface PoPrintPreviewModalProps {
   open: boolean;
@@ -28,7 +30,6 @@ export function PoPrintPreviewModal({ open, onOpenChange, po }: PoPrintPreviewMo
 
   const pr = po.purchase_requisitions;
   const vendor = po.vendors;
-  const lineItems = pr?.pr_line_items || [];
   const bankDetails = vendor?.bank_details_json || {};
 
   const basePrice = Number(po.price || 0);
@@ -194,7 +195,7 @@ export function PoPrintPreviewModal({ open, onOpenChange, po }: PoPrintPreviewMo
                     variant="outline"
                     className="bg-indigo-50 text-indigo-800 border-indigo-200 text-[10px] uppercase font-bold"
                   >
-                    {(po.po_type || "regular").replace("_", " ")}
+                    {(po.type || po.po_type || "regular").replace("_", " ")}
                   </Badge>
                 </div>
                 <div className="flex items-center gap-3 text-xs font-mono">
@@ -309,54 +310,33 @@ export function PoPrintPreviewModal({ open, onOpenChange, po }: PoPrintPreviewMo
                         <th className="py-2 px-2.5">Description & Specifications</th>
                         <th className="py-2 px-2.5 w-20 text-center">Quantity</th>
                         <th className="py-2 px-2.5 w-24 text-right">Unit Rate (₹)</th>
-                        <th className="py-2 px-2.5 w-28 text-right">Net Amount (₹)</th>
+                        <th className="py-2 px-2.5 w-20 text-right">Tax (₹)</th>
+                        <th className="py-2 px-2.5 w-28 text-right">Amount (₹)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200">
-                      {lineItems.length > 0 ? (
-                        lineItems.map((item: any, idx: number) => {
-                          const qty = Number(item.net_qty_to_procure || item.qty_required || 1);
-                          const unitRate = Number(item.est_unit_price || 0);
-                          const total = Number(item.est_total || qty * unitRate);
-                          return (
-                            <tr key={item.id || idx} className="hover:bg-slate-50/50">
-                              <td className="py-2 px-2.5 text-center font-mono text-slate-500">
-                                {idx + 1}
-                              </td>
-                              <td className="py-2 px-2.5 font-medium text-slate-800">
-                                {item.description}
-                              </td>
-                              <td className="py-2 px-2.5 text-center">
-                                {qty} {item.unit || "pcs"}
-                              </td>
-                              <td className="py-2 px-2.5 text-right font-mono">
-                                ₹{unitRate.toLocaleString("en-IN")}
-                              </td>
-                              <td className="py-2 px-2.5 text-right font-mono font-semibold">
-                                ₹{total.toLocaleString("en-IN")}
-                              </td>
-                            </tr>
-                          );
-                        })
-                      ) : (
-                        <tr className="hover:bg-slate-50/50">
-                          <td className="py-2 px-2.5 text-center font-mono text-slate-500">1</td>
+                      {poLineRows(po).map((row, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50/50">
+                          <td className="py-2 px-2.5 text-center font-mono text-slate-500">
+                            {idx + 1}
+                          </td>
                           <td className="py-2 px-2.5 font-medium text-slate-800">
-                            {po.scope_of_supply || "Standard institutional procurement supply."}
+                            {row.description}
                           </td>
-                          <td className="py-2 px-2.5 text-center">1 Lot</td>
-                          <td className="py-2 px-2.5 text-right font-mono">
-                            ₹{basePrice.toLocaleString("en-IN")}
+                          <td className="py-2 px-2.5 text-center">
+                            {row.qty} {row.unit}
                           </td>
+                          <td className="py-2 px-2.5 text-right font-mono">{inr(row.unitRate)}</td>
+                          <td className="py-2 px-2.5 text-right font-mono">{inr(row.tax)}</td>
                           <td className="py-2 px-2.5 text-right font-mono font-semibold">
-                            ₹{basePrice.toLocaleString("en-IN")}
+                            {inr(row.amount)}
                           </td>
                         </tr>
-                      )}
+                      ))}
                     </tbody>
                     <tfoot className="bg-slate-50 border-t border-slate-200 text-slate-800 font-medium">
                       <tr>
-                        <td colSpan={4} className="py-1.5 px-2.5 text-right font-semibold">
+                        <td colSpan={5} className="py-1.5 px-2.5 text-right font-semibold">
                           Base Price Subtotal:
                         </td>
                         <td className="py-1.5 px-2.5 text-right font-mono font-semibold">
@@ -364,8 +344,8 @@ export function PoPrintPreviewModal({ open, onOpenChange, po }: PoPrintPreviewMo
                         </td>
                       </tr>
                       <tr>
-                        <td colSpan={4} className="py-1.5 px-2.5 text-right font-semibold">
-                          Applicable Taxes (GST / Duties):
+                        <td colSpan={5} className="py-1.5 px-2.5 text-right font-semibold">
+                          Additional Taxes (GST / Duties):
                         </td>
                         <td className="py-1.5 px-2.5 text-right font-mono font-semibold">
                           ₹{taxes.toLocaleString("en-IN")}
@@ -373,7 +353,7 @@ export function PoPrintPreviewModal({ open, onOpenChange, po }: PoPrintPreviewMo
                       </tr>
                       <tr className="bg-indigo-50/70 border-t border-indigo-200 text-indigo-950">
                         <td
-                          colSpan={4}
+                          colSpan={5}
                           className="py-2 px-2.5 text-right font-bold text-xs uppercase"
                         >
                           Total Committed PO Value:

@@ -539,7 +539,7 @@ export const listPurchaseOrders = createServerFn({ method: "GET" })
           pr_line_items (id, description, net_qty_to_procure, qty_required, est_unit_price, est_total, unit)
         ),
         comparative_statements (
-          id, cs_number, status, recommended_total, is_lowest_price
+          id, cs_number, status, recommended_total, is_lowest_price, rfq_id
         ),
         vendors (
           id, name, gst_number, pan_number, registered_address, bank_details_json, status
@@ -560,5 +560,22 @@ export const listPurchaseOrders = createServerFn({ method: "GET" })
 
     const { data: list, error } = await query;
     if (error) return { ok: false as const, error: error.message };
-    return { ok: true as const, purchaseOrders: list ?? [] };
+
+    // Attach the awarded vendor's quoted lines (via CS -> RFQ) so the PO document shows real prices.
+    const rfqIds = [
+      ...new Set((list ?? []).map((po: any) => po.comparative_statements?.rfq_id).filter(Boolean)),
+    ];
+    const { data: qLines } = rfqIds.length
+      ? await db
+          .from("quotation_lines")
+          .select("rfq_id, vendor_id, description, quantity, unit, unit_price, tax_amount, total_price")
+          .in("rfq_id", rfqIds)
+      : { data: [] };
+    const purchaseOrders = (list ?? []).map((po: any) => ({
+      ...po,
+      quoted_lines: (qLines ?? []).filter(
+        (l: any) => l.rfq_id === po.comparative_statements?.rfq_id && l.vendor_id === po.vendor_id,
+      ),
+    }));
+    return { ok: true as const, purchaseOrders };
   });

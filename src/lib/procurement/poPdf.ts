@@ -11,10 +11,70 @@ const fmtDate = (d?: string | null) =>
     ? new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
     : null;
 
+export type PoLineRow = {
+  description: string;
+  qty: number;
+  unit: string;
+  unitRate: number | null;
+  tax: number | null;
+  amount: number | null;
+};
+
+/**
+ * Line items for the PO document. Uses the vendor's quoted lines (po.quoted_lines, attached by
+ * listPurchaseOrders) so line amounts add up to the PO value. Without a quote (direct / rate
+ * contract POs) it falls back to the PR lines, showing rates only when they still reconcile.
+ */
+export function poLineRows(po: any): PoLineRow[] {
+  const quoted: any[] = po.quoted_lines ?? [];
+  if (quoted.length > 0) {
+    return quoted.map((l) => ({
+      description: l.description,
+      qty: Number(l.quantity),
+      unit: l.unit || "pcs",
+      unitRate: Number(l.unit_price),
+      tax: Number(l.tax_amount || 0),
+      amount: Number(l.total_price),
+    }));
+  }
+
+  const price = Number(po.price || 0);
+  const prLines: any[] = po.purchase_requisitions?.pr_line_items ?? [];
+  if (prLines.length === 0) {
+    const scope = po.scope_of_supply || "Standard institutional procurement scope.";
+    return [{ description: scope, qty: 1, unit: "Lot", unitRate: price, tax: null, amount: price }];
+  }
+
+  const qtyOf = (i: any) => Number(i.net_qty_to_procure || i.qty_required || 1);
+  if (prLines.length === 1) {
+    const [only] = prLines;
+    const qty = qtyOf(only);
+    return [
+      {
+        description: only.description,
+        qty,
+        unit: only.unit || "pcs",
+        unitRate: price / qty,
+        tax: null,
+        amount: price,
+      },
+    ];
+  }
+  const estTotal = (i: any) => Number(i.est_total || qtyOf(i) * Number(i.est_unit_price || 0));
+  const reconciles = Math.abs(prLines.reduce((sum, i) => sum + estTotal(i), 0) - price) < 1;
+  return prLines.map((i) => ({
+    description: i.description,
+    qty: qtyOf(i),
+    unit: i.unit || "pcs",
+    unitRate: reconciles ? Number(i.est_unit_price || 0) : null,
+    tax: null,
+    amount: reconciles ? estTotal(i) : null,
+  }));
+}
+
 export async function buildPoPdf(po: any): Promise<jsPDF> {
   const pr = po.purchase_requisitions;
   const vendor = po.vendors;
-  const lineItems = pr?.pr_line_items || [];
   const bankDetails = vendor?.bank_details_json || {};
   const basePrice = Number(po.price || 0);
   const taxes = Number(po.taxes || 0);
@@ -120,7 +180,7 @@ export async function buildPoPdf(po: any): Promise<jsPDF> {
 
   const orderInfoBody = [
     [
-      `PO Date: ${poDateFormatted}\nPO Type: ${(po.po_type || "regular").toUpperCase().replace("_", " ")}\nPR Ref: ${pr?.pr_number || "Direct"}${prApprovalDate ? ` (Apprv: ${prApprovalDate})` : ""}\nDept: ${pr?.departments?.name || "General Central Stores"}\nApprover: ${(po.current_approver_role || "Competent Authority").toUpperCase()}`,
+      `PO Date: ${poDateFormatted}\nPO Type: ${(po.type || po.po_type || "regular").toUpperCase().replace("_", " ")}\nPR Ref: ${pr?.pr_number || "Direct"}${prApprovalDate ? ` (Apprv: ${prApprovalDate})` : ""}\nDept: ${pr?.departments?.name || "General Central Stores"}\nApprover: ${(po.current_approver_role || "Competent Authority").toUpperCase()}`,
       `SUPPLIER / VENDOR DETAILS:\n${vendor?.name || "N/A"}\nGSTIN: ${vendor?.gst_number || "N/A"}\nPAN: ${vendor?.pan_number || "N/A"}\nAddress: ${vendor?.registered_address || "Registered Address on file"}\nContact: ${[bankDetails.email, bankDetails.phone].filter(Boolean).join(", ") || "On File"}`,
     ],
   ];
@@ -143,69 +203,34 @@ export async function buildPoPdf(po: any): Promise<jsPDF> {
     },
   });
 
-  // Line items table
+  // Line items table: the vendor's quoted prices when available (see poLineRows)
   const currentY = (doc as any).lastAutoTable.finalY + 4;
-
-  const tableRows: any[] = [];
-  if (lineItems.length > 0) {
-    lineItems.forEach((item: any, idx: number) => {
-      const qty = Number(item.net_qty_to_procure || item.qty_required || 1);
-      const unitRate = Number(item.est_unit_price || 0);
-      const total = Number(item.est_total || qty * unitRate);
-      tableRows.push([
-        idx + 1,
-        item.description,
-        `${qty} ${item.unit || "pcs"}`,
-        `Rs. ${unitRate.toLocaleString("en-IN")}`,
-        `Rs. ${total.toLocaleString("en-IN")}`,
-      ]);
-    });
-  } else {
-    tableRows.push([
-      1,
-      po.scope_of_supply || "Standard institutional procurement scope.",
-      "1 Lot",
-      `Rs. ${basePrice.toLocaleString("en-IN")}`,
-      `Rs. ${basePrice.toLocaleString("en-IN")}`,
-    ]);
-  }
-
-  // Add subtotal and taxes rows
-  tableRows.push([
+  const rs = (n: number | null) => (n === null ? "-" : `Rs. ${n.toLocaleString("en-IN")}`);
+  const tableRows: any[] = poLineRows(po).map((r, idx) => [
+    idx + 1,
+    r.description,
+    `${r.qty} ${r.unit}`,
+    rs(r.unitRate),
+    rs(r.tax),
+    rs(r.amount),
+  ]);
+  const summary = (label: string, value: number, color?: [number, number, number]) => [
     "",
     {
-      content: "Subtotal / Base Value",
-      colSpan: 3,
-      styles: { halign: "right", fontStyle: "bold" },
+      content: label,
+      colSpan: 4,
+      styles: { halign: "right", fontStyle: "bold", ...(color && { textColor: color }) },
     },
-    `Rs. ${basePrice.toLocaleString("en-IN")}`,
-  ]);
-  tableRows.push([
-    "",
-    {
-      content: "Applicable Taxes & GST",
-      colSpan: 3,
-      styles: { halign: "right", fontStyle: "bold" },
-    },
-    `Rs. ${taxes.toLocaleString("en-IN")}`,
-  ]);
-  tableRows.push([
-    "",
-    {
-      content: "TOTAL COMMITTED PO VALUE",
-      colSpan: 3,
-      styles: { halign: "right", fontStyle: "bold", textColor: [30, 58, 138] },
-    },
-    {
-      content: `Rs. ${totalValue.toLocaleString("en-IN")}`,
-      styles: { fontStyle: "bold", textColor: [30, 58, 138] },
-    },
-  ]);
+    { content: rs(value), styles: { fontStyle: "bold", ...(color && { textColor: color }) } },
+  ];
+  tableRows.push(summary("Subtotal / Base Value", basePrice));
+  tableRows.push(summary("Additional Taxes & GST", taxes));
+  tableRows.push(summary("TOTAL COMMITTED PO VALUE", totalValue, [30, 58, 138]));
 
   autoTable(doc, {
     startY: currentY,
     margin: { left: 14, right: 14 },
-    head: [["#", "Item Description & Scope of Supply", "Quantity", "Unit Rate", "Total Amount"]],
+    head: [["#", "Item Description & Scope of Supply", "Quantity", "Unit Rate", "Tax", "Amount"]],
     body: tableRows,
     theme: "striped",
     headStyles: {
@@ -220,11 +245,12 @@ export async function buildPoPdf(po: any): Promise<jsPDF> {
       overflow: "linebreak",
     },
     columnStyles: {
-      0: { cellWidth: 10, halign: "center" },
-      1: { cellWidth: 92 },
-      2: { cellWidth: 25, halign: "center" },
-      3: { cellWidth: 25, halign: "right" },
-      4: { cellWidth: 30, halign: "right" },
+      0: { cellWidth: 8, halign: "center" },
+      1: { cellWidth: 74 },
+      2: { cellWidth: 22, halign: "center" },
+      3: { cellWidth: 26, halign: "right" },
+      4: { cellWidth: 22, halign: "right" },
+      5: { cellWidth: 30, halign: "right" },
     },
   });
 
