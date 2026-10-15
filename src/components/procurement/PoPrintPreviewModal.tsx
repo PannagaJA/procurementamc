@@ -348,7 +348,7 @@ export function PoPrintPreviewModal({ open, onOpenChange, po }: PoPrintPreviewMo
       doc.setFont("helvetica", "bold");
       doc.setFontSize(7);
       doc.setTextColor(71, 85, 105);
-      doc.text("CIRCULATION COPY ENDORSEMENT (SOP §8.5):", 14, sigY + 23);
+      doc.text("CIRCULATION COPY ENDORSEMENT:", 14, sigY + 23);
       doc.setFont("helvetica", "normal");
       doc.setFontSize(6.5);
       doc.setTextColor(100, 116, 139);
@@ -797,7 +797,7 @@ export function PoPrintPreviewModal({ open, onOpenChange, po }: PoPrintPreviewMo
               <div className="border border-slate-200 rounded p-3 bg-slate-50/70 space-y-1.5 text-[10.5px]">
                 <div className="font-bold text-slate-800 text-[11px] uppercase border-b border-slate-200 pb-1 flex items-center gap-1.5">
                   <FileText className="w-3.5 h-3.5 text-indigo-700" /> Formal Copy Circulation
-                  Endorsement (SOP §8.5)
+                  Endorsement
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-slate-600 pt-0.5">
                   <div>

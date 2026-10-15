@@ -575,7 +575,7 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
                   <>
                     <li className="pt-3 pb-1 border-t border-slate-200 dark:border-slate-800">
                       <span className="px-3 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                        Procurement (SOP)
+                        Procurement
                       </span>
                     </li>
 
@@ -939,7 +939,7 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
               <>
                 <li className="pt-3 pb-1 border-t border-slate-200 dark:border-slate-800">
                   <span className="px-3 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                    Procurement (SOP)
+                    Procurement
                   </span>
                 </li>
 

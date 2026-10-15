@@ -170,7 +170,7 @@ export const sendRfq = createServerFn({ method: "POST" })
     if (selectedCount < minRequired) {
       return {
         ok: false as const,
-        error: `Cannot send RFQ: At least ${minRequired} empanelled vendors must be selected (only ${selectedCount} selected per SOP §8.4).`,
+        error: `Select at least ${minRequired} empanelled vendors to send this RFQ (you selected ${selectedCount}).`,
         code: "min_vendors_not_met",
       };
     }

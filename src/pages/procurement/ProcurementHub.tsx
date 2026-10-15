@@ -28,7 +28,7 @@ export default function ProcurementHub() {
       <div className="max-w-6xl mx-auto space-y-8 pb-12">
         <div className="border-b border-slate-200 dark:border-slate-800 pb-6">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200 mb-2">
-            <ShieldCheck className="w-3.5 h-3.5" /> SOP Compliant Procure-to-Pay (P2P) Platform
+            <ShieldCheck className="w-3.5 h-3.5" /> Procure-to-Pay (P2P) Platform
           </div>
           <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
             Procurement Lifecycle & Governance
@@ -240,7 +240,7 @@ export default function ProcurementHub() {
               </div>
               <CardTitle className="text-base">8. Vendor Ratings</CardTitle>
               <CardDescription className="text-xs">
-                6-Pillar scoring (Annexure 4) & debarment gates.
+                Weighted performance scoring and debarment approvals.
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 pt-0 space-y-3">

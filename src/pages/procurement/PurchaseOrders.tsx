@@ -307,11 +307,10 @@ export default function PurchaseOrders() {
       if (!res.ok) {
         const isSplitting =
           res.code === "po_splitting" ||
-          res.error?.includes("SOP §7.5") ||
           res.error?.toLowerCase().includes("splitting");
         toast({
           title: isSplitting
-            ? "Anti-Splitting Protection (SOP §7.5)"
+            ? "Order exceeds approved requisition value"
             : "Failed to create purchase order",
           description: res.error,
           variant: "destructive",
@@ -882,8 +881,7 @@ export default function PurchaseOrders() {
             <DialogHeader>
               <DialogTitle>Create Purchase Order</DialogTitle>
               <DialogDescription>
-                Create a Purchase Order backed by an approved Comparative Statement or Rate Contract
-                (§8.5).
+                Create a Purchase Order backed by an approved Comparative Statement or Rate Contract.
               </DialogDescription>
             </DialogHeader>
 
@@ -1104,12 +1102,10 @@ export default function PurchaseOrders() {
                 <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2">
                   <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
                   <div>
-                    <span className="font-semibold">SOP §7.5 Anti-Splitting Notice:</span> A prior
-                    purchase order (
-                    <strong className="font-mono">{recentPoForVendor.po_number}</strong>) was issued
-                    to this vendor within the last 30 days. Consolidated procurement required.
-                    Splitting purchases to bypass sanction thresholds is strictly prohibited (SOP
-                    §8.5).
+                    <span className="font-semibold">Recent order to this vendor:</span>{" "}
+                    <strong className="font-mono">{recentPoForVendor.po_number}</strong> was issued to
+                    this vendor in the last 30 days. If this is the same requirement, combine it
+                    into one order. Splitting it to stay under an approval limit isn't allowed.
                   </div>
                 </div>
               )}
@@ -1137,7 +1133,7 @@ export default function PurchaseOrders() {
               <DialogTitle>Amend Purchase Order Value</DialogTitle>
               <DialogDescription>
                 Order amendments that breach the original approver's matrix limit trigger automatic
-                re-approval at the higher tier (§8.5).
+                re-approval at the higher tier.
               </DialogDescription>
             </DialogHeader>
 
@@ -1209,7 +1205,7 @@ export default function PurchaseOrders() {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <FileText className="w-5 h-5 text-indigo-600" />
-                Register Master Rate Contract (§8.2, §8.4)
+                Register Master Rate Contract
               </DialogTitle>
               <DialogDescription>
                 Establish fixed pre-negotiated unit rates with an empanelled vendor. Orders placed
@@ -1276,13 +1272,13 @@ export default function PurchaseOrders() {
               <div className="p-3 bg-indigo-50/60 dark:bg-indigo-950/20 border border-indigo-200/50 dark:border-indigo-900/30 rounded-lg space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-indigo-900 dark:text-indigo-200 flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5" /> Validity Window (6-Month Cap per SOP §6)
+                    <Calendar className="w-3.5 h-3.5" /> Validity Window (maximum 6 months)
                   </span>
                   <Badge
                     variant="outline"
                     className="text-[10px] bg-indigo-100/50 text-indigo-700 dark:text-indigo-300"
                   >
-                    SOP §6 / §8.2 Compliant
+                    Within 6-month limit
                   </Badge>
                 </div>
                 <div className="grid grid-cols-2 gap-3 pt-1">

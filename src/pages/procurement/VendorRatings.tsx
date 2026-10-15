@@ -168,7 +168,7 @@ export default function VendorRatings() {
       toast({
         title: "EVP Countersignature Required",
         description:
-          "SOP Annexure 4: Debarment outcome requires explicit EVP authorization before final recording. Please route to the Executive Vice President (evp@institution.edu) for countersignature.",
+          "A score below 40 debars this vendor, which only the Executive Vice President (EVP) can authorize. Send this rating to the EVP for countersignature.",
         variant: "destructive",
       });
       return;
@@ -262,8 +262,7 @@ export default function VendorRatings() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-900 dark:bg-purple-950 dark:text-purple-200 mb-2">
-              <Award className="w-3.5 h-3.5 text-purple-600" /> SOP Annexure 4 Vendor Performance
-              Evaluation
+              <Award className="w-3.5 h-3.5 text-purple-600" /> Vendor Performance Evaluation
             </div>
             <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
               Vendor Ratings & Performance Governance
@@ -401,7 +400,7 @@ export default function VendorRatings() {
                                     Debarment Recommendation Awaiting EVP Countersignature
                                   </p>
                                   <p className="text-amber-800 dark:text-amber-300">
-                                    Procurement Officer recorded score &lt; 40. Per SOP Annexure 4, institutional blacklisting is on hold until the Executive Vice President countersigns.
+                                    The recorded score is below 40. The vendor will not be debarred until the Executive Vice President (EVP) countersigns.
                                   </p>
                                 </div>
                               </div>
@@ -589,7 +588,7 @@ export default function VendorRatings() {
         <Dialog open={rateOpen} onOpenChange={setRateOpen}>
           <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Vendor Performance Evaluation (Annexure 4)</DialogTitle>
+              <DialogTitle>Vendor Performance Evaluation</DialogTitle>
               <DialogDescription>
                 6-Section weighted scoring formula. Score updates vendor status in master upon
                 recording.
@@ -763,10 +762,10 @@ export default function VendorRatings() {
                     <ShieldAlert className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
                     <div className="space-y-1">
                       <span className="font-bold block text-sm text-red-950 dark:text-red-100">
-                        Debarment Outcome — EVP Countersignature Lock (SOP Annexure 4)
+                        Debarment Requires EVP Countersignature
                       </span>
                       <p className="text-red-800 dark:text-red-300">
-                        Score <strong>{liveScore} &lt; 40</strong> triggers automatic institutional vendor blacklisting. Under SOP Annexure 4, this action strictly requires authorization and countersignature from the Executive Vice President (EVP).
+                        Score <strong>{liveScore} &lt; 40</strong> will debar this vendor. Debarment must be authorized and countersigned by the Executive Vice President (EVP).
                       </p>
                       {!isEvpOrAdmin ? (
                         <div className="p-2 bg-red-100/70 dark:bg-red-900/40 rounded border border-red-300 dark:border-red-800 text-[11px] font-medium text-red-900 dark:text-red-200">
@@ -858,7 +857,7 @@ export default function VendorRatings() {
                 Authorize &amp; Countersign Debarment
               </DialogTitle>
               <DialogDescription>
-                Execute formal executive countersignature for vendor debarment under SOP Annexure 4.
+                Countersign to confirm this vendor's debarment.
               </DialogDescription>
             </DialogHeader>
 

@@ -170,7 +170,7 @@ export default function ComparativeStatements() {
       toast({
         title: "Non-Lowest Price Rationale Required",
         description:
-          "You must provide a justification when recommending a vendor other than the lowest quote (§7.2).",
+          "You must provide a justification when recommending a vendor other than the lowest quote.",
         variant: "destructive",
       });
       return;

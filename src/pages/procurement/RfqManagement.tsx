@@ -545,7 +545,7 @@ export default function RfqManagement() {
                               </span>
                             </div>
                             <div className="p-2 bg-slate-50 dark:bg-slate-900 rounded border text-center">
-                              <span className="text-slate-400 block text-[10px]">SOP Compliance</span>
+                              <span className="text-slate-400 block text-[10px]">Minimum Quotes</span>
                               <span
                                 className={`font-semibold text-xs ${responsesCount >= minReq ? "text-emerald-600" : "text-amber-600"}`}
                               >

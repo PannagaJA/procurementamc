@@ -89,7 +89,7 @@ export const createPo = createServerFn({ method: "POST" })
         return {
           ok: false as const,
           error:
-            "A Comparative Statement (CS) ID is required for regular purchase orders (SOP §8.5).",
+            "Select an approved Comparative Statement for this purchase order.",
           code: "cs_required",
         };
       }
@@ -108,7 +108,7 @@ export const createPo = createServerFn({ method: "POST" })
       if (cs.status !== "approved") {
         return {
           ok: false as const,
-          error: `Cannot create PO: Comparative Statement is "${cs.status}", not approved (SOP §8.4, §8.5).`,
+          error: `This Comparative Statement is "${cs.status}". It must be approved before a purchase order can be created.`,
           code: "cs_not_approved",
         };
       }
@@ -116,7 +116,7 @@ export const createPo = createServerFn({ method: "POST" })
       if (!data.rate_contract_id) {
         return {
           ok: false as const,
-          error: "A Rate Contract ID is required for rate contract purchase orders (SOP §8.2).",
+          error: "Select a rate contract for this purchase order.",
           code: "rc_required",
         };
       }
@@ -162,7 +162,7 @@ export const createPo = createServerFn({ method: "POST" })
       if (val > 5000) {
         return {
           ok: false as const,
-          error: `Direct Purchase cannot exceed ₹5,000 per SOP Authority Matrix. Entered total is ₹${val.toLocaleString("en-IN")}.`,
+          error: `Direct purchases are limited to ₹5,000 (this order totals ₹${val.toLocaleString("en-IN")}). Use a Comparative Statement or rate contract for larger amounts.`,
           code: "direct_purchase_limit_exceeded",
         };
       }
@@ -338,7 +338,7 @@ export const issuePo = createServerFn({ method: "POST" })
     if (po.status !== "approved" && po.status !== "amended") {
       return {
         ok: false as const,
-        error: `Cannot issue PO: Order is in "${po.status}" status, must be approved first (SOP §8.5).`,
+        error: `This purchase order is "${po.status}". It must be approved before it can be issued.`,
       };
     }
 

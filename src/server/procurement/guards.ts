@@ -156,10 +156,12 @@ export async function assertNoPoSplitting(
     const priorRef = priorPoMatch ? ` (${priorPoMatch.po_number})` : "";
     throw ruleError(
       "po_splitting",
-      `SOP §7.5 Anti-Splitting Governance: Prior purchase order${priorRef} exists for this vendor within 30 days. Consolidated procurement required. ` +
-        `Cumulative purchase orders against ${pr.pr_number ?? prId} would total ₹${projected.toLocaleString("en-IN")}, ` +
-        `exceeding the approved value of ₹${approved.toLocaleString("en-IN")}. ` +
-        `Splitting a requirement across orders to bypass higher sanction authorities is strictly prohibited per SOP §8.5 — raise a deviation approval instead.`,
+      `Purchase orders against ${pr.pr_number ?? prId} would total ₹${projected.toLocaleString("en-IN")}, ` +
+        `more than its approved value of ₹${approved.toLocaleString("en-IN")}. ` +
+        (priorPoMatch
+          ? `An earlier order${priorRef} was already placed with this vendor in the last 30 days. `
+          : "") +
+        `Combine the requirement into one order, or request a deviation approval to exceed the approved value.`,
     );
   }
 
@@ -207,7 +209,7 @@ export async function assertNoPoSplitting(
             escalateRole: combinedTier.role,
             combinedSum,
             pastSum,
-            reason: `Consolidated 30-day orders to vendor total ₹${combinedSum.toLocaleString("en-IN")} (past: ₹${pastSum.toLocaleString("en-IN")}, current: ₹${Number(newValue).toLocaleString("en-IN")}). Escalated to ${combinedTier.role.toUpperCase()} approval (§VI).`,
+            reason: `Orders to this vendor in the last 30 days total ₹${combinedSum.toLocaleString("en-IN")} (earlier: ₹${pastSum.toLocaleString("en-IN")}, this order: ₹${Number(newValue).toLocaleString("en-IN")}), so this order needs ${combinedTier.role.toUpperCase()} approval.`,
           };
         }
       }

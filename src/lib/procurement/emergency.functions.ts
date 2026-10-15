@@ -121,10 +121,9 @@ export const requestEmergencyProcurement = createServerFn({ method: "POST" })
       return {
         ok: false as const,
         error:
-          `Emergency procurement request of ₹${cost.toLocaleString("en-IN")} is HARD-BLOCKED. ` +
-          `It would push the ${fy} annual emergency ledger to ₹${projectedTotal.toLocaleString("en-IN")}, ` +
-          `exceeding the statutory annual cap of ₹${cap.toLocaleString("en-IN")} (remaining balance: ₹${remaining.toLocaleString("en-IN")}). ` +
-          `Standard procurement process must be followed per SOP §9.`,
+          `This emergency request of ₹${cost.toLocaleString("en-IN")} can't be approved: it would bring ${fy} emergency spending to ₹${projectedTotal.toLocaleString("en-IN")}, ` +
+          `above the annual limit of ₹${cap.toLocaleString("en-IN")} (₹${remaining.toLocaleString("en-IN")} remaining). ` +
+          `Raise a regular purchase requisition instead.`,
         code: "emergency_cap_exceeded",
         currentTotal,
         capLimit: cap,
@@ -172,7 +171,7 @@ export const approveEmergency = createServerFn({ method: "POST" })
 
     if (!held.includes("admin") && !held.includes("evp")) {
       throw new ForbiddenError(
-        `Emergency Procurement authorization is restricted exclusively to the EVP per SOP §9. You hold: ${held.join(", ") || "none"}.`,
+        `Only the Executive Vice President (EVP) can authorize emergency purchases.`,
       );
     }
 

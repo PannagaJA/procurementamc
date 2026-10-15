@@ -406,7 +406,7 @@ export default function RaiseRequisition() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="category">SOP Category *</Label>
+                    <Label htmlFor="category">Procurement Category *</Label>
                     <Select value={category} onValueChange={setCategory}>
                       <SelectTrigger id="category">
                         <SelectValue placeholder="Select procurement category" />
@@ -704,7 +704,7 @@ export default function RaiseRequisition() {
                                 />
                               )}
                             <p className="text-[11px] text-blue-600 dark:text-blue-400">
-                              💡 Routine recurring items qualify for a 6-month Master Rate Contract with Procurement under SOP §8.2.
+                              💡 Routine recurring items can be bought through a 6-month rate contract with Procurement.
                             </p>
                           </div>
                         )}
@@ -733,7 +733,7 @@ export default function RaiseRequisition() {
               <CardHeader className="pb-3 border-b border-indigo-100 dark:border-slate-800">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
-                    <Shield className="w-3.5 h-3.5" /> SOP §VI Compliance
+                    <Shield className="w-3.5 h-3.5" /> Approval Routing
                   </span>
                   <div className="flex items-center gap-1.5">
                     <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold uppercase">Live Engine</span>
@@ -915,7 +915,7 @@ export default function RaiseRequisition() {
                     VI. AUTHORITY MATRIX
                   </DialogTitle>
                   <DialogDescription className="text-xs text-slate-500 mt-1">
-                    Official Institutional delegations of financial authority, approved procurement methods, and approval authorities per SOP §VI.
+                    Financial approval limits, procurement methods, and approving authorities for each category.
                   </DialogDescription>
                 </div>
               </div>

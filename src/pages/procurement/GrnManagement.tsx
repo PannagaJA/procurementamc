@@ -365,7 +365,7 @@ export default function GrnManagement() {
     if (!grnPoId || !selectedChallanId) {
       toast({
         title: "Validation Error",
-        description: "Cannot create GRN without a linked Delivery Challan (§8.6).",
+        description: "Select the delivery challan this GRN is for.",
         variant: "destructive",
       });
       return;
@@ -428,7 +428,7 @@ export default function GrnManagement() {
           res.error?.toLowerCase().includes("over-delivery") ||
           res.error?.toLowerCase().includes("cumulative delivered");
         toast({
-          title: isOverDelivery ? "Over-Delivery Blocked (SOP §8.6)" : "GRN Creation Blocked",
+          title: isOverDelivery ? "Over-Delivery Blocked" : "GRN Creation Blocked",
           description: res.error,
           variant: "destructive",
         });
@@ -955,7 +955,7 @@ export default function GrnManagement() {
                     <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2">
                       <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
                       <div>
-                        <span className="font-semibold">Notice (SOP §8.6):</span> This Purchase
+                        <span className="font-semibold">Already fully delivered:</span> This Purchase
                         Order has already been fully delivered ({priorDelivered} of {orderedQty}{" "}
                         units received). Gate recording is logged for physical audit, but creating
                         another GRN for excess quantities will be blocked by the Over-Delivery
@@ -1028,7 +1028,7 @@ export default function GrnManagement() {
             <DialogHeader>
               <DialogTitle>Create Goods Receipt Note (GRN)</DialogTitle>
               <DialogDescription>
-                Verify delivered materials against Purchase Order and Delivery Challan (§8.6).
+                Verify delivered materials against the Purchase Order and Delivery Challan.
               </DialogDescription>
             </DialogHeader>
 
