@@ -61,8 +61,8 @@ export default function InvoiceManagement() {
 
   // Filter tabs
   const [statusFilter, setStatusFilter] = useState<
-    "all" | "pending" | "on_hold" | "approved" | "paid"
-  >("all");
+    "active" | "all" | "pending" | "on_hold" | "approved" | "paid"
+  >("active");
 
   // Submit Invoice Modal
   const [submitOpen, setSubmitOpen] = useState(false);
@@ -308,17 +308,17 @@ export default function InvoiceManagement() {
         {/* Status Filter Tabs */}
         <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
           <Button
-            variant={statusFilter === "all" ? "default" : "outline"}
+            variant={statusFilter === "active" ? "default" : "outline"}
             size="sm"
             onClick={() => {
-              setStatusFilter("all");
+              setStatusFilter("active");
               setPage(1);
             }}
             className="text-xs h-8 gap-1.5"
           >
-            All Invoices
+            Active Invoices
             <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
-              {invoices.length}
+              {invoices.filter((i) => i.match_status !== "paid" && i.match_status !== "rejected").length}
             </Badge>
           </Button>
 
@@ -380,9 +380,9 @@ export default function InvoiceManagement() {
             }}
             className="text-xs h-8 gap-1.5 text-indigo-700 dark:text-indigo-400 border-indigo-300 dark:border-indigo-800"
           >
-            Paid / Settled
+            History (Paid / Settled)
             <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
-              {invoices.filter((i) => i.match_status === "paid").length}
+              {invoices.filter((i) => i.match_status === "paid" || i.match_status === "rejected").length}
             </Badge>
           </Button>
         </div>
@@ -400,12 +400,15 @@ export default function InvoiceManagement() {
           ) : (
             (() => {
               const filteredInvoices = invoices.filter((inv) => {
+                if (statusFilter === "active")
+                  return inv.match_status !== "paid" && inv.match_status !== "rejected";
                 if (statusFilter === "all") return true;
                 if (statusFilter === "pending")
                   return inv.match_status === "matched" || inv.match_status === "pending";
                 if (statusFilter === "on_hold") return inv.match_status === "on_hold";
                 if (statusFilter === "approved") return inv.match_status === "approved";
-                if (statusFilter === "paid") return inv.match_status === "paid";
+                if (statusFilter === "paid")
+                  return inv.match_status === "paid" || inv.match_status === "rejected";
                 return true;
               });
 
@@ -768,12 +771,43 @@ export default function InvoiceManagement() {
                     <SelectValue placeholder="Select PO..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {pos.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.po_number} — {p.vendors?.name} (₹
-                        {Number(p.total_value).toLocaleString("en-IN")})
-                      </SelectItem>
-                    ))}
+                    {pos
+                      .filter((p) => {
+                        // Exclude closed, cancelled, or rejected POs
+                        if (
+                          p.status === "closed" ||
+                          p.status === "cancelled" ||
+                          p.status === "rejected"
+                        )
+                          return false;
+
+                        // Exclude POs that already have an invoice submitted, approved, or paid
+                        const alreadyInvoiced = invoices.some(
+                          (inv: any) => inv.po_id === p.id && inv.match_status !== "rejected",
+                        );
+                        if (alreadyInvoiced) return false;
+
+                        // If goods PO, must have an accepted GRN (or partially accepted)
+                        const isService = p.type === "service" || p.po_type === "service";
+                        if (!isService) {
+                          const hasAcceptedGrn = grns.some(
+                            (g) =>
+                              g.po_id === p.id &&
+                              (g.status === "accepted" || g.status === "partially_accepted"),
+                          );
+                          if (!hasAcceptedGrn) return false;
+                        } else {
+                          // Service PO must be issued or approved
+                          if (p.status !== "issued" && p.status !== "approved") return false;
+                        }
+                        return true;
+                      })
+                      .map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.po_number} — {p.vendors?.name} (₹
+                          {Number(p.total_value).toLocaleString("en-IN")})
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>

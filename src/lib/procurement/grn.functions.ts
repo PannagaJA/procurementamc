@@ -409,6 +409,43 @@ export const technicalVerify = createServerFn({ method: "POST" })
       .eq("id", data.grn_id);
 
     if (error) return { ok: false as const, error: error.message };
+
+    // When GRN is accepted, ensure underlying PO status is issued so lifecycle is fully aligned
+    if (data.is_accepted) {
+      try {
+        const { data: grnRecord } = await mutationDb
+          .from("grns")
+          .select("po_id")
+          .eq("id", data.grn_id)
+          .maybeSingle();
+
+        if (grnRecord?.po_id) {
+          const { data: poRecord } = await mutationDb
+            .from("purchase_orders")
+            .select("id, status")
+            .eq("id", grnRecord.po_id)
+            .maybeSingle();
+
+          if (
+            poRecord &&
+            (poRecord.status === "pending_approval" || poRecord.status === "approved")
+          ) {
+            await mutationDb
+              .from("purchase_orders")
+              .update({
+                status: "issued",
+                approved_at: new Date().toISOString(),
+                issued_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", grnRecord.po_id);
+          }
+        }
+      } catch (poErr) {
+        console.warn("[GRN] Failed to sync PO status to issued on technical acceptance:", poErr);
+      }
+    }
+
     return { ok: true as const, status: nextStatus };
   });
 

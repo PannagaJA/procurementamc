@@ -17,6 +17,7 @@ import {
   Receipt,
   Zap,
   Award,
+  History,
 } from "lucide-react";
 
 export default function ProcurementHub() {
@@ -53,12 +54,26 @@ export default function ProcurementHub() {
                 </CardDescription>
               </div>
             </div>
-            <Button
-              onClick={() => navigate({ to: "/procurement/approvals" })}
-              className="bg-purple-600 hover:bg-purple-700 text-white gap-2 shrink-0"
-            >
-              Open My Approvals <ArrowRight className="w-4 h-4" />
-            </Button>
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
+              <Button
+                onClick={() => navigate({ to: "/procurement/approvals" })}
+                className="bg-purple-600 hover:bg-purple-700 text-white gap-2"
+              >
+                Pending Approvals <ArrowRight className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() =>
+                  navigate({
+                    to: "/procurement/approvals",
+                    search: { tab: "history" } as any,
+                  })
+                }
+                className="border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/50 gap-2"
+              >
+                <History className="w-4 h-4" /> Approval History
+              </Button>
+            </div>
           </CardHeader>
         </Card>
 

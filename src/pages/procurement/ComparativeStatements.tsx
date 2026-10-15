@@ -53,6 +53,7 @@ export default function ComparativeStatements() {
   const { pagination, setPage, setPageSize, setTotal } = usePagination(10, 1);
   const [rfqList, setRfqList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [csFilter, setCsFilter] = useState<"active" | "history">("active");
 
   // Prepare CS Modal
   const [prepOpen, setPrepOpen] = useState(false);
@@ -305,6 +306,32 @@ export default function ComparativeStatements() {
           </div>
         </div>
 
+        {/* Active / History Filter */}
+        <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+          <Button
+            variant={csFilter === "active" ? "default" : "outline"}
+            size="sm"
+            onClick={() => { setCsFilter("active"); setPage(1); }}
+            className="text-xs h-8 gap-1.5"
+          >
+            Active CS
+            <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
+              {csList.filter((c) => c.status === "submitted").length}
+            </Badge>
+          </Button>
+          <Button
+            variant={csFilter === "history" ? "default" : "outline"}
+            size="sm"
+            onClick={() => { setCsFilter("history"); setPage(1); }}
+            className="text-xs h-8 gap-1.5 text-slate-600 dark:text-slate-400"
+          >
+            History
+            <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
+              {csList.filter((c) => c.status !== "submitted").length}
+            </Badge>
+          </Button>
+        </div>
+
         {/* CS List */}
         <div className="space-y-4">
           {loading ? (
@@ -318,8 +345,11 @@ export default function ComparativeStatements() {
             </Card>
           ) : (
             (() => {
+              const filteredCsList = csFilter === "history"
+                ? csList.filter((c) => c.status !== "submitted")
+                : csList.filter((c) => c.status === "submitted");
               const startIndex = (pagination.page - 1) * pagination.pageSize;
-              const paginatedCsList = csList.slice(
+              const paginatedCsList = filteredCsList.slice(
                 startIndex,
                 startIndex + pagination.pageSize,
               );
@@ -555,7 +585,11 @@ export default function ComparativeStatements() {
                   </SelectTrigger>
                   <SelectContent>
                     {rfqList
-                      .filter((r) => r.status === "sent")
+                      .filter(
+                        (r) =>
+                          r.status === "sent" &&
+                          !csList.some((c: any) => c.rfq_id === r.id && c.status !== "rejected"),
+                      )
                       .map((r) => (
                         <SelectItem key={r.id} value={r.id}>
                           {r.rfq_number} — PR: {r.purchase_requisitions?.pr_number} (

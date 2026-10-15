@@ -133,12 +133,16 @@ export default function GrnManagement() {
 
   // When PO or Delivery Challan selection changes in GRN Modal, prepare lines
   useEffect(() => {
-    if (!grnPoId) {
-      setGrnLines([]);
-      return;
-    }
-    const po = issuedPos.find((p) => p.id === grnPoId);
-    if (po) {
+    let isCancelled = false;
+
+    async function setupGrnLines() {
+      if (!grnPoId) {
+        setGrnLines([]);
+        return;
+      }
+      const po = issuedPos.find((p) => p.id === grnPoId);
+      if (!po) return;
+
       // Find delivery challans for this PO that haven't been linked yet
       const relevantUnlinked = unlinkedChallans.filter((c) => c.po_id === grnPoId);
       const allRelevant = challans.filter((c) => c.po_id === grnPoId);
@@ -155,21 +159,113 @@ export default function GrnManagement() {
 
       const activeChallan = challans.find((c) => c.id === challanIdToUse);
       const pkgCount = Math.max(1, Number(activeChallan?.packages_count || 1));
+
+      // 1. Check if PR line items are present on the PO object
+      const pr = Array.isArray(po.purchase_requisitions)
+        ? po.purchase_requisitions[0]
+        : po.purchase_requisitions;
+      let prLineItems: any[] = pr?.pr_line_items ?? [];
+
+      // 2. If line items are empty, query pr_line_items directly using po.pr_id
+      if ((!prLineItems || prLineItems.length === 0) && po.pr_id) {
+        try {
+          const { data: dbLines, error } = await supabase
+            .from("pr_line_items")
+            .select("id, description, net_qty_to_procure, qty_required, est_unit_price, est_total, unit")
+            .eq("pr_id", po.pr_id);
+          if (!error && dbLines && dbLines.length > 0) {
+            prLineItems = dbLines;
+          }
+        } catch (err) {
+          console.warn("[GRN] Could not fetch pr_line_items directly:", err);
+        }
+      }
+
+      if (isCancelled) return;
+
+      // If we have line items from PR
+      if (prLineItems.length > 0) {
+        setGrnLines(
+          prLineItems.map((item: any) => {
+            const qty = Number(item.net_qty_to_procure || item.qty_required) || 1;
+            const unitPrice =
+              Number(item.est_unit_price) ||
+              (qty > 0 && Number(item.est_total)
+                ? Math.round((Number(item.est_total) / qty) * 100) / 100
+                : 0);
+            return {
+              description: item.description || po.scope_of_supply || "Material Supply",
+              unit: item.unit || "units",
+              qty_delivered: qty,
+              qty_accepted: qty,
+              unit_price: unitPrice,
+              inspection_remarks: "Visual verification complete",
+            };
+          }),
+        );
+        return;
+      }
+
+      // 3. Fallback: Parse scope_of_supply (e.g. "Direct procurement: a4 sheets (Qty: 5)")
       const totalPrice = Number(po.price || po.total_value || 0);
+      if (po.scope_of_supply && typeof po.scope_of_supply === "string") {
+        const cleanScope = po.scope_of_supply.replace(/^Direct procurement:\s*/i, "").trim();
+        const regex = /([^,]+?)\s*\(Qty:\s*(\d+(?:\.\d+)?)\)/gi;
+        const parsedItems: { description: string; qty: number }[] = [];
+        let match;
+        while ((match = regex.exec(cleanScope)) !== null) {
+          parsedItems.push({
+            description: match[1].trim(),
+            qty: parseFloat(match[2]),
+          });
+        }
 
-      // Estimate total PO ordered items from requisition or scope
-      const poTotalQty =
-        (po.purchase_requisitions?.pr_line_items ?? []).reduce(
-          (sum: number, item: any) => sum + (Number(item.net_qty_to_procure) || 0),
-          0,
-        ) || pkgCount;
+        if (parsedItems.length > 0) {
+          if (parsedItems.length === 1) {
+            const item = parsedItems[0];
+            const itemQty = item.qty || 1;
+            const unitPrice = Math.round((totalPrice / itemQty) * 100) / 100;
+            setGrnLines([
+              {
+                description: item.description,
+                unit: "units",
+                qty_delivered: itemQty,
+                qty_accepted: itemQty,
+                unit_price: unitPrice,
+                inspection_remarks: "Visual verification complete",
+              },
+            ]);
+            return;
+          } else {
+            const totalQty = parsedItems.reduce((acc, it) => acc + (it.qty || 1), 0);
+            setGrnLines(
+              parsedItems.map((it) => {
+                const itemQty = it.qty || 1;
+                const unitPrice =
+                  totalQty > 0
+                    ? Math.round((totalPrice / totalQty) * 100) / 100
+                    : Math.round((totalPrice / parsedItems.length / itemQty) * 100) / 100;
+                return {
+                  description: it.description,
+                  unit: "units",
+                  qty_delivered: itemQty,
+                  qty_accepted: itemQty,
+                  unit_price: unitPrice,
+                  inspection_remarks: "Visual verification complete",
+                };
+              }),
+            );
+            return;
+          }
+        }
+      }
 
+      // 4. Fallback if no item info at all:
       const unitPrice =
-        poTotalQty > 0 ? Math.round((totalPrice / poTotalQty) * 100) / 100 : totalPrice;
-
+        pkgCount > 0 ? Math.round((totalPrice / pkgCount) * 100) / 100 : totalPrice;
       setGrnLines([
         {
-          description: po.scope_of_supply || "Material Supply",
+          description: po.scope_of_supply?.replace(/^Direct procurement:\s*/i, "") || "Material Supply",
           unit: pkgCount > 1 ? "units" : "lot",
           qty_delivered: pkgCount,
           qty_accepted: pkgCount,
@@ -178,6 +274,12 @@ export default function GrnManagement() {
         },
       ]);
     }
+
+    setupGrnLines();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [grnPoId, selectedChallanId, issuedPos, challans, unlinkedChallans]);
 
   const handleRecordDelivery = async () => {
@@ -506,20 +608,36 @@ export default function GrnManagement() {
 
         {/* GRN List */}
         <div className="space-y-4">
-          {/* Show Closed toggle */}
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-              Goods Receipt Notes
-            </h2>
-            <label className="flex items-center gap-2 text-xs text-slate-500 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                className="form-checkbox h-3.5 w-3.5"
-                checked={showClosed}
-                onChange={(e) => setShowClosed(e.target.checked)}
-              />
-              Show accepted / rejected
-            </label>
+          {/* Active / History Filter */}
+          <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+            <Button
+              variant={!showClosed ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setShowClosed(false);
+                setPage(1);
+              }}
+              className="text-xs h-8 gap-1.5"
+            >
+              Active GRNs
+              <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
+                {grns.filter((g) => g.status !== "accepted" && g.status !== "rejected").length}
+              </Badge>
+            </Button>
+            <Button
+              variant={showClosed ? "default" : "outline"}
+              size="sm"
+              onClick={() => {
+                setShowClosed(true);
+                setPage(1);
+              }}
+              className="text-xs h-8 gap-1.5 text-slate-600 dark:text-slate-400"
+            >
+              History
+              <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
+                {grns.filter((g) => g.status === "accepted" || g.status === "rejected").length}
+              </Badge>
+            </Button>
           </div>
           {loading ? (
             <div className="p-8 text-center text-slate-500">Loading Goods Receipt Notes...</div>
@@ -773,33 +891,42 @@ export default function GrnManagement() {
                     <SelectValue placeholder="Select PO..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {issuedPos.map((po) => {
-                      const orderedQty = (po.purchase_requisitions?.pr_line_items ?? []).reduce(
-                        (sum: number, item: any) =>
-                          sum + (Number(item.net_qty_to_procure || item.qty_required) || 0),
-                        0,
-                      );
-                      const priorDelivered = (grns ?? [])
-                        .filter((g: any) => g.po_id === po.id && g.status !== "rejected")
-                        .reduce((sum: number, g: any) => {
-                          return (
-                            sum +
-                            (g.grn_lines ?? []).reduce(
-                              (lSum: number, l: any) => lSum + (Number(l.qty_delivered) || 0),
-                              0,
-                            )
-                          );
-                        }, 0);
-                      const isComplete = orderedQty > 0 && priorDelivered >= orderedQty;
-
-                      return (
+                    {issuedPos
+                      .filter((po) => {
+                        if (po.status === "closed" || po.status === "cancelled" || po.status === "rejected") return false;
+                        // Exclude POs that already have an accepted GRN (goods already accepted)
+                        const hasAcceptedGrn = grns.some((g: any) => g.po_id === po.id && g.status === "accepted");
+                        if (hasAcceptedGrn) return false;
+                        // Exclude POs that already have an unlinked delivery challan awaiting GRN
+                        const hasPendingChallan = unlinkedChallans.some((c: any) => c.po_id === po.id);
+                        if (hasPendingChallan) return false;
+                        // If line items exist, check if ordered quantity was already delivered
+                        const pr = Array.isArray(po.purchase_requisitions) ? po.purchase_requisitions[0] : po.purchase_requisitions;
+                        const orderedQty = (pr?.pr_line_items ?? []).reduce(
+                          (sum: number, item: any) =>
+                            sum + (Number(item.net_qty_to_procure || item.qty_required) || 0),
+                          0,
+                        );
+                        const priorDelivered = (grns ?? [])
+                          .filter((g: any) => g.po_id === po.id && g.status !== "rejected")
+                          .reduce((sum: number, g: any) => {
+                            return (
+                              sum +
+                              (g.grn_lines ?? []).reduce(
+                                (lSum: number, l: any) => lSum + (Number(l.qty_delivered) || 0),
+                                0,
+                              )
+                            );
+                          }, 0);
+                        if (orderedQty > 0 && priorDelivered >= orderedQty) return false;
+                        return true;
+                      })
+                      .map((po) => (
                         <SelectItem key={po.id} value={po.id}>
                           {po.po_number} — {po.vendors?.name} (₹
                           {Number(po.total_value).toLocaleString("en-IN")})
-                          {isComplete ? " [Fully Delivered]" : ""}
                         </SelectItem>
-                      );
-                    })}
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -914,28 +1041,47 @@ export default function GrnManagement() {
                       <SelectValue placeholder="Select PO..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {issuedPos.map((po) => (
-                        <SelectItem key={po.id} value={po.id}>
-                          {po.po_number} — {po.vendors?.name}
-                        </SelectItem>
-                      ))}
+                      {issuedPos
+                        .filter((po) => {
+                          if (po.status === "closed" || po.status === "cancelled" || po.status === "rejected") return false;
+                          const hasAcceptedGrn = grns.some((g: any) => g.po_id === po.id && g.status === "accepted");
+                          if (hasAcceptedGrn) return false;
+                          const hasUnlinkedChallan = unlinkedChallans.some((c: any) => c.po_id === po.id);
+                          return hasUnlinkedChallan;
+                        })
+                        .map((po) => (
+                          <SelectItem key={po.id} value={po.id}>
+                            {po.po_number} — {po.vendors?.name}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-1">
                   <Label>Delivery Challan</Label>
-                  <Select value={selectedChallanId} onValueChange={setSelectedChallanId}>
+                  <Select
+                    value={selectedChallanId}
+                    onValueChange={(val) => {
+                      setSelectedChallanId(val);
+                      const ch = unlinkedChallans.find((c) => c.id === val);
+                      if (ch?.po_id && !grnPoId) {
+                        setGrnPoId(ch.po_id);
+                      }
+                    }}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select Challan..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {(unlinkedChallans.length > 0 ? unlinkedChallans : challans).map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.challan_number} (PO: {c.purchase_orders?.po_number || "Ref"}) —{" "}
-                          {c.packages_count ?? 1} pkgs
-                        </SelectItem>
-                      ))}
+                      {unlinkedChallans
+                        .filter((c) => !grnPoId || c.po_id === grnPoId)
+                        .map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.challan_number} (PO: {c.purchase_orders?.po_number || "Ref"}) —{" "}
+                            {c.packages_count ?? 1} pkgs
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>

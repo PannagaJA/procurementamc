@@ -53,6 +53,7 @@ export default function RfqManagement() {
   const [approvedPrs, setApprovedPrs] = useState<any[]>([]);
   const [empanelledVendors, setEmpanelledVendors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [rfqFilter, setRfqFilter] = useState<"active" | "history">("active");
 
   // Create RFQ Modal
   const [createOpen, setCreateOpen] = useState(false);
@@ -313,6 +314,32 @@ export default function RfqManagement() {
           </div>
         </div>
 
+        {/* Active / History Filter */}
+        <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+          <Button
+            variant={rfqFilter === "active" ? "default" : "outline"}
+            size="sm"
+            onClick={() => { setRfqFilter("active"); setPage(1); }}
+            className="text-xs h-8 gap-1.5"
+          >
+            Active RFQs
+            <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
+              {rfqs.filter((r) => r.status !== "closed").length}
+            </Badge>
+          </Button>
+          <Button
+            variant={rfqFilter === "history" ? "default" : "outline"}
+            size="sm"
+            onClick={() => { setRfqFilter("history"); setPage(1); }}
+            className="text-xs h-8 gap-1.5 text-slate-600 dark:text-slate-400"
+          >
+            History
+            <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
+              {rfqs.filter((r) => r.status === "closed").length}
+            </Badge>
+          </Button>
+        </div>
+
         {/* RFQ List */}
         <div className="space-y-4">
           {loading ? (
@@ -325,8 +352,11 @@ export default function RfqManagement() {
             </Card>
           ) : (
             (() => {
+              const filteredRfqs = rfqFilter === "history"
+                ? rfqs.filter((r) => r.status === "closed")
+                : rfqs.filter((r) => r.status !== "closed");
               const startIndex = (pagination.page - 1) * pagination.pageSize;
-              const paginatedRfqs = rfqs.slice(startIndex, startIndex + pagination.pageSize);
+              const paginatedRfqs = filteredRfqs.slice(startIndex, startIndex + pagination.pageSize);
               return (
                 <>
                   {paginatedRfqs.map((rfq) => {
@@ -533,17 +563,19 @@ export default function RfqManagement() {
                     <SelectValue placeholder="Select approved PR..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {approvedPrs.map((pr) => (
-                      <SelectItem key={pr.id} value={pr.id}>
-                        {pr.pr_number || pr.id.slice(0, 8)} — {pr.category} (₹
-                        {Number(pr.estimated_value).toLocaleString("en-IN")})
-                      </SelectItem>
-                    ))}
+                    {approvedPrs
+                      .filter((pr) => !rfqs.some((r: any) => r.pr_id === pr.id && r.status !== "closed"))
+                      .map((pr) => (
+                        <SelectItem key={pr.id} value={pr.id}>
+                          {pr.pr_number || pr.id.slice(0, 8)} — {pr.category} (₹
+                          {Number(pr.estimated_value).toLocaleString("en-IN")})
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
-                {approvedPrs.length === 0 && (
+                {approvedPrs.filter((pr) => !rfqs.some((r: any) => r.pr_id === pr.id && r.status !== "closed")).length === 0 && (
                   <p className="text-xs text-amber-600">
-                    No approved PRs available. Raise and approve a PR first.
+                    No active approved PRs available. Raise and approve a new PR first.
                   </p>
                 )}
               </div>

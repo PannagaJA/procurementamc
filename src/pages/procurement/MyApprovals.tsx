@@ -16,12 +16,20 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { getMyPendingApprovals } from "@/lib/procurement/approvals.functions";
+import { getMyPendingApprovals, getMyApprovalHistory } from "@/lib/procurement/approvals.functions";
 import { approvePr, rejectPr, escalateToEvp } from "@/lib/procurement/pr.functions";
 import { approveCs, rejectCs } from "@/lib/procurement/cs.functions";
 import { approvePo } from "@/lib/procurement/po.functions";
 import { approveInvoice } from "@/lib/procurement/invoice.functions";
 import { approveEmergency } from "@/lib/procurement/emergency.functions";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   ShieldCheck,
   CheckCircle,
@@ -35,11 +43,17 @@ import {
   Receipt,
   Zap,
   UserCheck,
+  History,
+  Calendar,
+  Filter,
+  ChevronDown,
 } from "lucide-react";
 
 export default function MyApprovals() {
   const { toast } = useToast();
   const [data, setData] = useState<any>(null);
+  const [historyData, setHistoryData] = useState<any>(null);
+  const [historyTypeFilter, setHistoryTypeFilter] = useState<"all" | "prs" | "pos" | "css" | "invoices">("all");
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
 
@@ -64,7 +78,10 @@ export default function MyApprovals() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const res = await (getMyPendingApprovals as any)();
+      const [res, histRes] = await Promise.all([
+        (getMyPendingApprovals as any)(),
+        (getMyApprovalHistory as any)(),
+      ]);
       if (res?.ok) {
         setData(res);
         // If PR has 0 items but PO has items, default activeTab to pos
@@ -73,6 +90,9 @@ export default function MyApprovals() {
         } else if ((res.prs || []).length === 0 && (res.comparativeStatements || []).length > 0) {
           setActiveTab("css");
         }
+      }
+      if (histRes?.ok) {
+        setHistoryData(histRes);
       }
     } catch (e: any) {
       toast({ title: "Error loading approvals", description: e.message, variant: "destructive" });
@@ -83,6 +103,11 @@ export default function MyApprovals() {
 
   useEffect(() => {
     loadData();
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get("tab");
+    if (tab) {
+      setActiveTab(tab);
+    }
   }, []);
 
   const handleOpenAction = (item: any, type: any) => {
@@ -194,6 +219,71 @@ export default function MyApprovals() {
   };
   const userRoles = data?.roles || [];
 
+  const historyTotalCount =
+    (historyData?.prHistory || []).length +
+    (historyData?.csHistory || []).length +
+    (historyData?.poHistory || []).length +
+    (historyData?.invHistory || []).length;
+
+  const filterOptions = [
+    {
+      id: "prs",
+      label: "PR",
+      fullLabel: "Purchase Requisitions (PR)",
+      icon: FileSpreadsheet,
+      color: "text-blue-600",
+      count: counts.prs,
+    },
+    {
+      id: "css",
+      label: "CS",
+      fullLabel: "Comparative Statements (CS)",
+      icon: Scale,
+      color: "text-emerald-600",
+      count: counts.css,
+    },
+    {
+      id: "pos",
+      label: "PO",
+      fullLabel: "Purchase Orders (PO)",
+      icon: ShoppingBag,
+      color: "text-indigo-600",
+      count: counts.pos,
+    },
+    {
+      id: "amendments",
+      label: "Amend",
+      fullLabel: "PO Amendments",
+      icon: FileEdit,
+      color: "text-purple-600",
+      count: counts.amendments,
+    },
+    {
+      id: "invoices",
+      label: "Invoices",
+      fullLabel: "Vendor Invoices",
+      icon: Receipt,
+      color: "text-teal-600",
+      count: counts.invoices,
+    },
+    {
+      id: "emergency",
+      label: "Emergency",
+      fullLabel: "Emergency Procurement",
+      icon: Zap,
+      color: "text-amber-600",
+      count: counts.emergency,
+    },
+    {
+      id: "history",
+      label: "History",
+      fullLabel: "Approval History",
+      icon: History,
+      color: "text-slate-500",
+      count: historyTotalCount,
+    },
+  ];
+
   return (
     <Layout>
       <div className="max-w-6xl mx-auto space-y-6 pb-12">
@@ -243,45 +333,93 @@ export default function MyApprovals() {
 
         {/* Tabs for PR, CS, PO, Amendments, Invoices, Emergency */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <div className="w-full overflow-x-auto pb-1 scrollbar-none">
-            <TabsList className="inline-flex w-auto min-w-full sm:min-w-0 sm:grid sm:grid-cols-6 h-auto p-1.5 gap-1.5 bg-slate-200/70 dark:bg-slate-800/80 rounded-xl">
-              <TabsTrigger
-                value="prs"
-                className="gap-1.5 py-2 px-3 text-xs sm:text-sm font-medium whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm"
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5 text-blue-600" /> PR ({counts.prs})
-              </TabsTrigger>
-              <TabsTrigger
-                value="css"
-                className="gap-1.5 py-2 px-3 text-xs sm:text-sm font-medium whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm"
-              >
-                <Scale className="w-3.5 h-3.5 text-emerald-600" /> CS ({counts.css})
-              </TabsTrigger>
-              <TabsTrigger
-                value="pos"
-                className="gap-1.5 py-2 px-3 text-xs sm:text-sm font-medium whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm"
-              >
-                <ShoppingBag className="w-3.5 h-3.5 text-indigo-600" /> PO ({counts.pos})
-              </TabsTrigger>
-              <TabsTrigger
-                value="amendments"
-                className="gap-1.5 py-2 px-3 text-xs sm:text-sm font-medium whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm"
-              >
-                <FileEdit className="w-3.5 h-3.5 text-purple-600" /> Amend ({counts.amendments})
-              </TabsTrigger>
-              <TabsTrigger
-                value="invoices"
-                className="gap-1.5 py-2 px-3 text-xs sm:text-sm font-medium whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm"
-              >
-                <Receipt className="w-3.5 h-3.5 text-teal-600" /> Invoices ({counts.invoices})
-              </TabsTrigger>
-              <TabsTrigger
-                value="emergency"
-                className="gap-1.5 py-2 px-3 text-xs sm:text-sm font-medium whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm"
-              >
-                <Zap className="w-3.5 h-3.5 text-amber-600" /> Emergency ({counts.emergency})
-              </TabsTrigger>
-            </TabsList>
+          {/* Filter Bar with Filter Button Dropdown + Filter Option Buttons */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-100/90 dark:bg-slate-900/90 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
+            {/* Filter Dropdown Button */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="gap-2 bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-700 font-semibold shadow-sm text-xs h-9 justify-between md:justify-start"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Filter className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    <span className="text-slate-500 font-normal">Filter:</span>
+                    <strong className="text-slate-900 dark:text-white font-semibold">
+                      {filterOptions.find((f) => f.id === activeTab)?.fullLabel || "All"}
+                    </strong>
+                  </span>
+                  <Badge variant="secondary" className="px-1.5 py-0 text-[11px] ml-1">
+                    {filterOptions.find((f) => f.id === activeTab)?.count ?? 0}
+                  </Badge>
+                  <ChevronDown className="w-3.5 h-3.5 opacity-60 ml-0.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-64 p-1.5 shadow-lg">
+                <DropdownMenuLabel className="text-xs text-slate-500 font-semibold px-2 py-1.5">
+                  Filter by Category
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {filterOptions.map((opt) => {
+                  const Icon = opt.icon;
+                  const isSelected = activeTab === opt.id;
+                  return (
+                    <DropdownMenuItem
+                      key={opt.id}
+                      onClick={() => setActiveTab(opt.id)}
+                      className={`gap-2.5 cursor-pointer py-2 px-2.5 rounded-lg text-xs font-medium ${
+                        isSelected
+                          ? "bg-slate-100 dark:bg-slate-800 font-bold text-slate-900 dark:text-white"
+                          : ""
+                      }`}
+                    >
+                      <Icon className={`w-4 h-4 ${opt.color}`} />
+                      <span className="flex-1">{opt.fullLabel}</span>
+                      <Badge
+                        variant={isSelected ? "default" : "secondary"}
+                        className="text-[10px] px-1.5 py-0"
+                      >
+                        {opt.count}
+                      </Badge>
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Quick Filter Buttons */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
+              {filterOptions.map((opt) => {
+                const Icon = opt.icon;
+                const isSelected = activeTab === opt.id;
+                return (
+                  <Button
+                    key={opt.id}
+                    variant={isSelected ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setActiveTab(opt.id)}
+                    className={`text-xs h-8 px-2.5 gap-1.5 whitespace-nowrap rounded-lg transition-all ${
+                      isSelected
+                        ? "shadow-sm font-semibold"
+                        : "bg-white/80 dark:bg-slate-950/80 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700"
+                    }`}
+                  >
+                    <Icon className={`w-3.5 h-3.5 ${isSelected ? "text-white" : opt.color}`} />
+                    <span>{opt.label}</span>
+                    <Badge
+                      variant={isSelected ? "secondary" : "outline"}
+                      className={`px-1.5 py-0 text-[10px] ml-0.5 ${
+                        isSelected
+                          ? "bg-white/20 text-white border-transparent"
+                          : "border-slate-300 dark:border-slate-700"
+                      }`}
+                    >
+                      {opt.count}
+                    </Badge>
+                  </Button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Requisitions Tab */}
@@ -611,6 +749,279 @@ export default function MyApprovals() {
                 </Card>
               ))
             )}
+          </TabsContent>
+
+          {/* History Tab */}
+          <TabsContent value="history" className="space-y-4">
+            {/* Filter by Type */}
+            <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-slate-200 dark:border-slate-800">
+              <Button
+                variant={historyTypeFilter === "all" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setHistoryTypeFilter("all")}
+                className="text-xs h-8 gap-1.5"
+              >
+                All History
+                <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
+                  {((historyData?.prHistory || []).length +
+                    (historyData?.csHistory || []).length +
+                    (historyData?.poHistory || []).length +
+                    (historyData?.invHistory || []).length)}
+                </Badge>
+              </Button>
+              <Button
+                variant={historyTypeFilter === "prs" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setHistoryTypeFilter("prs")}
+                className="text-xs h-8 gap-1.5 text-blue-600 dark:text-blue-400"
+              >
+                Requisitions (PR)
+                <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
+                  {(historyData?.prHistory || []).length}
+                </Badge>
+              </Button>
+              <Button
+                variant={historyTypeFilter === "css" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setHistoryTypeFilter("css")}
+                className="text-xs h-8 gap-1.5 text-emerald-600 dark:text-emerald-400"
+              >
+                Comparative Statements
+                <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
+                  {(historyData?.csHistory || []).length}
+                </Badge>
+              </Button>
+              <Button
+                variant={historyTypeFilter === "pos" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setHistoryTypeFilter("pos")}
+                className="text-xs h-8 gap-1.5 text-indigo-600 dark:text-indigo-400"
+              >
+                Purchase Orders
+                <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
+                  {(historyData?.poHistory || []).length}
+                </Badge>
+              </Button>
+              <Button
+                variant={historyTypeFilter === "invoices" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setHistoryTypeFilter("invoices")}
+                className="text-xs h-8 gap-1.5 text-teal-600 dark:text-teal-400"
+              >
+                Invoices
+                <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
+                  {(historyData?.invHistory || []).length}
+                </Badge>
+              </Button>
+            </div>
+
+            {/* Content List */}
+            {(() => {
+              const prs =
+                historyTypeFilter === "all" || historyTypeFilter === "prs"
+                  ? historyData?.prHistory || []
+                  : [];
+              const css =
+                historyTypeFilter === "all" || historyTypeFilter === "css"
+                  ? historyData?.csHistory || []
+                  : [];
+              const pos =
+                historyTypeFilter === "all" || historyTypeFilter === "pos"
+                  ? historyData?.poHistory || []
+                  : [];
+              const invs =
+                historyTypeFilter === "all" || historyTypeFilter === "invoices"
+                  ? historyData?.invHistory || []
+                  : [];
+
+              const totalItems = prs.length + css.length + pos.length + invs.length;
+              if (totalItems === 0) {
+                return (
+                  <Card className="p-8 text-center text-slate-500">
+                    No approval history found for your role or department yet.
+                  </Card>
+                );
+              }
+
+              return (
+                <div className="space-y-3">
+                  {/* PRs */}
+                  {prs.map((pr: any) => {
+                    const isApproved = pr.status === "approved";
+                    const isRejected = pr.status === "rejected";
+                    return (
+                      <Card
+                        key={`pr-${pr.id}`}
+                        className="border border-slate-200 dark:border-slate-800"
+                      >
+                        <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+                                PR
+                              </Badge>
+                              <span className="font-mono font-bold">{pr.pr_number}</span>
+                              <Badge variant="outline">{pr.category}</Badge>
+                              <Badge
+                                variant={
+                                  isApproved ? "default" : isRejected ? "destructive" : "secondary"
+                                }
+                                className={isApproved ? "bg-emerald-600 text-white" : ""}
+                              >
+                                {pr.status.toUpperCase()}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-1">
+                              Dept: {pr.departments?.name || "Academic"} • Est. Value: ₹
+                              {Number(pr.estimated_value).toLocaleString("en-IN")}
+                              {pr.updated_at &&
+                                ` • Updated: ${new Date(pr.updated_at).toLocaleDateString()}`}
+                            </p>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="p-4 pt-1 text-xs space-y-1">
+                          {pr.justification && (
+                            <p className="text-slate-600 dark:text-slate-300">
+                              <span className="font-medium">Justification: </span>
+                              {pr.justification}
+                            </p>
+                          )}
+                          {pr.routing_reason && (
+                            <p className="text-slate-500">
+                              <span className="font-medium">Routing: </span>
+                              {pr.routing_reason}
+                            </p>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+
+                  {/* CS */}
+                  {css.map((cs: any) => {
+                    const isApproved = cs.status === "approved";
+                    const isRejected = cs.status === "rejected";
+                    return (
+                      <Card
+                        key={`cs-${cs.id}`}
+                        className="border border-slate-200 dark:border-slate-800"
+                      >
+                        <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                                CS
+                              </Badge>
+                              <span className="font-mono font-bold">{cs.cs_number}</span>
+                              <Badge
+                                variant={
+                                  isApproved ? "default" : isRejected ? "destructive" : "secondary"
+                                }
+                                className={isApproved ? "bg-emerald-600 text-white" : ""}
+                              >
+                                {cs.status.toUpperCase()}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-1">
+                              RFQ: {cs.rfqs?.rfq_number || "—"} • Recommended Total: ₹
+                              {Number(cs.recommended_total || 0).toLocaleString("en-IN")}
+                              {cs.updated_at &&
+                                ` • Updated: ${new Date(cs.updated_at).toLocaleDateString()}`}
+                            </p>
+                          </div>
+                        </CardHeader>
+                        {cs.remarks && (
+                          <CardContent className="p-4 pt-1 text-xs">
+                            <p className="text-slate-600 dark:text-slate-300">
+                              <span className="font-medium">Remarks: </span>
+                              {cs.remarks}
+                            </p>
+                          </CardContent>
+                        )}
+                      </Card>
+                    );
+                  })}
+
+                  {/* POs */}
+                  {pos.map((po: any) => {
+                    return (
+                      <Card
+                        key={`po-${po.id}`}
+                        className="border border-slate-200 dark:border-slate-800"
+                      >
+                        <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <Badge className="bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300">
+                                PO
+                              </Badge>
+                              <span className="font-mono font-bold">{po.po_number}</span>
+                              <Badge variant="outline">{po.vendors?.name || "Vendor"}</Badge>
+                              <Badge
+                                variant={po.status === "issued" ? "default" : "secondary"}
+                                className={po.status === "issued" ? "bg-indigo-600 text-white" : ""}
+                              >
+                                {po.status.toUpperCase()}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-1">
+                              Total Value: ₹{Number(po.total_value).toLocaleString("en-IN")} • PR
+                              Ref: {po.purchase_requisitions?.pr_number || "Direct"}
+                              {po.updated_at &&
+                                ` • Updated: ${new Date(po.updated_at).toLocaleDateString()}`}
+                            </p>
+                          </div>
+                        </CardHeader>
+                        {po.scope_of_supply && (
+                          <CardContent className="p-4 pt-1 text-xs">
+                            <p className="text-slate-600 dark:text-slate-300">
+                              <span className="font-medium">Scope: </span>
+                              {po.scope_of_supply}
+                            </p>
+                          </CardContent>
+                        )}
+                      </Card>
+                    );
+                  })}
+
+                  {/* Invoices */}
+                  {invs.map((inv: any) => {
+                    return (
+                      <Card
+                        key={`inv-${inv.id}`}
+                        className="border border-slate-200 dark:border-slate-800"
+                      >
+                        <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <Badge className="bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300">
+                                Invoice
+                              </Badge>
+                              <span className="font-mono font-bold">{inv.invoice_number}</span>
+                              <Badge variant="outline">{inv.vendors?.name || "Vendor"}</Badge>
+                              <Badge
+                                variant={inv.match_status === "paid" ? "default" : "secondary"}
+                                className={
+                                  inv.match_status === "paid" ? "bg-emerald-600 text-white" : ""
+                                }
+                              >
+                                {inv.match_status.toUpperCase()}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-1">
+                              PO: {inv.purchase_orders?.po_number || "—"} • Amount: ₹
+                              {Number(inv.invoice_amount).toLocaleString("en-IN")}
+                              {inv.updated_at &&
+                                ` • Updated: ${new Date(inv.updated_at).toLocaleDateString()}`}
+                            </p>
+                          </div>
+                        </CardHeader>
+                      </Card>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </TabsContent>
         </Tabs>
 

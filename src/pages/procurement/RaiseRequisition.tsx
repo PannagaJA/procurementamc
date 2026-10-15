@@ -664,8 +664,8 @@ export default function RaiseRequisition() {
                                 )
                                   ? recurringFrequency
                                   : recurringFrequency
-                                  ? "Custom"
-                                  : ""
+                                    ? "Custom"
+                                    : ""
                               }
                               onValueChange={(val) => {
                                 if (val === "Custom") {
@@ -695,14 +695,14 @@ export default function RaiseRequisition() {
                               "Annually",
                             ].includes(recurringFrequency) ||
                               recurringFrequency === "") && (
-                              <Input
-                                placeholder="Enter custom frequency (e.g. Every 45 days) *"
-                                value={recurringFrequency}
-                                onChange={(e) => setRecurringFrequency(e.target.value)}
-                                className="h-8 text-xs bg-white dark:bg-slate-800"
-                                required
-                              />
-                            )}
+                                <Input
+                                  placeholder="Enter custom frequency (e.g. Every 45 days) *"
+                                  value={recurringFrequency}
+                                  onChange={(e) => setRecurringFrequency(e.target.value)}
+                                  className="h-8 text-xs bg-white dark:bg-slate-800"
+                                  required
+                                />
+                              )}
                             <p className="text-[11px] text-blue-600 dark:text-blue-400">
                               💡 Routine recurring items qualify for a 6-month Master Rate Contract with Procurement under SOP §8.2.
                             </p>
@@ -761,11 +761,10 @@ export default function RaiseRequisition() {
 
                 {/* Resolved Role Display */}
                 <div
-                  className={`p-4 rounded-xl text-white shadow-sm space-y-1 ${
-                    liveRouting.escalate
+                  className={`p-4 rounded-xl text-white shadow-sm space-y-1 ${liveRouting.escalate
                       ? "bg-gradient-to-br from-amber-600 to-rose-700"
                       : "bg-gradient-to-br from-indigo-600 to-blue-700"
-                  }`}
+                    }`}
                 >
                   <span className="text-xs uppercase text-indigo-100 font-semibold tracking-wider">
                     Target Approval Authority
@@ -798,15 +797,15 @@ export default function RaiseRequisition() {
                         normalizeCategory(category) === "routine_consumable"
                           ? "Rate Contract with Vendors approved by EVP/Trustees (Min 3 quotes, 6 mo validity)"
                           : normalizeCategory(category) === "small_value"
-                          ? "Direct Purchase"
-                          : "Comparative Quotations with Approved Vendors (Minimum 3)"
+                            ? "Direct Purchase"
+                            : "Comparative Quotations with Approved Vendors (Minimum 3)"
                       }
                     >
                       {normalizeCategory(category) === "routine_consumable"
                         ? "Rate Contract (6-mo validity)"
                         : normalizeCategory(category) === "small_value"
-                        ? "Direct Purchase"
-                        : "Comparative Quotations (Min 3)"}
+                          ? "Direct Purchase"
+                          : "Comparative Quotations (Min 3)"}
                     </strong>
                   </div>
                   <div className="flex justify-between items-center">
@@ -858,15 +857,14 @@ export default function RaiseRequisition() {
                       return (
                         <div
                           key={tier.id}
-                          className={`p-2 rounded-lg border transition-all ${
-                            isActive
+                          className={`p-2 rounded-lg border transition-all ${isActive
                               ? "bg-indigo-50/90 dark:bg-indigo-950/50 border-indigo-400 dark:border-indigo-600 ring-1 ring-indigo-400 shadow-sm"
                               : "bg-white/60 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75 hover:opacity-100"
-                          }`}
+                            }`}
                         >
                           <div className="flex items-center justify-between gap-1 mb-0.5">
                             <span className="font-bold text-slate-800 dark:text-slate-100 truncate">
-                              {tier.type}
+                              {tier.procurementType}
                             </span>
                             {isActive ? (
                               <Badge className="bg-indigo-600 text-white text-[9px] px-1.5 py-0 h-4 font-bold shrink-0">
