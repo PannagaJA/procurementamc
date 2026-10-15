@@ -34,6 +34,8 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Layout from "@/components/Layout";
+import { Copy, ExternalLink } from "lucide-react";
+import { computeVendorAccessToken, buildVendorQuotationLink } from "@/lib/quotationAuth";
 
 const quotationSchema = z.object({
   categoryId: z.string().min(1, "Category is required"),
@@ -127,6 +129,25 @@ export default function RequestQuotation() {
     },
   });
 
+  const handleCopyVendorLink = async (quotationId: string, companyEmail: string) => {
+    try {
+      const token = await computeVendorAccessToken(quotationId, companyEmail);
+      const link = buildVendorQuotationLink(window.location.origin, quotationId, token);
+      await navigator.clipboard.writeText(link);
+      toast({
+        title: "Vendor Link Copied",
+        description: `Private isolated link for ${companyEmail} copied to clipboard.`,
+      });
+    } catch (err) {
+      console.error("Failed to copy vendor link:", err);
+      toast({
+        title: "Copy Failed",
+        description: "Could not generate link to clipboard.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const onSubmit = async (data: QuotationForm) => {
     setIsSubmitting(true);
     try {
@@ -160,43 +181,57 @@ export default function RequestQuotation() {
       // Get category name for the email
       const selectedCategory = categories?.find((cat) => cat.id === data.categoryId);
 
-      // Call edge function to send emails
+      // Call edge function to send emails with vendor-isolated token links
       const emailPromises = quotations.map(async (quotation) => {
-        const { error } = await supabase.functions.invoke("send-quotation-email", {
-          body: {
-            quotationId: quotation.id,
-            companyEmails: [quotation.company_email], // Send to this specific company
-            quotationData: {
-              productName: data.productName,
-              categoryName: selectedCategory?.name || "Unknown Category",
-              description: data.description,
-              quantity: data.quantity,
-              lastReplyDate: data.lastReplyDate,
-            },
-          },
-        });
+        const token = await computeVendorAccessToken(quotation.id, quotation.company_email);
+        const publicQuotationUrl = buildVendorQuotationLink(
+          window.location.origin,
+          quotation.id,
+          token,
+        );
 
-        if (error) {
-          console.error(`Failed to send email for quotation ${quotation.id}:`, error);
-          throw error;
+        let emailDispatched = false;
+        try {
+          const res = await supabase.functions.invoke("send-quotation-email", {
+            body: {
+              quotationId: quotation.id,
+              companyEmails: [quotation.company_email], // Send to this specific company
+              publicQuotationUrl,
+              quotationData: {
+                productName: data.productName,
+                categoryName: selectedCategory?.name || "General Category",
+                description: data.description,
+                quantity: data.quantity,
+                lastReplyDate: data.lastReplyDate,
+              },
+            },
+          });
+          if (!res.error && res.data?.ok !== false) {
+            emailDispatched = true;
+          }
+        } catch (callErr) {
+          console.warn("send-quotation-email edge function call notice:", callErr);
         }
 
-        return quotation;
+        return { quotation, publicQuotationUrl, emailDispatched };
       });
 
-      await Promise.all(emailPromises);
+      const dispatchResults = await Promise.all(emailPromises);
+      const allMailed = dispatchResults.every((r) => r.emailDispatched);
 
       toast({
-        title: "Success",
-        description: "Quotation requests sent successfully to all companies",
+        title: "Quotation Requests Created!",
+        description: allMailed
+          ? "Quotation requests and personalized invitations dispatched via email."
+          : `Created ${quotations.length} quotation request(s) with isolated vendor links. You can copy each vendor's private link directly from the View tab.`,
       });
 
       form.reset();
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Error creating quotations:", error);
       toast({
         title: "Error",
-        description: "Failed to send quotation requests",
+        description: "Failed to process quotation requests",
         variant: "destructive",
       });
     } finally {
@@ -567,6 +602,39 @@ export default function RequestQuotation() {
                                           </Button>
                                         </div>
                                       )}
+                                    <div className="flex flex-wrap gap-2 mt-3 pt-2 border-t">
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-8 text-xs font-medium"
+                                        onClick={() =>
+                                          handleCopyVendorLink(
+                                            quotation.id,
+                                            quotation.company_email,
+                                          )
+                                        }
+                                      >
+                                        <Copy className="h-3.5 w-3.5 mr-1 text-slate-500" />
+                                        Copy Private Link
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-8 text-xs font-medium"
+                                        asChild
+                                      >
+                                        <a
+                                          href={`/quotation/${quotation.id}`}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                        >
+                                          <ExternalLink className="h-3.5 w-3.5 mr-1 text-slate-500" />
+                                          Staff Preview
+                                        </a>
+                                      </Button>
+                                    </div>
                                   </div>
                                 </div>
                               </CardContent>
