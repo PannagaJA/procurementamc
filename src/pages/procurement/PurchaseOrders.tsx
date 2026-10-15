@@ -55,6 +55,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { PoPrintPreviewModal } from "@/components/procurement/PoPrintPreviewModal";
+import { buildPoPdf } from "@/lib/procurement/poPdf";
 
 export default function PurchaseOrders() {
   const { toast } = useToast();
@@ -360,9 +361,25 @@ export default function PurchaseOrders() {
         toast({ title: "Failed to Issue PO", description: res.error, variant: "destructive" });
         return;
       }
+      // Email the PO PDF to the vendor. The PO is already issued, so an email failure is reported, not fatal.
+      let emailNote: string;
+      try {
+        const doc = await buildPoPdf({ ...po, status: "issued" });
+        const pdfBase64 = doc.output("datauristring").split(",")[1];
+        const { data: mail, error: mailErr } = await supabase.functions.invoke("send-po-email", {
+          body: { po_id: po.id, pdf_base64: pdfBase64 },
+        });
+        emailNote =
+          !mailErr && mail?.ok
+            ? `PDF emailed to ${mail.to}.`
+            : `Email not sent: ${mail?.message || mailErr?.message || "unknown error"}. Download the PDF and send it manually.`;
+      } catch (mailEx: any) {
+        emailNote = `Email not sent: ${mailEx?.message || "could not generate the PDF"}.`;
+      }
+
       toast({
         title: "Purchase Order Issued",
-        description: `Order ${po.po_number} issued. Notifications dispatched to User Dept, Stores, and Finance.`,
+        description: `Order ${po.po_number} issued. ${emailNote}`,
       });
       loadData();
     } catch (e: any) {

@@ -325,6 +325,12 @@ export const issuePo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: IssuePoInput) => input)
   .handler(async ({ data, context }) => {
+    const { getCallerRoles } = await import("@/server/procurement/roles");
+    const held = (await getCallerRoles(context.supabase as any, context.userId)).map((r) => r.role);
+    if (!["admin", "procurement_officer", "procurement_executive"].some((r) => held.includes(r))) {
+      return { ok: false as const, error: "Only the procurement team can issue purchase orders." };
+    }
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: po, error } = await supabaseAdmin
