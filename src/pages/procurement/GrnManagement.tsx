@@ -556,7 +556,7 @@ export default function GrnManagement() {
               >
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-sm text-slate-900 dark:text-slate-100">
+                    <span className="font-mono font-bold whitespace-nowrap text-sm text-slate-900 dark:text-slate-100">
                       {c.challan_number || "DC-PENDING"}
                     </span>
                     <Badge
@@ -682,7 +682,7 @@ export default function GrnManagement() {
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                             <div className="space-y-1">
                               <div className="flex items-center gap-2">
-                                <span className="font-mono font-bold text-base text-slate-900 dark:text-slate-100">
+                                <span className="font-mono font-bold whitespace-nowrap text-base text-slate-900 dark:text-slate-100">
                                   {grn.grn_number || "GRN-PENDING"}
                                 </span>
                                 <Badge
@@ -747,13 +747,13 @@ export default function GrnManagement() {
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                             <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
                               <span className="text-slate-500 block">Accepted Total</span>
-                              <span className="font-mono font-bold text-sm text-emerald-600 dark:text-emerald-400">
+                              <span className="font-mono font-bold whitespace-nowrap text-sm text-emerald-600 dark:text-emerald-400">
                                 ₹{acceptedTotal.toLocaleString("en-IN")}
                               </span>
                             </div>
                             <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
                               <span className="text-slate-500 block">Rejected Total</span>
-                              <span className="font-mono font-bold text-sm text-red-600 dark:text-red-400">
+                              <span className="font-mono font-bold whitespace-nowrap text-sm text-red-600 dark:text-red-400">
                                 ₹{rejectedTotal.toLocaleString("en-IN")}
                               </span>
                             </div>
@@ -1174,7 +1174,7 @@ export default function GrnManagement() {
                         )}
                       </strong>
                     </span>
-                    <span className="font-mono font-bold text-slate-900 dark:text-white">
+                    <span className="font-mono font-bold whitespace-nowrap text-slate-900 dark:text-white">
                       Accepted Total: ₹
                       {(
                         (Number(line.qty_accepted) || 0) * (Number(line.unit_price) || 0)

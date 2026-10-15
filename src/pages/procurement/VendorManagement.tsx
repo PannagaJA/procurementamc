@@ -487,29 +487,29 @@ export default function VendorManagement() {
 
         {/* Tabs Container */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <div className="w-full overflow-x-auto pb-1 scrollbar-none">
-            <TabsList className="inline-flex w-full sm:w-auto h-auto p-1.5 gap-1.5 bg-slate-200/70 dark:bg-slate-800/80 rounded-xl">
+          <div className="w-full">
+            <TabsList className="grid grid-cols-2 sm:inline-flex w-full sm:w-auto h-auto p-1.5 gap-1.5 bg-slate-200/70 dark:bg-slate-800/80 rounded-xl">
               <TabsTrigger
                 value="apply"
-                className="font-semibold text-xs sm:text-sm py-2 px-3.5 whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm"
+                className="font-semibold text-xs sm:text-sm py-2 px-2.5 sm:px-3.5 whitespace-normal sm:whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm"
               >
                 1. Apply for Empanelment
               </TabsTrigger>
               <TabsTrigger
                 value="evaluate"
-                className="font-semibold text-xs sm:text-sm py-2 px-3.5 whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm"
+                className="font-semibold text-xs sm:text-sm py-2 px-2.5 sm:px-3.5 whitespace-normal sm:whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm"
               >
                 2. Technical Evaluation ({appliedVendors.length})
               </TabsTrigger>
               <TabsTrigger
                 value="evp_approval"
-                className="font-semibold text-xs sm:text-sm py-2 px-3.5 whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm"
+                className="font-semibold text-xs sm:text-sm py-2 px-2.5 sm:px-3.5 whitespace-normal sm:whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm"
               >
                 3. EVP Approval Gate ({reviewVendors.length})
               </TabsTrigger>
               <TabsTrigger
                 value="master_directory"
-                className="font-semibold text-xs sm:text-sm py-2 px-3.5 whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm"
+                className="font-semibold text-xs sm:text-sm py-2 px-2.5 sm:px-3.5 whitespace-normal sm:whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm"
               >
                 4. Vendor Master ({vendors.length})
               </TabsTrigger>

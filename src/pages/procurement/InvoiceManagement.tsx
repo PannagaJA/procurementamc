@@ -428,7 +428,7 @@ export default function InvoiceManagement() {
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                             <div className="space-y-1">
                               <div className="flex items-center gap-2">
-                                <span className="font-mono font-bold text-base text-slate-900 dark:text-slate-100">
+                                <span className="font-mono font-bold whitespace-nowrap text-base text-slate-900 dark:text-slate-100">
                                   Invoice: {inv.invoice_number}
                                 </span>
                                 <Badge
@@ -538,7 +538,7 @@ export default function InvoiceManagement() {
                                 <span className="text-slate-400 block text-[11px]">
                                   1. PO Authorised Value
                                 </span>
-                                <span className="font-mono font-bold text-sm text-slate-800 dark:text-slate-100">
+                                <span className="font-mono font-bold whitespace-nowrap text-sm text-slate-800 dark:text-slate-100">
                                   ₹{poVal.toLocaleString("en-IN")}
                                 </span>
                                 <span className="text-[10px] text-slate-500 block mt-0.5">
@@ -551,7 +551,7 @@ export default function InvoiceManagement() {
                                 <span className="text-slate-400 block text-[11px]">
                                   2. GRN Accepted Value
                                 </span>
-                                <span className="font-mono font-bold text-sm text-slate-800 dark:text-slate-100">
+                                <span className="font-mono font-bold whitespace-nowrap text-sm text-slate-800 dark:text-slate-100">
                                   {inv.is_service_po
                                     ? "N/A (Service)"
                                     : `₹${grnVal.toLocaleString("en-IN")}`}
@@ -566,7 +566,7 @@ export default function InvoiceManagement() {
                                 <span className="text-slate-400 block text-[11px]">
                                   3. Claimed Invoice Amount
                                 </span>
-                                <span className="font-mono font-bold text-sm text-slate-800 dark:text-slate-100">
+                                <span className="font-mono font-bold whitespace-nowrap text-sm text-slate-800 dark:text-slate-100">
                                   ₹{invVal.toLocaleString("en-IN")}
                                 </span>
                                 <span className="text-[10px] text-slate-500 block mt-0.5">
@@ -621,7 +621,7 @@ export default function InvoiceManagement() {
                                     <span className="text-slate-400 block text-[10px]">
                                       Disbursed Amount
                                     </span>
-                                    <span className="font-mono font-bold text-slate-800 dark:text-slate-100 text-xs">
+                                    <span className="font-mono font-bold whitespace-nowrap text-slate-800 dark:text-slate-100 text-xs">
                                       ₹
                                       {Number(
                                         inv.payments[0].amount || invVal,
@@ -862,7 +862,7 @@ export default function InvoiceManagement() {
             <div className="space-y-4 py-2">
               <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded text-xs flex justify-between items-center">
                 <span className="text-slate-500">Approved Invoice Amount:</span>
-                <span className="font-mono font-bold text-sm text-slate-800 dark:text-slate-100">
+                <span className="font-mono font-bold whitespace-nowrap text-sm text-slate-800 dark:text-slate-100">
                   ₹{Number(activeInvoice?.invoice_amount || 0).toLocaleString("en-IN")}
                 </span>
               </div>

@@ -336,7 +336,7 @@ export default function RfqManagement() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {(auth.hasRole("admin") ||
               auth.hasRole("procurement_officer") ||
               auth.hasRole("procurement_executive")) && (
@@ -374,6 +374,12 @@ export default function RfqManagement() {
           ) : (
             (() => {
               const filteredRfqs = applyFilter(rfqs, rfqFilterOptions, rfqFilter);
+              if (filteredRfqs.length === 0)
+                return (
+                  <Card className="text-center p-8 text-sm text-muted-foreground">
+                    No RFQs match this filter. Choose History or All to see others.
+                  </Card>
+                );
               const startIndex = (pagination.page - 1) * pagination.pageSize;
               const paginatedRfqs = filteredRfqs.slice(startIndex, startIndex + pagination.pageSize);
               return (
@@ -393,8 +399,8 @@ export default function RfqManagement() {
                         <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 pb-3">
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                             <div className="space-y-1">
-                              <div className="flex items-center gap-2">
-                                <span className="font-mono font-bold text-base text-slate-900 dark:text-slate-100">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-mono font-bold whitespace-nowrap text-base text-slate-900 dark:text-slate-100">
                                   {rfq.rfq_number || "RFQ-PENDING"}
                                 </span>
                                 <Badge
@@ -427,7 +433,7 @@ export default function RfqManagement() {
                               </p>
                             </div>
 
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                               {(auth.hasRole("admin") ||
                                 auth.hasRole("procurement_officer") ||
                                 auth.hasRole("procurement_executive")) && (
@@ -563,9 +569,9 @@ export default function RfqManagement() {
 
                   <PaginationControls
                     currentPage={pagination.page}
-                    totalPages={pagination.totalPages}
+                    totalPages={Math.max(1, Math.ceil(filteredRfqs.length / pagination.pageSize))}
                     pageSize={pagination.pageSize}
-                    totalItems={pagination.total}
+                    totalItems={filteredRfqs.length}
                     currentItemsCount={paginatedRfqs.length}
                     onPageChange={setPage}
                     onPageSizeChange={setPageSize}
@@ -755,7 +761,7 @@ export default function RfqManagement() {
                             </span>
                           </span>
                           <span className="text-right shrink-0">
-                            <span className="font-mono font-bold block">₹{q.total.toLocaleString("en-IN")}</span>
+                            <span className="font-mono font-bold whitespace-nowrap block">₹{q.total.toLocaleString("en-IN")}</span>
                             {idx === 0 && (
                               <Badge className="text-[10px] bg-emerald-600 hover:bg-emerald-600">Lowest</Badge>
                             )}

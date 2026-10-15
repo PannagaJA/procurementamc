@@ -429,7 +429,7 @@ export default function VendorRatings() {
                               <span className="text-[10px] text-slate-400 block font-medium">
                                 Quality (25%)
                               </span>
-                              <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                              <span className="font-mono font-bold whitespace-nowrap text-slate-800 dark:text-slate-200">
                                 {r.section_a_score}
                               </span>
                             </div>
@@ -437,7 +437,7 @@ export default function VendorRatings() {
                               <span className="text-[10px] text-slate-400 block font-medium">
                                 Delivery (20%)
                               </span>
-                              <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                              <span className="font-mono font-bold whitespace-nowrap text-slate-800 dark:text-slate-200">
                                 {r.section_b_score}
                               </span>
                             </div>
@@ -445,7 +445,7 @@ export default function VendorRatings() {
                               <span className="text-[10px] text-slate-400 block font-medium">
                                 Pricing (15%)
                               </span>
-                              <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                              <span className="font-mono font-bold whitespace-nowrap text-slate-800 dark:text-slate-200">
                                 {r.section_c_score}
                               </span>
                             </div>
@@ -453,7 +453,7 @@ export default function VendorRatings() {
                               <span className="text-[10px] text-slate-400 block font-medium">
                                 Support (20%)
                               </span>
-                              <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                              <span className="font-mono font-bold whitespace-nowrap text-slate-800 dark:text-slate-200">
                                 {r.section_d_score}
                               </span>
                             </div>
@@ -461,7 +461,7 @@ export default function VendorRatings() {
                               <span className="text-[10px] text-slate-400 block font-medium">
                                 Safety (10%)
                               </span>
-                              <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                              <span className="font-mono font-bold whitespace-nowrap text-slate-800 dark:text-slate-200">
                                 {r.section_e_score ?? "N/A"}
                               </span>
                             </div>
@@ -469,7 +469,7 @@ export default function VendorRatings() {
                               <span className="text-[10px] text-slate-400 block font-medium">
                                 Relations (10%)
                               </span>
-                              <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                              <span className="font-mono font-bold whitespace-nowrap text-slate-800 dark:text-slate-200">
                                 {r.section_f_score}
                               </span>
                             </div>
@@ -527,7 +527,7 @@ export default function VendorRatings() {
                                             {new Date(h.created_at).toLocaleDateString()}
                                           </span>
                                         </div>
-                                        <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                                        <span className="font-mono font-bold whitespace-nowrap text-slate-800 dark:text-slate-200">
                                           Score: {h.weighted_score} / 100
                                         </span>
                                       </div>

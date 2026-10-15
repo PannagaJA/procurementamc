@@ -318,7 +318,7 @@ export default function EmergencyProcurement() {
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                             <div className="space-y-1">
                               <div className="flex items-center gap-2">
-                                <span className="font-mono font-bold text-base text-slate-900 dark:text-slate-100">
+                                <span className="font-mono font-bold whitespace-nowrap text-base text-slate-900 dark:text-slate-100">
                                   {ep.emergency_number}
                                 </span>
                                 <Badge
@@ -389,14 +389,14 @@ export default function EmergencyProcurement() {
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 dark:bg-slate-950 p-3 rounded-lg text-xs">
                             <div>
                               <span className="text-slate-500 block">Estimated Cost</span>
-                              <span className="font-mono font-bold text-slate-900 dark:text-white">
+                              <span className="font-mono font-bold whitespace-nowrap text-slate-900 dark:text-white">
                                 ₹{Number(ep.estimated_cost || 0).toLocaleString("en-IN")}
                               </span>
                             </div>
                             <div>
                               <span className="text-slate-500 block">Quotes Received</span>
                               <span className="font-semibold text-slate-800 dark:text-slate-200">
-                                {ep.quotes_obtained_count} quote(s)
+                                {ep.quotations_obtained_count ?? 0} {Number(ep.quotations_obtained_count) === 1 ? "quote" : "quotes"}
                               </span>
                             </div>
                             <div>

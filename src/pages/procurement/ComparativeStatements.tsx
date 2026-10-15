@@ -334,6 +334,12 @@ export default function ComparativeStatements() {
           ) : (
             (() => {
               const filteredCsList = applyFilter(csList, csFilterOptions, csFilter);
+              if (filteredCsList.length === 0)
+                return (
+                  <Card className="text-center p-8 text-sm text-muted-foreground">
+                    No comparative statements match this filter. Choose History or All to see others.
+                  </Card>
+                );
               const startIndex = (pagination.page - 1) * pagination.pageSize;
               const paginatedCsList = filteredCsList.slice(
                 startIndex,
@@ -354,7 +360,7 @@ export default function ComparativeStatements() {
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                             <div className="space-y-1">
                               <div className="flex items-center gap-2">
-                                <span className="font-mono font-bold text-base text-slate-900 dark:text-slate-100">
+                                <span className="font-mono font-bold whitespace-nowrap text-base text-slate-900 dark:text-slate-100">
                                   {cs.cs_number || "CS-PENDING"}
                                 </span>
                                 <Badge
@@ -441,7 +447,7 @@ export default function ComparativeStatements() {
                             </div>
                             <div>
                               <span className="text-slate-500 block">Recommended Amount</span>
-                              <span className="font-mono font-bold text-slate-900 dark:text-white">
+                              <span className="font-mono font-bold whitespace-nowrap text-slate-900 dark:text-white">
                                 ₹{Number(cs.recommended_total || 0).toLocaleString("en-IN")}
                               </span>
                             </div>
@@ -449,7 +455,7 @@ export default function ComparativeStatements() {
                               <span className="text-slate-500 block">Authority Routing</span>
                               <Badge
                                 variant="outline"
-                                className="font-semibold bg-purple-50 text-purple-700 border-purple-300"
+                                className="font-semibold bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800"
                               >
                                 {cs.current_approver_role?.toUpperCase()}
                               </Badge>
@@ -538,9 +544,9 @@ export default function ComparativeStatements() {
 
                   <PaginationControls
                     currentPage={pagination.page}
-                    totalPages={pagination.totalPages}
+                    totalPages={Math.max(1, Math.ceil(filteredCsList.length / pagination.pageSize))}
                     pageSize={pagination.pageSize}
-                    totalItems={pagination.total}
+                    totalItems={filteredCsList.length}
                     currentItemsCount={paginatedCsList.length}
                     onPageChange={setPage}
                     onPageSizeChange={setPageSize}
