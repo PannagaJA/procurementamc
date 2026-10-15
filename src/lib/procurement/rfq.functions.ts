@@ -190,7 +190,27 @@ export const sendRfq = createServerFn({ method: "POST" })
 
     if (upErr) return { ok: false as const, error: upErr.message, code: "update_rfq_failed" };
 
-    return { ok: true as const, sentCount: selectedCount, rfqId: data.rfq_id };
+    const { data: vendorList } = await supabaseAdmin
+      .from("vendors")
+      .select("id, name, bank_details_json")
+      .in("id", data.vendor_ids);
+
+    const { data: fullRfq } = await supabaseAdmin
+      .from("rfqs")
+      .select(`
+        id, rfq_number, response_deadline, pr_id,
+        purchase_requisitions (id, pr_number, scope, category, justification)
+      `)
+      .eq("id", data.rfq_id)
+      .single();
+
+    return {
+      ok: true as const,
+      sentCount: selectedCount,
+      rfqId: data.rfq_id,
+      rfq: fullRfq,
+      vendors: vendorList || [],
+    };
   });
 
 export const recordQuotationResponse = createServerFn({ method: "POST" })
@@ -338,3 +358,150 @@ export const listRfqs = createServerFn({ method: "GET" })
     if (error) return { ok: false as const, error: error.message };
     return { ok: true as const, rfqs: rfqs ?? [] };
   });
+
+export const submitRfqQuotationResponse = createServerFn({ method: "POST" })
+  .validator(
+    (input: {
+      rfq_id: string;
+      vendor_id: string;
+      token: string;
+      total_amount: number;
+      delivery_days?: number;
+      payment_terms?: string;
+      contact_person?: string;
+      contact_phone?: string;
+      quotation_ref?: string;
+      notes?: string;
+      quotation_validity?: string;
+      lines?: Array<{
+        pr_line_item_id?: string | null;
+        description: string;
+        quantity: number;
+        unit?: string | null;
+        unit_price: number;
+        tax_amount?: number;
+        delivery_days?: number;
+        warranty_months?: number;
+        meets_technical_spec?: boolean;
+        technical_remarks?: string | null;
+      }>;
+    }) => input,
+  )
+  .handler(async ({ data }) => {
+    const { verifyVendorAccessToken } = await import("@/lib/quotationAuth");
+    const valid = await verifyVendorAccessToken(data.rfq_id, data.vendor_id, data.token);
+    if (!valid) {
+      return {
+        ok: false as const,
+        error: "Invalid or unauthorized quotation access token.",
+        code: "unauthorized",
+      };
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Verify vendor was invited to this RFQ
+    const { data: rv, error: rvErr } = await supabaseAdmin
+      .from("rfq_vendors")
+      .select("id, response_received_at")
+      .eq("rfq_id", data.rfq_id)
+      .eq("vendor_id", data.vendor_id)
+      .maybeSingle();
+
+    if (rvErr || !rv) {
+      return {
+        ok: false as const,
+        error: "Vendor is not invited to this RFQ.",
+        code: "not_invited",
+      };
+    }
+
+    // Prepare quotation lines
+    let lineItems = data.lines;
+    if (!lineItems || lineItems.length === 0) {
+      const { data: rfqRow } = await supabaseAdmin
+        .from("rfqs")
+        .select("pr_id")
+        .eq("id", data.rfq_id)
+        .single();
+
+      const { data: prItems } = await supabaseAdmin
+        .from("pr_line_items")
+        .select("id, description, net_qty_to_procure, unit, est_unit_price")
+        .eq("pr_id", rfqRow?.pr_id);
+
+      if (prItems && prItems.length > 0) {
+        const perItemPrice = data.total_amount / prItems.length;
+        lineItems = prItems.map((pi: any) => ({
+          pr_line_item_id: pi.id,
+          description: pi.description,
+          quantity: Number(pi.net_qty_to_procure) || 1,
+          unit: pi.unit || "pcs",
+          unit_price: perItemPrice / (Number(pi.net_qty_to_procure) || 1),
+          tax_amount: 0,
+          delivery_days: data.delivery_days || 7,
+          warranty_months: 12,
+          meets_technical_spec: true,
+          technical_remarks: data.notes || null,
+        }));
+      } else {
+        lineItems = [
+          {
+            pr_line_item_id: null,
+            description: "Goods / Services as per RFQ specifications",
+            quantity: 1,
+            unit: "lot",
+            unit_price: data.total_amount,
+            tax_amount: 0,
+            delivery_days: data.delivery_days || 7,
+            warranty_months: 12,
+            meets_technical_spec: true,
+            technical_remarks: data.notes || null,
+          },
+        ];
+      }
+    }
+
+    // Clean up previous lines for this vendor & rfq if re-submitting
+    await supabaseAdmin
+      .from("quotation_lines")
+      .delete()
+      .eq("rfq_id", data.rfq_id)
+      .eq("vendor_id", data.vendor_id);
+
+    const rows = lineItems.map((l) => {
+      const qty = Number(l.quantity) || 1;
+      const price = Number(l.unit_price) || 0;
+      const tax = Number(l.tax_amount) || 0;
+      const total = qty * price + tax;
+      return {
+        rfq_id: data.rfq_id,
+        vendor_id: data.vendor_id,
+        pr_line_item_id: l.pr_line_item_id ?? null,
+        description: l.description,
+        quantity: qty,
+        unit: l.unit ?? null,
+        unit_price: price,
+        tax_amount: tax,
+        total_price: total,
+        delivery_days: l.delivery_days ?? (data.delivery_days || 7),
+        warranty_months: l.warranty_months ?? 12,
+        meets_technical_spec: l.meets_technical_spec !== false,
+        technical_remarks: l.technical_remarks ?? (data.notes || null),
+        quotation_ref: data.quotation_ref ?? null,
+      };
+    });
+
+    const { error: insErr } = await supabaseAdmin.from("quotation_lines").insert(rows);
+    if (insErr) return { ok: false as const, error: insErr.message };
+
+    // Update response_received_at in rfq_vendors
+    await supabaseAdmin
+      .from("rfq_vendors")
+      .update({ response_received_at: new Date().toISOString() })
+      .eq("rfq_id", data.rfq_id)
+      .eq("vendor_id", data.vendor_id);
+
+    return { ok: true as const, linesCount: rows.length };
+  });
+
