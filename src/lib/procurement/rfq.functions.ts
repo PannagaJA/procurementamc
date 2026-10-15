@@ -85,14 +85,33 @@ export const createRfq = createServerFn({ method: "POST" })
       return { ok: false as const, error: "Requisition not found", code: "pr_not_found" };
     }
 
-    // Look up matrix rule for minimum quotations
-    const { data: rules } = await db
-      .from("approval_matrix_rules")
-      .select("min_quotations")
-      .eq("category", pr.category)
-      .eq("active", true);
+    // One open RFQ per PR — re-tendering requires cancelling/closing the previous one.
+    const { data: openRfq } = await db
+      .from("rfqs")
+      .select("rfq_number")
+      .eq("pr_id", data.pr_id)
+      .in("status", ["draft", "sent"])
+      .limit(1)
+      .maybeSingle();
+    if (openRfq) {
+      return {
+        ok: false as const,
+        error: `${pr.pr_number} already has an open RFQ (${openRfq.rfq_number}).`,
+        code: "rfq_exists",
+      };
+    }
 
-    const minQuotes = Math.max(3, ...(rules ?? []).map((r: any) => Number(r.min_quotations || 3)));
+    // Minimum quotations come from the matrix band this PR's value falls in (table-driven).
+    const { resolveApprover } = await import("@/lib/procurement/authorityMatrix");
+    const { data: rules } = await db.from("approval_matrix_rules").select("*").eq("active", true);
+    // ponytail: month-to-date spend passed as 0 — only affects escalation band, not normal RFQs.
+    const resolved = resolveApprover(
+      pr.category,
+      Number(pr.estimated_value || 0),
+      0,
+      (rules ?? []) as any,
+    );
+    const minQuotes = Math.max(1, resolved.minQuotations);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -151,7 +170,7 @@ export const sendRfq = createServerFn({ method: "POST" })
     if (selectedCount < minRequired) {
       return {
         ok: false as const,
-        error: `Cannot send RFQ: At least ${minRequired} empanelled vendors must be selected (only ${selectedCount} selected per SOP §8.4).`,
+        error: `Select at least ${minRequired} empanelled vendors to send this RFQ (you selected ${selectedCount}).`,
         code: "min_vendors_not_met",
       };
     }
@@ -197,10 +216,12 @@ export const sendRfq = createServerFn({ method: "POST" })
 
     const { data: fullRfq } = await supabaseAdmin
       .from("rfqs")
-      .select(`
+      .select(
+        `
         id, rfq_number, response_deadline, pr_id,
         purchase_requisitions (id, pr_number, scope, category, justification)
-      `)
+      `,
+      )
       .eq("id", data.rfq_id)
       .single();
 
@@ -301,12 +322,13 @@ export const checkTechnicalCompliance = createServerFn({ method: "POST" })
     const roles = await getCallerRoles(db, context.userId);
     const held = roles.map((r) => r.role);
 
-    // According to SOP §8.5, technical committee / HOD checks compliance. 
+    // According to SOP §8.5, technical committee / HOD checks compliance.
     // We'll allow procurement officer, admin, or hod.
     if (!held.includes("admin") && !held.includes("procurement_officer") && !held.includes("hod")) {
       return {
         ok: false as const,
-        error: "Only authorized personnel (Procurement, HOD, Admin) can check technical compliance.",
+        error:
+          "Only authorized personnel (Procurement, HOD, Admin) can check technical compliance.",
         code: "unauthorized",
       };
     }
@@ -358,6 +380,67 @@ export const listRfqs = createServerFn({ method: "GET" })
     if (error) return { ok: false as const, error: error.message };
     return { ok: true as const, rfqs: rfqs ?? [] };
   });
+
+/**
+ * Public (vendor, unauthenticated) read of an RFQ via the private quotation link.
+ * RLS only lets authenticated users read rfqs/vendors/PRs, so the token is
+ * verified here and the read is done with the service role.
+ */
+export const getRfqForVendor = createServerFn({ method: "POST" })
+  .validator((input: { rfq_id: string; vendor_id: string; token: string }) => input)
+  .handler(async ({ data }) => {
+    const { verifyVendorAccessToken } = await import("@/lib/quotationAuth");
+    const valid = await verifyVendorAccessToken(data.rfq_id, data.vendor_id, data.token);
+    if (!valid) {
+      return { ok: false as const, error: "Invalid or unauthorized quotation access token." };
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: rv } = await supabaseAdmin
+      .from("rfq_vendors")
+      .select("id")
+      .eq("rfq_id", data.rfq_id)
+      .eq("vendor_id", data.vendor_id)
+      .maybeSingle();
+    if (!rv) return { ok: false as const, error: "Vendor is not invited to this RFQ." };
+
+    const [{ data: rfq, error: rfqErr }, { data: vendor }, { data: lines }] = await Promise.all([
+      supabaseAdmin
+        .from("rfqs")
+        .select(
+          "id, rfq_number, status, response_deadline, purchase_requisitions (id, pr_number, category, scope, estimated_value, justification, pr_line_items (*))",
+        )
+        .eq("id", data.rfq_id)
+        .maybeSingle(),
+      supabaseAdmin
+        .from("vendors")
+        .select("id, name, bank_details_json")
+        .eq("id", data.vendor_id)
+        .maybeSingle(),
+      supabaseAdmin
+        .from("quotation_lines")
+        .select("*")
+        .eq("rfq_id", data.rfq_id)
+        .eq("vendor_id", data.vendor_id),
+    ]);
+    if (rfqErr || !rfq) return { ok: false as const, error: rfqErr?.message || "RFQ not found" };
+
+    return {
+      ok: true as const,
+      rfq: rfq as any,
+      vendor: vendor as any,
+      lines: (lines ?? []) as any[],
+    };
+  });
+
+/** Earliest acceptable quotation validity (YYYY-MM-DD): 30 days after the response deadline (or today if none/past). */
+export function minValidityDate(deadline?: string | null): string {
+  const now = new Date();
+  const base = deadline ? new Date(deadline) : now;
+  const start = base < now ? now : base;
+  return new Date(start.getTime() + 30 * 86_400_000).toISOString().slice(0, 10);
+}
 
 export const submitRfqQuotationResponse = createServerFn({ method: "POST" })
   .validator(
@@ -416,6 +499,57 @@ export const submitRfqQuotationResponse = createServerFn({ method: "POST" })
       };
     }
 
+    const { data: rfqState } = await supabaseAdmin
+      .from("rfqs")
+      .select("status, response_deadline")
+      .eq("id", data.rfq_id)
+      .maybeSingle();
+    if (rfqState?.status !== "sent") {
+      return {
+        ok: false as const,
+        error: `This RFQ is ${rfqState?.status ?? "unavailable"} and no longer accepts quotations.`,
+        code: "rfq_not_open",
+      };
+    }
+    // Deadline is picked as a date (stored as 00:00 UTC) — accept quotes through that whole day.
+    const DAY_MS = 86_400_000;
+    if (
+      rfqState.response_deadline &&
+      new Date(rfqState.response_deadline).getTime() + DAY_MS < Date.now()
+    ) {
+      return {
+        ok: false as const,
+        error: `The submission deadline (${rfqState.response_deadline}) has passed.`,
+        code: "rfq_deadline_passed",
+      };
+    }
+
+    // Public endpoint — re-validate what the form enforces.
+    const invalid = (error: string) => ({ ok: false as const, error, code: "invalid_input" });
+    if (!(Number(data.total_amount) > 0)) return invalid("Total amount must be greater than 0.");
+    const days = Number(data.delivery_days);
+    if (!Number.isInteger(days) || days < 1 || days > 365)
+      return invalid("Delivery time must be whole days between 1 and 365.");
+    const minValidity = minValidityDate(rfqState.response_deadline);
+    if (!data.quotation_validity || data.quotation_validity < minValidity)
+      return invalid(`Quotation validity must be on or after ${minValidity}.`);
+    if (!data.payment_terms?.trim() || !data.contact_person?.trim() || !data.contact_phone?.trim())
+      return invalid("Payment terms, contact person and contact phone are required.");
+
+    // quotation_lines has no columns for these, so they ride along in technical_remarks.
+    // ponytail: free-text storage; add real columns if CS needs to compare payment terms.
+    // Same "Label: value" layout as legacy quotation_responses, so the vendor page can parse it back.
+    const commercialTerms = [
+      (data.notes ?? "").trim(),
+      [
+        `Delivery Time: ${days} days`,
+        `Contact Person: ${data.contact_person.trim()}`,
+        `Contact Phone: ${data.contact_phone.trim()}`,
+        `Payment Terms: ${data.payment_terms.trim()}`,
+        `Valid Until: ${data.quotation_validity}`,
+      ].join("\n"),
+    ].join("\n\n");
+
     // Prepare quotation lines
     let lineItems = data.lines;
     if (!lineItems || lineItems.length === 0) {
@@ -428,7 +562,7 @@ export const submitRfqQuotationResponse = createServerFn({ method: "POST" })
       const { data: prItems } = await supabaseAdmin
         .from("pr_line_items")
         .select("id, description, net_qty_to_procure, unit, est_unit_price")
-        .eq("pr_id", rfqRow?.pr_id);
+        .eq("pr_id", rfqRow?.pr_id ?? "");
 
       if (prItems && prItems.length > 0) {
         const perItemPrice = data.total_amount / prItems.length;
@@ -439,10 +573,10 @@ export const submitRfqQuotationResponse = createServerFn({ method: "POST" })
           unit: pi.unit || "pcs",
           unit_price: perItemPrice / (Number(pi.net_qty_to_procure) || 1),
           tax_amount: 0,
-          delivery_days: data.delivery_days || 7,
+          delivery_days: days,
           warranty_months: 12,
           meets_technical_spec: true,
-          technical_remarks: data.notes || null,
+          technical_remarks: commercialTerms,
         }));
       } else {
         lineItems = [
@@ -453,10 +587,10 @@ export const submitRfqQuotationResponse = createServerFn({ method: "POST" })
             unit: "lot",
             unit_price: data.total_amount,
             tax_amount: 0,
-            delivery_days: data.delivery_days || 7,
+            delivery_days: days,
             warranty_months: 12,
             meets_technical_spec: true,
-            technical_remarks: data.notes || null,
+            technical_remarks: commercialTerms,
           },
         ];
       }
@@ -484,10 +618,10 @@ export const submitRfqQuotationResponse = createServerFn({ method: "POST" })
         unit_price: price,
         tax_amount: tax,
         total_price: total,
-        delivery_days: l.delivery_days ?? (data.delivery_days || 7),
+        delivery_days: l.delivery_days ?? days,
         warranty_months: l.warranty_months ?? 12,
         meets_technical_spec: l.meets_technical_spec !== false,
-        technical_remarks: l.technical_remarks ?? (data.notes || null),
+        technical_remarks: l.technical_remarks ?? commercialTerms,
         quotation_ref: data.quotation_ref ?? null,
       };
     });
@@ -504,4 +638,3 @@ export const submitRfqQuotationResponse = createServerFn({ method: "POST" })
 
     return { ok: true as const, linesCount: rows.length };
   });
-

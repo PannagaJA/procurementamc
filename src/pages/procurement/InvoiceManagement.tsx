@@ -759,7 +759,7 @@ export default function InvoiceManagement() {
             <DialogHeader>
               <DialogTitle>Submit Vendor Invoice</DialogTitle>
               <DialogDescription>
-                Finance entry for vendor invoice with automatic 3-way match validation (§8.7).
+                Finance entry for vendor invoice with automatic 3-way match validation.
               </DialogDescription>
             </DialogHeader>
 

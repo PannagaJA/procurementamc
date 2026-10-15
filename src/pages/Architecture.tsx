@@ -122,7 +122,7 @@ const DIAGRAM_3_THREE_WAY_MATCH = `flowchart TD
 const DIAGRAM_4_EMERGENCY = `flowchart TD
     EP_Req["Emergency Procurement Raised"] --> Led_Check{"Check emergency_annual_ledger"}
     Led_Check -->|"Running Total + Amount <= ₹10L"| EVP_Auth{"EVP Approval Gate"}
-    Led_Check -->|"Running Total + Amount > ₹10L"| Hard_Block["Hard Error: ANNUAL_CAP_EXCEEDED<br/>SOP §9 Mandate"]
+    Led_Check -->|"Running Total + Amount > ₹10L"| Hard_Block["Blocked: annual emergency<br/>limit reached"]
 
     EVP_Auth -->|"EVP Approves"| Update_Led["Update Ledger Running Total"]
     EVP_Auth -->|"EVP Rejects"| EP_Rej["Status: 'rejected'"]
@@ -184,7 +184,7 @@ export default function Architecture() {
         <div className="rounded-2xl bg-gradient-to-br from-indigo-900 via-slate-900 to-blue-950 text-white p-4 sm:p-8 shadow-xl border border-indigo-900/50 space-y-3 sm:space-y-4">
           <div className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/30 max-w-full">
             <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
-            <span className="truncate">SOP Compliance Engine & Execution Blueprint</span>
+            <span className="truncate">Procurement Rules Engine & System Blueprint</span>
           </div>
           <h2 className="text-lg sm:text-3xl lg:text-4xl font-extrabold tracking-tight leading-snug">
             Institutional Procurement Architecture

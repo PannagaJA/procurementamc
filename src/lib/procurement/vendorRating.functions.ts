@@ -87,7 +87,7 @@ export const submitVendorRating = createServerFn({ method: "POST" })
         if (!data.submit_for_countersignature) {
           return {
             ok: false as const,
-            error: `SOP Annexure 4: Debarment outcome requires explicit EVP authorization before final recording. Please route to the Executive Vice President (evp@institution.edu) for countersignature.`,
+            error: `A score below 40 debars this vendor, which only the Executive Vice President (EVP) can authorize. Send this rating to the EVP for countersignature.`,
             code: "evp_debarment_authorization_required",
             weightedScore,
             outcome,

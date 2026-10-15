@@ -318,7 +318,7 @@ export const recordPayment = createServerFn({ method: "POST" })
     if (inv.match_status !== "approved") {
       return {
         ok: false as const,
-        error: `Cannot record payment: Invoice "${inv.invoice_number}" is in "${inv.match_status}" status. It must be approved first (SOP §8.7).`,
+        error: `Payment can't be recorded yet: invoice "${inv.invoice_number}" is "${inv.match_status}". Approve the invoice first.`,
         code: "invoice_not_approved",
       };
     }

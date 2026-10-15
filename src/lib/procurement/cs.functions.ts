@@ -64,7 +64,7 @@ export const prepareComparativeStatement = createServerFn({ method: "POST" })
       return {
         ok: false as const,
         error:
-          "Forbidden: Preparation of Comparative Statements (CS) is restricted to the Procurement Team. Purchase Committee and Executives evaluate and approve the CS (SOP §8.4).",
+          "Only the procurement team can prepare a Comparative Statement. The Purchase Committee and executives review and approve it.",
         code: "forbidden_cs_preparation",
       };
     }
@@ -120,7 +120,7 @@ export const prepareComparativeStatement = createServerFn({ method: "POST" })
     if (compliantVendors.length < minRequired) {
       return {
         ok: false as const,
-        error: `Cannot prepare Comparative Statement: Requires at least ${minRequired} technically compliant quotation responses (only ${compliantVendors.length} compliant responses received per SOP §8.4).`,
+        error: `A Comparative Statement needs at least ${minRequired} technically compliant quotations; ${compliantVendors.length} received so far.`,
         code: "insufficient_compliant_quotes",
       };
     }
@@ -143,7 +143,7 @@ export const prepareComparativeStatement = createServerFn({ method: "POST" })
       if (!data.non_lowest_rationale || !data.non_lowest_rationale.trim()) {
         return {
           ok: false as const,
-          error: `Non-lowest price rationale is mandatory when recommending a vendor other than the lowest bidder (SOP §7.2).`,
+          error: `Explain why you are recommending a vendor other than the lowest bidder.`,
           code: "non_lowest_rationale_required",
         };
       }

@@ -178,7 +178,7 @@ export const createGrn = createServerFn({ method: "POST" })
     if (!data.delivery_challan_id) {
       return {
         ok: false as const,
-        error: "Cannot create GRN: A valid Delivery Challan is required per SOP §8.6.",
+        error: "Record the delivery challan at the gate before creating a GRN.",
         code: "challan_required",
       };
     }
@@ -274,7 +274,7 @@ export const createGrn = createServerFn({ method: "POST" })
     if (poOrderedQty > 0 && cumulativeDelivered > poOrderedQty) {
       return {
         ok: false as const,
-        error: `Cumulative delivered quantity (${cumulativeDelivered}) cannot exceed PO ordered quantity (${poOrderedQty}) per SOP §8.6.`,
+        error: `This GRN would bring the total received quantity to ${cumulativeDelivered}, more than the ${poOrderedQty} ordered on the PO. Reduce the accepted quantity.`,
         code: "over_delivery_not_permitted",
       };
     }

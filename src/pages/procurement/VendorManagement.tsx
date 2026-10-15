@@ -624,7 +624,7 @@ export default function VendorManagement() {
 
                   <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
                     <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-3">
-                      Bank Remittance Details (SOP §8.2)
+                      Bank Remittance Details
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="space-y-2">
@@ -688,10 +688,10 @@ export default function VendorManagement() {
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <FileCheck className="w-5 h-5 text-indigo-600" /> Evaluation by Procurement
-                  Committee (SOP §8.2)
+                  Committee
                 </CardTitle>
                 <CardDescription>
-                  Evaluate applied vendors across 4 SOP criteria: Technical capability, Past
+                  Evaluate applied vendors across 4 criteria: Technical capability, Past
                   performance, Service support, and Financial reasonableness.
                 </CardDescription>
               </CardHeader>
@@ -849,7 +849,7 @@ export default function VendorManagement() {
                     </CardTitle>
                   </div>
                   <span className="text-xs font-bold uppercase px-2.5 py-1 rounded bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300">
-                    SOP §8.2 Mandatory Gate
+                    EVP Approval Required
                   </span>
                 </div>
                 <CardDescription>

@@ -30,9 +30,23 @@ import {
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { AlertCircle, CheckCircle, Clock, DollarSign, Package, Truck, User, ShieldAlert, Phone } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle,
+  Clock,
+  DollarSign,
+  Package,
+  Truck,
+  User,
+  ShieldAlert,
+  Phone,
+} from "lucide-react";
 import { verifyVendorAccessToken } from "@/lib/quotationAuth";
-import { submitRfqQuotationResponse } from "@/lib/procurement/rfq.functions";
+import {
+  getRfqForVendor,
+  minValidityDate,
+  submitRfqQuotationResponse,
+} from "@/lib/procurement/rfq.functions";
 
 // Helper to extract labeled values from the response description text
 function extractFromDescription(desc: string, label: string) {
@@ -51,16 +65,19 @@ const responseSchema = z.object({
       const num = parseFloat(val);
       return !isNaN(num) && num > 0;
     }, "Total amount must be a valid number greater than 0"),
-  deliveryTime: z.string().min(1, "Delivery time is required"),
-  contactPerson: z.string().min(1, "Contact person is required"),
+  deliveryTime: z
+    .string()
+    .min(1, "Delivery time is required")
+    .refine((v) => /^\d+$/.test(v) && +v >= 1 && +v <= 365, "Enter whole days between 1 and 365"),
+  contactPerson: z.string().trim().min(2, "Contact person is required"),
+  // Same rule as vendor empanelment: 10–15 digits, optional leading +.
   contactPhone: z
     .string()
-    .min(5, "Contact phone is required")
-    .refine((v) => {
-      // basic phone validation: allow digits, spaces, +, -, (, )
-      return /^[0-9+()\s-]{5,}$/.test(v);
-    }, "Enter a valid phone number"),
-  paymentTerms: z.string().min(1, "Payment terms are required"),
+    .refine(
+      (v) => /^\+?[0-9]{10,15}$/.test(v.replace(/[\s-]/g, "")),
+      "Enter a valid phone number (10–15 digits)",
+    ),
+  paymentTerms: z.string().trim().min(3, "Payment terms are required"),
   additionalNotes: z.string().optional(),
   quotationValidity: z
     .string()
@@ -126,6 +143,7 @@ export default function QuotationResponse() {
 
     try {
       let resolvedQuotation: any = null;
+      let vendorLines: any[] | null = null;
       const searchParams = new URLSearchParams(window.location.search || location.search);
       const token = searchParams.get("token");
 
@@ -145,24 +163,44 @@ export default function QuotationResponse() {
         resolvedQuotation = quotationData;
       } else {
         // 2. Fallback: Check if id matches an RFQ ID
-        const { data: rfqData } = await supabase
-          .from("rfqs")
-          .select(
-            `
-            *,
-            purchase_requisitions (id, pr_number, category, scope, estimated_value, justification),
-            pr_line_items (*)
-          `,
-          )
-          .eq("id", id)
-          .maybeSingle();
+        const rfqVendorId = searchParams.get("vendorId") || "";
+        let rfqData: any = null;
+        let vendorName = "Invited Vendor";
+        let vendorEmail = "";
+
+        if (rfqVendorId && token) {
+          // Vendors are not logged in — RLS hides RFQs from anon, so read server-side after token check.
+          const res = await getRfqForVendor({
+            data: { rfq_id: id, vendor_id: rfqVendorId, token },
+          });
+          if (!res.ok) {
+            setAccessDenied(true);
+            setAccessDeniedReason(res.error);
+            setIsLoading(false);
+            return;
+          }
+          rfqData = res.rfq;
+          vendorLines = res.lines;
+          if (res.vendor) {
+            vendorName = res.vendor.name;
+            vendorEmail = res.vendor.bank_details_json?.email || "";
+          }
+        } else {
+          const { data } = await supabase
+            .from("rfqs")
+            .select(
+              `
+              *,
+              purchase_requisitions (id, pr_number, category, scope, estimated_value, justification, pr_line_items (*))
+            `,
+            )
+            .eq("id", id)
+            .maybeSingle();
+          rfqData = data;
+        }
 
         if (rfqData) {
-          const rfqVendorId = searchParams.get("vendorId") || "";
-          let vendorName = "Invited Vendor";
-          let vendorEmail = "";
-
-          if (rfqVendorId) {
+          if (rfqVendorId && !vendorLines) {
             const { data: vData } = await supabase
               .from("vendors")
               .select("id, name, bank_details_json")
@@ -184,6 +222,8 @@ export default function QuotationResponse() {
             quantity: 1,
             last_reply_date: rfqData.response_deadline,
             status: rfqData.status,
+            // RFQ quotes are evaluated via the Comparative Statement, not an admin accept/reject.
+            admin_status: "pending",
             company_email: vendorEmail || vendorName,
             categories: {
               name: rfqData.purchase_requisitions?.category || "Institutional Procurement",
@@ -241,11 +281,15 @@ export default function QuotationResponse() {
 
       // Fetch existing response if any
       if (resolvedQuotation.isRfq && resolvedQuotation.vendorId) {
-        const { data: existingLines } = await supabase
-          .from("quotation_lines")
-          .select("*")
-          .eq("rfq_id", id)
-          .eq("vendor_id", resolvedQuotation.vendorId);
+        const existingLines =
+          vendorLines ??
+          (
+            await supabase
+              .from("quotation_lines")
+              .select("*")
+              .eq("rfq_id", id)
+              .eq("vendor_id", resolvedQuotation.vendorId)
+          ).data;
 
         if (existingLines && existingLines.length > 0) {
           const total = existingLines.reduce(
@@ -312,6 +356,14 @@ export default function QuotationResponse() {
       return;
     }
 
+    const minValidity = minValidityDate(quotation.last_reply_date);
+    if (data.quotationValidity < minValidity) {
+      form.setError("quotationValidity", {
+        message: `Validity must be on or after ${minValidity} (30 days from the response deadline).`,
+      });
+      return;
+    }
+
     if (quotation.isRfq) {
       if (quotation.status === "closed" || quotation.status === "cancelled") {
         toast({
@@ -332,12 +384,12 @@ export default function QuotationResponse() {
             vendor_id: quotation.vendorId || "",
             token,
             total_amount: parseFloat(data.totalAmount),
-            delivery_days: parseInt(data.deliveryTime) || 7,
+            delivery_days: Number(data.deliveryTime),
             payment_terms: data.paymentTerms,
             contact_person: data.contactPerson,
             contact_phone: data.contactPhone,
             notes: `${data.description}${data.additionalNotes ? ` | ${data.additionalNotes}` : ""}`,
-            quotation_validity: data.quotationValidity || null,
+            quotation_validity: data.quotationValidity,
           },
         });
 
@@ -378,7 +430,7 @@ export default function QuotationResponse() {
       const responseData = {
         quotation_id: quotation.id,
         company_email: quotation.company_email,
-        description: `${data.description}\n\nDelivery Time: ${data.deliveryTime}\nContact Person: ${data.contactPerson}\nContact Phone: ${data.contactPhone}\nPayment Terms: ${data.paymentTerms}${data.additionalNotes ? `\n\nAdditional Notes: ${data.additionalNotes}` : ""}`,
+        description: `${data.description}\n\nDelivery Time: ${data.deliveryTime} days\nContact Person: ${data.contactPerson}\nContact Phone: ${data.contactPhone}\nPayment Terms: ${data.paymentTerms}${data.additionalNotes ? `\n\nAdditional Notes: ${data.additionalNotes}` : ""}`,
         total_amount: parseFloat(data.totalAmount),
         quotation_validity: data.quotationValidity || null,
         terms_accepted: data.termsAccepted === true,
@@ -479,7 +531,8 @@ export default function QuotationResponse() {
               Quotation Ref: {id}
             </div>
             <p className="text-xs text-slate-400">
-              If you are an invited vendor, please ensure you clicked the unique quotation link sent to your registered email address.
+              If you are an invited vendor, please ensure you clicked the unique quotation link sent
+              to your registered email address.
             </p>
           </CardContent>
         </Card>
@@ -522,10 +575,10 @@ export default function QuotationResponse() {
         <CardHeader
           className={`${
             isExpired
-              ? "bg-red-50"
+              ? "bg-red-50 dark:bg-red-950/40"
               : hasResponded
-                ? "bg-green-50"
-                : "bg-gradient-to-r from-blue-50 to-indigo-50"
+                ? "bg-green-50 dark:bg-green-950/40"
+                : "bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40"
           }`}
         >
           <div className="flex items-center gap-4">
@@ -533,9 +586,15 @@ export default function QuotationResponse() {
             <div>
               <CardTitle className="flex items-center gap-2">
                 {hasResponded ? "Quotation Response Submitted" : "Submit Quotation Response"}
-                {isExpired && <span className="text-red-600 text-sm font-normal">(Expired)</span>}
+                {isExpired && (
+                  <span className="text-red-600 dark:text-red-400 text-sm font-normal">
+                    (Expired)
+                  </span>
+                )}
                 {hasResponded && (
-                  <span className="text-green-600 text-sm font-normal">(Response Submitted)</span>
+                  <span className="text-green-600 dark:text-green-400 text-sm font-normal">
+                    (Response Submitted)
+                  </span>
                 )}
               </CardTitle>
               <CardDescription>
@@ -550,35 +609,35 @@ export default function QuotationResponse() {
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Quotation Details Section */}
-          <div className="bg-gray-50 p-4 rounded-lg">
+          <div className="bg-muted/50 p-4 rounded-lg border">
             <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
               <AlertCircle className="h-4 w-4" />
               Quotation Request Details
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex items-center gap-2">
-                <Package className="h-4 w-4 text-gray-500" />
+                <Package className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <label className="text-sm font-medium">Category</label>
                   <p className="text-sm text-muted-foreground">{quotation.categories?.name}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Package className="h-4 w-4 text-gray-500" />
+                <Package className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <label className="text-sm font-medium">Product Name</label>
                   <p className="text-sm text-muted-foreground">{quotation.product_name}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Package className="h-4 w-4 text-gray-500" />
+                <Package className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <label className="text-sm font-medium">Quantity</label>
                   <p className="text-sm text-muted-foreground">{quotation.quantity} units</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-gray-500" />
+                <Clock className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <label className="text-sm font-medium">Response Deadline</label>
                   <p className="text-sm text-muted-foreground">
@@ -591,7 +650,7 @@ export default function QuotationResponse() {
             </div>
             <div className="mt-4">
               <label className="text-sm font-medium">Request Description</label>
-              <p className="text-sm text-muted-foreground bg-white p-3 rounded border mt-1">
+              <p className="text-sm text-muted-foreground bg-background p-3 rounded border mt-1">
                 {quotation.description}
               </p>
             </div>
@@ -612,7 +671,7 @@ export default function QuotationResponse() {
                       <DollarSign className="h-4 w-4" />
                       Total Amount
                     </label>
-                    <p className="text-lg font-semibold text-green-600">
+                    <p className="text-lg font-semibold text-green-600 dark:text-green-400">
                       ₹{existingResponse?.total_amount || "N/A"}
                     </p>
                   </div>
@@ -657,7 +716,10 @@ export default function QuotationResponse() {
                         if (!phone) return "Not specified";
                         const tel = phone.replace(/[^0-9+]/g, "");
                         return (
-                          <a className="text-blue-600 underline" href={`tel:${tel}`}>
+                          <a
+                            className="text-blue-600 dark:text-blue-400 underline"
+                            href={`tel:${tel}`}
+                          >
                             {phone}
                           </a>
                         );
@@ -675,6 +737,17 @@ export default function QuotationResponse() {
                         existingResponse?.description || "",
                         "Payment Terms",
                       ) || "Not specified"}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      Quotation Valid Until
+                    </label>
+                    <p className="text-sm text-muted-foreground">
+                      {extractFromDescription(existingResponse?.description || "", "Valid Until") ||
+                        "Not specified"}
                     </p>
                   </div>
                 </div>
@@ -700,17 +773,17 @@ export default function QuotationResponse() {
                       </Badge>
                     </div>
                     {quotation?.admin_status === "accepted" && (
-                      <p className="text-sm text-green-600 mt-2">
+                      <p className="text-sm text-green-600 dark:text-green-400 mt-2">
                         ✅ Your quotation has been accepted!
                       </p>
                     )}
                     {quotation?.admin_status === "rejected" && (
-                      <p className="text-sm text-red-600 mt-2">
+                      <p className="text-sm text-red-600 dark:text-red-400 mt-2">
                         ❌ Your quotation was not selected.
                       </p>
                     )}
                     {quotation?.admin_status === "pending" && (
-                      <p className="text-sm text-blue-600 mt-2">
+                      <p className="text-sm text-blue-600 dark:text-blue-400 mt-2">
                         ⏳ Your quotation is under review.
                       </p>
                     )}
@@ -731,7 +804,7 @@ export default function QuotationResponse() {
 
               <div className="mt-6">
                 <label className="text-sm font-medium">Product/Service Description</label>
-                <div className="bg-gray-50 p-4 rounded-lg mt-2">
+                <div className="bg-muted/50 p-4 rounded-lg mt-2 border">
                   <p className="text-sm whitespace-pre-line">
                     {existingResponse?.description?.split("\n\n")[0] || "No description available"}
                   </p>
@@ -741,7 +814,7 @@ export default function QuotationResponse() {
               {existingResponse?.description?.split("\n\n")[4] && (
                 <div className="mt-4">
                   <label className="text-sm font-medium">Additional Notes</label>
-                  <div className="bg-blue-50 p-4 rounded-lg mt-2">
+                  <div className="bg-blue-50 dark:bg-blue-950/40 p-4 rounded-lg mt-2">
                     <p className="text-sm whitespace-pre-line">
                       {existingResponse.description
                         .split("\n\n")[4]
@@ -800,7 +873,7 @@ export default function QuotationResponse() {
                       </div>
                       <div>
                         <label className="text-sm font-medium">Response Details</label>
-                        <div className="bg-gray-50 p-3 rounded mt-1">
+                        <div className="bg-muted/50 p-3 rounded mt-1 border">
                           <p className="text-sm whitespace-pre-line">
                             {existingResponse.description}
                           </p>
@@ -893,13 +966,20 @@ export default function QuotationResponse() {
                         <FormItem>
                           <FormLabel className="flex items-center gap-2">
                             <Truck className="h-4 w-4" />
-                            Delivery Time *
+                            Delivery Time (days) *
                           </FormLabel>
                           <FormControl>
-                            <Input placeholder="e.g., 2-3 weeks, 10 business days" {...field} />
+                            <Input
+                              type="number"
+                              min={1}
+                              max={365}
+                              step={1}
+                              placeholder="e.g., 14"
+                              {...field}
+                            />
                           </FormControl>
                           <FormDescription>
-                            Expected delivery time after order confirmation
+                            Calendar days from purchase order issue to delivery
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -918,10 +998,15 @@ export default function QuotationResponse() {
                             Quotation Validity Date *
                           </FormLabel>
                           <FormControl>
-                            <Input type="date" {...field} />
+                            <Input
+                              type="date"
+                              min={minValidityDate(quotation?.last_reply_date)}
+                              {...field}
+                            />
                           </FormControl>
                           <FormDescription>
-                            Date until which this quotation is valid.
+                            Must be on or after {minValidityDate(quotation?.last_reply_date)} (30
+                            days from the response deadline).
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -1030,7 +1115,10 @@ export default function QuotationResponse() {
                           <div className="text-muted-foreground">
                             <Dialog>
                               <DialogTrigger asChild>
-                                <button type="button" className="text-blue-600 underline ml-2">
+                                <button
+                                  type="button"
+                                  className="text-blue-600 dark:text-blue-400 underline ml-2"
+                                >
                                   Read Terms & Conditions
                                 </button>
                               </DialogTrigger>
@@ -1057,8 +1145,8 @@ export default function QuotationResponse() {
                     )}
                   />
 
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <p className="text-sm text-blue-800">
+                  <div className="bg-blue-50 dark:bg-blue-950/40 p-4 rounded-lg">
+                    <p className="text-sm text-blue-800 dark:text-blue-200">
                       <strong>Important:</strong> By submitting this quotation, you agree to honor
                       the quoted price and terms for 30 days from the response deadline, unless
                       otherwise agreed upon.

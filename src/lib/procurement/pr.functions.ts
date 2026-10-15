@@ -79,7 +79,7 @@ export const createPr = createServerFn({ method: "POST" })
     if (data.is_recurring && (!data.recurring_frequency || !data.recurring_frequency.trim())) {
       return {
         ok: false as const,
-        error: "Recurring frequency is required when Recurring Requirement is enabled (SOP §8.1).",
+        error: "Choose how often this requirement recurs, or turn off Recurring Requirement.",
         code: "recurring_frequency_required",
       };
     }
@@ -236,7 +236,7 @@ async function decide(
   if (decision === "rejected" && (!data.remarks || !data.remarks.trim())) {
     return {
       ok: false as const,
-      error: "A written rejection reason is mandatory under SOP §8.3.",
+      error: "Enter a reason for rejecting this requisition.",
       code: "rejection_remarks_required",
     };
   }

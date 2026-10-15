@@ -44,13 +44,13 @@ import {
 const DIAGRAM_1_P2P = `flowchart TD
     subgraph Sourcing ["1. Requisition & Sourcing"]
         PR_Draft["PR: draft / pending_approval"] -->|"resolveApprover"| PR_Approved["PR: approved"]
-        PR_Approved -->|"SOP §8.4: Min 3 Quotes"| RFQ_Sent["RFQ: sent"]
+        PR_Approved -->|"Min 3 Quotes"| RFQ_Sent["RFQ: sent"]
         RFQ_Sent -->|"quotation_responses"| CS_Sub["CS: submitted"]
         CS_Sub -->|"CS Evaluation & 4-Pillar Scoring"| CS_App["CS: approved"]
     end
 
-    subgraph Emergency ["Emergency Fast-Track (§9)"]
-        PR_Emergency["Emergency Requisition (§9)"] -->|"Cap Check <= ₹10L"| EP_Pending["Emergency Procurement: pending"]
+    subgraph Emergency ["Emergency Fast-Track"]
+        PR_Emergency["Emergency Requisition"] -->|"Cap Check <= ₹10L"| EP_Pending["Emergency Procurement: pending"]
         EP_Pending -->|"EVP Authorization / 48h Ratification"| EP_Approved["Emergency Procurement: approved"]
         EP_Pending -->|"Cap Exceeded > ₹10L"| EP_Blocked["Hard Block: EMERGENCY_CAP_EXCEEDED"]
     end
@@ -298,7 +298,7 @@ export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOp
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <Badge className="bg-blue-600 hover:bg-blue-700 text-white gap-1 text-xs">
-                  <ShieldCheck className="w-3.5 h-3.5" /> SOP Compliant Enterprise P2P
+                  <ShieldCheck className="w-3.5 h-3.5" /> Enterprise P2P
                 </Badge>
                 <Badge
                   variant="outline"
@@ -361,7 +361,7 @@ export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOp
                     3. Standard Cycle
                   </TabsTrigger>
                   <TabsTrigger value="emergency" className="py-1.5">
-                    4. Emergency (§9)
+                    4. Emergency
                   </TabsTrigger>
                   <TabsTrigger value="erd" className="py-1.5">
                     5. Database ERD
@@ -375,11 +375,11 @@ export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOp
                 <TabsContent value="p2p">
                   <MermaidViewer
                     id="p2p-lifecycle"
-                    title="Overall P2P Lifecycle Flowchart (SOP §8)"
+                    title="Overall P2P Lifecycle Flowchart"
                     description="Visualizes Requisitions, Quotations, Comparative Statements, POs, GRN dual sign-off, 3-Way Match, and Payments."
                     chart={DIAGRAM_1_P2P}
                     badgeText="Flowchart TD"
-                    sourceFile="Derived from supabase/migrations/ schema definitions, src/server/procurement/*.functions.ts, and Starlight P2P SOP §8."
+                    sourceFile="Derived from supabase/migrations/ schema definitions and src/server/procurement/*.functions.ts."
                   />
                 </TabsContent>
 
@@ -387,7 +387,7 @@ export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOp
                 <TabsContent value="matrix">
                   <MermaidViewer
                     id="authority-matrix"
-                    title="Authority Matrix Decision Tree (SOP §6)"
+                    title="Authority Matrix Decision Tree"
                     description="Evaluates single transaction limits, category routing, and monthly cumulative budget caps."
                     chart={DIAGRAM_2_MATRIX}
                     badgeText="Flowchart TD"
@@ -411,7 +411,7 @@ export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOp
                 <TabsContent value="emergency">
                   <MermaidViewer
                     id="emergency-sequence"
-                    title="Emergency Procurement Sequence Diagram (SOP §9)"
+                    title="Emergency Procurement Sequence Diagram"
                     description="Shows the annual ₹10,00,000 statutory cap verification, hard-block branch, and 48-hour post-facto ratification."
                     chart={DIAGRAM_4_EMERGENCY}
                     badgeText="SequenceDiagram"
@@ -439,7 +439,7 @@ export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOp
                     description="Shows draft, pending_approval, approved, issued, amended (with tier re-evaluation), and closed states."
                     chart={DIAGRAM_6_PO_STATE}
                     badgeText="stateDiagram-v2"
-                    sourceFile="Derived from src/server/procurement/po.functions.ts and SOP §8.5."
+                    sourceFile="Derived from src/server/procurement/po.functions.ts."
                   />
                 </TabsContent>
               </Tabs>
@@ -462,7 +462,7 @@ export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOp
                   </CardHeader>
                   <CardContent className="p-4 pt-1 text-slate-600 dark:text-slate-400 space-y-1">
                     <p>
-                      Dynamic line items with inventory stock deduction, Annexure-2 due diligence,
+                      Dynamic line items with inventory stock deduction, vendor due-diligence checks,
                       non-conflict declaration, and live authority matrix preview.
                     </p>
                   </CardContent>
@@ -502,7 +502,7 @@ export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOp
                   </CardHeader>
                   <CardContent className="p-4 pt-1 text-slate-600 dark:text-slate-400 space-y-1">
                     <p>
-                      Enforces minimum 3 empanelled vendors (§8.4), public quotation portal (
+                      Enforces minimum 3 empanelled vendors, public quotation portal (
                       <code>/quotation/$id</code>), pricing capture, and specification verification.
                     </p>
                   </CardContent>
@@ -583,7 +583,7 @@ export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOp
                   <CardContent className="p-4 pt-1 text-slate-600 dark:text-slate-400 space-y-1">
                     <p>
                       Automated 3-way match (PO ↔ GRN ↔ Invoice), mismatch hold state, Service PO
-                      completion certificate exception (§I2), and payment UTR logging.
+                      completion certificate exception, and payment UTR logging.
                     </p>
                   </CardContent>
                 </Card>
@@ -593,7 +593,7 @@ export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOp
                   <CardHeader className="p-4 pb-2">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-sm flex items-center gap-2 text-amber-600">
-                        <Zap className="w-4 h-4" /> 8. Emergency Track (§9)
+                        <Zap className="w-4 h-4" /> 8. Emergency Track
                       </CardTitle>
                       <Badge variant="outline" className="text-[10px]">
                         /procurement/emergency
@@ -622,7 +622,7 @@ export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOp
                   </CardHeader>
                   <CardContent className="p-4 pt-1 text-slate-600 dark:text-slate-400 space-y-1">
                     <p>
-                      Annexure 4 6-weighted sections evaluation (A:25%, B:20%, C:15%, D:20%, E:10%,
+                      Six weighted evaluation sections (A:25%, B:20%, C:15%, D:20%, E:10%,
                       F:10%), Section E N/A scaling, and 5 outcome bands.
                     </p>
                   </CardContent>
@@ -690,7 +690,7 @@ export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOp
                       </div>
                       <p className="text-slate-600 dark:text-slate-400">
                         <code>src/server/procurement/*</code>. Re-derives user role from verified
-                        session, enforces SOP guards, transaction locks, and audit logging.
+                        session, enforces procurement rules, transaction locks, and audit logging.
                       </p>
                     </div>
 
@@ -807,7 +807,7 @@ export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOp
                     <span className="font-mono text-blue-600 dark:text-blue-400">
                       docs/OPEN_DECISIONS_FOR_SIGNOFF.md
                     </span>{" "}
-                    — Policy questions for SOP owner.
+                    — Open policy questions for sign-off.
                   </li>
                 </ul>
               </div>
@@ -819,7 +819,7 @@ export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOp
         <DialogFooter className="p-4 px-6 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-row items-center justify-between">
           <div className="flex items-center gap-2 text-xs text-slate-500">
             <Info className="w-4 h-4 text-blue-500" />
-            <span>Interactive SOP System Workflows & Documentation</span>
+            <span>Interactive System Workflows & Documentation</span>
           </div>
           <Button
             onClick={() => onOpenChange(false)}

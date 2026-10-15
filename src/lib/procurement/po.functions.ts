@@ -89,7 +89,7 @@ export const createPo = createServerFn({ method: "POST" })
         return {
           ok: false as const,
           error:
-            "A Comparative Statement (CS) ID is required for regular purchase orders (SOP §8.5).",
+            "Select an approved Comparative Statement for this purchase order.",
           code: "cs_required",
         };
       }
@@ -108,7 +108,7 @@ export const createPo = createServerFn({ method: "POST" })
       if (cs.status !== "approved") {
         return {
           ok: false as const,
-          error: `Cannot create PO: Comparative Statement is "${cs.status}", not approved (SOP §8.4, §8.5).`,
+          error: `This Comparative Statement is "${cs.status}". It must be approved before a purchase order can be created.`,
           code: "cs_not_approved",
         };
       }
@@ -116,7 +116,7 @@ export const createPo = createServerFn({ method: "POST" })
       if (!data.rate_contract_id) {
         return {
           ok: false as const,
-          error: "A Rate Contract ID is required for rate contract purchase orders (SOP §8.2).",
+          error: "Select a rate contract for this purchase order.",
           code: "rc_required",
         };
       }
@@ -162,7 +162,7 @@ export const createPo = createServerFn({ method: "POST" })
       if (val > 5000) {
         return {
           ok: false as const,
-          error: `Direct Purchase cannot exceed ₹5,000 per SOP Authority Matrix. Entered total is ₹${val.toLocaleString("en-IN")}.`,
+          error: `Direct purchases are limited to ₹5,000 (this order totals ₹${val.toLocaleString("en-IN")}). Use a Comparative Statement or rate contract for larger amounts.`,
           code: "direct_purchase_limit_exceeded",
         };
       }
@@ -325,6 +325,12 @@ export const issuePo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: IssuePoInput) => input)
   .handler(async ({ data, context }) => {
+    const { getCallerRoles } = await import("@/server/procurement/roles");
+    const held = (await getCallerRoles(context.supabase as any, context.userId)).map((r) => r.role);
+    if (!["admin", "procurement_officer", "procurement_executive"].some((r) => held.includes(r))) {
+      return { ok: false as const, error: "Only the procurement team can issue purchase orders." };
+    }
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: po, error } = await supabaseAdmin
@@ -338,7 +344,7 @@ export const issuePo = createServerFn({ method: "POST" })
     if (po.status !== "approved" && po.status !== "amended") {
       return {
         ok: false as const,
-        error: `Cannot issue PO: Order is in "${po.status}" status, must be approved first (SOP §8.5).`,
+        error: `This purchase order is "${po.status}". It must be approved before it can be issued.`,
       };
     }
 
@@ -533,7 +539,7 @@ export const listPurchaseOrders = createServerFn({ method: "GET" })
           pr_line_items (id, description, net_qty_to_procure, qty_required, est_unit_price, est_total, unit)
         ),
         comparative_statements (
-          id, cs_number, status, recommended_total, is_lowest_price
+          id, cs_number, status, recommended_total, is_lowest_price, rfq_id
         ),
         vendors (
           id, name, gst_number, pan_number, registered_address, bank_details_json, status
@@ -554,5 +560,22 @@ export const listPurchaseOrders = createServerFn({ method: "GET" })
 
     const { data: list, error } = await query;
     if (error) return { ok: false as const, error: error.message };
-    return { ok: true as const, purchaseOrders: list ?? [] };
+
+    // Attach the awarded vendor's quoted lines (via CS -> RFQ) so the PO document shows real prices.
+    const rfqIds = [
+      ...new Set((list ?? []).map((po: any) => po.comparative_statements?.rfq_id).filter(Boolean)),
+    ];
+    const { data: qLines } = rfqIds.length
+      ? await db
+          .from("quotation_lines")
+          .select("rfq_id, vendor_id, description, quantity, unit, unit_price, tax_amount, total_price")
+          .in("rfq_id", rfqIds)
+      : { data: [] };
+    const purchaseOrders = (list ?? []).map((po: any) => ({
+      ...po,
+      quoted_lines: (qLines ?? []).filter(
+        (l: any) => l.rfq_id === po.comparative_statements?.rfq_id && l.vendor_id === po.vendor_id,
+      ),
+    }));
+    return { ok: true as const, purchaseOrders };
   });
