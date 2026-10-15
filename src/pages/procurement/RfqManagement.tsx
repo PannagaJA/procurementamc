@@ -29,7 +29,6 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   createRfq,
   sendRfq,
-  recordQuotationResponse,
   listRfqs,
 } from "@/lib/procurement/rfq.functions";
 import {
@@ -71,12 +70,6 @@ export default function RfqManagement() {
   const [sending, setSending] = useState(false);
 
   // Record Quote Modal
-  const [quoteOpen, setQuoteOpen] = useState(false);
-  const [quoteRfq, setQuoteRfq] = useState<any>(null);
-  const [quoteVendorId, setQuoteVendorId] = useState("");
-  const [quotationRef, setQuotationRef] = useState("");
-  const [quoteLines, setQuoteLines] = useState<any[]>([]);
-  const [recording, setRecording] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -271,96 +264,6 @@ export default function RfqManagement() {
     }
   };
 
-  const handleOpenRecordQuote = async (rfq: any, initialVendorId?: string) => {
-    setQuoteRfq(rfq);
-    setQuoteVendorId(initialVendorId || rfq.rfq_vendors?.[0]?.vendor_id || "");
-    setQuotationRef("");
-
-    // Fetch line items for this PR
-    const { data: items } = await supabase.from("pr_line_items").select("*").eq("pr_id", rfq.pr_id);
-
-    if (items && items.length > 0) {
-      setQuoteLines(
-        items.map((i) => ({
-          pr_line_item_id: i.id,
-          description: i.description,
-          quantity: Number(i.net_qty_to_procure) || 1,
-          unit: i.unit || "pcs",
-          unit_price: Number(i.est_unit_price) || 0,
-          tax_amount: 0,
-          delivery_days: 7,
-          warranty_months: 12,
-          meets_technical_spec: true,
-          technical_remarks: "",
-        })),
-      );
-    } else {
-      setQuoteLines([
-        {
-          description: rfq.purchase_requisitions?.justification || "Required items",
-          quantity: 1,
-          unit: "lot",
-          unit_price: Number(rfq.purchase_requisitions?.estimated_value) || 0,
-          tax_amount: 0,
-          delivery_days: 7,
-          warranty_months: 12,
-          meets_technical_spec: true,
-          technical_remarks: "",
-        },
-      ]);
-    }
-
-    setQuoteOpen(true);
-  };
-
-  const handleRecordQuote = async () => {
-    if (!quoteRfq || !quoteVendorId) {
-      toast({
-        title: "Select Vendor",
-        description: "Please select an invited vendor.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setRecording(true);
-    try {
-      const sanitizedLines = quoteLines.map((l) => ({
-        ...l,
-        quantity: typeof l.quantity === "number" ? l.quantity : (Number(l.quantity) || 1),
-        unit_price: typeof l.unit_price === "number" ? l.unit_price : (Number(l.unit_price) || 0),
-        tax_amount: typeof l.tax_amount === "number" ? l.tax_amount : (Number(l.tax_amount) || 0),
-        delivery_days: l.delivery_days === "" || l.delivery_days === null || l.delivery_days === undefined ? 7 : Number(l.delivery_days),
-        warranty_months: l.warranty_months === "" || l.warranty_months === null || l.warranty_months === undefined ? 12 : Number(l.warranty_months),
-      }));
-
-      const res = await (recordQuotationResponse as any)({
-        data: {
-          rfq_id: quoteRfq.id,
-          vendor_id: quoteVendorId,
-          quotation_ref: quotationRef,
-          lines: sanitizedLines,
-        },
-      });
-
-      if (!res.ok) {
-        toast({ title: "Failed to record quote", description: res.error, variant: "destructive" });
-        return;
-      }
-
-      toast({
-        title: "Quotation Recorded",
-        description: `Saved ${res.linesCount} quotation line items.`,
-      });
-      setQuoteOpen(false);
-      loadData();
-    } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
-    } finally {
-      setRecording(false);
-    }
-  };
-
   return (
     <Layout>
       <div className="max-w-6xl mx-auto space-y-6 pb-12">
@@ -496,16 +399,6 @@ export default function RfqManagement() {
                                       <Send className="w-3.5 h-3.5" /> Invite Vendors
                                     </Button>
                                   )}
-                                  {rfq.status === "sent" && (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => handleOpenRecordQuote(rfq)}
-                                      className="gap-1 text-xs border-blue-600 bg-blue-50 text-blue-800 hover:bg-blue-100 hover:text-blue-950 dark:border-blue-500/60 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-900/60 dark:hover:text-blue-100 transition-colors"
-                                    >
-                                      <PlusCircle className="w-3.5 h-3.5" /> Record Quotation
-                                    </Button>
-                                  )}
                                 </>
                               )}
                             </div>
@@ -597,22 +490,6 @@ export default function RfqManagement() {
                                         >
                                           <Copy className="w-3 h-3 mr-0.5" /> Copy Link
                                         </Button>
-                                        {(auth.hasRole("admin") ||
-                                          auth.hasRole("procurement_officer") ||
-                                          auth.hasRole("procurement_executive")) &&
-                                          rfq.status === "sent" && (
-                                            <Button
-                                              size="sm"
-                                              variant="ghost"
-                                              className="h-5 px-1.5 text-[10px] text-blue-600 hover:text-blue-800 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/60 font-semibold ml-0.5"
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleOpenRecordQuote(rfq, rv.vendor_id);
-                                              }}
-                                            >
-                                              + Record Quote
-                                            </Button>
-                                          )}
                                       </div>
                                     )}
                                   </div>
@@ -781,240 +658,6 @@ export default function RfqManagement() {
           </DialogContent>
         </Dialog>
 
-        {/* Modal: Record Quotation Response */}
-        <Dialog open={quoteOpen} onOpenChange={setQuoteOpen}>
-          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Record Vendor Quotation</DialogTitle>
-              <DialogDescription>
-                Capture quotation lines, unit pricing, taxes, and technical compliance check.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-4 py-2">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Responding Vendor</Label>
-                  <Select value={quoteVendorId} onValueChange={setQuoteVendorId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select vendor..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {quoteRfq?.rfq_vendors?.map((rv: any) => (
-                        <SelectItem key={rv.vendor_id} value={rv.vendor_id}>
-                          {rv.vendors?.name || rv.vendor_id}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Quotation Reference / Invoice No</Label>
-                  <Input
-                    placeholder="e.g. QUOT-2026-99"
-                    value={quotationRef}
-                    onChange={(e) => setQuotationRef(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              {/* Line items table */}
-              <div className="space-y-3">
-                <Label>Line Item Pricing & Technical Compliance</Label>
-                {quoteLines.map((line, idx) => (
-                  <div
-                    key={idx}
-                    className="p-3 border rounded-lg bg-slate-50 dark:bg-slate-900 space-y-3 text-xs"
-                  >
-                    <div className="font-semibold text-slate-800 dark:text-slate-200">
-                      Item #{idx + 1}: {line.description}
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      <div>
-                        <Label className="text-[10px]">Quantity</Label>
-                        <Input
-                          type="number"
-                          placeholder="1"
-                          value={line.quantity ?? ""}
-                          onChange={(e) => {
-                            const val = e.target.value === "" ? "" : Number(e.target.value);
-                            setQuoteLines((prev) =>
-                              prev.map((l, i) => (i === idx ? { ...l, quantity: val } : l)),
-                            );
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-[10px]">Unit Price (₹)</Label>
-                        <Input
-                          type="number"
-                          placeholder="0"
-                          value={line.unit_price ?? ""}
-                          onChange={(e) => {
-                            const val = e.target.value === "" ? "" : Number(e.target.value);
-                            setQuoteLines((prev) =>
-                              prev.map((l, i) => {
-                                if (i !== idx) return l;
-                                const updated = { ...l, unit_price: val };
-                                if (l.tax_mode === "percent") {
-                                  const p = typeof val === "number" ? val : 0;
-                                  const q = typeof l.quantity === "number" ? l.quantity : 1;
-                                  const rate = typeof l.tax_rate === "number" ? l.tax_rate : 18;
-                                  updated.tax_amount = Number(((q * p * rate) / 100).toFixed(2));
-                                }
-                                return updated;
-                              }),
-                            );
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <div className="flex items-center justify-between">
-                          <Label className="text-[10px]">
-                            {line.tax_mode === "percent" ? "Tax Rate (%)" : "Taxes (₹)"}
-                          </Label>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const newMode = line.tax_mode === "percent" ? "amount" : "percent";
-                              setQuoteLines((prev) =>
-                                prev.map((l, i) => {
-                                  if (i !== idx) return l;
-                                  const q = typeof l.quantity === "number" ? l.quantity : 1;
-                                  const p = typeof l.unit_price === "number" ? l.unit_price : 0;
-                                  if (newMode === "percent") {
-                                    const base = q * p;
-                                    const currentTax = typeof l.tax_amount === "number" ? l.tax_amount : 0;
-                                    const rate = base > 0 ? Number(((currentTax / base) * 100).toFixed(2)) : 18;
-                                    return { ...l, tax_mode: "percent", tax_rate: rate };
-                                  } else {
-                                    const rate = typeof l.tax_rate === "number" ? l.tax_rate : 18;
-                                    const amt = Number(((q * p * rate) / 100).toFixed(2));
-                                    return { ...l, tax_mode: "amount", tax_amount: amt };
-                                  }
-                                }),
-                              );
-                            }}
-                            className="text-[9px] text-blue-600 dark:text-blue-400 hover:underline font-semibold"
-                          >
-                            Switch to {line.tax_mode === "percent" ? "₹ (Amt)" : "% (Rate)"}
-                          </button>
-                        </div>
-                        {line.tax_mode === "percent" ? (
-                          <div className="space-y-1">
-                            <Input
-                              type="number"
-                              placeholder="18"
-                              value={line.tax_rate ?? ""}
-                              onChange={(e) => {
-                                const val = e.target.value === "" ? "" : Number(e.target.value);
-                                setQuoteLines((prev) =>
-                                  prev.map((l, i) => {
-                                    if (i !== idx) return l;
-                                    const q = typeof l.quantity === "number" ? l.quantity : 1;
-                                    const p = typeof l.unit_price === "number" ? l.unit_price : 0;
-                                    const rate = typeof val === "number" ? val : 0;
-                                    const calculatedTax = Number(((q * p * rate) / 100).toFixed(2));
-                                    return { ...l, tax_rate: val, tax_amount: calculatedTax };
-                                  }),
-                                );
-                              }}
-                            />
-                            <span className="text-[10px] text-slate-500 block text-right font-mono">
-                              = ₹{Number(line.tax_amount || 0).toLocaleString("en-IN")}
-                            </span>
-                          </div>
-                        ) : (
-                          <Input
-                            type="number"
-                            placeholder="0"
-                            value={line.tax_amount ?? ""}
-                            onChange={(e) => {
-                              const val = e.target.value === "" ? "" : Number(e.target.value);
-                              setQuoteLines((prev) =>
-                                prev.map((l, i) => (i === idx ? { ...l, tax_amount: val } : l)),
-                              );
-                            }}
-                          />
-                        )}
-                      </div>
-                      <div>
-                        <Label className="text-[10px]">Total (₹)</Label>
-                        <div className="p-2 font-mono font-bold bg-white dark:bg-slate-950 border rounded text-right">
-                          ₹
-                          {(
-                            (Number(line.quantity) || 0) * (Number(line.unit_price) || 0) +
-                            (Number(line.tax_amount) || 0)
-                          ).toLocaleString("en-IN")}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-2 border-t">
-                      <div>
-                        <Label className="text-[10px]">Delivery (Days)</Label>
-                        <Input
-                          type="number"
-                          placeholder="7"
-                          value={line.delivery_days ?? ""}
-                          onChange={(e) => {
-                            const val = e.target.value === "" ? "" : Number(e.target.value);
-                            setQuoteLines((prev) =>
-                              prev.map((l, i) => (i === idx ? { ...l, delivery_days: val } : l)),
-                            );
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-[10px]">Warranty (Months)</Label>
-                        <Input
-                          type="number"
-                          placeholder="12"
-                          value={line.warranty_months ?? ""}
-                          onChange={(e) => {
-                            const val = e.target.value === "" ? "" : Number(e.target.value);
-                            setQuoteLines((prev) =>
-                              prev.map((l, i) => (i === idx ? { ...l, warranty_months: val } : l)),
-                            );
-                          }}
-                        />
-                      </div>
-                      <div className="flex items-center space-x-2 pt-4">
-                        <Checkbox
-                          id={`spec-${idx}`}
-                          checked={line.meets_technical_spec}
-                          onCheckedChange={(checked) => {
-                            setQuoteLines((prev) =>
-                              prev.map((l, i) =>
-                                i === idx ? { ...l, meets_technical_spec: !!checked } : l,
-                              ),
-                            );
-                          }}
-                        />
-                        <Label
-                          htmlFor={`spec-${idx}`}
-                          className="text-xs cursor-pointer font-medium"
-                        >
-                          Meets Spec
-                        </Label>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setQuoteOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleRecordQuote} disabled={recording || !quoteVendorId}>
-                {recording ? "Saving..." : "Save Quotation Response"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
     </Layout>
   );

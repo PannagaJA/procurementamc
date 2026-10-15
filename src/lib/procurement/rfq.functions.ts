@@ -33,13 +33,6 @@ export type QuotationLineInput = {
   technical_remarks?: string | null;
 };
 
-export type RecordQuotationResponseInput = {
-  rfq_id: string;
-  vendor_id: string;
-  quotation_ref?: string | null;
-  lines: QuotationLineInput[];
-};
-
 export type TechnicalComplianceInput = {
   line_id: string;
   meets_technical_spec: boolean;
@@ -232,85 +225,6 @@ export const sendRfq = createServerFn({ method: "POST" })
       rfq: fullRfq,
       vendors: vendorList || [],
     };
-  });
-
-export const recordQuotationResponse = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .validator((input: RecordQuotationResponseInput) => input)
-  .handler(async ({ data, context }) => {
-    const db = context.supabase as any;
-    const { getCallerRoles } = await import("@/server/procurement/roles");
-    const roles = await getCallerRoles(db, context.userId);
-    const held = roles.map((r) => r.role);
-
-    if (!held.includes("admin") && !held.includes("procurement_officer")) {
-      return {
-        ok: false as const,
-        error: "Only Procurement Officers can record quotation responses.",
-        code: "unauthorized",
-      };
-    }
-
-    const { data: rfqVendor, error: rvErr } = await db
-      .from("rfq_vendors")
-      .select("id, rfq_id, vendor_id")
-      .eq("rfq_id", data.rfq_id)
-      .eq("vendor_id", data.vendor_id)
-      .maybeSingle();
-
-    if (rvErr || !rfqVendor) {
-      return {
-        ok: false as const,
-        error: "Vendor is not invited to this RFQ",
-        code: "vendor_not_invited",
-      };
-    }
-
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    // Insert or replace quotation lines
-    if (data.lines && data.lines.length > 0) {
-      // Clean up previous lines for this vendor & rfq if any
-      await supabaseAdmin
-        .from("quotation_lines")
-        .delete()
-        .eq("rfq_id", data.rfq_id)
-        .eq("vendor_id", data.vendor_id);
-
-      const rows = data.lines.map((l) => {
-        const qty = Number(l.quantity) || 1;
-        const price = Number(l.unit_price) || 0;
-        const tax = Number(l.tax_amount) || 0;
-        const total = qty * price + tax;
-        return {
-          rfq_id: data.rfq_id,
-          vendor_id: data.vendor_id,
-          pr_line_item_id: l.pr_line_item_id ?? null,
-          description: l.description,
-          quantity: qty,
-          unit: l.unit ?? null,
-          unit_price: price,
-          tax_amount: tax,
-          total_price: total,
-          delivery_days: l.delivery_days ?? 7,
-          warranty_months: l.warranty_months ?? 12,
-          meets_technical_spec: l.meets_technical_spec !== false,
-          technical_remarks: l.technical_remarks ?? null,
-          quotation_ref: data.quotation_ref ?? null,
-        };
-      });
-
-      const { error: insErr } = await supabaseAdmin.from("quotation_lines").insert(rows);
-      if (insErr) return { ok: false as const, error: insErr.message, code: "insert_lines_failed" };
-    }
-
-    // Mark response received
-    await supabaseAdmin
-      .from("rfq_vendors")
-      .update({ response_received_at: new Date().toISOString() })
-      .eq("id", rfqVendor.id);
-
-    return { ok: true as const, vendorId: data.vendor_id, linesCount: data.lines.length };
   });
 
 export const checkTechnicalCompliance = createServerFn({ method: "POST" })
