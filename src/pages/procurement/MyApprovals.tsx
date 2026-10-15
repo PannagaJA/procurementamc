@@ -381,8 +381,8 @@ export default function MyApprovals() {
                 <Card key={pr.id} className="border border-slate-200 dark:border-slate-800">
                   <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold">{pr.pr_number}</span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono font-bold whitespace-nowrap">{pr.pr_number}</span>
                         <Badge variant="outline">{pr.category}</Badge>
                         <Badge variant="secondary">{pr.status.toUpperCase()}</Badge>
                       </div>
@@ -391,7 +391,7 @@ export default function MyApprovals() {
                         {Number(pr.estimated_value).toLocaleString("en-IN")}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(pr, "pr_approve")}
@@ -449,8 +449,8 @@ export default function MyApprovals() {
                 <Card key={cs.id} className="border border-slate-200 dark:border-slate-800">
                   <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold">{cs.cs_number}</span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono font-bold whitespace-nowrap">{cs.cs_number}</span>
                         <Badge variant="outline">
                           {cs.is_lowest_price ? "L1 Lowest" : "Non-Lowest Quote"}
                         </Badge>
@@ -463,7 +463,7 @@ export default function MyApprovals() {
                         • Total: ₹{Number(cs.recommended_total).toLocaleString("en-IN")}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(cs, "cs_approve")}
@@ -513,8 +513,8 @@ export default function MyApprovals() {
                 <Card key={po.id} className="border border-slate-200 dark:border-slate-800">
                   <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold">{po.po_number}</span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono font-bold whitespace-nowrap">{po.po_number}</span>
                         <Badge variant="outline">{po.type.toUpperCase()}</Badge>
                       </div>
                       <p className="text-xs text-slate-500 mt-1">
@@ -526,7 +526,7 @@ export default function MyApprovals() {
                         {(Number(po.price || 0) + Number(po.taxes || 0)).toLocaleString("en-IN")}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(po, "po_approve")}
@@ -574,8 +574,8 @@ export default function MyApprovals() {
                 <Card key={am.id} className="border border-slate-200 dark:border-slate-800">
                   <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono font-bold whitespace-nowrap">
                           {am.purchase_orders?.po_number} Amendment
                         </span>
                         <Badge variant="outline" className="text-purple-700 border-purple-400">
@@ -588,7 +588,7 @@ export default function MyApprovals() {
                         {Number(am.new_value_total).toLocaleString("en-IN")}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(am, "am_approve")}
@@ -630,8 +630,8 @@ export default function MyApprovals() {
                 <Card key={inv.id} className="border border-slate-200 dark:border-slate-800">
                   <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold">Invoice: {inv.invoice_number}</span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono font-bold whitespace-nowrap">Invoice: {inv.invoice_number}</span>
                         <Badge variant="outline" className="text-emerald-700 border-emerald-400">
                           3-Way Matched
                         </Badge>
@@ -641,7 +641,7 @@ export default function MyApprovals() {
                         ₹{Number(inv.invoice_amount).toLocaleString("en-IN")}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(inv, "inv_approve")}
@@ -669,8 +669,8 @@ export default function MyApprovals() {
                 <Card key={ep.id} className="border border-slate-200 dark:border-slate-800">
                   <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold">{ep.emergency_number}</span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono font-bold whitespace-nowrap">{ep.emergency_number}</span>
                         <Badge variant="outline" className="text-amber-700 border-amber-400">
                           {ep.is_post_facto ? "Post-Facto Ratification" : "Emergency Request"}
                         </Badge>
@@ -680,7 +680,7 @@ export default function MyApprovals() {
                         {Number(ep.estimated_cost).toLocaleString("en-IN")}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(ep, "ep_approve")}
@@ -818,11 +818,11 @@ export default function MyApprovals() {
                       >
                         <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                           <div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                               <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
                                 PR
                               </Badge>
-                              <span className="font-mono font-bold">{pr.pr_number}</span>
+                              <span className="font-mono font-bold whitespace-nowrap">{pr.pr_number}</span>
                               <Badge variant="outline">{pr.category}</Badge>
                               <Badge
                                 variant={
@@ -870,11 +870,11 @@ export default function MyApprovals() {
                       >
                         <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                           <div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                               <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
                                 CS
                               </Badge>
-                              <span className="font-mono font-bold">{cs.cs_number}</span>
+                              <span className="font-mono font-bold whitespace-nowrap">{cs.cs_number}</span>
                               <Badge
                                 variant={
                                   isApproved ? "default" : isRejected ? "destructive" : "secondary"
@@ -913,11 +913,11 @@ export default function MyApprovals() {
                       >
                         <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                           <div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                               <Badge className="bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300">
                                 PO
                               </Badge>
-                              <span className="font-mono font-bold">{po.po_number}</span>
+                              <span className="font-mono font-bold whitespace-nowrap">{po.po_number}</span>
                               <Badge variant="outline">{po.vendors?.name || "Vendor"}</Badge>
                               <Badge
                                 variant={po.status === "issued" ? "default" : "secondary"}
@@ -955,11 +955,11 @@ export default function MyApprovals() {
                       >
                         <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                           <div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                               <Badge className="bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300">
                                 Invoice
                               </Badge>
-                              <span className="font-mono font-bold">{inv.invoice_number}</span>
+                              <span className="font-mono font-bold whitespace-nowrap">{inv.invoice_number}</span>
                               <Badge variant="outline">{inv.vendors?.name || "Vendor"}</Badge>
                               <Badge
                                 variant={inv.match_status === "paid" ? "default" : "secondary"}

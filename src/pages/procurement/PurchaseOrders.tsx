@@ -617,6 +617,12 @@ export default function PurchaseOrders() {
           ) : (
             (() => {
               const filteredOrders = applyFilter(orders, poFilterOptions, statusFilter);
+              if (filteredOrders.length === 0)
+                return (
+                  <Card className="text-center p-8 text-sm text-muted-foreground">
+                    No purchase orders match this filter. Choose History or All to see others.
+                  </Card>
+                );
               const startIndex = (pagination.page - 1) * pagination.pageSize;
               const paginatedOrders = filteredOrders.slice(startIndex, startIndex + pagination.pageSize);
               return (
@@ -844,9 +850,9 @@ export default function PurchaseOrders() {
 
                   <PaginationControls
                     currentPage={pagination.page}
-                    totalPages={pagination.totalPages}
+                    totalPages={Math.max(1, Math.ceil(filteredOrders.length / pagination.pageSize))}
                     pageSize={pagination.pageSize}
-                    totalItems={pagination.total}
+                    totalItems={filteredOrders.length}
                     currentItemsCount={paginatedOrders.length}
                     onPageChange={setPage}
                     onPageSizeChange={setPageSize}
@@ -1001,7 +1007,7 @@ export default function PurchaseOrders() {
 
               <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg flex items-center justify-between text-xs">
                 <span className="font-medium text-slate-500">Calculated Total PO Value:</span>
-                <span className="font-mono font-bold text-base text-slate-900 dark:text-white">
+                <span className="font-mono font-bold whitespace-nowrap text-base text-slate-900 dark:text-white">
                   ₹{(Number(price) + Number(taxes)).toLocaleString("en-IN")}
                 </span>
               </div>
@@ -1063,7 +1069,7 @@ export default function PurchaseOrders() {
             <div className="space-y-4 py-2">
               <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded text-xs">
                 <span className="text-slate-500 block">Current Total Value:</span>
-                <span className="font-mono font-bold text-sm text-slate-800 dark:text-slate-200">
+                <span className="font-mono font-bold whitespace-nowrap text-sm text-slate-800 dark:text-slate-200">
                   ₹
                   {(Number(activePo?.price || 0) + Number(activePo?.taxes || 0)).toLocaleString(
                     "en-IN",

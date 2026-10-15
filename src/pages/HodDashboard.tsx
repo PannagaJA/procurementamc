@@ -455,7 +455,7 @@ const HodDashboard = () => {
                       </td>
                       <td className="px-3 py-2 align-middle">
                         {t.sla?.respondDaysOver ? (
-                          <Badge className="bg-rose-100 text-rose-800">{`${t.sla.respondDaysOver}d overdue`}</Badge>
+                          <Badge className="bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300">{`${t.sla.respondDaysOver}d overdue`}</Badge>
                         ) : (
                           <span className="text-sm text-muted-foreground">
                             {t.sla?.respondByDisplay}
