@@ -558,6 +558,9 @@ export const amendPo = createServerFn({ method: "POST" })
     const originalRank = roleHierarchy.indexOf(originalRole.toLowerCase());
     const newRank = roleHierarchy.indexOf(resolvedNew.role.toLowerCase());
 
+    // Re-approval goes to whichever is higher: the original approver or the new value's approver.
+    const reapprovalRole = newRank >= originalRank ? resolvedNew.role : originalRole;
+
     const requiresReapproval =
       newRank > originalRank ||
       (resolvedNew.escalate && !resolvedOld.escalate) ||
@@ -573,7 +576,7 @@ export const amendPo = createServerFn({ method: "POST" })
         reason: data.reason,
         requires_reapproval: requiresReapproval,
         original_approver_role: originalRole,
-        new_approver_role: resolvedNew.role,
+        new_approver_role: reapprovalRole,
         status: requiresReapproval ? "pending" : "approved",
         changed_fields_json: {
           ...(data.changed_fields ?? {}),
@@ -587,14 +590,17 @@ export const amendPo = createServerFn({ method: "POST" })
     if (amErr) return { ok: false as const, error: amErr.message, code: "amendment_insert_failed" };
 
     // Update PO
-    const nextStatus = requiresReapproval ? "pending_approval" : "amended";
+    // A change that needs no re-approval keeps the order live in its current state (legacy
+    // "amended" rows resolve to issued/approved) so GRNs and invoices can continue against it.
+    const liveStatus = po.status === "amended" ? (po.issued_at ? "issued" : "approved") : po.status;
+    const nextStatus = requiresReapproval ? "pending_approval" : liveStatus;
     const { data: updated, error: upErr } = await supabaseAdmin
       .from("purchase_orders")
       .update({
         price: newPrice,
         taxes: newTaxes,
         status: nextStatus,
-        current_approver_role: requiresReapproval ? resolvedNew.role : po.current_approver_role,
+        current_approver_role: requiresReapproval ? reapprovalRole : po.current_approver_role,
         routing_reason: resolvedNew.reason,
         updated_at: new Date().toISOString(),
       })
