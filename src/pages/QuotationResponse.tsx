@@ -30,9 +30,19 @@ import {
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { AlertCircle, CheckCircle, Clock, DollarSign, Package, Truck, User, ShieldAlert, Phone } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle,
+  Clock,
+  DollarSign,
+  Package,
+  Truck,
+  User,
+  ShieldAlert,
+  Phone,
+} from "lucide-react";
 import { verifyVendorAccessToken } from "@/lib/quotationAuth";
-import { submitRfqQuotationResponse } from "@/lib/procurement/rfq.functions";
+import { getRfqForVendor, submitRfqQuotationResponse } from "@/lib/procurement/rfq.functions";
 
 // Helper to extract labeled values from the response description text
 function extractFromDescription(desc: string, label: string) {
@@ -126,6 +136,7 @@ export default function QuotationResponse() {
 
     try {
       let resolvedQuotation: any = null;
+      let vendorLines: any[] | null = null;
       const searchParams = new URLSearchParams(window.location.search || location.search);
       const token = searchParams.get("token");
 
@@ -145,24 +156,44 @@ export default function QuotationResponse() {
         resolvedQuotation = quotationData;
       } else {
         // 2. Fallback: Check if id matches an RFQ ID
-        const { data: rfqData } = await supabase
-          .from("rfqs")
-          .select(
-            `
-            *,
-            purchase_requisitions (id, pr_number, category, scope, estimated_value, justification),
-            pr_line_items (*)
-          `,
-          )
-          .eq("id", id)
-          .maybeSingle();
+        const rfqVendorId = searchParams.get("vendorId") || "";
+        let rfqData: any = null;
+        let vendorName = "Invited Vendor";
+        let vendorEmail = "";
+
+        if (rfqVendorId && token) {
+          // Vendors are not logged in — RLS hides RFQs from anon, so read server-side after token check.
+          const res = await getRfqForVendor({
+            data: { rfq_id: id, vendor_id: rfqVendorId, token },
+          });
+          if (!res.ok) {
+            setAccessDenied(true);
+            setAccessDeniedReason(res.error);
+            setIsLoading(false);
+            return;
+          }
+          rfqData = res.rfq;
+          vendorLines = res.lines;
+          if (res.vendor) {
+            vendorName = res.vendor.name;
+            vendorEmail = res.vendor.bank_details_json?.email || "";
+          }
+        } else {
+          const { data } = await supabase
+            .from("rfqs")
+            .select(
+              `
+              *,
+              purchase_requisitions (id, pr_number, category, scope, estimated_value, justification, pr_line_items (*))
+            `,
+            )
+            .eq("id", id)
+            .maybeSingle();
+          rfqData = data;
+        }
 
         if (rfqData) {
-          const rfqVendorId = searchParams.get("vendorId") || "";
-          let vendorName = "Invited Vendor";
-          let vendorEmail = "";
-
-          if (rfqVendorId) {
+          if (rfqVendorId && !vendorLines) {
             const { data: vData } = await supabase
               .from("vendors")
               .select("id, name, bank_details_json")
@@ -241,11 +272,15 @@ export default function QuotationResponse() {
 
       // Fetch existing response if any
       if (resolvedQuotation.isRfq && resolvedQuotation.vendorId) {
-        const { data: existingLines } = await supabase
-          .from("quotation_lines")
-          .select("*")
-          .eq("rfq_id", id)
-          .eq("vendor_id", resolvedQuotation.vendorId);
+        const existingLines =
+          vendorLines ??
+          (
+            await supabase
+              .from("quotation_lines")
+              .select("*")
+              .eq("rfq_id", id)
+              .eq("vendor_id", resolvedQuotation.vendorId)
+          ).data;
 
         if (existingLines && existingLines.length > 0) {
           const total = existingLines.reduce(
@@ -479,7 +514,8 @@ export default function QuotationResponse() {
               Quotation Ref: {id}
             </div>
             <p className="text-xs text-slate-400">
-              If you are an invited vendor, please ensure you clicked the unique quotation link sent to your registered email address.
+              If you are an invited vendor, please ensure you clicked the unique quotation link sent
+              to your registered email address.
             </p>
           </CardContent>
         </Card>

@@ -26,10 +26,10 @@ serve(async (req) => {
 
   try {
     const payload: QuotationEmailPayload = await req.json();
-    const resendApiKey =
+    const resendApiKey = (
       Deno.env.get("Resend_Key") ||
       Deno.env.get("RESEND_KEY") ||
-      Deno.env.get("RESEND_API_KEY");
+      Deno.env.get("RESEND_API_KEY"))?.trim();
 
     if (!resendApiKey) {
       console.warn("Resend_Key secret is not set in Supabase Edge Function environment.");
@@ -116,8 +116,15 @@ serve(async (req) => {
     });
 
     const resendData = await resendRes.json();
-    return new Response(JSON.stringify(resendData), {
-      status: resendRes.status,
+    console.log("Resend response", resendRes.status, JSON.stringify(resendData), "to:", companyEmails);
+
+    // Return 200 with ok:false so supabase.functions.invoke surfaces Resend's message
+    // instead of a generic "non-2xx status code" error.
+    const body = resendRes.ok
+      ? { ok: true, ...resendData }
+      : { ok: false, message: `Resend ${resendRes.status}: ${resendData?.message ?? "unknown error"}` };
+    return new Response(JSON.stringify(body), {
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {

@@ -203,6 +203,7 @@ export default function RfqManagement() {
       // Dispatch quotation invitation emails using Edge Function
       let emailsDispatched = 0;
       let emailNotice = "";
+      const noEmailVendors: string[] = [];
 
       if (res.vendors && res.vendors.length > 0) {
         for (const v of res.vendors) {
@@ -242,8 +243,14 @@ export default function RfqManagement() {
             } catch (callErr: any) {
               emailNotice = callErr?.message;
             }
+          } else {
+            noEmailVendors.push(v.name);
           }
         }
+      }
+      if (noEmailVendors.length > 0) {
+        const missing = `No email on file for: ${noEmailVendors.join(", ")}`;
+        emailNotice = emailNotice ? `${emailNotice}. ${missing}` : missing;
       }
 
       toast({

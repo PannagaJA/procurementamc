@@ -85,14 +85,33 @@ export const createRfq = createServerFn({ method: "POST" })
       return { ok: false as const, error: "Requisition not found", code: "pr_not_found" };
     }
 
-    // Look up matrix rule for minimum quotations
-    const { data: rules } = await db
-      .from("approval_matrix_rules")
-      .select("min_quotations")
-      .eq("category", pr.category)
-      .eq("active", true);
+    // One open RFQ per PR — re-tendering requires cancelling/closing the previous one.
+    const { data: openRfq } = await db
+      .from("rfqs")
+      .select("rfq_number")
+      .eq("pr_id", data.pr_id)
+      .in("status", ["draft", "sent"])
+      .limit(1)
+      .maybeSingle();
+    if (openRfq) {
+      return {
+        ok: false as const,
+        error: `${pr.pr_number} already has an open RFQ (${openRfq.rfq_number}).`,
+        code: "rfq_exists",
+      };
+    }
 
-    const minQuotes = Math.max(3, ...(rules ?? []).map((r: any) => Number(r.min_quotations || 3)));
+    // Minimum quotations come from the matrix band this PR's value falls in (table-driven).
+    const { resolveApprover } = await import("@/lib/procurement/authorityMatrix");
+    const { data: rules } = await db.from("approval_matrix_rules").select("*").eq("active", true);
+    // ponytail: month-to-date spend passed as 0 — only affects escalation band, not normal RFQs.
+    const resolved = resolveApprover(
+      pr.category,
+      Number(pr.estimated_value || 0),
+      0,
+      (rules ?? []) as any,
+    );
+    const minQuotes = Math.max(1, resolved.minQuotations);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -197,10 +216,12 @@ export const sendRfq = createServerFn({ method: "POST" })
 
     const { data: fullRfq } = await supabaseAdmin
       .from("rfqs")
-      .select(`
+      .select(
+        `
         id, rfq_number, response_deadline, pr_id,
         purchase_requisitions (id, pr_number, scope, category, justification)
-      `)
+      `,
+      )
       .eq("id", data.rfq_id)
       .single();
 
@@ -301,12 +322,13 @@ export const checkTechnicalCompliance = createServerFn({ method: "POST" })
     const roles = await getCallerRoles(db, context.userId);
     const held = roles.map((r) => r.role);
 
-    // According to SOP §8.5, technical committee / HOD checks compliance. 
+    // According to SOP §8.5, technical committee / HOD checks compliance.
     // We'll allow procurement officer, admin, or hod.
     if (!held.includes("admin") && !held.includes("procurement_officer") && !held.includes("hod")) {
       return {
         ok: false as const,
-        error: "Only authorized personnel (Procurement, HOD, Admin) can check technical compliance.",
+        error:
+          "Only authorized personnel (Procurement, HOD, Admin) can check technical compliance.",
         code: "unauthorized",
       };
     }
@@ -357,6 +379,59 @@ export const listRfqs = createServerFn({ method: "GET" })
     const { data: rfqs, error } = await query;
     if (error) return { ok: false as const, error: error.message };
     return { ok: true as const, rfqs: rfqs ?? [] };
+  });
+
+/**
+ * Public (vendor, unauthenticated) read of an RFQ via the private quotation link.
+ * RLS only lets authenticated users read rfqs/vendors/PRs, so the token is
+ * verified here and the read is done with the service role.
+ */
+export const getRfqForVendor = createServerFn({ method: "POST" })
+  .validator((input: { rfq_id: string; vendor_id: string; token: string }) => input)
+  .handler(async ({ data }) => {
+    const { verifyVendorAccessToken } = await import("@/lib/quotationAuth");
+    const valid = await verifyVendorAccessToken(data.rfq_id, data.vendor_id, data.token);
+    if (!valid) {
+      return { ok: false as const, error: "Invalid or unauthorized quotation access token." };
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: rv } = await supabaseAdmin
+      .from("rfq_vendors")
+      .select("id")
+      .eq("rfq_id", data.rfq_id)
+      .eq("vendor_id", data.vendor_id)
+      .maybeSingle();
+    if (!rv) return { ok: false as const, error: "Vendor is not invited to this RFQ." };
+
+    const [{ data: rfq, error: rfqErr }, { data: vendor }, { data: lines }] = await Promise.all([
+      supabaseAdmin
+        .from("rfqs")
+        .select(
+          "id, rfq_number, status, response_deadline, purchase_requisitions (id, pr_number, category, scope, estimated_value, justification, pr_line_items (*))",
+        )
+        .eq("id", data.rfq_id)
+        .maybeSingle(),
+      supabaseAdmin
+        .from("vendors")
+        .select("id, name, bank_details_json")
+        .eq("id", data.vendor_id)
+        .maybeSingle(),
+      supabaseAdmin
+        .from("quotation_lines")
+        .select("*")
+        .eq("rfq_id", data.rfq_id)
+        .eq("vendor_id", data.vendor_id),
+    ]);
+    if (rfqErr || !rfq) return { ok: false as const, error: rfqErr?.message || "RFQ not found" };
+
+    return {
+      ok: true as const,
+      rfq: rfq as any,
+      vendor: vendor as any,
+      lines: (lines ?? []) as any[],
+    };
   });
 
 export const submitRfqQuotationResponse = createServerFn({ method: "POST" })
@@ -413,6 +488,31 @@ export const submitRfqQuotationResponse = createServerFn({ method: "POST" })
         ok: false as const,
         error: "Vendor is not invited to this RFQ.",
         code: "not_invited",
+      };
+    }
+
+    const { data: rfqState } = await supabaseAdmin
+      .from("rfqs")
+      .select("status, response_deadline")
+      .eq("id", data.rfq_id)
+      .maybeSingle();
+    if (rfqState?.status !== "sent") {
+      return {
+        ok: false as const,
+        error: `This RFQ is ${rfqState?.status ?? "unavailable"} and no longer accepts quotations.`,
+        code: "rfq_not_open",
+      };
+    }
+    // Deadline is picked as a date (stored as 00:00 UTC) — accept quotes through that whole day.
+    const DAY_MS = 86_400_000;
+    if (
+      rfqState.response_deadline &&
+      new Date(rfqState.response_deadline).getTime() + DAY_MS < Date.now()
+    ) {
+      return {
+        ok: false as const,
+        error: `The submission deadline (${rfqState.response_deadline}) has passed.`,
+        code: "rfq_deadline_passed",
       };
     }
 
@@ -504,4 +604,3 @@ export const submitRfqQuotationResponse = createServerFn({ method: "POST" })
 
     return { ok: true as const, linesCount: rows.length };
   });
-
