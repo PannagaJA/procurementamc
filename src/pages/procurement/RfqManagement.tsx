@@ -31,6 +31,7 @@ import {
   createRfq,
   sendRfq,
   listRfqs,
+  awardDirectPurchase,
 } from "@/lib/procurement/rfq.functions";
 import {
   Send,
@@ -43,6 +44,7 @@ import {
   RefreshCw,
   Eye,
   Copy,
+  Award,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { computeVendorAccessToken } from "@/lib/quotationAuth";
@@ -69,6 +71,12 @@ export default function RfqManagement() {
   const [activeRfq, setActiveRfq] = useState<any>(null);
   const [selectedVendorIds, setSelectedVendorIds] = useState<string[]>([]);
   const [sending, setSending] = useState(false);
+
+  // Direct purchase award (no CS)
+  const [awardRfq, setAwardRfq] = useState<any>(null);
+  const [awardVendorId, setAwardVendorId] = useState("");
+  const [awardReason, setAwardReason] = useState("");
+  const [awarding, setAwarding] = useState(false);
 
   // Record Quote Modal
 
@@ -140,6 +148,49 @@ export default function RfqManagement() {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
       setCreating(false);
+    }
+  };
+
+  /** One row per vendor that quoted: total, slowest line's delivery days, name. Lowest first. */
+  const quoteSummary = (rfq: any) => {
+    const byVendor = new Map<string, { vendorId: string; name: string; total: number; days: number }>();
+    for (const l of rfq?.quotation_lines ?? []) {
+      const name = rfq.rfq_vendors?.find((rv: any) => rv.vendor_id === l.vendor_id)?.vendors?.name ?? "Vendor";
+      const row = byVendor.get(l.vendor_id) ?? { vendorId: l.vendor_id, name, total: 0, days: 0 };
+      row.total += Number(l.total_price || 0);
+      row.days = Math.max(row.days, Number(l.delivery_days || 0));
+      byVendor.set(l.vendor_id, row);
+    }
+    return [...byVendor.values()].sort((a, b) => a.total - b.total);
+  };
+
+  const handleOpenAward = (rfq: any) => {
+    setAwardRfq(rfq);
+    setAwardVendorId(quoteSummary(rfq)[0]?.vendorId ?? "");
+    setAwardReason("");
+  };
+
+  const handleAward = async () => {
+    if (!awardRfq || !awardVendorId) return;
+    setAwarding(true);
+    try {
+      const res = await (awardDirectPurchase as any)({
+        data: { rfq_id: awardRfq.id, vendor_id: awardVendorId, justification: awardReason },
+      });
+      if (!res.ok) {
+        toast({ title: "Could not award", description: res.error, variant: "destructive" });
+        return;
+      }
+      toast({
+        title: "Purchase Order Created",
+        description: `${res.po.po_number} sent for ${String(res.po.current_approver_role).replace(/_/g, " ").toUpperCase()} approval.`,
+      });
+      setAwardRfq(null);
+      loadData();
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setAwarding(false);
     }
   };
 
@@ -360,6 +411,11 @@ export default function RfqManagement() {
                                 <Badge variant="outline" className="text-xs">
                                   Min {minReq} Quotes Required
                                 </Badge>
+                                {rfq.is_direct && (
+                                  <Badge className="text-xs bg-teal-100 text-teal-800 hover:bg-teal-100 dark:bg-teal-950 dark:text-teal-300">
+                                    Direct purchase · no CS
+                                  </Badge>
+                                )}
                               </div>
                               <p className="text-xs text-slate-500">
                                 PR Ref:{" "}
@@ -385,6 +441,23 @@ export default function RfqManagement() {
                                       <Send className="w-3.5 h-3.5" /> Invite Vendors
                                     </Button>
                                   )}
+                                  {rfq.status === "sent" &&
+                                    rfq.is_direct &&
+                                    (auth.hasRole("admin") || auth.hasRole("procurement_officer")) && (
+                                      <Button
+                                        size="sm"
+                                        onClick={() => handleOpenAward(rfq)}
+                                        disabled={quoteSummary(rfq).length === 0}
+                                        title={
+                                          quoteSummary(rfq).length === 0
+                                            ? "Waiting for vendor quotations"
+                                            : "Choose a vendor and create the purchase order"
+                                        }
+                                        className="gap-1 bg-teal-600 hover:bg-teal-700 text-white"
+                                      >
+                                        <Award className="w-3.5 h-3.5" /> Award PO
+                                      </Button>
+                                    )}
                                 </>
                               )}
                             </div>
@@ -644,6 +717,85 @@ export default function RfqManagement() {
           </DialogContent>
         </Dialog>
 
+        {/* Modal: Award direct purchase */}
+        <Dialog open={!!awardRfq} onOpenChange={(o) => !o && setAwardRfq(null)}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Award Purchase Order</DialogTitle>
+              <DialogDescription>
+                {awardRfq?.rfq_number} is a direct purchase. Choose the vendor; the purchase order is
+                created at their quoted price and sent for approval. No Comparative Statement is needed.
+              </DialogDescription>
+            </DialogHeader>
+            {(() => {
+              const quotes = quoteSummary(awardRfq);
+              const lowest = quotes[0]?.total ?? 0;
+              const chosen = quotes.find((q) => q.vendorId === awardVendorId);
+              const notLowest = !!chosen && chosen.total > lowest + 1;
+              return (
+                <div className="space-y-3">
+                  <div role="radiogroup" className="space-y-2">
+                    {quotes.map((q, idx) => {
+                      const selected = q.vendorId === awardVendorId;
+                      return (
+                        <button
+                          key={q.vendorId}
+                          type="button"
+                          role="radio"
+                          aria-checked={selected}
+                          onClick={() => setAwardVendorId(q.vendorId)}
+                          className={`w-full text-left rounded-lg border p-3 flex items-center justify-between gap-3 transition-colors ${
+                            selected ? "border-teal-600 bg-teal-50 dark:bg-teal-950/40" : "hover:bg-muted/50"
+                          }`}
+                        >
+                          <span className="min-w-0">
+                            <span className="font-semibold block truncate">{q.name}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {q.days ? `Delivery in ${q.days} days` : "Delivery not specified"}
+                            </span>
+                          </span>
+                          <span className="text-right shrink-0">
+                            <span className="font-mono font-bold block">₹{q.total.toLocaleString("en-IN")}</span>
+                            {idx === 0 && (
+                              <Badge className="text-[10px] bg-emerald-600 hover:bg-emerald-600">Lowest</Badge>
+                            )}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {quotes.length} of {awardRfq?.rfq_vendors?.length ?? 0} invited vendors have quoted.
+                  </p>
+                  {notLowest && (
+                    <div className="space-y-1.5">
+                      <Label htmlFor="award-reason">Why not the lowest quote? *</Label>
+                      <Textarea
+                        id="award-reason"
+                        rows={3}
+                        value={awardReason}
+                        onChange={(e) => setAwardReason(e.target.value)}
+                        placeholder="e.g. faster delivery, better warranty, lowest bidder failed specification…"
+                      />
+                    </div>
+                  )}
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setAwardRfq(null)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleAward}
+                      disabled={awarding || !awardVendorId || (notLowest && !awardReason.trim())}
+                      className="bg-teal-600 hover:bg-teal-700 text-white"
+                    >
+                      {awarding ? "Creating…" : "Create Purchase Order"}
+                    </Button>
+                  </DialogFooter>
+                </div>
+              );
+            })()}
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );

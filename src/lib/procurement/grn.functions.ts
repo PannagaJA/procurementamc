@@ -231,22 +231,8 @@ export const createGrn = createServerFn({ method: "POST" })
 
     // Value received goods at the PO's own rates (never a client-entered price), so the
     // GRN accepted value is comparable with the PO and invoice in the three-way match.
-    let quotedLines: any[] = [];
-    if (po.cs_id) {
-      const { data: cs } = await mutationDb
-        .from("comparative_statements")
-        .select("rfq_id")
-        .eq("id", po.cs_id)
-        .maybeSingle();
-      if (cs?.rfq_id) {
-        const { data: ql } = await mutationDb
-          .from("quotation_lines")
-          .select("description, quantity, total_price")
-          .eq("rfq_id", cs.rfq_id)
-          .eq("vendor_id", po.vendor_id);
-        quotedLines = ql ?? [];
-      }
-    }
+    const { quotedLinesByPo } = await import("@/server/procurement/quotes");
+    const quotedLines = (await quotedLinesByPo(mutationDb, [po])).get(po.id) ?? [];
     const { poUnitRate } = await import("@/lib/procurement/poRates");
     const rateCtx = {
       ...po,
