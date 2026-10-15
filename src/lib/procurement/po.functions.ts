@@ -514,7 +514,14 @@ export const listPurchaseOrders = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input?: { pr_id?: string; vendor_id?: string; status?: string }) => input)
   .handler(async ({ data, context }) => {
-    const db = context.supabase as any;
+    let db = context.supabase as any;
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      if (supabaseAdmin) db = supabaseAdmin;
+    } catch {
+      // fallback to session db
+    }
+
     let query = db
       .from("purchase_orders")
       .select(
@@ -523,7 +530,7 @@ export const listPurchaseOrders = createServerFn({ method: "GET" })
         purchase_requisitions (
           id, pr_number, category, scope, estimated_value, justification,
           departments (id, name),
-          pr_line_items (id, description, net_qty_to_procure, est_unit_price, est_total, unit)
+          pr_line_items (id, description, net_qty_to_procure, qty_required, est_unit_price, est_total, unit)
         ),
         comparative_statements (
           id, cs_number, status, recommended_total, is_lowest_price

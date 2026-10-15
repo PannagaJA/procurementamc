@@ -962,6 +962,8 @@ CREATE POLICY "PR readable by creator or procurement roles"
     OR public.has_role(auth.uid(), 'hod'::public.app_role)
     OR public.has_role(auth.uid(), 'principal'::public.app_role)
     OR public.has_role(auth.uid(), 'procurement_officer'::public.app_role)
+    OR public.has_role(auth.uid(), 'procurement_executive'::public.app_role)
+    OR public.has_role(auth.uid(), 'stores'::public.app_role)
     OR public.has_role(auth.uid(), 'purchase_committee'::public.app_role)
     OR public.has_role(auth.uid(), 'director_admin_finance'::public.app_role)
     OR public.has_role(auth.uid(), 'evp'::public.app_role)

@@ -194,3 +194,96 @@ export const getMyPendingApprovals = createServerFn({ method: "GET" })
       emergencyProcurements: emergencyProcurements ?? [],
     };
   });
+
+export const getMyApprovalHistory = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const db = context.supabase as any;
+    const { getCallerRoles } = await import("@/server/procurement/roles");
+    const roles = await getCallerRoles(db, context.userId);
+    const held = roles.map((r) => r.role);
+    const isAdmin = held.includes("admin");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const queryDb = (supabaseAdmin || db) as any;
+
+    const hodDeptIds = new Set(
+      roles.filter((r) => r.role === "hod" && r.department_id).map((r) => r.department_id),
+    );
+    if (held.includes("hod") && hodDeptIds.size === 0) {
+      roles.filter((r) => r.department_id).forEach((r) => hodDeptIds.add(r.department_id));
+    }
+
+    let prQuery = queryDb
+      .from("purchase_requisitions")
+      .select(
+        `
+        *,
+        departments (id, name),
+        pr_line_items (id, description, net_qty_to_procure, est_unit_price, est_total)
+      `,
+      )
+      .in("status", ["approved", "rejected", "closed"])
+      .order("updated_at", { ascending: false })
+      .limit(50);
+
+    if (!isAdmin && held.includes("hod") && hodDeptIds.size > 0) {
+      prQuery = prQuery.in("department_id", Array.from(hodDeptIds));
+    }
+
+    const { data: prHistory } = await prQuery;
+
+    let csQuery = queryDb
+      .from("comparative_statements")
+      .select(
+        `
+        *,
+        rfqs (
+          id, rfq_number,
+          purchase_requisitions (id, pr_number, category, scope, estimated_value, departments(id, name))
+        ),
+        vendors (id, name)
+      `,
+      )
+      .in("status", ["approved", "rejected"])
+      .order("updated_at", { ascending: false })
+      .limit(50);
+    const { data: csHistory } = await csQuery;
+
+    let poQuery = queryDb
+      .from("purchase_orders")
+      .select(
+        `
+        *,
+        purchase_requisitions (id, pr_number, category, scope, estimated_value, departments(id, name)),
+        vendors (id, name)
+      `,
+      )
+      .in("status", ["issued", "closed", "cancelled", "rejected"])
+      .order("updated_at", { ascending: false })
+      .limit(50);
+    const { data: poHistory } = await poQuery;
+
+    let invQuery = queryDb
+      .from("invoices")
+      .select(
+        `
+        *,
+        purchase_orders (id, po_number, total_value),
+        vendors (id, name)
+      `,
+      )
+      .in("match_status", ["approved", "paid", "rejected"])
+      .order("updated_at", { ascending: false })
+      .limit(50);
+    const { data: invHistory } = await invQuery;
+
+    return {
+      ok: true as const,
+      prHistory: prHistory ?? [],
+      csHistory: csHistory ?? [],
+      poHistory: poHistory ?? [],
+      invHistory: invHistory ?? [],
+    };
+  });
+

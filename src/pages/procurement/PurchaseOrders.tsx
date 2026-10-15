@@ -68,6 +68,7 @@ export default function PurchaseOrders() {
   const [matrixRules, setMatrixRules] = useState<any[]>([]);
   const [approvedPrs, setApprovedPrs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<"active" | "history">("active");
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -161,9 +162,16 @@ export default function PurchaseOrders() {
         setOrders(list);
         setTotal(list.length);
       }
+      const poList = poRes?.purchaseOrders || [];
+      const existingPoCsIds = new Set(
+        poList.filter((o: any) => o.status !== "cancelled").map((o: any) => o.cs_id).filter(Boolean),
+      );
+
       if (csRes?.ok) {
         setApprovedCss(
-          (csRes.comparativeStatements || []).filter((cs: any) => cs.status === "approved"),
+          (csRes.comparativeStatements || []).filter(
+            (cs: any) => cs.status === "approved" && !existingPoCsIds.has(cs.id),
+          ),
         );
       }
 
@@ -189,7 +197,7 @@ export default function PurchaseOrders() {
 
       // Filter eligible direct purchase PRs (<= 5000) that do not already have an active PO
       const existingPoPrIds = new Set(
-        (poRes?.purchaseOrders || [])
+        poList
           .filter((o: any) => o.status !== "cancelled")
           .map((o: any) => o.pr_id),
       );
@@ -199,7 +207,7 @@ export default function PurchaseOrders() {
           !existingPoPrIds.has(p.id),
       );
       setDirectPrs(eligiblePrs);
-      setApprovedPrs(prData || []);
+      setApprovedPrs((prData || []).filter((p: any) => !existingPoPrIds.has(p.id)));
 
       // Fetch empanelled / active vendors
       const { data: vData } = await supabase
@@ -587,6 +595,32 @@ export default function PurchaseOrders() {
           </div>
         </div>
 
+        {/* Active / History Filter */}
+        <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+          <Button
+            variant={statusFilter === "active" ? "default" : "outline"}
+            size="sm"
+            onClick={() => { setStatusFilter("active"); setPage(1); }}
+            className="text-xs h-8 gap-1.5"
+          >
+            Active Orders
+            <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
+              {orders.filter((o) => !["closed", "cancelled", "partially_closed"].includes(o.status)).length}
+            </Badge>
+          </Button>
+          <Button
+            variant={statusFilter === "history" ? "default" : "outline"}
+            size="sm"
+            onClick={() => { setStatusFilter("history"); setPage(1); }}
+            className="text-xs h-8 gap-1.5 text-slate-600 dark:text-slate-400"
+          >
+            History
+            <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
+              {orders.filter((o) => ["closed", "cancelled", "partially_closed"].includes(o.status)).length}
+            </Badge>
+          </Button>
+        </div>
+
         {/* PO List */}
         <div className="space-y-4">
           {loading ? (
@@ -599,8 +633,11 @@ export default function PurchaseOrders() {
             </Card>
           ) : (
             (() => {
+              const filteredOrders = statusFilter === "history"
+                ? orders.filter((o) => ["closed", "cancelled", "partially_closed"].includes(o.status))
+                : orders.filter((o) => !["closed", "cancelled", "partially_closed"].includes(o.status));
               const startIndex = (pagination.page - 1) * pagination.pageSize;
-              const paginatedOrders = orders.slice(startIndex, startIndex + pagination.pageSize);
+              const paginatedOrders = filteredOrders.slice(startIndex, startIndex + pagination.pageSize);
               return (
                 <>
                   {paginatedOrders.map((po) => {

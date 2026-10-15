@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Activity } from "lucide-react";
+import { Activity, FileSpreadsheet, ArrowRight, CheckCircle2, History, Clock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -94,6 +94,11 @@ const HodDashboard = () => {
   } = usePagination(8, 1);
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
   const [loadingInventory, setLoadingInventory] = useState(false);
+
+  // PRs & Approvals state
+  const [deptPrs, setDeptPrs] = useState<any[]>([]);
+  const [loadingPrs, setLoadingPrs] = useState(false);
+  const [prFilter, setPrFilter] = useState<"active" | "history">("active");
 
   const fetchTickets = useCallback(async () => {
     setLoading(true);
@@ -257,6 +262,37 @@ const HodDashboard = () => {
   useEffect(() => {
     if (departmentName) fetchInventory();
   }, [departmentName, fetchInventory]);
+
+  const fetchDeptPrs = useCallback(async () => {
+    try {
+      setLoadingPrs(true);
+      let query = supabase
+        .from("purchase_requisitions")
+        .select(
+          `
+          id, pr_number, category, scope, estimated_value, status, justification, created_at, updated_at,
+          departments (id, name),
+          pr_line_items (id, description, net_qty_to_procure, est_unit_price, est_total)
+        `,
+        )
+        .order("created_at", { ascending: false });
+
+      if (departmentId) {
+        query = query.eq("department_id", departmentId);
+      }
+      const { data, error } = await query;
+      if (error) throw error;
+      setDeptPrs(data || []);
+    } catch (err) {
+      console.error("Failed to load department PRs", err);
+    } finally {
+      setLoadingPrs(false);
+    }
+  }, [departmentId]);
+
+  useEffect(() => {
+    fetchDeptPrs();
+  }, [fetchDeptPrs]);
 
   const getPriorityColor = (priority: string) => {
     switch (String(priority)) {
@@ -446,6 +482,182 @@ const HodDashboard = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Department Purchase Requisitions & Approvals */}
+        <div className="mt-6">
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileSpreadsheet className="w-5 h-5 text-blue-600" /> Department Procurement
+                    Requisitions (PR)
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Active requisitions awaiting review and complete history of approved/rejected
+                    PRs
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant={prFilter === "active" ? "default" : "outline"}
+                    onClick={() => setPrFilter("active")}
+                    className="text-xs h-8 gap-1.5"
+                  >
+                    Active PRs
+                    <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
+                      {
+                        deptPrs.filter(
+                          (p) =>
+                            p.status !== "approved" &&
+                            p.status !== "rejected" &&
+                            p.status !== "closed",
+                        ).length
+                      }
+                    </Badge>
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={prFilter === "history" ? "default" : "outline"}
+                    onClick={() => setPrFilter("history")}
+                    className="text-xs h-8 gap-1.5 text-slate-600 dark:text-slate-400"
+                  >
+                    History
+                    <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
+                      {
+                        deptPrs.filter(
+                          (p) =>
+                            p.status === "approved" ||
+                            p.status === "rejected" ||
+                            p.status === "closed",
+                        ).length
+                      }
+                    </Badge>
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => navigate({ to: "/procurement/approvals" })}
+                    className="bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800 text-xs h-8 gap-1.5"
+                  >
+                    Open My Approvals <ArrowRight className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loadingPrs ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white"></div>
+                </div>
+              ) : (
+                (() => {
+                  const filtered =
+                    prFilter === "history"
+                      ? deptPrs.filter(
+                          (p) =>
+                            p.status === "approved" ||
+                            p.status === "rejected" ||
+                            p.status === "closed",
+                        )
+                      : deptPrs.filter(
+                          (p) =>
+                            p.status !== "approved" &&
+                            p.status !== "rejected" &&
+                            p.status !== "closed",
+                        );
+
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="text-center py-8 text-sm text-muted-foreground">
+                        {prFilter === "history"
+                          ? "No approved or historical requisitions found for your department."
+                          : "No active pending requisitions. All PRs have been processed."}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="overflow-x-auto">
+                      <table className="w-full table-fixed">
+                        <colgroup>
+                          <col style={{ width: "16%" }} />
+                          <col style={{ width: "20%" }} />
+                          <col style={{ width: "26%" }} />
+                          <col style={{ width: "14%" }} />
+                          <col style={{ width: "12%" }} />
+                          <col style={{ width: "12%" }} />
+                        </colgroup>
+                        <thead className="bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-200 border-b border-slate-200 dark:border-slate-700 text-xs font-semibold uppercase tracking-wider">
+                          <tr>
+                            <th className="px-3 py-3 text-left">PR #</th>
+                            <th className="px-3 py-3 text-left">Category</th>
+                            <th className="px-3 py-3 text-left">Scope / Justification</th>
+                            <th className="px-3 py-3 text-left">Est. Value</th>
+                            <th className="px-3 py-3 text-left">Status</th>
+                            <th className="px-3 py-3 text-left">
+                              {prFilter === "history" ? "Approval Date" : "Created"}
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-sm">
+                          {filtered.map((pr) => {
+                            const isApproved = pr.status === "approved";
+                            const isRejected = pr.status === "rejected";
+                            return (
+                              <tr
+                                key={pr.id}
+                                className="hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                              >
+                                <td className="px-3 py-3 font-mono font-bold text-xs text-blue-600 dark:text-blue-400">
+                                  {pr.pr_number}
+                                </td>
+                                <td className="px-3 py-3 text-xs capitalize text-slate-700 dark:text-slate-300">
+                                  {pr.category?.replace(/_/g, " ")}
+                                </td>
+                                <td
+                                  className="px-3 py-3 text-xs truncate text-slate-600 dark:text-slate-400"
+                                  title={pr.justification || pr.scope}
+                                >
+                                  {pr.justification || pr.scope || "—"}
+                                </td>
+                                <td className="px-3 py-3 text-xs font-semibold text-slate-900 dark:text-white">
+                                  ₹{Number(pr.estimated_value || 0).toLocaleString("en-IN")}
+                                </td>
+                                <td className="px-3 py-3">
+                                  <Badge
+                                    className={
+                                      isApproved
+                                        ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                                        : isRejected
+                                          ? "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300"
+                                          : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                                    }
+                                  >
+                                    {pr.status.toUpperCase()}
+                                  </Badge>
+                                </td>
+                                <td className="px-3 py-3 text-xs text-slate-500">
+                                  {pr.updated_at
+                                    ? new Date(pr.updated_at).toLocaleDateString()
+                                    : pr.created_at
+                                      ? new Date(pr.created_at).toLocaleDateString()
+                                      : "—"}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })()
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
         <div className="mt-6">
           <Card>
             <CardHeader>

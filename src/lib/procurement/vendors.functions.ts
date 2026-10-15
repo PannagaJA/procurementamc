@@ -5,6 +5,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 export type VendorApplicationInput = {
   name: string;
   registered_address: string | null;
+  email?: string | null;
+  phone?: string | null;
   gst_number: string | null;
   pan_number: string | null;
   contact_person?: string | null;
@@ -37,9 +39,11 @@ export const applyEmpanelment = createServerFn({ method: "POST" })
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    // Consolidate bank details, contact person, and categories into JSON
+    // Consolidate bank details, contact person, email, phone, and categories into JSON
     const mergedDetails = {
       ...(data.bank_details ?? {}),
+      email: data.email || (data.bank_details as any)?.email || null,
+      phone: data.phone || (data.bank_details as any)?.phone || null,
       contact_person: data.contact_person || (data.bank_details as any)?.contact_person || null,
       categories: data.categories || (data.bank_details as any)?.categories || [],
     };
@@ -268,3 +272,60 @@ export const listVendorsForReview = createServerFn({ method: "POST" })
       roles: roles.map((r) => r.role),
     };
   });
+
+export const updateVendorContact = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator(
+    (input: {
+      vendor_id: string;
+      email: string;
+      phone: string;
+      contact_person?: string | null;
+    }) => input,
+  )
+  .handler(async ({ data, context }) => {
+    const { held } = await rolesOf(context);
+    const d = deny(
+      held,
+      ["admin", "evp", "procurement_officer"],
+      "update vendor contact details",
+    );
+    if (d) return d;
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Fetch existing bank_details_json to preserve bank and other details
+    const { data: vendor, error: fetchErr } = await supabaseAdmin
+      .from("vendors")
+      .select("id, bank_details_json")
+      .eq("id", data.vendor_id)
+      .single();
+
+    if (fetchErr || !vendor) {
+      return { ok: false as const, error: "Vendor record not found" };
+    }
+
+    const existingDetails = (vendor.bank_details_json as any) || {};
+    const updatedDetails = {
+      ...existingDetails,
+      email: data.email.trim(),
+      phone: data.phone.trim(),
+      contact_person:
+        data.contact_person !== undefined
+          ? data.contact_person?.trim() || null
+          : existingDetails.contact_person || null,
+    };
+
+    const { error: updateErr } = await supabaseAdmin
+      .from("vendors")
+      .update({
+        bank_details_json: updatedDetails,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", data.vendor_id);
+
+    if (updateErr) return { ok: false as const, error: updateErr.message };
+
+    return { ok: true as const, updatedDetails };
+  });
+
