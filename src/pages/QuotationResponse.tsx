@@ -222,6 +222,8 @@ export default function QuotationResponse() {
             quantity: 1,
             last_reply_date: rfqData.response_deadline,
             status: rfqData.status,
+            // RFQ quotes are evaluated via the Comparative Statement, not an admin accept/reject.
+            admin_status: "pending",
             company_email: vendorEmail || vendorName,
             categories: {
               name: rfqData.purchase_requisitions?.category || "Institutional Procurement",
@@ -573,10 +575,10 @@ export default function QuotationResponse() {
         <CardHeader
           className={`${
             isExpired
-              ? "bg-red-50"
+              ? "bg-red-50 dark:bg-red-950/40"
               : hasResponded
-                ? "bg-green-50"
-                : "bg-gradient-to-r from-blue-50 to-indigo-50"
+                ? "bg-green-50 dark:bg-green-950/40"
+                : "bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40"
           }`}
         >
           <div className="flex items-center gap-4">
@@ -584,9 +586,15 @@ export default function QuotationResponse() {
             <div>
               <CardTitle className="flex items-center gap-2">
                 {hasResponded ? "Quotation Response Submitted" : "Submit Quotation Response"}
-                {isExpired && <span className="text-red-600 text-sm font-normal">(Expired)</span>}
+                {isExpired && (
+                  <span className="text-red-600 dark:text-red-400 text-sm font-normal">
+                    (Expired)
+                  </span>
+                )}
                 {hasResponded && (
-                  <span className="text-green-600 text-sm font-normal">(Response Submitted)</span>
+                  <span className="text-green-600 dark:text-green-400 text-sm font-normal">
+                    (Response Submitted)
+                  </span>
                 )}
               </CardTitle>
               <CardDescription>
@@ -601,35 +609,35 @@ export default function QuotationResponse() {
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Quotation Details Section */}
-          <div className="bg-gray-50 p-4 rounded-lg">
+          <div className="bg-muted/50 p-4 rounded-lg border">
             <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
               <AlertCircle className="h-4 w-4" />
               Quotation Request Details
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex items-center gap-2">
-                <Package className="h-4 w-4 text-gray-500" />
+                <Package className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <label className="text-sm font-medium">Category</label>
                   <p className="text-sm text-muted-foreground">{quotation.categories?.name}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Package className="h-4 w-4 text-gray-500" />
+                <Package className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <label className="text-sm font-medium">Product Name</label>
                   <p className="text-sm text-muted-foreground">{quotation.product_name}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Package className="h-4 w-4 text-gray-500" />
+                <Package className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <label className="text-sm font-medium">Quantity</label>
                   <p className="text-sm text-muted-foreground">{quotation.quantity} units</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-gray-500" />
+                <Clock className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <label className="text-sm font-medium">Response Deadline</label>
                   <p className="text-sm text-muted-foreground">
@@ -642,7 +650,7 @@ export default function QuotationResponse() {
             </div>
             <div className="mt-4">
               <label className="text-sm font-medium">Request Description</label>
-              <p className="text-sm text-muted-foreground bg-white p-3 rounded border mt-1">
+              <p className="text-sm text-muted-foreground bg-background p-3 rounded border mt-1">
                 {quotation.description}
               </p>
             </div>
@@ -663,7 +671,7 @@ export default function QuotationResponse() {
                       <DollarSign className="h-4 w-4" />
                       Total Amount
                     </label>
-                    <p className="text-lg font-semibold text-green-600">
+                    <p className="text-lg font-semibold text-green-600 dark:text-green-400">
                       ₹{existingResponse?.total_amount || "N/A"}
                     </p>
                   </div>
@@ -708,7 +716,10 @@ export default function QuotationResponse() {
                         if (!phone) return "Not specified";
                         const tel = phone.replace(/[^0-9+]/g, "");
                         return (
-                          <a className="text-blue-600 underline" href={`tel:${tel}`}>
+                          <a
+                            className="text-blue-600 dark:text-blue-400 underline"
+                            href={`tel:${tel}`}
+                          >
                             {phone}
                           </a>
                         );
@@ -726,6 +737,17 @@ export default function QuotationResponse() {
                         existingResponse?.description || "",
                         "Payment Terms",
                       ) || "Not specified"}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      Quotation Valid Until
+                    </label>
+                    <p className="text-sm text-muted-foreground">
+                      {extractFromDescription(existingResponse?.description || "", "Valid Until") ||
+                        "Not specified"}
                     </p>
                   </div>
                 </div>
@@ -751,17 +773,17 @@ export default function QuotationResponse() {
                       </Badge>
                     </div>
                     {quotation?.admin_status === "accepted" && (
-                      <p className="text-sm text-green-600 mt-2">
+                      <p className="text-sm text-green-600 dark:text-green-400 mt-2">
                         ✅ Your quotation has been accepted!
                       </p>
                     )}
                     {quotation?.admin_status === "rejected" && (
-                      <p className="text-sm text-red-600 mt-2">
+                      <p className="text-sm text-red-600 dark:text-red-400 mt-2">
                         ❌ Your quotation was not selected.
                       </p>
                     )}
                     {quotation?.admin_status === "pending" && (
-                      <p className="text-sm text-blue-600 mt-2">
+                      <p className="text-sm text-blue-600 dark:text-blue-400 mt-2">
                         ⏳ Your quotation is under review.
                       </p>
                     )}
@@ -782,7 +804,7 @@ export default function QuotationResponse() {
 
               <div className="mt-6">
                 <label className="text-sm font-medium">Product/Service Description</label>
-                <div className="bg-gray-50 p-4 rounded-lg mt-2">
+                <div className="bg-muted/50 p-4 rounded-lg mt-2 border">
                   <p className="text-sm whitespace-pre-line">
                     {existingResponse?.description?.split("\n\n")[0] || "No description available"}
                   </p>
@@ -792,7 +814,7 @@ export default function QuotationResponse() {
               {existingResponse?.description?.split("\n\n")[4] && (
                 <div className="mt-4">
                   <label className="text-sm font-medium">Additional Notes</label>
-                  <div className="bg-blue-50 p-4 rounded-lg mt-2">
+                  <div className="bg-blue-50 dark:bg-blue-950/40 p-4 rounded-lg mt-2">
                     <p className="text-sm whitespace-pre-line">
                       {existingResponse.description
                         .split("\n\n")[4]
@@ -851,7 +873,7 @@ export default function QuotationResponse() {
                       </div>
                       <div>
                         <label className="text-sm font-medium">Response Details</label>
-                        <div className="bg-gray-50 p-3 rounded mt-1">
+                        <div className="bg-muted/50 p-3 rounded mt-1 border">
                           <p className="text-sm whitespace-pre-line">
                             {existingResponse.description}
                           </p>
@@ -1093,7 +1115,10 @@ export default function QuotationResponse() {
                           <div className="text-muted-foreground">
                             <Dialog>
                               <DialogTrigger asChild>
-                                <button type="button" className="text-blue-600 underline ml-2">
+                                <button
+                                  type="button"
+                                  className="text-blue-600 dark:text-blue-400 underline ml-2"
+                                >
                                   Read Terms & Conditions
                                 </button>
                               </DialogTrigger>
@@ -1120,8 +1145,8 @@ export default function QuotationResponse() {
                     )}
                   />
 
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <p className="text-sm text-blue-800">
+                  <div className="bg-blue-50 dark:bg-blue-950/40 p-4 rounded-lg">
+                    <p className="text-sm text-blue-800 dark:text-blue-200">
                       <strong>Important:</strong> By submitting this quotation, you agree to honor
                       the quoted price and terms for 30 days from the response deadline, unless
                       otherwise agreed upon.

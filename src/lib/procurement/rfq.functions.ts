@@ -538,14 +538,17 @@ export const submitRfqQuotationResponse = createServerFn({ method: "POST" })
 
     // quotation_lines has no columns for these, so they ride along in technical_remarks.
     // ponytail: free-text storage; add real columns if CS needs to compare payment terms.
+    // Same "Label: value" layout as legacy quotation_responses, so the vendor page can parse it back.
     const commercialTerms = [
-      data.notes,
-      `Payment Terms: ${data.payment_terms.trim()}`,
-      `Valid Until: ${data.quotation_validity}`,
-      `Contact: ${data.contact_person.trim()}, ${data.contact_phone.trim()}`,
-    ]
-      .filter(Boolean)
-      .join("\n");
+      (data.notes ?? "").trim(),
+      [
+        `Delivery Time: ${days} days`,
+        `Contact Person: ${data.contact_person.trim()}`,
+        `Contact Phone: ${data.contact_phone.trim()}`,
+        `Payment Terms: ${data.payment_terms.trim()}`,
+        `Valid Until: ${data.quotation_validity}`,
+      ].join("\n"),
+    ].join("\n\n");
 
     // Prepare quotation lines
     let lineItems = data.lines;
