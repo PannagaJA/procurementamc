@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { FilterSelect, statusFilterOptions, applyFilter } from "@/components/FilterSelect";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -59,7 +60,7 @@ export default function GrnManagement() {
   const [challans, setChallans] = useState<any[]>([]);
   const [unlinkedChallans, setUnlinkedChallans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showClosed, setShowClosed] = useState(false);
+  const [grnFilter, setGrnFilter] = useState("active");
 
   // Record Delivery Modal
   const [deliveryOpen, setDeliveryOpen] = useState(false);
@@ -500,6 +501,8 @@ export default function GrnManagement() {
     }
   };
 
+  const grnFilterOptions = statusFilterOptions(grns, (g: any) => g.status, ["accepted", "rejected"]);
+
   return (
     <Layout>
       <div className="max-w-6xl mx-auto space-y-6 pb-12">
@@ -612,52 +615,30 @@ export default function GrnManagement() {
 
         {/* GRN List */}
         <div className="space-y-4">
-          {/* Active / History Filter */}
-          <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
-            <Button
-              variant={!showClosed ? "default" : "outline"}
-              size="sm"
-              onClick={() => {
-                setShowClosed(false);
-                setPage(1);
-              }}
-              className="text-xs h-8 gap-1.5"
-            >
-              Active GRNs
-              <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
-                {grns.filter((g) => g.status !== "accepted" && g.status !== "rejected").length}
-              </Badge>
-            </Button>
-            <Button
-              variant={showClosed ? "default" : "outline"}
-              size="sm"
-              onClick={() => {
-                setShowClosed(true);
-                setPage(1);
-              }}
-              className="text-xs h-8 gap-1.5 text-slate-600 dark:text-slate-400"
-            >
-              History
-              <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
-                {grns.filter((g) => g.status === "accepted" || g.status === "rejected").length}
-              </Badge>
-            </Button>
-          </div>
+          {/* Status filter */}
+          <FilterSelect
+            value={grnFilter}
+            onChange={(v) => {
+              setGrnFilter(v);
+              setPage(1);
+            }}
+            options={grnFilterOptions}
+            title="Filter goods receipts"
+          />
+
           {loading ? (
             <div className="p-8 text-center text-slate-500">Loading Goods Receipt Notes...</div>
           ) : (
             (() => {
               // Filter by closed toggle
-              const visibleGrns = showClosed
-                ? grns
-                : grns.filter((g) => g.status !== "accepted" && g.status !== "rejected");
+              const visibleGrns = applyFilter(grns, grnFilterOptions, grnFilter);
               if (visibleGrns.length === 0)
                 return (
                   <Card className="text-center p-8">
                     <p className="text-slate-500">
                       {grns.length === 0
                         ? "No Goods Receipt Notes created yet. Record a Delivery Challan first, then create a GRN."
-                        : 'All GRNs are closed. Enable "Show accepted / rejected" to view them.'}
+                        : "No goods receipts match this filter. Choose History or All to see accepted and rejected GRNs."}
                     </p>
                   </Card>
                 );

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { FilterSelect, statusFilterOptions, applyFilter } from "@/components/FilterSelect";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -54,7 +55,7 @@ export default function RfqManagement() {
   const [approvedPrs, setApprovedPrs] = useState<any[]>([]);
   const [empanelledVendors, setEmpanelledVendors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [rfqFilter, setRfqFilter] = useState<"active" | "history">("active");
+  const [rfqFilter, setRfqFilter] = useState("active");
 
   // Create RFQ Modal
   const [createOpen, setCreateOpen] = useState(false);
@@ -264,6 +265,8 @@ export default function RfqManagement() {
     }
   };
 
+  const rfqFilterOptions = statusFilterOptions(rfqs, (r: any) => r.status, ["closed", "cancelled"]);
+
   return (
     <Layout>
       <div className="max-w-6xl mx-auto space-y-6 pb-12">
@@ -296,31 +299,16 @@ export default function RfqManagement() {
           </div>
         </div>
 
-        {/* Active / History Filter */}
-        <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
-          <Button
-            variant={rfqFilter === "active" ? "default" : "outline"}
-            size="sm"
-            onClick={() => { setRfqFilter("active"); setPage(1); }}
-            className="text-xs h-8 gap-1.5"
-          >
-            Active RFQs
-            <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
-              {rfqs.filter((r) => r.status !== "closed").length}
-            </Badge>
-          </Button>
-          <Button
-            variant={rfqFilter === "history" ? "default" : "outline"}
-            size="sm"
-            onClick={() => { setRfqFilter("history"); setPage(1); }}
-            className="text-xs h-8 gap-1.5 text-slate-600 dark:text-slate-400"
-          >
-            History
-            <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
-              {rfqs.filter((r) => r.status === "closed").length}
-            </Badge>
-          </Button>
-        </div>
+        {/* Status filter */}
+        <FilterSelect
+          value={rfqFilter}
+          onChange={(v) => {
+            setRfqFilter(v);
+            setPage(1);
+          }}
+          options={rfqFilterOptions}
+          title="Filter RFQs"
+        />
 
         {/* RFQ List */}
         <div className="space-y-4">
@@ -334,9 +322,7 @@ export default function RfqManagement() {
             </Card>
           ) : (
             (() => {
-              const filteredRfqs = rfqFilter === "history"
-                ? rfqs.filter((r) => r.status === "closed")
-                : rfqs.filter((r) => r.status !== "closed");
+              const filteredRfqs = applyFilter(rfqs, rfqFilterOptions, rfqFilter);
               const startIndex = (pagination.page - 1) * pagination.pageSize;
               const paginatedRfqs = filteredRfqs.slice(startIndex, startIndex + pagination.pageSize);
               return (

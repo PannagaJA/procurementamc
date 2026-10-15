@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { FilterSelect, statusFilterOptions, applyFilter } from "@/components/FilterSelect";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -60,9 +61,7 @@ export default function InvoiceManagement() {
   const [loading, setLoading] = useState(true);
 
   // Filter tabs
-  const [statusFilter, setStatusFilter] = useState<
-    "active" | "all" | "pending" | "on_hold" | "approved" | "paid"
-  >("active");
+  const [statusFilter, setStatusFilter] = useState("active");
 
   // Submit Invoice Modal
   const [submitOpen, setSubmitOpen] = useState(false);
@@ -275,6 +274,12 @@ export default function InvoiceManagement() {
     }
   };
 
+  const invoiceFilterOptions = statusFilterOptions(invoices, (i: any) => i.match_status, ["paid", "rejected"], {
+    matched: "Matched (ready to approve)",
+    on_hold: "On Hold",
+    approved: "Approved for Payment",
+  });
+
   return (
     <Layout>
       <div className="max-w-6xl mx-auto space-y-6 pb-12">
@@ -305,87 +310,16 @@ export default function InvoiceManagement() {
           </div>
         </div>
 
-        {/* Status Filter Tabs */}
-        <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
-          <Button
-            variant={statusFilter === "active" ? "default" : "outline"}
-            size="sm"
-            onClick={() => {
-              setStatusFilter("active");
-              setPage(1);
-            }}
-            className="text-xs h-8 gap-1.5"
-          >
-            Active Invoices
-            <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
-              {invoices.filter((i) => i.match_status !== "paid" && i.match_status !== "rejected").length}
-            </Badge>
-          </Button>
-
-          <Button
-            variant={statusFilter === "pending" ? "default" : "outline"}
-            size="sm"
-            onClick={() => {
-              setStatusFilter("pending");
-              setPage(1);
-            }}
-            className="text-xs h-8 gap-1.5"
-          >
-            Pending / Reconciled
-            <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
-              {
-                invoices.filter(
-                  (i) => i.match_status === "matched" || i.match_status === "pending",
-                ).length
-              }
-            </Badge>
-          </Button>
-
-          <Button
-            variant={statusFilter === "on_hold" ? "default" : "outline"}
-            size="sm"
-            onClick={() => {
-              setStatusFilter("on_hold");
-              setPage(1);
-            }}
-            className="text-xs h-8 gap-1.5 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-800"
-          >
-            Verification Hold
-            <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
-              {invoices.filter((i) => i.match_status === "on_hold").length}
-            </Badge>
-          </Button>
-
-          <Button
-            variant={statusFilter === "approved" ? "default" : "outline"}
-            size="sm"
-            onClick={() => {
-              setStatusFilter("approved");
-              setPage(1);
-            }}
-            className="text-xs h-8 gap-1.5 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800"
-          >
-            Approved for Payment
-            <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
-              {invoices.filter((i) => i.match_status === "approved").length}
-            </Badge>
-          </Button>
-
-          <Button
-            variant={statusFilter === "paid" ? "default" : "outline"}
-            size="sm"
-            onClick={() => {
-              setStatusFilter("paid");
-              setPage(1);
-            }}
-            className="text-xs h-8 gap-1.5 text-indigo-700 dark:text-indigo-400 border-indigo-300 dark:border-indigo-800"
-          >
-            History (Paid / Settled)
-            <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
-              {invoices.filter((i) => i.match_status === "paid" || i.match_status === "rejected").length}
-            </Badge>
-          </Button>
-        </div>
+        {/* Status filter */}
+        <FilterSelect
+          value={statusFilter}
+          onChange={(v) => {
+            setStatusFilter(v);
+            setPage(1);
+          }}
+          options={invoiceFilterOptions}
+          title="Filter invoices"
+        />
 
         {/* Invoices List */}
         <div className="space-y-4">
@@ -399,24 +333,13 @@ export default function InvoiceManagement() {
             </Card>
           ) : (
             (() => {
-              const filteredInvoices = invoices.filter((inv) => {
-                if (statusFilter === "active")
-                  return inv.match_status !== "paid" && inv.match_status !== "rejected";
-                if (statusFilter === "all") return true;
-                if (statusFilter === "pending")
-                  return inv.match_status === "matched" || inv.match_status === "pending";
-                if (statusFilter === "on_hold") return inv.match_status === "on_hold";
-                if (statusFilter === "approved") return inv.match_status === "approved";
-                if (statusFilter === "paid")
-                  return inv.match_status === "paid" || inv.match_status === "rejected";
-                return true;
-              });
+              const filteredInvoices = applyFilter(invoices, invoiceFilterOptions, statusFilter);
 
               if (filteredInvoices.length === 0) {
                 return (
                   <Card className="text-center p-8">
                     <p className="text-slate-500">
-                      No invoices found under the selected &quot;{statusFilter}&quot; status filter.
+                      No invoices found under the selected &quot;{invoiceFilterOptions.find((o) => o.id === statusFilter)?.label}&quot; status filter.
                     </p>
                   </Card>
                 );
