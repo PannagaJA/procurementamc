@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { FilterSelect, statusFilterOptions, applyFilter } from "@/components/FilterSelect";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -69,7 +70,7 @@ export default function PurchaseOrders() {
   const [matrixRules, setMatrixRules] = useState<any[]>([]);
   const [approvedPrs, setApprovedPrs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<"active" | "history">("active");
+  const [statusFilter, setStatusFilter] = useState("active");
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -570,6 +571,12 @@ export default function PurchaseOrders() {
     }
   };
 
+  const poFilterOptions = statusFilterOptions(orders, (o: any) => o.status, [
+    "closed",
+    "cancelled",
+    "partially_closed",
+  ]);
+
   return (
     <Layout>
       <div className="max-w-6xl mx-auto space-y-6 pb-12">
@@ -611,31 +618,16 @@ export default function PurchaseOrders() {
           </div>
         </div>
 
-        {/* Active / History Filter */}
-        <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
-          <Button
-            variant={statusFilter === "active" ? "default" : "outline"}
-            size="sm"
-            onClick={() => { setStatusFilter("active"); setPage(1); }}
-            className="text-xs h-8 gap-1.5"
-          >
-            Active Orders
-            <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
-              {orders.filter((o) => !["closed", "cancelled", "partially_closed"].includes(o.status)).length}
-            </Badge>
-          </Button>
-          <Button
-            variant={statusFilter === "history" ? "default" : "outline"}
-            size="sm"
-            onClick={() => { setStatusFilter("history"); setPage(1); }}
-            className="text-xs h-8 gap-1.5 text-slate-600 dark:text-slate-400"
-          >
-            History
-            <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
-              {orders.filter((o) => ["closed", "cancelled", "partially_closed"].includes(o.status)).length}
-            </Badge>
-          </Button>
-        </div>
+        {/* Status filter */}
+        <FilterSelect
+          value={statusFilter}
+          onChange={(v) => {
+            setStatusFilter(v);
+            setPage(1);
+          }}
+          options={poFilterOptions}
+          title="Filter purchase orders"
+        />
 
         {/* PO List */}
         <div className="space-y-4">
@@ -649,9 +641,7 @@ export default function PurchaseOrders() {
             </Card>
           ) : (
             (() => {
-              const filteredOrders = statusFilter === "history"
-                ? orders.filter((o) => ["closed", "cancelled", "partially_closed"].includes(o.status))
-                : orders.filter((o) => !["closed", "cancelled", "partially_closed"].includes(o.status));
+              const filteredOrders = applyFilter(orders, poFilterOptions, statusFilter);
               const startIndex = (pagination.page - 1) * pagination.pageSize;
               const paginatedOrders = filteredOrders.slice(startIndex, startIndex + pagination.pageSize);
               return (
