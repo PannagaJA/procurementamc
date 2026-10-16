@@ -26,6 +26,8 @@ export type CreatePrInput = {
     qty_required: number;
     qty_in_stock: number;
     est_unit_price: number;
+    /** SOP item group (src/lib/procurement/itemGroups.ts). */
+    item_group: string;
   }[];
 };
 
@@ -61,6 +63,22 @@ async function independentApprover(
   const from = APPROVER_CHAIN.indexOf(role);
   return APPROVER_CHAIN.slice(from + 1).find((r) => !holds(r)) ?? "evp";
 }
+
+/** Active rate contracts covering the given item groups (SOP §VII.5), keyed by group. */
+async function rateContractCover(groups: string[]) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { rateContractCover: cover } = await import("@/server/procurement/directPurchase");
+  return cover(supabaseAdmin as any, groups);
+}
+
+/** Read-only preview for the PR form: which of these groups must go through a rate contract. */
+export const rateContractCoverage = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: { groups: string[] }) => input)
+  .handler(async ({ data }) => ({
+    ok: true as const,
+    cover: await rateContractCover(data.groups ?? []),
+  }));
 
 /** Load matrix rules + month-to-date spend and resolve the approver. */
 async function resolve(db: any, category: string, departmentId: string | null, value: number) {
@@ -113,8 +131,37 @@ export const createPr = createServerFn({ method: "POST" })
       };
     }
 
+    // Every line needs an SOP item group; a group covered by an active rate contract must be
+    // bought under that contract, never as a small-value direct purchase (SOP §VII.5).
+    const { ITEM_GROUPS, itemGroupLabel } = await import("@/lib/procurement/itemGroups");
+    const validGroups: string[] = ITEM_GROUPS.map((g) => g.id);
+    const lines = data.line_items ?? [];
+    const missing = lines.find((l) => !validGroups.includes(l.item_group));
+    if (missing) {
+      return {
+        ok: false as const,
+        error: `Choose an item group for "${missing.description || "each line"}".`,
+        code: "item_group_required",
+      };
+    }
+    if (canonicalCat === "small_value") {
+      const cover = await rateContractCover(lines.map((l) => l.item_group));
+      const [group, rc] = Object.entries(cover)[0] ?? [];
+      if (group && rc) {
+        return {
+          ok: false as const,
+          error: `${itemGroupLabel(group)} is covered by rate contract ${rc.contract_number} (valid to ${rc.valid_to}). Raise this as Routine Consumables (Rate Contract), not a small-value direct purchase.`,
+          code: "rate_contract_applies",
+        };
+      }
+    }
+
     const resolved = await resolve(db, canonicalCat, data.department_id, value);
-    const approverRole = await independentApprover(context.userId, data.department_id, resolved.role);
+    const approverRole = await independentApprover(
+      context.userId,
+      data.department_id,
+      resolved.role,
+    );
     const routingReason =
       approverRole === resolved.role
         ? resolved.reason
@@ -155,6 +202,7 @@ export const createPr = createServerFn({ method: "POST" })
           qty_in_stock: i.qty_in_stock,
           net_qty_to_procure: Math.max(0, Number(i.qty_required) - Number(i.qty_in_stock)),
           est_unit_price: i.est_unit_price,
+          item_group: i.item_group,
           est_total:
             Math.max(0, Number(i.qty_required) - Number(i.qty_in_stock)) * Number(i.est_unit_price),
         })),
@@ -235,7 +283,10 @@ async function decide(
 
   // Only open requisitions can be decided, and never by the person who raised them.
   if (!["submitted", "under_review", "escalated_to_evp"].includes(pr.status)) {
-    return { ok: false as const, error: `${pr.pr_number} is already "${pr.status}" and can't be changed.` };
+    return {
+      ok: false as const,
+      error: `${pr.pr_number} is already "${pr.status}" and can't be changed.`,
+    };
   }
   if (pr.requested_by && pr.requested_by === context.userId) {
     return {

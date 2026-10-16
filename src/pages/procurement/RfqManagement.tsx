@@ -27,12 +27,7 @@ import { useToast } from "@/hooks/use-toast";
 import { usePagination } from "@/hooks/use-pagination";
 import { PaginationControls } from "@/components/PaginationControls";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  createRfq,
-  sendRfq,
-  listRfqs,
-  awardDirectPurchase,
-} from "@/lib/procurement/rfq.functions";
+import { createRfq, sendRfq, listRfqs, awardDirectPurchase } from "@/lib/procurement/rfq.functions";
 import {
   Send,
   PlusCircle,
@@ -76,6 +71,7 @@ export default function RfqManagement() {
   const [awardRfq, setAwardRfq] = useState<any>(null);
   const [awardVendorId, setAwardVendorId] = useState("");
   const [awardReason, setAwardReason] = useState("");
+  const [awardStoresChecked, setAwardStoresChecked] = useState(false);
   const [awarding, setAwarding] = useState(false);
 
   // Record Quote Modal
@@ -153,9 +149,13 @@ export default function RfqManagement() {
 
   /** One row per vendor that quoted: total, slowest line's delivery days, name. Lowest first. */
   const quoteSummary = (rfq: any) => {
-    const byVendor = new Map<string, { vendorId: string; name: string; total: number; days: number }>();
+    const byVendor = new Map<
+      string,
+      { vendorId: string; name: string; total: number; days: number }
+    >();
     for (const l of rfq?.quotation_lines ?? []) {
-      const name = rfq.rfq_vendors?.find((rv: any) => rv.vendor_id === l.vendor_id)?.vendors?.name ?? "Vendor";
+      const name =
+        rfq.rfq_vendors?.find((rv: any) => rv.vendor_id === l.vendor_id)?.vendors?.name ?? "Vendor";
       const row = byVendor.get(l.vendor_id) ?? { vendorId: l.vendor_id, name, total: 0, days: 0 };
       row.total += Number(l.total_price || 0);
       row.days = Math.max(row.days, Number(l.delivery_days || 0));
@@ -168,6 +168,7 @@ export default function RfqManagement() {
     setAwardRfq(rfq);
     setAwardVendorId(quoteSummary(rfq)[0]?.vendorId ?? "");
     setAwardReason("");
+    setAwardStoresChecked(false);
   };
 
   const handleAward = async () => {
@@ -175,7 +176,12 @@ export default function RfqManagement() {
     setAwarding(true);
     try {
       const res = await (awardDirectPurchase as any)({
-        data: { rfq_id: awardRfq.id, vendor_id: awardVendorId, justification: awardReason },
+        data: {
+          rfq_id: awardRfq.id,
+          vendor_id: awardVendorId,
+          justification: awardReason,
+          stores_confirmed: awardStoresChecked,
+        },
       });
       if (!res.ok) {
         toast({ title: "Could not award", description: res.error, variant: "destructive" });
@@ -183,7 +189,10 @@ export default function RfqManagement() {
       }
       toast({
         title: "Purchase Order Created",
-        description: `${res.po.po_number} sent for ${String(res.po.current_approver_role).replace(/_/g, " ").toUpperCase()} approval.`,
+        description:
+          res.po.status === "approved"
+            ? `${res.po.po_number} is approved on the requisition's authority and ready to issue.`
+            : `${res.po.po_number} sent for ${String(res.po.current_approver_role).replace(/_/g, " ").toUpperCase()} approval.`,
       });
       setAwardRfq(null);
       loadData();
@@ -281,9 +290,7 @@ export default function RfqManagement() {
                 emailsDispatched++;
               } else {
                 emailNotice =
-                  emailRes.data?.message ||
-                  emailRes.error?.message ||
-                  "Email rejected by provider";
+                  emailRes.data?.message || emailRes.error?.message || "Email rejected by provider";
               }
             } catch (callErr: any) {
               emailNotice = callErr?.message;
@@ -381,7 +388,10 @@ export default function RfqManagement() {
                   </Card>
                 );
               const startIndex = (pagination.page - 1) * pagination.pageSize;
-              const paginatedRfqs = filteredRfqs.slice(startIndex, startIndex + pagination.pageSize);
+              const paginatedRfqs = filteredRfqs.slice(
+                startIndex,
+                startIndex + pagination.pageSize,
+              );
               return (
                 <>
                   {paginatedRfqs.map((rfq) => {
@@ -449,7 +459,8 @@ export default function RfqManagement() {
                                   )}
                                   {rfq.status === "sent" &&
                                     rfq.is_direct &&
-                                    (auth.hasRole("admin") || auth.hasRole("procurement_officer")) && (
+                                    (auth.hasRole("admin") ||
+                                      auth.hasRole("procurement_officer")) && (
                                       <Button
                                         size="sm"
                                         onClick={() => handleOpenAward(rfq)}
@@ -481,13 +492,17 @@ export default function RfqManagement() {
                           {/* Stats */}
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                             <div className="p-2 bg-slate-50 dark:bg-slate-900 rounded border text-center">
-                              <span className="text-slate-400 block text-[10px]">Invited Vendors</span>
+                              <span className="text-slate-400 block text-[10px]">
+                                Invited Vendors
+                              </span>
                               <span className="font-bold text-sm text-slate-800 dark:text-slate-100">
                                 {vendorsCount}
                               </span>
                             </div>
                             <div className="p-2 bg-slate-50 dark:bg-slate-900 rounded border text-center">
-                              <span className="text-slate-400 block text-[10px]">Quotes Received</span>
+                              <span className="text-slate-400 block text-[10px]">
+                                Quotes Received
+                              </span>
                               <span
                                 className={`font-bold text-sm ${responsesCount >= minReq ? "text-emerald-600" : "text-amber-600"}`}
                               >
@@ -495,7 +510,9 @@ export default function RfqManagement() {
                               </span>
                             </div>
                             <div className="p-2 bg-slate-50 dark:bg-slate-900 rounded border text-center">
-                              <span className="text-slate-400 block text-[10px]">Response Deadline</span>
+                              <span className="text-slate-400 block text-[10px]">
+                                Response Deadline
+                              </span>
                               <span className="font-medium text-slate-700 dark:text-slate-300">
                                 {rfq.response_deadline
                                   ? new Date(rfq.response_deadline).toLocaleDateString()
@@ -503,7 +520,9 @@ export default function RfqManagement() {
                               </span>
                             </div>
                             <div className="p-2 bg-slate-50 dark:bg-slate-900 rounded border text-center">
-                              <span className="text-slate-400 block text-[10px]">Minimum Quotes</span>
+                              <span className="text-slate-400 block text-[10px]">
+                                Minimum Quotes
+                              </span>
                               <span
                                 className={`font-semibold text-xs ${responsesCount >= minReq ? "text-emerald-600" : "text-amber-600"}`}
                               >
@@ -529,7 +548,9 @@ export default function RfqManagement() {
                                     }`}
                                   >
                                     <Building2 className="w-3.5 h-3.5 opacity-70" />
-                                    <span className="font-medium">{rv.vendors?.name || "Vendor"}</span>
+                                    <span className="font-medium">
+                                      {rv.vendors?.name || "Vendor"}
+                                    </span>
                                     {rv.response_received_at ? (
                                       <span className="inline-flex items-center gap-1 text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold ml-1">
                                         <CheckCircle className="w-3 h-3" /> Submitted
@@ -601,7 +622,9 @@ export default function RfqManagement() {
                   </SelectTrigger>
                   <SelectContent>
                     {approvedPrs
-                      .filter((pr) => !rfqs.some((r: any) => r.pr_id === pr.id && r.status !== "closed"))
+                      .filter(
+                        (pr) => !rfqs.some((r: any) => r.pr_id === pr.id && r.status !== "closed"),
+                      )
                       .map((pr) => (
                         <SelectItem key={pr.id} value={pr.id}>
                           {pr.pr_number || pr.id.slice(0, 8)} — {pr.category} (₹
@@ -610,7 +633,9 @@ export default function RfqManagement() {
                       ))}
                   </SelectContent>
                 </Select>
-                {approvedPrs.filter((pr) => !rfqs.some((r: any) => r.pr_id === pr.id && r.status !== "closed")).length === 0 && (
+                {approvedPrs.filter(
+                  (pr) => !rfqs.some((r: any) => r.pr_id === pr.id && r.status !== "closed"),
+                ).length === 0 && (
                   <p className="text-xs text-amber-600">
                     No active approved PRs available. Raise and approve a new PR first.
                   </p>
@@ -729,8 +754,9 @@ export default function RfqManagement() {
             <DialogHeader>
               <DialogTitle>Award Purchase Order</DialogTitle>
               <DialogDescription>
-                {awardRfq?.rfq_number} is a direct purchase. Choose the vendor; the purchase order is
-                created at their quoted price and sent for approval. No Comparative Statement is needed.
+                {awardRfq?.rfq_number} is a direct purchase. Choose the vendor; the purchase order
+                is created at their quoted price, approved on the requisition's authority. No
+                Comparative Statement is needed.
               </DialogDescription>
             </DialogHeader>
             {(() => {
@@ -751,7 +777,9 @@ export default function RfqManagement() {
                           aria-checked={selected}
                           onClick={() => setAwardVendorId(q.vendorId)}
                           className={`w-full text-left rounded-lg border p-3 flex items-center justify-between gap-3 transition-colors ${
-                            selected ? "border-teal-600 bg-teal-50 dark:bg-teal-950/40" : "hover:bg-muted/50"
+                            selected
+                              ? "border-teal-600 bg-teal-50 dark:bg-teal-950/40"
+                              : "hover:bg-muted/50"
                           }`}
                         >
                           <span className="min-w-0">
@@ -761,9 +789,13 @@ export default function RfqManagement() {
                             </span>
                           </span>
                           <span className="text-right shrink-0">
-                            <span className="font-mono font-bold whitespace-nowrap block">₹{q.total.toLocaleString("en-IN")}</span>
+                            <span className="font-mono font-bold whitespace-nowrap block">
+                              ₹{q.total.toLocaleString("en-IN")}
+                            </span>
                             {idx === 0 && (
-                              <Badge className="text-[10px] bg-emerald-600 hover:bg-emerald-600">Lowest</Badge>
+                              <Badge className="text-[10px] bg-emerald-600 hover:bg-emerald-600">
+                                Lowest
+                              </Badge>
                             )}
                           </span>
                         </button>
@@ -771,7 +803,8 @@ export default function RfqManagement() {
                     })}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {quotes.length} of {awardRfq?.rfq_vendors?.length ?? 0} invited vendors have quoted.
+                    {quotes.length} of {awardRfq?.rfq_vendors?.length ?? 0} invited vendors have
+                    quoted.
                   </p>
                   {notLowest && (
                     <div className="space-y-1.5">
@@ -785,13 +818,29 @@ export default function RfqManagement() {
                       />
                     </div>
                   )}
+                  <label className="flex items-start gap-2 text-xs cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-4 w-4 accent-teal-600"
+                      checked={awardStoresChecked}
+                      onChange={(e) => setAwardStoresChecked(e.target.checked)}
+                    />
+                    <span>
+                      I confirmed these items are <strong>not available in Central Stores</strong>.
+                    </span>
+                  </label>
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setAwardRfq(null)}>
                       Cancel
                     </Button>
                     <Button
                       onClick={handleAward}
-                      disabled={awarding || !awardVendorId || (notLowest && !awardReason.trim())}
+                      disabled={
+                        awarding ||
+                        !awardVendorId ||
+                        !awardStoresChecked ||
+                        (notLowest && !awardReason.trim())
+                      }
                       className="bg-teal-600 hover:bg-teal-700 text-white"
                     >
                       {awarding ? "Creating…" : "Create Purchase Order"}

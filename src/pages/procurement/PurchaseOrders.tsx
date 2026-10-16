@@ -57,6 +57,7 @@ import {
 import { useAuth } from "@/lib/auth";
 import { PoPrintPreviewModal } from "@/components/procurement/PoPrintPreviewModal";
 import { buildPoPdf } from "@/lib/procurement/poPdf";
+import { ITEM_GROUPS } from "@/lib/procurement/itemGroups";
 
 export default function PurchaseOrders() {
   const { toast } = useToast();
@@ -91,11 +92,14 @@ export default function PurchaseOrders() {
 
   // Create PO Modal
   const [createOpen, setCreateOpen] = useState(false);
-  const [poType, setPoType] = useState<"regular" | "rate_contract">("regular");
+  const [poType, setPoType] = useState<"regular" | "rate_contract" | "direct_purchase">("regular");
   const [selectedCsId, setSelectedCsId] = useState("");
   const [selectedRcId, setSelectedRcId] = useState("");
   const [selectedPrId, setSelectedPrId] = useState("");
   const [selectedVendorId, setSelectedVendorId] = useState("");
+  // Direct purchase (small value): stores check is required; quotes are optional.
+  const [storesConfirmed, setStoresConfirmed] = useState(false);
+  const [quotesNote, setQuotesNote] = useState("");
   const [scopeOfSupply, setScopeOfSupply] = useState("");
   const [price, setPrice] = useState<number | "">(0);
   const [taxes, setTaxes] = useState<number | "">(0);
@@ -133,8 +137,8 @@ export default function PurchaseOrders() {
     return d.toISOString().split("T")[0];
   });
   const [rcRateItems, setRcRateItems] = useState<
-    Array<{ description: string; unit: string; rate: number }>
-  >([{ description: "", unit: "pcs", rate: 0 }]);
+    Array<{ description: string; unit: string; rate: number; group: string }>
+  >([{ description: "", unit: "pcs", rate: 0, group: "" }]);
   const [savingRc, setSavingRc] = useState(false);
   const [empanelledVendors, setEmpanelledVendors] = useState<any[]>([]);
 
@@ -165,7 +169,10 @@ export default function PurchaseOrders() {
       }
       const poList = poRes?.purchaseOrders || [];
       const existingPoCsIds = new Set(
-        poList.filter((o: any) => o.status !== "cancelled").map((o: any) => o.cs_id).filter(Boolean),
+        poList
+          .filter((o: any) => o.status !== "cancelled")
+          .map((o: any) => o.cs_id)
+          .filter(Boolean),
       );
 
       if (csRes?.ok) {
@@ -198,9 +205,7 @@ export default function PurchaseOrders() {
 
       // Filter eligible direct purchase PRs (<= 5000) that do not already have an active PO
       const existingPoPrIds = new Set(
-        poList
-          .filter((o: any) => o.status !== "cancelled")
-          .map((o: any) => o.pr_id),
+        poList.filter((o: any) => o.status !== "cancelled").map((o: any) => o.pr_id),
       );
       setApprovedPrs((prData || []).filter((p: any) => !existingPoPrIds.has(p.id)));
 
@@ -253,7 +258,6 @@ export default function PurchaseOrders() {
     }
   }, [selectedCsId, selectedRcId, poType, approvedCss, rateContracts]);
 
-
   const handleCreatePo = async () => {
     if (!selectedPrId || !selectedVendorId || Number(price) <= 0) {
       toast({
@@ -278,13 +282,14 @@ export default function PurchaseOrders() {
           taxes: Number(taxes) || 0,
           delivery_timeline: deliveryTimeline,
           payment_terms: paymentTerms,
+          stores_confirmed: poType === "direct_purchase" ? storesConfirmed : undefined,
+          quotes_note: poType === "direct_purchase" ? quotesNote : undefined,
         },
       });
 
       if (!res.ok) {
         const isSplitting =
-          res.code === "po_splitting" ||
-          res.error?.toLowerCase().includes("splitting");
+          res.code === "po_splitting" || res.error?.toLowerCase().includes("splitting");
         toast({
           title: isSplitting
             ? "Order exceeds approved requisition value"
@@ -297,7 +302,10 @@ export default function PurchaseOrders() {
 
       toast({
         title: "Purchase Order Created",
-        description: `PO ${res.po.po_number} routed to ${res.routing?.role?.toUpperCase()} for approval.`,
+        description:
+          res.po.status === "approved"
+            ? `PO ${res.po.po_number} is approved on the requisition's authority and ready to issue.`
+            : `PO ${res.po.po_number} routed to ${res.routing?.role?.toUpperCase()} for approval.`,
       });
       setCreateOpen(false);
       loadData();
@@ -347,7 +355,12 @@ export default function PurchaseOrders() {
         });
         emailNote =
           !mailErr && mail?.ok
-            ? `PDF emailed to ${mail.to}.`
+            ? `PDF emailed to ${mail.to}.` +
+              (mail.copies?.recipients
+                ? mail.copies.sent
+                  ? ` Copies sent to the user department, Stores and Finance (${mail.copies.recipients}).`
+                  : ` Copies to the user department, Stores and Finance were not sent: ${String(mail.copies.message).replace(/\.+$/, "")}.`
+                : "")
             : `Email not sent: ${mail?.message || mailErr?.message || "unknown error"}. Download the PDF and send it manually.`;
       } catch (mailEx: any) {
         emailNote = `Email not sent: ${mailEx?.message || "could not generate the PDF"}.`;
@@ -450,12 +463,12 @@ export default function PurchaseOrders() {
     sixMonthsLater.setMonth(sixMonthsLater.getMonth() + 6);
     setRcValidFrom(today);
     setRcValidTo(sixMonthsLater.toISOString().split("T")[0]);
-    setRcRateItems([{ description: "", unit: "pcs", rate: 0 }]);
+    setRcRateItems([{ description: "", unit: "pcs", rate: 0, group: "" }]);
     setRcOpen(true);
   };
 
   const handleAddRcItem = () => {
-    setRcRateItems((prev) => [...prev, { description: "", unit: "pcs", rate: 0 }]);
+    setRcRateItems((prev) => [...prev, { description: "", unit: "pcs", rate: 0, group: "" }]);
   };
 
   const handleRemoveRcItem = (index: number) => {
@@ -482,6 +495,16 @@ export default function PurchaseOrders() {
       toast({
         title: "Title Required",
         description: "Please enter a descriptive agreement title.",
+        variant: "destructive",
+      });
+      return;
+    }
+    // Rate-contract coverage is decided by item group, so every rate line needs one.
+    if (rcRateItems.some((i) => i.description.trim() && !i.group)) {
+      toast({
+        title: "Item Group Required",
+        description:
+          "Choose the item group for every rate line; it decides which purchases this contract covers.",
         variant: "destructive",
       });
       return;
@@ -624,7 +647,10 @@ export default function PurchaseOrders() {
                   </Card>
                 );
               const startIndex = (pagination.page - 1) * pagination.pageSize;
-              const paginatedOrders = filteredOrders.slice(startIndex, startIndex + pagination.pageSize);
+              const paginatedOrders = filteredOrders.slice(
+                startIndex,
+                startIndex + pagination.pageSize,
+              );
               return (
                 <>
                   {paginatedOrders.map((po) => {
@@ -870,7 +896,8 @@ export default function PurchaseOrders() {
             <DialogHeader>
               <DialogTitle>Create Purchase Order</DialogTitle>
               <DialogDescription>
-                Create a Purchase Order backed by an approved Comparative Statement or Rate Contract.
+                Create a Purchase Order backed by an approved Comparative Statement or Rate
+                Contract.
               </DialogDescription>
             </DialogHeader>
 
@@ -885,11 +912,15 @@ export default function PurchaseOrders() {
                     <SelectContent>
                       <SelectItem value="regular">Regular Order (Approved CS)</SelectItem>
                       <SelectItem value="rate_contract">Rate Contract Order</SelectItem>
+                      <SelectItem value="direct_purchase">Direct Purchase (Small Value)</SelectItem>
                     </SelectContent>
                   </Select>
-                  <p className="text-[11px] text-muted-foreground">
-                    Direct purchases are awarded from the RFQ page after vendors quote.
-                  </p>
+                  {poType === "direct_purchase" && (
+                    <p className="text-[11px] text-muted-foreground">
+                      No quotes needed. To compare vendors first, send an RFQ and award from the RFQ
+                      page.
+                    </p>
+                  )}
                 </div>
 
                 {poType === "regular" && (
@@ -937,8 +968,92 @@ export default function PurchaseOrders() {
                     </Select>
                   </div>
                 )}
-
               </div>
+
+              {poType === "direct_purchase" && (
+                <div className="space-y-3 rounded-lg border p-3">
+                  <div className="space-y-1">
+                    <Label>Approved Small-Value Requisition *</Label>
+                    <Select
+                      value={selectedPrId}
+                      onValueChange={(val) => {
+                        setSelectedPrId(val);
+                        const pr = approvedPrs.find((p) => p.id === val);
+                        if (pr) {
+                          setPrice(Number(pr.estimated_value || 0));
+                          setTaxes(0);
+                          setScopeOfSupply(
+                            (pr.pr_line_items || [])
+                              .map(
+                                (i: any) => `${i.description} (Qty: ${i.net_qty_to_procure ?? 1})`,
+                              )
+                              .join(", ") || `Direct purchase against ${pr.pr_number}`,
+                          );
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select approved small-value PR..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {approvedPrs.filter((p) => p.category === "small_value").length === 0 ? (
+                          <SelectItem value="_none" disabled>
+                            No approved small-value requisitions without a PO
+                          </SelectItem>
+                        ) : (
+                          approvedPrs
+                            .filter((p) => p.category === "small_value")
+                            .map((pr) => (
+                              <SelectItem key={pr.id} value={pr.id}>
+                                {pr.pr_number} — {pr.departments?.name || "Dept"} (₹
+                                {Number(pr.estimated_value || 0).toLocaleString("en-IN")})
+                              </SelectItem>
+                            ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Vendor *</Label>
+                    <Select value={selectedVendorId} onValueChange={setSelectedVendorId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select empanelled vendor..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {vendorsList.map((v: any) => (
+                          <SelectItem key={v.id} value={v.id}>
+                            {v.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <label className="flex items-start gap-2 text-xs cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-4 w-4 accent-indigo-600"
+                      checked={storesConfirmed}
+                      onChange={(e) => setStoresConfirmed(e.target.checked)}
+                    />
+                    <span>
+                      I confirmed these items are <strong>not available in Central Stores</strong>.
+                    </span>
+                  </label>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Quotes obtained (optional)</Label>
+                    <Input
+                      value={quotesNote}
+                      onChange={(e) => setQuotesNote(e.target.value)}
+                      placeholder="e.g. 2 shop quotes: ₹1,650 (Lenovo), ₹1,720 (Dell)"
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    The requisition's approval authorises this purchase, so the PO is approved on
+                    creation (unless recent orders to the same vendor need a higher approval).
+                  </p>
+                </div>
+              )}
 
               {poType === "rate_contract" && (
                 <div className="space-y-1">
@@ -973,7 +1088,6 @@ export default function PurchaseOrders() {
                   </Select>
                 </div>
               )}
-
 
               <div className="space-y-1">
                 <Label>Scope of Supply / Order Description</Label>
@@ -1013,7 +1127,6 @@ export default function PurchaseOrders() {
                 </span>
               </div>
 
-
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label>Delivery Timeline</Label>
@@ -1033,8 +1146,8 @@ export default function PurchaseOrders() {
                   <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
                   <div>
                     <span className="font-semibold">Recent order to this vendor:</span>{" "}
-                    <strong className="font-mono">{recentPoForVendor.po_number}</strong> was issued to
-                    this vendor in the last 30 days. If this is the same requirement, combine it
+                    <strong className="font-mono">{recentPoForVendor.po_number}</strong> was issued
+                    to this vendor in the last 30 days. If this is the same requirement, combine it
                     into one order. Splitting it to stay under an approval limit isn't allowed.
                   </div>
                 </div>
@@ -1050,7 +1163,11 @@ export default function PurchaseOrders() {
                 disabled={creating || !selectedPrId || Number(price) <= 0}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white"
               >
-                {creating ? "Creating..." : "Create & Route for Approval"}
+                {creating
+                  ? "Creating..."
+                  : poType === "direct_purchase"
+                    ? "Create Purchase Order"
+                    : "Create & Route for Approval"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -1256,6 +1373,21 @@ export default function PurchaseOrders() {
                       key={index}
                       className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800"
                     >
+                      <Select
+                        value={item.group}
+                        onValueChange={(v) => handleRcItemChange(index, "group", v)}
+                      >
+                        <SelectTrigger className="h-8 text-xs w-40" aria-label="Item group">
+                          <SelectValue placeholder="Item group" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ITEM_GROUPS.filter((g) => g.id !== "not_consumable").map((g) => (
+                            <SelectItem key={g.id} value={g.id}>
+                              {g.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <Input
                         placeholder="Item description / code..."
                         value={item.description}

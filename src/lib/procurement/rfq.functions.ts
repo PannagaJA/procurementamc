@@ -299,7 +299,12 @@ export const listRfqs = createServerFn({ method: "GET" })
       ...r,
       is_direct: r.purchase_requisitions
         ? isDirectPurchase(
-            resolveApprover(r.purchase_requisitions.category, Number(r.purchase_requisitions.estimated_value || 0), 0, rules ?? []),
+            resolveApprover(
+              r.purchase_requisitions.category,
+              Number(r.purchase_requisitions.estimated_value || 0),
+              0,
+              rules ?? [],
+            ),
           )
         : false,
     }));
@@ -367,7 +372,12 @@ export const getRfqForVendor = createServerFn({ method: "POST" })
 export const awardDirectPurchase = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator(
-    (input: { rfq_id: string; vendor_id: string; justification?: string | null }) => input,
+    (input: {
+      rfq_id: string;
+      vendor_id: string;
+      justification?: string | null;
+      stores_confirmed?: boolean;
+    }) => input,
   )
   .handler(async ({ data, context }) => {
     const db = context.supabase as any;
@@ -381,84 +391,58 @@ export const awardDirectPurchase = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: rfq } = await supabaseAdmin
       .from("rfqs")
-      .select("id, rfq_number, status, pr_id, purchase_requisitions (id, pr_number, status, category, estimated_value, department_id)")
+      .select(
+        "id, rfq_number, status, pr_id, purchase_requisitions (id, pr_number, status, category, estimated_value, department_id)",
+      )
       .eq("id", data.rfq_id)
       .maybeSingle();
     const pr: any = rfq?.purchase_requisitions;
     if (!rfq || !pr) return fail("RFQ not found.", "rfq_not_found");
-    if (rfq.status !== "sent") return fail(`${rfq.rfq_number} is "${rfq.status}"; only open RFQs can be awarded.`, "rfq_not_open");
-    if (pr.status !== "approved") return fail(`${pr.pr_number} is "${pr.status}", not approved.`, "pr_not_approved");
-
-    const { resolveApprover, isDirectPurchase, normalizeCategory } = await import("@/lib/procurement/authorityMatrix");
-    const { data: rules } = await db.from("approval_matrix_rules").select("*").eq("active", true);
-    if (!isDirectPurchase(resolveApprover(pr.category, Number(pr.estimated_value || 0), 0, rules ?? []))) {
-      return fail(`${pr.pr_number} is not a direct purchase. Prepare a Comparative Statement instead.`, "not_direct_purchase");
-    }
-
-    const { data: existingPo } = await supabaseAdmin
-      .from("purchase_orders")
-      .select("po_number")
-      .eq("pr_id", pr.id)
-      .neq("status", "cancelled")
-      .limit(1)
-      .maybeSingle();
-    if (existingPo) return fail(`${pr.pr_number} already has purchase order ${existingPo.po_number}.`, "pr_already_ordered");
-
+    if (rfq.status !== "sent")
+      return fail(
+        `${rfq.rfq_number} is "${rfq.status}"; only open RFQs can be awarded.`,
+        "rfq_not_open",
+      );
     // Quotes per vendor on this RFQ.
     const { data: lines } = await supabaseAdmin
       .from("quotation_lines")
       .select("vendor_id, description, total_price, delivery_days, technical_remarks")
       .eq("rfq_id", rfq.id);
     const totals = new Map<string, number>();
-    for (const l of lines ?? []) totals.set(l.vendor_id, (totals.get(l.vendor_id) ?? 0) + Number(l.total_price || 0));
+    for (const l of lines ?? [])
+      totals.set(l.vendor_id, (totals.get(l.vendor_id) ?? 0) + Number(l.total_price || 0));
     const chosen = (lines ?? []).filter((l: any) => l.vendor_id === data.vendor_id);
     const total = totals.get(data.vendor_id);
-    if (!chosen.length || !total) return fail("That vendor has not submitted a quotation on this RFQ.", "no_quotation");
+    if (!chosen.length || !total)
+      return fail("That vendor has not submitted a quotation on this RFQ.", "no_quotation");
 
     const lowest = Math.min(...totals.values());
     const isLowest = total <= lowest + 1;
     if (!isLowest && !data.justification?.trim()) {
-      return fail("Explain why you are choosing a vendor other than the lowest quote.", "justification_required");
-    }
-
-    // The winning quote must itself still be a direct-purchase amount.
-    const canonicalCat = normalizeCategory(pr.category);
-    let spend = 0;
-    if (pr.department_id) {
-      const month = new Date();
-      const { data: rows } = await db
-        .from("department_monthly_spend")
-        .select("total_spent")
-        .eq("department_id", pr.department_id)
-        .eq("month", `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, "0")}-01`)
-        .eq("category", canonicalCat);
-      spend = (rows ?? []).reduce((sum: number, r: any) => sum + Number(r.total_spent ?? 0), 0);
-    }
-    const routed = resolveApprover(canonicalCat, total, spend, rules ?? []);
-    if (!isDirectPurchase(routed)) {
       return fail(
-        `This quote (Rs. ${total.toLocaleString("en-IN")}) is above the direct-purchase limit. Prepare a Comparative Statement instead.`,
-        "quote_exceeds_direct_limit",
+        "Explain why you are choosing a vendor other than the lowest quote.",
+        "justification_required",
       );
     }
 
-    const { assertVendorEmpanelled, assertNoPoSplitting } = await import("@/server/procurement/guards");
-    const { ProcurementRuleError } = await import("@/server/procurement/errors");
-    let escalation: any = null;
-    try {
-      await assertVendorEmpanelled(db, data.vendor_id);
-      escalation = await assertNoPoSplitting(db, pr.id, total, data.vendor_id);
-    } catch (e) {
-      if (e instanceof ProcurementRuleError) return fail(e.message, e.code);
-      throw e;
-    }
-    const role = escalation?.escalateRole || routed.role;
+    // Same SOP checks as a direct PO (band, rate contract, stores, PR value, vendor, splitting).
+    const { directPurchaseChecks, directPurchaseApprovalFields } =
+      await import("@/server/procurement/directPurchase");
+    const check = await directPurchaseChecks(db, supabaseAdmin as any, {
+      prId: pr.id,
+      vendorId: data.vendor_id,
+      total,
+      storesConfirmed: data.stores_confirmed === true,
+    });
+    if (!check.ok) return check;
 
     const days = Math.max(0, ...chosen.map((l: any) => Number(l.delivery_days || 0)));
-    const terms = /Payment Terms:\s*([^\n]+)/.exec(chosen[0].technical_remarks ?? "")?.[1]?.trim() ?? null;
+    const terms =
+      /Payment Terms:\s*([^\n]+)/.exec(chosen[0].technical_remarks ?? "")?.[1]?.trim() ?? null;
     const scope = [
       `Direct purchase per ${rfq.rfq_number}: ${chosen.map((l: any) => l.description).join(", ")}`,
       isLowest ? null : `Not the lowest quote — reason: ${data.justification!.trim()}`,
+      "Checked: not available in Central Stores.",
     ]
       .filter(Boolean)
       .join("\n");
@@ -476,17 +460,17 @@ export const awardDirectPurchase = createServerFn({ method: "POST" })
         taxes: 0, // quoted line totals already include tax
         delivery_timeline: days ? `${days} days` : null,
         payment_terms: terms,
-        status: "pending_approval",
-        original_approver_role: role,
-        current_approver_role: role,
-        routing_reason: escalation?.reason || routed.reason,
         created_by: context.userId,
+        ...directPurchaseApprovalFields(check),
       })
-      .select("id, po_number, current_approver_role")
+      .select("id, po_number, status, current_approver_role")
       .single();
     if (poErr) return fail(poErr.message, "insert_po_failed");
 
-    await supabaseAdmin.from("rfqs").update({ status: "closed", updated_at: new Date().toISOString() }).eq("id", rfq.id);
+    await supabaseAdmin
+      .from("rfqs")
+      .update({ status: "closed", updated_at: new Date().toISOString() })
+      .eq("id", rfq.id);
 
     return { ok: true as const, po };
   });

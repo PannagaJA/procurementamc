@@ -575,6 +575,7 @@ export type Database = {
           description: string;
           est_total: number;
           est_unit_price: number;
+          item_group: string | null;
           id: string;
           net_qty_to_procure: number;
           pr_id: string;
@@ -587,6 +588,7 @@ export type Database = {
           description: string;
           est_total?: number;
           est_unit_price?: number;
+          item_group?: string | null;
           id?: string;
           net_qty_to_procure?: number;
           pr_id: string;
@@ -599,6 +601,7 @@ export type Database = {
           description?: string;
           est_total?: number;
           est_unit_price?: number;
+          item_group?: string | null;
           id?: string;
           net_qty_to_procure?: number;
           pr_id?: string;
