@@ -22,6 +22,10 @@ export type CreatePoInput = {
   taxes: number;
   delivery_timeline?: string | null;
   payment_terms?: string | null;
+  /** Direct purchase: officer confirms the items aren't available in Central Stores (SOP §8.4). */
+  stores_confirmed?: boolean;
+  /** Direct purchase: optional note of any quotes obtained (quotes aren't required). */
+  quotes_note?: string | null;
 };
 
 export type ApprovePoInput = {
@@ -53,17 +57,29 @@ function monthKey(d = new Date()) {
 
 /** Why the caller may not approve/reject this PO, or null if they may. */
 function poDecisionError(
-  po: { status: string; current_approver_role: string | null; created_by: string | null; department_id: string | null; po_number: string | null },
+  po: {
+    status: string;
+    current_approver_role: string | null;
+    created_by: string | null;
+    department_id: string | null;
+    po_number: string | null;
+  },
   roles: { role: string; department_id: string | null }[],
   userId: string,
 ): string | null {
   const held = roles.map((r) => r.role);
-  if (po.status !== "pending_approval") return `${po.po_number} is "${po.status}", not awaiting approval.`;
-  if (po.created_by && po.created_by === userId) return "You created this purchase order, so another approver must decide it.";
+  if (po.status !== "pending_approval")
+    return `${po.po_number} is "${po.status}", not awaiting approval.`;
+  if (po.created_by && po.created_by === userId)
+    return "You created this purchase order, so another approver must decide it.";
   const required = po.current_approver_role;
   if (held.includes("admin") || !required) return null;
-  if (!held.includes(required)) return `This purchase order is waiting for the ${required.replace(/_/g, " ").toUpperCase()}.`;
-  if (required === "hod" && !roles.some((r) => r.role === "hod" && r.department_id === po.department_id)) {
+  if (!held.includes(required))
+    return `This purchase order is waiting for the ${required.replace(/_/g, " ").toUpperCase()}.`;
+  if (
+    required === "hod" &&
+    !roles.some((r) => r.role === "hod" && r.department_id === po.department_id)
+  ) {
     return "This purchase order belongs to another department.";
   }
   return null;
@@ -106,8 +122,7 @@ export const createPo = createServerFn({ method: "POST" })
       if (!data.cs_id) {
         return {
           ok: false as const,
-          error:
-            "Select an approved Comparative Statement for this purchase order.",
+          error: "Select an approved Comparative Statement for this purchase order.",
           code: "cs_required",
         };
       }
@@ -131,7 +146,11 @@ export const createPo = createServerFn({ method: "POST" })
         };
       }
       if (cs.pr_id && cs.pr_id !== data.pr_id) {
-        return { ok: false as const, error: `${cs.cs_number} belongs to a different requisition.`, code: "cs_pr_mismatch" };
+        return {
+          ok: false as const,
+          error: `${cs.cs_number} belongs to a different requisition.`,
+          code: "cs_pr_mismatch",
+        };
       }
       if (cs.recommended_vendor_id && cs.recommended_vendor_id !== data.vendor_id) {
         return {
@@ -187,11 +206,53 @@ export const createPo = createServerFn({ method: "POST" })
         };
       }
     } else if (data.type === "direct_purchase") {
+      // Small-value direct purchase: no CS or quotes; the PR approval is the authority.
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { directPurchaseChecks, directPurchaseApprovalFields } =
+        await import("@/server/procurement/directPurchase");
+      const price = Number(data.price) || 0;
+      const taxes = Number(data.taxes) || 0;
+      const check = await directPurchaseChecks(db, supabaseAdmin as any, {
+        prId: data.pr_id,
+        vendorId: data.vendor_id,
+        total: price + taxes,
+        storesConfirmed: data.stores_confirmed === true,
+      });
+      if (!check.ok) return check;
+      const scope = [
+        data.scope_of_supply?.trim() || `Direct purchase against ${check.pr.pr_number}`,
+        "Checked: not available in Central Stores.",
+        data.quotes_note?.trim() ? `Quotes: ${data.quotes_note.trim()}` : null,
+      ]
+        .filter(Boolean)
+        .join("\n");
+      const { data: po, error: poErr } = await supabaseAdmin
+        .from("purchase_orders")
+        .insert({
+          pr_id: check.pr.id,
+          cs_id: null,
+          vendor_id: data.vendor_id,
+          department_id: check.pr.department_id,
+          type: "regular", // DB allows regular | rate_contract; direct purchase is a regular PO
+          scope_of_supply: scope,
+          price,
+          taxes,
+          delivery_timeline: data.delivery_timeline ?? null,
+          payment_terms: data.payment_terms ?? null,
+          created_by: context.userId,
+          ...directPurchaseApprovalFields(check),
+        })
+        .select("*")
+        .single();
+      if (poErr) return { ok: false as const, error: poErr.message, code: "insert_po_failed" };
       return {
-        ok: false as const,
-        error:
-          "Direct purchases are now awarded from the RFQ page: invite vendors, then award the PO to one of the quotes received.",
-        code: "direct_purchase_via_rfq",
+        ok: true as const,
+        po,
+        routing: {
+          role: po.current_approver_role,
+          escalate: !!check.escalation,
+          reason: po.routing_reason,
+        },
       };
     }
 
@@ -340,7 +401,11 @@ export const approvePo = createServerFn({ method: "POST" })
     // Approving a re-routed amendment closes that amendment too.
     await supabaseAdmin
       .from("po_amendments")
-      .update({ status: "approved", approved_by: context.userId, approved_at: new Date().toISOString() })
+      .update({
+        status: "approved",
+        approved_by: context.userId,
+        approved_at: new Date().toISOString(),
+      })
       .eq("po_id", po.id)
       .eq("status", "pending");
 
@@ -355,14 +420,17 @@ export const rejectPo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: { po_id: string; remarks: string }) => input)
   .handler(async ({ data, context }) => {
-    if (!data.remarks?.trim()) return { ok: false as const, error: "Enter a reason for rejecting this purchase order." };
+    if (!data.remarks?.trim())
+      return { ok: false as const, error: "Enter a reason for rejecting this purchase order." };
     const { getCallerRoles } = await import("@/server/procurement/roles");
     const roles = await getCallerRoles(context.supabase as any, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: po } = await supabaseAdmin
       .from("purchase_orders")
-      .select("id, status, current_approver_role, po_number, created_by, department_id, taxes, issued_at")
+      .select(
+        "id, status, current_approver_role, po_number, created_by, department_id, taxes, issued_at",
+      )
       .eq("id", data.po_id)
       .maybeSingle();
     if (!po) return { ok: false as const, error: "Purchase Order not found" };
@@ -382,7 +450,10 @@ export const rejectPo = createServerFn({ method: "POST" })
     if (amendment) {
       const prev = (amendment.changed_fields_json as any)?.previous ?? {};
       const oldTaxes = prev.taxes ?? Number(po.taxes || 0);
-      await supabaseAdmin.from("po_amendments").update({ status: "rejected", approved_by: context.userId, approved_at: now }).eq("id", amendment.id);
+      await supabaseAdmin
+        .from("po_amendments")
+        .update({ status: "rejected", approved_by: context.userId, approved_at: now })
+        .eq("id", amendment.id);
       const { error } = await supabaseAdmin
         .from("purchase_orders")
         .update({
@@ -400,7 +471,11 @@ export const rejectPo = createServerFn({ method: "POST" })
 
     const { error } = await supabaseAdmin
       .from("purchase_orders")
-      .update({ status: "cancelled", routing_reason: `Rejected: ${data.remarks.trim()}`, updated_at: now })
+      .update({
+        status: "cancelled",
+        routing_reason: `Rejected: ${data.remarks.trim()}`,
+        updated_at: now,
+      })
       .eq("id", po.id);
     if (error) return { ok: false as const, error: error.message };
     return { ok: true as const, status: "cancelled" };
@@ -482,12 +557,19 @@ export const amendPo = createServerFn({ method: "POST" })
     const { getCallerRoles } = await import("@/server/procurement/roles");
     const amendHeld = (await getCallerRoles(db, context.userId)).map((r) => r.role);
     if (!["admin", "procurement_officer"].some((r) => amendHeld.includes(r))) {
-      return { ok: false as const, error: "Only the procurement officer can amend purchase orders." };
+      return {
+        ok: false as const,
+        error: "Only the procurement officer can amend purchase orders.",
+      };
     }
     if (!["approved", "issued", "amended"].includes(po.status)) {
-      return { ok: false as const, error: `${po.po_number} is "${po.status}" and can't be amended.` };
+      return {
+        ok: false as const,
+        error: `${po.po_number} is "${po.status}" and can't be amended.`,
+      };
     }
-    if (!data.reason?.trim()) return { ok: false as const, error: "Enter the reason for this amendment." };
+    if (!data.reason?.trim())
+      return { ok: false as const, error: "Enter the reason for this amendment." };
 
     const oldTotal = Number(po.price || 0) + Number(po.taxes || 0);
     const newPrice = Number(data.new_price) || 0;
@@ -580,7 +662,11 @@ export const amendPo = createServerFn({ method: "POST" })
         status: requiresReapproval ? "pending" : "approved",
         changed_fields_json: {
           ...(data.changed_fields ?? {}),
-          previous: { price: Number(po.price || 0), taxes: Number(po.taxes || 0), status: po.status },
+          previous: {
+            price: Number(po.price || 0),
+            taxes: Number(po.taxes || 0),
+            status: po.status,
+          },
         },
         created_by: context.userId,
       })
@@ -690,10 +776,19 @@ export const listPurchaseOrders = createServerFn({ method: "GET" })
     const callerRoles = await getCallerRoles(context.supabase as any, context.userId);
     const held = callerRoles.map((r) => r.role);
     const SEE_ALL = [
-      "admin", "evp", "director_admin_finance", "purchase_committee", "principal",
-      "procurement_officer", "procurement_executive", "finance", "stores",
+      "admin",
+      "evp",
+      "director_admin_finance",
+      "purchase_committee",
+      "principal",
+      "procurement_officer",
+      "procurement_executive",
+      "finance",
+      "stores",
     ];
-    const hodDepts = new Set(callerRoles.filter((r) => r.role === "hod" && r.department_id).map((r) => r.department_id));
+    const hodDepts = new Set(
+      callerRoles.filter((r) => r.role === "hod" && r.department_id).map((r) => r.department_id),
+    );
     const list = held.some((r) => SEE_ALL.includes(r))
       ? (allOrders ?? [])
       : (allOrders ?? []).filter(
@@ -705,6 +800,9 @@ export const listPurchaseOrders = createServerFn({ method: "GET" })
     // Attach the awarded vendor's quoted lines so the PO document shows real prices.
     const { quotedLinesByPo } = await import("@/server/procurement/quotes");
     const quoted = await quotedLinesByPo(db, list);
-    const purchaseOrders = list.map((po: any) => ({ ...po, quoted_lines: quoted.get(po.id) ?? [] }));
+    const purchaseOrders = list.map((po: any) => ({
+      ...po,
+      quoted_lines: quoted.get(po.id) ?? [],
+    }));
     return { ok: true as const, purchaseOrders };
   });

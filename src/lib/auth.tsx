@@ -63,6 +63,26 @@ export function getRoleDefaultPath(role: string | null): string {
   }
 }
 
+/** Roles whose work is all procurement: their Dashboard is the Procurement Hub. */
+const PROCUREMENT_DASHBOARD_ROLES = [
+  "procurement_officer",
+  "procurement_executive",
+  "finance",
+  "stores",
+  "evp",
+  "director_admin_finance",
+  "purchase_committee",
+];
+
+/**
+ * Where the sidebar's "Dashboard" button goes. For procurement roles this is the Hub,
+ * not their landing work page (invoices, GRNs, approvals…), which already has its own
+ * sidebar item. Login still lands on getRoleDefaultPath().
+ */
+export function getRoleDashboardPath(role: string | null): string {
+  return role && PROCUREMENT_DASHBOARD_ROLES.includes(role) ? "/procurement" : getRoleDefaultPath(role);
+}
+
 const getCachedRoles = (): RoleEntry[] => {
   try {
     if (typeof window === "undefined") return [];

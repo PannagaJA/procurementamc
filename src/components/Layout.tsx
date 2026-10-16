@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { useAuth, getRoleDefaultPath } from "@/lib/auth";
+import { useAuth, getRoleDashboardPath } from "@/lib/auth";
+import { procurementAccess } from "@/lib/procurementAccess";
 import type { User } from "@supabase/supabase-js";
 import {
   Home,
@@ -26,6 +27,7 @@ import {
   Menu,
   X,
   Workflow,
+  type LucideIcon,
 } from "lucide-react";
 
 interface LayoutProps {
@@ -189,112 +191,223 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
   const canSeeAdminItems = isAdmin || isRole("admin");
   const canSeeViewerItems = isViewer || isRole("viewer");
   const canSeeHodInventory = isHod || isRole("hod");
-  const canSeeInventory = canSeeAdminItems || isRole("stores") || isPrinciple || isRole("principal");
+  const canSeeInventory =
+    canSeeAdminItems || isRole("stores") || isPrinciple || isRole("principal");
   const canSeePrincipalApprovals = isPrinciple || isRole("principal") || canSeeAdminItems;
+  const proc = procurementAccess(isRole);
+  // Campus tickets are for people who use campus facilities; pure procurement desks
+  // (finance, procurement, EVP, committee) don't raise them.
   const canRaiseTickets = Boolean(
-    user && (
-      canSeeAdminItems ||
-      canSeeHodInventory ||
-      isPrinciple ||
-      isRole("principal") ||
-      isRole("faculty") ||
-      isRole("requester") ||
-      isRole("stores") ||
-      isRole("finance") ||
-      isRole("procurement_officer") ||
-      isRole("procurement_executive") ||
-      isRole("purchase_committee") ||
-      isRole("librarian") ||
-      isRole("user") ||
-      !canSeeViewerItems
-    ),
+    user &&
+    (canSeeAdminItems ||
+      hasAny([
+        "hod",
+        "principal",
+        "faculty",
+        "requester",
+        "user",
+        "staff",
+        "librarian",
+        "stores",
+      ]) ||
+      (!canSeeViewerItems && !proc.any)),
   );
 
-  // Procurement (SOP) Module Permissions
-  const canAccessHub =
-    canSeeAdminItems ||
-    hasAny([
-      "principal",
-      "principle",
-      "evp",
-      "director_admin_finance",
-      "purchase_committee",
-      "procurement_officer",
-      "procurement_executive",
-      "finance",
-      "viewer",
-    ]);
-  const canAccessApprovals =
-    canSeeAdminItems ||
-    hasAny([
-      "hod",
-      "principal",
-      "principle",
-      "evp",
-      "director_admin_finance",
-      "finance",
-      "procurement_officer",
-      "procurement_executive",
-    ]);
-  const canAccessPr =
-    canSeeAdminItems ||
-    hasAny([
-      "faculty",
-      "user",
-      "staff",
-      "requester",
-      "hod",
-      "procurement_officer",
-      "procurement_executive",
-      "purchase_committee",
-    ]);
-  const canAccessRfqs =
-    canSeeAdminItems || hasAny(["procurement_officer", "procurement_executive", "purchase_committee"]);
-  const canAccessCs =
-    canSeeAdminItems ||
-    hasAny([
-      "purchase_committee",
-      "procurement_officer",
-      "procurement_executive",
-      "principal",
-      "principle",
-      "evp",
-      "director_admin_finance",
-    ]);
-  const canAccessPos =
-    canSeeAdminItems || hasAny(["procurement_officer", "procurement_executive", "stores", "finance"]);
-  const canAccessGrn = canSeeAdminItems || hasAny(["stores", "hod", "finance"]);
-  const canAccessInvoices = canSeeAdminItems || hasAny(["finance"]);
-  const canAccessEmergency =
-    canSeeAdminItems ||
-    canAccessPr ||
-    hasAny(["evp", "director_admin_finance", "procurement_officer", "procurement_executive"]);
-  const canAccessVendorRatings =
-    canSeeAdminItems ||
-    hasAny([
-      "purchase_committee",
-      "procurement_officer",
-      "procurement_executive",
-      "evp",
-      "director_admin_finance",
-    ]);
-  const canAccessVendors =
-    canSeeAdminItems || hasAny(["procurement_officer", "procurement_executive", "purchase_committee"]);
-  const canAccessArchitecture = canSeeAdminItems;
+  type NavItem = {
+    label: string;
+    path: string;
+    icon: LucideIcon;
+    iconClass?: string;
+    activeClass?: string;
+    prefix?: boolean;
+    badge?: number;
+  };
+  const BASE_ACTIVE = "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold";
+  const TINT = {
+    blue: "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 font-semibold border border-blue-200/60 dark:border-blue-800/40",
+    purple:
+      "bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400 font-semibold border border-purple-200/60 dark:border-purple-800/40",
+    sky: "bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-400 font-semibold border border-sky-200/60 dark:border-sky-800/40",
+    emerald:
+      "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 font-semibold border border-emerald-200/60 dark:border-emerald-800/40",
+    indigo:
+      "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 font-semibold border border-indigo-200/60 dark:border-indigo-800/40",
+    amber:
+      "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 font-semibold border border-amber-200/60 dark:border-amber-800/40",
+    slate:
+      "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold border border-slate-200 dark:border-slate-700",
+  };
+  const show = <T,>(cond: boolean, items: T[]) => (cond ? items : []);
 
-  const hasAnyProcurementAccess =
-    canAccessHub ||
-    canAccessApprovals ||
-    canAccessPr ||
-    canAccessRfqs ||
-    canAccessCs ||
-    canAccessPos ||
-    canAccessGrn ||
-    canAccessInvoices ||
-    canAccessEmergency ||
-    canAccessVendorRatings ||
-    canAccessVendors ||
-    canAccessArchitecture;
+  const dashboardPath = getRoleDashboardPath(authCtx?.primaryRole ?? null);
+  const campusNav: NavItem[] = [
+    { label: "Dashboard", path: dashboardPath, icon: Home },
+    ...show(canSeeAdminItems, [
+      { label: "Add Item", path: "/add", icon: PlusSquare },
+      { label: "Categories", path: "/categories", icon: List },
+      { label: "Departments", path: "/departments", icon: FileText },
+      { label: "Users", path: "/users", icon: Users },
+      { label: "Manage Tickets", path: "/admin/tickets", icon: FileText },
+    ]),
+    ...show(canSeeHodInventory, [
+      { label: "Dept Inventory", path: "/hod/inventory", icon: Box, prefix: true },
+    ]),
+    ...show(canSeeInventory, [{ label: "Inventory", path: "/inventory", icon: Box }]),
+    ...show(canSeeViewerItems, [
+      { label: "Inventory", path: "/viewer/inventory", icon: Box, prefix: true },
+      { label: "Quotations", path: "/viewer/quotations", icon: ShoppingCart },
+    ]),
+    ...show(canRaiseTickets, [
+      { label: "Raise Ticket", path: "/raise-ticket", icon: Ticket },
+      { label: "My Tickets", path: "/my-tickets", icon: List },
+    ]),
+    ...show(canSeePrincipalApprovals, [
+      {
+        label: "Approve Tickets",
+        path: "/principal/approvals",
+        icon: FileText,
+        badge: pendingPrincipalCount,
+      },
+    ]),
+  ];
+  const procurementNav: NavItem[] = [
+    ...show(proc.hub, [
+      { label: "Procurement Hub", path: "/procurement", icon: Home, activeClass: TINT.blue },
+    ]),
+    ...show(proc.approvals, [
+      {
+        label: "My Approvals",
+        path: "/procurement/approvals",
+        icon: UserCheck,
+        activeClass: TINT.purple,
+      },
+    ]),
+    ...show(proc.pr, [
+      {
+        label: "Requisitions (PR)",
+        path: "/procurement/raise-pr",
+        icon: PlusSquare,
+        activeClass: TINT.blue,
+      },
+    ]),
+    ...show(proc.rfqs, [
+      { label: "RFQs & Quotes", path: "/procurement/rfqs", icon: FileText, activeClass: TINT.sky },
+    ]),
+    ...show(proc.cs, [
+      {
+        label: "Comparative (CS)",
+        path: "/procurement/cs",
+        icon: Scale,
+        activeClass: TINT.emerald,
+      },
+    ]),
+    ...show(proc.pos, [
+      {
+        label: "Purchase Orders",
+        path: "/procurement/orders",
+        icon: ShoppingBag,
+        activeClass: TINT.indigo,
+      },
+    ]),
+    ...show(proc.grns, [
+      {
+        label: "Goods Receipt (GRN)",
+        path: "/procurement/grns",
+        icon: Truck,
+        activeClass: TINT.emerald,
+      },
+    ]),
+    ...show(proc.invoices, [
+      {
+        label: "Invoices & Match",
+        path: "/procurement/invoices",
+        icon: Receipt,
+        activeClass: TINT.emerald,
+      },
+    ]),
+    ...show(proc.emergency, [
+      {
+        label: "Emergency Procurement",
+        path: "/procurement/emergency",
+        icon: Zap,
+        iconClass: "text-amber-500",
+        activeClass: TINT.amber,
+      },
+    ]),
+    ...show(proc.vendorRatings, [
+      {
+        label: "Vendor Ratings",
+        path: "/procurement/vendor-ratings",
+        icon: Award,
+        activeClass: TINT.purple,
+      },
+    ]),
+    ...show(proc.vendors, [
+      {
+        label: "Vendor Master",
+        path: "/procurement/vendors",
+        icon: Users,
+        activeClass: TINT.slate,
+      },
+    ]),
+    ...show(proc.architecture, [
+      {
+        label: "System Architecture",
+        path: "/architecture",
+        icon: Workflow,
+        iconClass: "text-indigo-500",
+        activeClass: TINT.blue,
+      },
+    ]),
+    // Never two buttons for one page: the Dashboard already covers its own target.
+  ].filter((item) => item.path !== dashboardPath);
+
+  const isActive = (item: NavItem) =>
+    item.prefix ? location.pathname.startsWith(item.path) : location.pathname === item.path;
+
+  const renderNav = (mobile: boolean) => {
+    const button = (item: NavItem) => (
+      <li key={item.path}>
+        <button
+          onClick={() => {
+            navigate({ to: item.path });
+            if (mobile) setMobileMenuOpen(false);
+          }}
+          aria-current={isActive(item) ? "page" : undefined}
+          className={`w-full flex items-center justify-between text-left gap-3 px-3 py-2 rounded-lg font-medium transition-colors ${mobile ? "text-sm" : "text-[13.5px] whitespace-nowrap"} ${
+            isActive(item)
+              ? (item.activeClass ?? BASE_ACTIVE)
+              : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+          }`}
+        >
+          <span className="flex items-center gap-3 min-w-0">
+            <item.icon className={`w-4 h-4 shrink-0 ${item.iconClass ?? ""}`} />
+            <span className="truncate">{item.label}</span>
+          </span>
+          {!!item.badge && (
+            <span className="inline-flex items-center justify-center min-w-[28px] h-6 px-2 rounded-full bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300 text-xs font-semibold">
+              {item.badge}
+            </span>
+          )}
+        </button>
+      </li>
+    );
+    return (
+      <ul className="space-y-1">
+        {campusNav.map(button)}
+        {procurementNav.length > 0 && (
+          <>
+            <li className="pt-3 pb-1 border-t border-slate-200 dark:border-slate-800">
+              <span className="px-3 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                Procurement
+              </span>
+            </li>
+            {procurementNav.map(button)}
+          </>
+        )}
+      </ul>
+    );
+  };
 
   if (!user) {
     return null;
@@ -330,7 +443,8 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
                   (authCtx?.primaryRole === "principle" && "Principal") ||
                   (authCtx?.primaryRole === "principal" && "Principal") ||
                   (authCtx?.primaryRole === "evp" && "Executive Vice President") ||
-                  (authCtx?.primaryRole === "director_admin_finance" && "Director (Admin & Finance)") ||
+                  (authCtx?.primaryRole === "director_admin_finance" &&
+                    "Director (Admin & Finance)") ||
                   (authCtx?.primaryRole === "purchase_committee" && "Purchase Committee") ||
                   (authCtx?.primaryRole === "procurement_officer" && "Procurement Officer") ||
                   (authCtx?.primaryRole === "procurement_executive" && "Procurement Executive") ||
@@ -365,779 +479,14 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
       {mobileMenuOpen && (
         <div className="md:hidden fixed inset-0 z-30 pt-20 bg-slate-900/60 backdrop-blur-sm animate-in fade-in-0 duration-200">
           <div className="bg-white dark:bg-slate-900 w-4/5 max-w-sm h-full shadow-2xl overflow-y-auto border-r border-slate-200 dark:border-slate-800 p-4">
-            <nav className="py-2">
-              <ul className="space-y-1">
-                {/* 1. Dashboard */}
-                <li>
-                  {(() => {
-                    const role = authCtx?.primaryRole;
-                    const target = getRoleDefaultPath(role);
-                    const isActive =
-                      location.pathname === target || (target === "/" && location.pathname === "/");
-                    return (
-                      <button
-                        onClick={() => {
-                          navigate({ to: target });
-                          setMobileMenuOpen(false);
-                        }}
-                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-sm font-medium transition-colors ${isActive ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                      >
-                        <Home className="w-4 h-4 shrink-0" />
-                        <span className="truncate">Dashboard</span>
-                      </button>
-                    );
-                  })()}
-                </li>
-
-                {/* 2. Admin Management Items */}
-                {canSeeAdminItems && (
-                  <>
-                    <li>
-                      <button
-                        onClick={() => {
-                          navigate({ to: "/add" });
-                          setMobileMenuOpen(false);
-                        }}
-                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-sm font-medium transition-colors ${location.pathname === "/add" ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                      >
-                        <PlusSquare className="w-4 h-4 shrink-0" />
-                        <span className="truncate">Add Item</span>
-                      </button>
-                    </li>
-                    <li>
-                      <button
-                        onClick={() => {
-                          navigate({ to: "/categories" });
-                          setMobileMenuOpen(false);
-                        }}
-                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-sm font-medium transition-colors ${location.pathname === "/categories" ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                      >
-                        <List className="w-4 h-4 shrink-0" />
-                        <span className="truncate">Categories</span>
-                      </button>
-                    </li>
-                    <li>
-                      <button
-                        onClick={() => {
-                          navigate({ to: "/departments" });
-                          setMobileMenuOpen(false);
-                        }}
-                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-sm font-medium transition-colors ${location.pathname === "/departments" ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                      >
-                        <FileText className="w-4 h-4 shrink-0" />
-                        <span className="truncate">Departments</span>
-                      </button>
-                    </li>
-                    <li>
-                      <button
-                        onClick={() => {
-                          navigate({ to: "/users" });
-                          setMobileMenuOpen(false);
-                        }}
-                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-sm font-medium transition-colors ${location.pathname === "/users" ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                      >
-                        <Users className="w-4 h-4 shrink-0" />
-                        <span className="truncate">Users</span>
-                      </button>
-                    </li>
-                    <li>
-                      <button
-                        onClick={() => {
-                          navigate({ to: "/admin/tickets" });
-                          setMobileMenuOpen(false);
-                        }}
-                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-sm font-medium transition-colors ${location.pathname === "/admin/tickets" ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                      >
-                        <FileText className="w-4 h-4 shrink-0" />
-                        <span className="truncate">Manage Tickets</span>
-                      </button>
-                    </li>
-                  </>
-                )}
-
-                {/* 3. HOD Department Inventory */}
-                {canSeeHodInventory && (
-                  <li>
-                    <button
-                      onClick={() => {
-                        navigate({ to: "/hod/inventory" });
-                        setMobileMenuOpen(false);
-                      }}
-                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-sm font-medium transition-colors ${location.pathname.startsWith("/hod/inventory") ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                    >
-                      <Box className="w-4 h-4 shrink-0" />
-                      <span className="truncate">Dept Inventory</span>
-                    </button>
-                  </li>
-                )}
-
-                {/* 4. Campus Inventory (Admin, Stores, Principal) */}
-                {canSeeInventory && (
-                  <li>
-                    <button
-                      onClick={() => {
-                        navigate({ to: "/inventory" });
-                        setMobileMenuOpen(false);
-                      }}
-                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-sm font-medium transition-colors ${location.pathname === "/inventory" ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                    >
-                      <Box className="w-4 h-4 shrink-0" />
-                      <span className="truncate">Inventory</span>
-                    </button>
-                  </li>
-                )}
-
-                {/* 5. Viewer Inventory & Quotations */}
-                {canSeeViewerItems && (
-                  <>
-                    <li>
-                      <button
-                        onClick={() => {
-                          navigate({ to: "/viewer/inventory" });
-                          setMobileMenuOpen(false);
-                        }}
-                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-sm font-medium transition-colors ${location.pathname.startsWith("/viewer/inventory") ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                      >
-                        <Box className="w-4 h-4 shrink-0" />
-                        <span className="truncate">Inventory</span>
-                      </button>
-                    </li>
-                    <li>
-                      <button
-                        onClick={() => {
-                          navigate({ to: "/viewer/quotations" });
-                          setMobileMenuOpen(false);
-                        }}
-                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-sm font-medium transition-colors ${location.pathname === "/viewer/quotations" ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                      >
-                        <ShoppingCart className="w-4 h-4 shrink-0" />
-                        <span className="truncate">Quotations</span>
-                      </button>
-                    </li>
-                  </>
-                )}
-
-                {/* 6. Campus Tickets */}
-                {canRaiseTickets && (
-                  <>
-                    <li>
-                      <button
-                        onClick={() => {
-                          navigate({ to: "/raise-ticket" });
-                          setMobileMenuOpen(false);
-                        }}
-                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-sm font-medium transition-colors ${location.pathname === "/raise-ticket" ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                      >
-                        <Ticket className="w-4 h-4 shrink-0" />
-                        <span className="truncate">Raise Ticket</span>
-                      </button>
-                    </li>
-                    <li>
-                      <button
-                        onClick={() => {
-                          navigate({ to: "/my-tickets" });
-                          setMobileMenuOpen(false);
-                        }}
-                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-sm font-medium transition-colors ${location.pathname === "/my-tickets" ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                      >
-                        <List className="w-4 h-4 shrink-0" />
-                        <span className="truncate">My Tickets</span>
-                      </button>
-                    </li>
-                  </>
-                )}
-
-                {/* 7. Principal Approvals */}
-                {canSeePrincipalApprovals && (
-                  <li>
-                    <button
-                      onClick={() => {
-                        navigate({ to: "/principal/approvals" });
-                        setMobileMenuOpen(false);
-                      }}
-                      className={`w-full flex items-center justify-between text-left gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${location.pathname === "/principal/approvals" ? "bg-slate-100 dark:bg-slate-800 font-semibold" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <FileText className="w-4 h-4 shrink-0" />
-                        <span className="truncate">Approve Tickets</span>
-                      </div>
-                      {pendingPrincipalCount > 0 && (
-                        <span className="inline-flex items-center justify-center min-w-[28px] h-6 px-2 rounded-full bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300 text-xs font-semibold">
-                          {pendingPrincipalCount}
-                        </span>
-                      )}
-                    </button>
-                  </li>
-                )}
-
-                {/* Procurement (SOP) Section */}
-                {hasAnyProcurementAccess && (
-                  <>
-                    <li className="pt-3 pb-1 border-t border-slate-200 dark:border-slate-800">
-                      <span className="px-3 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                        Procurement
-                      </span>
-                    </li>
-
-                    {canAccessHub && (
-                      <li>
-                        <button
-                          onClick={() => {
-                            navigate({ to: "/procurement" });
-                            setMobileMenuOpen(false);
-                          }}
-                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-sm font-medium transition-colors ${location.pathname === "/procurement" ? "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 font-semibold border border-blue-200/60 dark:border-blue-800/40" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                        >
-                          <Home className="w-4 h-4 shrink-0" />
-                          <span className="truncate">Procurement Hub</span>
-                        </button>
-                      </li>
-                    )}
-
-                    {canAccessApprovals && (
-                      <li>
-                        <button
-                          onClick={() => {
-                            navigate({ to: "/procurement/approvals" });
-                            setMobileMenuOpen(false);
-                          }}
-                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-sm font-medium transition-colors ${location.pathname === "/procurement/approvals" ? "bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400 font-semibold border border-purple-200/60 dark:border-purple-800/40" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                        >
-                          <UserCheck className="w-4 h-4 shrink-0" />
-                          <span className="truncate">My Approvals</span>
-                        </button>
-                      </li>
-                    )}
-
-                    {canAccessPr && (
-                      <li>
-                        <button
-                          onClick={() => {
-                            navigate({ to: "/procurement/raise-pr" });
-                            setMobileMenuOpen(false);
-                          }}
-                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-sm font-medium transition-colors ${location.pathname === "/procurement/raise-pr" ? "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 font-semibold border border-blue-200/60 dark:border-blue-800/40" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                        >
-                          <PlusSquare className="w-4 h-4 shrink-0" />
-                          <span className="truncate">Requisitions (PR)</span>
-                        </button>
-                      </li>
-                    )}
-
-                    {canAccessRfqs && (
-                      <li>
-                        <button
-                          onClick={() => {
-                            navigate({ to: "/procurement/rfqs" });
-                            setMobileMenuOpen(false);
-                          }}
-                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-sm font-medium transition-colors ${location.pathname === "/procurement/rfqs" ? "bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-400 font-semibold border border-sky-200/60 dark:border-sky-800/40" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                        >
-                          <FileText className="w-4 h-4 shrink-0" />
-                          <span className="truncate">RFQs & Quotes</span>
-                        </button>
-                      </li>
-                    )}
-
-                    {canAccessCs && (
-                      <li>
-                        <button
-                          onClick={() => {
-                            navigate({ to: "/procurement/cs" });
-                            setMobileMenuOpen(false);
-                          }}
-                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-sm font-medium transition-colors ${location.pathname === "/procurement/cs" ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 font-semibold border border-emerald-200/60 dark:border-emerald-800/40" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                        >
-                          <Scale className="w-4 h-4 shrink-0" />
-                          <span className="truncate">Comparative (CS)</span>
-                        </button>
-                      </li>
-                    )}
-
-                    {canAccessPos && (
-                      <li>
-                        <button
-                          onClick={() => {
-                            navigate({ to: "/procurement/orders" });
-                            setMobileMenuOpen(false);
-                          }}
-                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-sm font-medium transition-colors ${location.pathname === "/procurement/orders" ? "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 font-semibold border border-indigo-200/60 dark:border-indigo-800/40" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                        >
-                          <ShoppingBag className="w-4 h-4 shrink-0" />
-                          <span className="truncate">Purchase Orders</span>
-                        </button>
-                      </li>
-                    )}
-
-                    {canAccessGrn && (
-                      <li>
-                        <button
-                          onClick={() => {
-                            navigate({ to: "/procurement/grns" });
-                            setMobileMenuOpen(false);
-                          }}
-                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-sm font-medium transition-colors ${location.pathname === "/procurement/grns" ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 font-semibold border border-emerald-200/60 dark:border-emerald-800/40" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                        >
-                          <Truck className="w-4 h-4 shrink-0" />
-                          <span className="truncate">Goods Receipt (GRN)</span>
-                        </button>
-                      </li>
-                    )}
-
-                    {canAccessInvoices && (
-                      <li>
-                        <button
-                          onClick={() => {
-                            navigate({ to: "/procurement/invoices" });
-                            setMobileMenuOpen(false);
-                          }}
-                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-sm font-medium transition-colors ${location.pathname === "/procurement/invoices" ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 font-semibold border border-emerald-200/60 dark:border-emerald-800/40" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                        >
-                          <Receipt className="w-4 h-4 shrink-0" />
-                          <span className="truncate">Invoices & Match</span>
-                        </button>
-                      </li>
-                    )}
-
-                    {canAccessEmergency && (
-                      <li>
-                        <button
-                          onClick={() => {
-                            navigate({ to: "/procurement/emergency" });
-                            setMobileMenuOpen(false);
-                          }}
-                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-sm font-medium transition-colors ${location.pathname === "/procurement/emergency" ? "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 font-semibold border border-amber-200/60 dark:border-amber-800/40" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                        >
-                          <Zap className="w-4 h-4 shrink-0 text-amber-500" />
-                          <span className="truncate">Emergency Procurement</span>
-                        </button>
-                      </li>
-                    )}
-
-                    {canAccessVendorRatings && (
-                      <li>
-                        <button
-                          onClick={() => {
-                            navigate({ to: "/procurement/vendor-ratings" });
-                            setMobileMenuOpen(false);
-                          }}
-                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-sm font-medium transition-colors ${location.pathname === "/procurement/vendor-ratings" ? "bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400 font-semibold border border-purple-200/60 dark:border-purple-800/40" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                        >
-                          <Award className="w-4 h-4 shrink-0" />
-                          <span className="truncate">Vendor Ratings</span>
-                        </button>
-                      </li>
-                    )}
-
-                    {canAccessVendors && (
-                      <li>
-                        <button
-                          onClick={() => {
-                            navigate({ to: "/procurement/vendors" });
-                            setMobileMenuOpen(false);
-                          }}
-                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-sm font-medium transition-colors ${location.pathname === "/procurement/vendors" ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold border border-slate-200 dark:border-slate-700" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                        >
-                          <Users className="w-4 h-4 shrink-0" />
-                          <span className="truncate">Vendor Master</span>
-                        </button>
-                      </li>
-                    )}
-
-                    {canAccessArchitecture && (
-                      <li className="pt-2">
-                        <button
-                          onClick={() => {
-                            navigate({ to: "/architecture" });
-                            setMobileMenuOpen(false);
-                          }}
-                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-sm font-medium transition-colors ${location.pathname === "/architecture" ? "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 font-semibold border border-blue-200/60 dark:border-blue-800/40" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                        >
-                          <Workflow className="w-4 h-4 shrink-0 text-indigo-500" />
-                          <span className="truncate">System Architecture</span>
-                        </button>
-                      </li>
-                    )}
-                  </>
-                )}
-              </ul>
-            </nav>
+            <nav className="py-2">{renderNav(true)}</nav>
           </div>
         </div>
       )}
 
       {/* Sidebar for md+ */}
       <aside className="hidden md:block md:fixed md:top-20 md:left-0 md:h-[calc(100vh-5rem)] md:w-64 lg:w-72 md:bg-white/90 md:backdrop-blur-md md:shadow-sm dark:md:bg-slate-900/90 dark:md:border-slate-700 md:border-r md:overflow-y-auto z-20">
-        <nav className="px-3.5 py-6">
-          <ul className="space-y-1">
-            {/* 1. Dashboard */}
-            <li>
-              {(() => {
-                const role = authCtx?.primaryRole;
-                const target = getRoleDefaultPath(role);
-                const isActive =
-                  location.pathname === target || (target === "/" && location.pathname === "/");
-                return (
-                  <button
-                    onClick={() => navigate({ to: target })}
-                    className={`w-full flex items-center text-left gap-3 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors whitespace-nowrap ${isActive ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                  >
-                    <Home className="w-4 h-4 shrink-0" />
-                    <span className="truncate">Dashboard</span>
-                  </button>
-                );
-              })()}
-            </li>
-
-            {/* 2. Admin Management Items */}
-            {canSeeAdminItems && (
-              <>
-                <li>
-                  <button
-                    onClick={() => navigate({ to: "/add" })}
-                    className={`w-full flex items-center text-left gap-3 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors whitespace-nowrap ${location.pathname === "/add" ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                  >
-                    <PlusSquare className="w-4 h-4 shrink-0" />
-                    <span className="truncate">Add Item</span>
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={() => navigate({ to: "/categories" })}
-                    className={`w-full flex items-center text-left gap-3 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors whitespace-nowrap ${location.pathname === "/categories" ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                  >
-                    <List className="w-4 h-4 shrink-0" />
-                    <span className="truncate">Categories</span>
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={() => navigate({ to: "/departments" })}
-                    className={`w-full flex items-center text-left gap-3 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors whitespace-nowrap ${location.pathname === "/departments" ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                  >
-                    <FileText className="w-4 h-4 shrink-0" />
-                    <span className="truncate">Departments</span>
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={() => navigate({ to: "/users" })}
-                    className={`w-full flex items-center text-left gap-3 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors whitespace-nowrap ${location.pathname === "/users" ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                  >
-                    <Users className="w-4 h-4 shrink-0" />
-                    <span className="truncate">Users</span>
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={() => navigate({ to: "/admin/tickets" })}
-                    className={`w-full flex items-center text-left gap-3 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors whitespace-nowrap ${location.pathname === "/admin/tickets" ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                  >
-                    <FileText className="w-4 h-4 shrink-0" />
-                    <span className="truncate">Manage Tickets</span>
-                  </button>
-                </li>
-              </>
-            )}
-
-            {/* 3. HOD Department Inventory */}
-            {canSeeHodInventory && (
-              <li>
-                <button
-                  onClick={() => navigate({ to: "/hod/inventory" })}
-                  className={`w-full flex items-center text-left gap-3 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors whitespace-nowrap ${location.pathname.startsWith("/hod/inventory") ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                >
-                  <Box className="w-4 h-4 shrink-0" />
-                  <span className="truncate">Dept Inventory</span>
-                </button>
-              </li>
-            )}
-
-            {/* 4. Campus Inventory (Admin, Stores, Principal) */}
-            {canSeeInventory && (
-              <li>
-                <button
-                  onClick={() => navigate({ to: "/inventory" })}
-                  className={`w-full flex items-center text-left gap-3 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors whitespace-nowrap ${location.pathname === "/inventory" ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                >
-                  <Box className="w-4 h-4 shrink-0" />
-                  <span className="truncate">Inventory</span>
-                </button>
-              </li>
-            )}
-
-            {/* 5. Viewer Inventory & Quotations */}
-            {canSeeViewerItems && (
-              <>
-                <li>
-                  <button
-                    onClick={() => navigate({ to: "/viewer/inventory" })}
-                    className={`w-full flex items-center text-left gap-3 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors whitespace-nowrap ${location.pathname.startsWith("/viewer/inventory") ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                  >
-                    <Box className="w-4 h-4 shrink-0" />
-                    <span className="truncate">Inventory</span>
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={() => navigate({ to: "/viewer/quotations" })}
-                    className={`w-full flex items-center text-left gap-3 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors whitespace-nowrap ${location.pathname === "/viewer/quotations" ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                  >
-                    <ShoppingCart className="w-4 h-4 shrink-0" />
-                    <span className="truncate">Quotations</span>
-                  </button>
-                </li>
-              </>
-            )}
-
-            {/* 6. Campus Tickets */}
-            {canRaiseTickets && (
-              <>
-                <li>
-                  <button
-                    onClick={() => navigate({ to: "/raise-ticket" })}
-                    className={`w-full flex items-center text-left gap-3 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors whitespace-nowrap ${location.pathname === "/raise-ticket" ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                  >
-                    <Ticket className="w-4 h-4 shrink-0" />
-                    <span className="truncate">Raise Ticket</span>
-                  </button>
-                </li>
-                <li>
-                  <button
-                    onClick={() => navigate({ to: "/my-tickets" })}
-                    className={`w-full flex items-center text-left gap-3 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors whitespace-nowrap ${location.pathname === "/my-tickets" ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                  >
-                    <List className="w-4 h-4 shrink-0" />
-                    <span className="truncate">My Tickets</span>
-                  </button>
-                </li>
-              </>
-            )}
-
-            {/* 7. Principal Approvals */}
-            {canSeePrincipalApprovals && (
-              <li>
-                <button
-                  onClick={() => navigate({ to: "/principal/approvals" })}
-                  className={`w-full flex items-center justify-between text-left gap-3 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors whitespace-nowrap ${location.pathname === "/principal/approvals" ? "bg-slate-100 dark:bg-slate-800 font-semibold" : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"}`}
-                >
-                  <div className="flex items-center gap-3">
-                    <FileText className="w-4 h-4 shrink-0" />
-                    <span className="truncate">Approve Tickets</span>
-                  </div>
-                  {pendingPrincipalCount > 0 && (
-                    <span className="inline-flex items-center justify-center min-w-[28px] h-6 px-2 rounded-full bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300 text-xs font-semibold">
-                      {pendingPrincipalCount}
-                    </span>
-                  )}
-                </button>
-              </li>
-            )}
-
-            {/* Procurement (SOP) Section */}
-            {hasAnyProcurementAccess && (
-              <>
-                <li className="pt-3 pb-1 border-t border-slate-200 dark:border-slate-800">
-                  <span className="px-3 text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                    Procurement
-                  </span>
-                </li>
-
-                {canAccessHub && (
-                  <li>
-                    <button
-                      onClick={() => navigate({ to: "/procurement" })}
-                      className={`w-full flex items-center text-left gap-3 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors whitespace-nowrap ${
-                        location.pathname === "/procurement"
-                          ? "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 font-semibold border border-blue-200/60 dark:border-blue-800/40"
-                          : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                      }`}
-                    >
-                      <Home className="w-4 h-4 shrink-0" />
-                      <span className="truncate">Procurement Hub</span>
-                    </button>
-                  </li>
-                )}
-
-                {canAccessApprovals && (
-                  <li>
-                    <button
-                      onClick={() => navigate({ to: "/procurement/approvals" })}
-                      className={`w-full flex items-center text-left gap-3 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors whitespace-nowrap ${
-                        location.pathname === "/procurement/approvals"
-                          ? "bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400 font-semibold border border-purple-200/60 dark:border-purple-800/40"
-                          : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                      }`}
-                    >
-                      <UserCheck className="w-4 h-4 shrink-0" />
-                      <span className="truncate">My Approvals</span>
-                    </button>
-                  </li>
-                )}
-
-                {canAccessPr && (
-                  <li>
-                    <button
-                      onClick={() => navigate({ to: "/procurement/raise-pr" })}
-                      className={`w-full flex items-center text-left gap-3 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors whitespace-nowrap ${
-                        location.pathname === "/procurement/raise-pr"
-                          ? "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 font-semibold border border-blue-200/60 dark:border-blue-800/40"
-                          : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                      }`}
-                    >
-                      <PlusSquare className="w-4 h-4 shrink-0" />
-                      <span className="truncate">Requisitions (PR)</span>
-                    </button>
-                  </li>
-                )}
-
-                {canAccessRfqs && (
-                  <li>
-                    <button
-                      onClick={() => navigate({ to: "/procurement/rfqs" })}
-                      className={`w-full flex items-center text-left gap-3 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors whitespace-nowrap ${
-                        location.pathname === "/procurement/rfqs"
-                          ? "bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-400 font-semibold border border-sky-200/60 dark:border-sky-800/40"
-                          : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                      }`}
-                    >
-                      <FileText className="w-4 h-4 shrink-0" />
-                      <span className="truncate">RFQs & Quotes</span>
-                    </button>
-                  </li>
-                )}
-
-                {canAccessCs && (
-                  <li>
-                    <button
-                      onClick={() => navigate({ to: "/procurement/cs" })}
-                      className={`w-full flex items-center text-left gap-3 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors whitespace-nowrap ${
-                        location.pathname === "/procurement/cs"
-                          ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 font-semibold border border-emerald-200/60 dark:border-emerald-800/40"
-                          : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                      }`}
-                    >
-                      <Scale className="w-4 h-4 shrink-0" />
-                      <span className="truncate">Comparative (CS)</span>
-                    </button>
-                  </li>
-                )}
-
-                {canAccessPos && (
-                  <li>
-                    <button
-                      onClick={() => navigate({ to: "/procurement/orders" })}
-                      className={`w-full flex items-center text-left gap-3 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors whitespace-nowrap ${
-                        location.pathname === "/procurement/orders"
-                          ? "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 font-semibold border border-indigo-200/60 dark:border-indigo-800/40"
-                          : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                      }`}
-                    >
-                      <ShoppingBag className="w-4 h-4 shrink-0" />
-                      <span className="truncate">Purchase Orders</span>
-                    </button>
-                  </li>
-                )}
-
-                {canAccessGrn && (
-                  <li>
-                    <button
-                      onClick={() => navigate({ to: "/procurement/grns" })}
-                      className={`w-full flex items-center text-left gap-3 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors whitespace-nowrap ${
-                        location.pathname === "/procurement/grns"
-                          ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 font-semibold border border-emerald-200/60 dark:border-emerald-800/40"
-                          : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                      }`}
-                    >
-                      <Truck className="w-4 h-4 shrink-0" />
-                      <span className="truncate">Goods Receipt (GRN)</span>
-                    </button>
-                  </li>
-                )}
-
-                {canAccessInvoices && (
-                  <li>
-                    <button
-                      onClick={() => navigate({ to: "/procurement/invoices" })}
-                      className={`w-full flex items-center text-left gap-3 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors whitespace-nowrap ${
-                        location.pathname === "/procurement/invoices"
-                          ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 font-semibold border border-emerald-200/60 dark:border-emerald-800/40"
-                          : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                      }`}
-                    >
-                      <Receipt className="w-4 h-4 shrink-0" />
-                      <span className="truncate">Invoices & Match</span>
-                    </button>
-                  </li>
-                )}
-
-                {canAccessEmergency && (
-                  <li>
-                    <button
-                      onClick={() => navigate({ to: "/procurement/emergency" })}
-                      className={`w-full flex items-center text-left gap-3 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors whitespace-nowrap ${
-                        location.pathname === "/procurement/emergency"
-                          ? "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 font-semibold border border-amber-200/60 dark:border-amber-800/40"
-                          : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                      }`}
-                    >
-                      <Zap className="w-4 h-4 shrink-0 text-amber-500" />
-                      <span className="truncate">Emergency Procurement</span>
-                    </button>
-                  </li>
-                )}
-
-                {canAccessVendorRatings && (
-                  <li>
-                    <button
-                      onClick={() => navigate({ to: "/procurement/vendor-ratings" })}
-                      className={`w-full flex items-center text-left gap-3 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors whitespace-nowrap ${
-                        location.pathname === "/procurement/vendor-ratings"
-                          ? "bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400 font-semibold border border-purple-200/60 dark:border-purple-800/40"
-                          : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                      }`}
-                    >
-                      <Award className="w-4 h-4 shrink-0" />
-                      <span className="truncate">Vendor Ratings</span>
-                    </button>
-                  </li>
-                )}
-
-                {canAccessVendors && (
-                  <li>
-                    <button
-                      onClick={() => navigate({ to: "/procurement/vendors" })}
-                      className={`w-full flex items-center text-left gap-3 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors whitespace-nowrap ${
-                        location.pathname === "/procurement/vendors"
-                          ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold border border-slate-200 dark:border-slate-700"
-                          : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                      }`}
-                    >
-                      <Users className="w-4 h-4 shrink-0" />
-                      <span className="truncate">Vendor Master</span>
-                    </button>
-                  </li>
-                )}
-
-                {canAccessArchitecture && (
-                  <li className="pt-2">
-                    <button
-                      onClick={() => navigate({ to: "/architecture" })}
-                      className={`w-full flex items-center text-left gap-3 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors whitespace-nowrap ${
-                        location.pathname === "/architecture"
-                          ? "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 font-semibold border border-blue-200/60 dark:border-blue-800/40"
-                          : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                      }`}
-                    >
-                      <Workflow className="w-4 h-4 shrink-0 text-indigo-500" />
-                      <span className="truncate">System Architecture</span>
-                    </button>
-                  </li>
-                )}
-              </>
-            )}
-          </ul>
-        </nav>
+        <nav className="px-3.5 py-6">{renderNav(false)}</nav>
       </aside>
 
       {/* Main content wrapper positioned to the right of fixed sidebar */}
