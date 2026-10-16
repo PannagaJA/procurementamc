@@ -142,13 +142,21 @@ export async function assertNoPoSplitting(
       .neq("status", "cancelled");
 
     if (!rErr && recentPos && recentPos.length > 0) {
-      recentVendorPos = recentPos;
-      const related = recentPos.filter(
-        (p: any) => p.pr_id === prId || (effectiveDeptId && p.department_id === effectiveDeptId),
+      // Splitting means one requirement broken into several orders: only the same PR, or the
+      // same department buying the same category, counts — not unrelated purchases from the vendor.
+      const prIds = [...new Set(recentPos.map((p: any) => p.pr_id).filter(Boolean))];
+      const { data: prs } = prIds.length
+        ? await db.from("purchase_requisitions").select("id, category").in("id", prIds)
+        : { data: [] };
+      const categoryOf = new Map((prs ?? []).map((r: any) => [r.id, r.category]));
+      recentVendorPos = recentPos.filter(
+        (p: any) =>
+          p.pr_id === prId ||
+          (effectiveDeptId &&
+            p.department_id === effectiveDeptId &&
+            categoryOf.get(p.pr_id) === pr.category),
       );
-      if (related.length > 0) {
-        priorPoMatch = related[0];
-      }
+      priorPoMatch = recentVendorPos[0] ?? null;
     }
   }
 
@@ -166,10 +174,7 @@ export async function assertNoPoSplitting(
   }
 
   if (recentVendorPos.length > 0) {
-    // Filter to same PR or same Department
-    const relatedPos = recentVendorPos.filter(
-      (p: any) => p.pr_id === prId || (effectiveDeptId && p.department_id === effectiveDeptId),
-    );
+    const relatedPos = recentVendorPos;
 
     if (relatedPos.length > 0) {
       const pastSum = relatedPos.reduce(

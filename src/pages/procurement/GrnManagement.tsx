@@ -90,7 +90,11 @@ export default function GrnManagement() {
     try {
       const [grnRes, poRes, challanRes] = await Promise.all([
         (listGrns as any)(),
-        (listPurchaseOrders as any)({ status: "issued" }),
+        (listPurchaseOrders as any)().then((r: any) =>
+          r?.ok
+            ? { ...r, purchaseOrders: r.purchaseOrders.filter((p: any) => ["issued", "amended"].includes(p.status)) }
+            : r,
+        ),
         supabase
           .from("delivery_challans")
           .select("*, purchase_orders(po_number, vendors(name))")

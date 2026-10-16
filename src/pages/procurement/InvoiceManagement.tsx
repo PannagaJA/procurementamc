@@ -704,11 +704,16 @@ export default function InvoiceManagement() {
                         )
                           return false;
 
-                        // Exclude POs that already have an invoice submitted, approved, or paid
-                        const alreadyInvoiced = invoices.some(
-                          (inv: any) => inv.po_id === p.id && inv.match_status !== "rejected",
-                        );
-                        if (alreadyInvoiced) return false;
+                        // Hide POs already fully invoiced; partial deliveries can be billed in parts
+                        // (the server's cumulative three-way match stops over-billing).
+                        const invoiced = invoices
+                          .filter(
+                            (inv: any) =>
+                              inv.po_id === p.id &&
+                              ["matched", "approved", "paid"].includes(inv.match_status),
+                          )
+                          .reduce((sum: number, inv: any) => sum + Number(inv.invoice_amount || 0), 0);
+                        if (invoiced >= Number(p.total_value || 0) - 1) return false;
 
                         // If goods PO, must have an accepted GRN (or partially accepted)
                         const isService = p.type === "service" || p.po_type === "service";
@@ -721,7 +726,7 @@ export default function InvoiceManagement() {
                           if (!hasAcceptedGrn) return false;
                         } else {
                           // Service PO must be issued or approved
-                          if (p.status !== "issued" && p.status !== "approved") return false;
+                          if (!["issued", "approved", "amended"].includes(p.status)) return false;
                         }
                         return true;
                       })

@@ -631,7 +631,8 @@ export default function PurchaseOrders() {
                     const pr = po.purchase_requisitions;
                     const isPending = po.status === "pending_approval";
                     const isApproved = po.status === "approved";
-                    const isIssued = po.status === "issued";
+                    // "amended" (legacy) is a live, already-issued order.
+                    const isIssued = po.status === "issued" || po.status === "amended";
                     const amendments = po.po_amendments || [];
 
                     return (
