@@ -71,9 +71,10 @@ export const prepareComparativeStatement = createServerFn({ method: "POST" })
 
     const { resolveApprover, normalizeCategory } =
       await import("@/lib/procurement/authorityMatrix");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    // 1. Fetch RFQ & PR details
-    const { data: rfq, error: rfqErr } = await db
+    // 1. Fetch RFQ & PR details with service role
+    const { data: rfq, error: rfqErr } = await supabaseAdmin
       .from("rfqs")
       .select("id, rfq_number, pr_id, required_min_quotations, status")
       .eq("id", data.rfq_id)
@@ -82,7 +83,7 @@ export const prepareComparativeStatement = createServerFn({ method: "POST" })
     if (rfqErr || !rfq)
       return { ok: false as const, error: "RFQ not found", code: "rfq_not_found" };
 
-    const { data: pr, error: prErr } = await db
+    const { data: pr, error: prErr } = await supabaseAdmin
       .from("purchase_requisitions")
       .select("id, category, department_id, estimated_value, pr_number")
       .eq("id", rfq.pr_id)
@@ -91,8 +92,8 @@ export const prepareComparativeStatement = createServerFn({ method: "POST" })
     if (prErr || !pr)
       return { ok: false as const, error: "Requisition not found", code: "pr_not_found" };
 
-    // 2. Fetch quotation lines for this RFQ
-    const { data: quotes, error: qErr } = await db
+    // 2. Fetch quotation lines for this RFQ with service role
+    const { data: quotes, error: qErr } = await supabaseAdmin
       .from("quotation_lines")
       .select("*")
       .eq("rfq_id", data.rfq_id);
@@ -155,11 +156,11 @@ export const prepareComparativeStatement = createServerFn({ method: "POST" })
 
     // 6. Authority Matrix routing for CS approval
     const canonicalCat = normalizeCategory(pr.category);
-    const { data: rules } = await db.from("approval_matrix_rules").select("*").eq("active", true);
+    const { data: rules } = await supabaseAdmin.from("approval_matrix_rules").select("*").eq("active", true);
 
     let spend = 0;
     if (pr.department_id) {
-      const { data: rows } = await db
+      const { data: rows } = await supabaseAdmin
         .from("department_monthly_spend")
         .select("total_spent")
         .eq("department_id", pr.department_id)
@@ -171,7 +172,6 @@ export const prepareComparativeStatement = createServerFn({ method: "POST" })
     const resolved = resolveApprover(canonicalCat, recTotal, spend, rules ?? []);
 
     // 7. Insert or update Comparative Statement
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: existingCs } = await supabaseAdmin
       .from("comparative_statements")
       .select("id, status, prepared_by, cs_number")
@@ -429,8 +429,8 @@ export const listComparativeStatements = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input?: { rfq_id?: string; pr_id?: string }) => input)
   .handler(async ({ data, context }) => {
-    const db = context.supabase as any;
-    let query = db
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    let query = supabaseAdmin
       .from("comparative_statements")
       .select(
         `
@@ -439,7 +439,8 @@ export const listComparativeStatements = createServerFn({ method: "GET" })
           id, rfq_number, required_min_quotations, status,
           purchase_requisitions (
             id, pr_number, category, scope, estimated_value, justification,
-            departments (id, name)
+            departments (id, name),
+            pr_line_items (id, description, unit, qty_required, net_qty_to_procure, est_unit_price)
           )
         ),
         vendors (id, name, gst_number, status),

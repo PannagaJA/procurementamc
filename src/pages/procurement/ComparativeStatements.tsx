@@ -114,16 +114,17 @@ export default function ComparativeStatements() {
       const map = new Map<string, any>();
       for (const line of found.quotation_lines) {
         if (!map.has(line.vendor_id)) {
-          const vObj = found.rfq_vendors?.find(
-            (rv: any) => rv.vendor_id === line.vendor_id,
-          )?.vendors;
+          const vObj =
+            found.rfq_vendors?.find((rv: any) => rv.vendor_id === line.vendor_id)?.vendors ||
+            line.vendors;
           map.set(line.vendor_id, {
             vendor_id: line.vendor_id,
-            vendor_name: vObj?.name || "Vendor",
+            vendor_name: vObj?.name || line.vendors?.name || "Vendor",
             total_quoted: 0,
             delivery_days: line.delivery_days || 7,
             warranty_months: line.warranty_months || 12,
             meets_tech_spec: true,
+            technical_remarks: line.technical_remarks || "",
             lines: [],
           });
         }
@@ -131,6 +132,12 @@ export default function ComparativeStatements() {
         vEntry.total_quoted += Number(line.total_price || 0);
         if (line.meets_technical_spec === false) {
           vEntry.meets_tech_spec = false;
+        }
+        if (line.delivery_days) {
+          vEntry.delivery_days = Math.max(vEntry.delivery_days, Number(line.delivery_days));
+        }
+        if (line.technical_remarks && !vEntry.technical_remarks) {
+          vEntry.technical_remarks = line.technical_remarks;
         }
         vEntry.lines.push(line);
       }
@@ -300,7 +307,10 @@ export default function ComparativeStatements() {
               auth.hasRole("procurement_officer") ||
               auth.hasRole("procurement_executive")) && (
               <Button
-                onClick={() => setPrepOpen(true)}
+                onClick={() => {
+                  setPrepOpen(true);
+                  loadData();
+                }}
                 className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
               >
                 <PlusCircle className="w-4 h-4" /> Prepare CS
@@ -582,15 +592,36 @@ export default function ComparativeStatements() {
                           r.status === "sent" &&
                           !csList.some((c: any) => c.rfq_id === r.id && c.status !== "rejected"),
                       )
-                      .map((r) => (
-                        <SelectItem key={r.id} value={r.id}>
-                          {r.rfq_number} — PR: {r.purchase_requisitions?.pr_number} (
-                          {r.quotation_lines?.length || 0} quotes)
-                        </SelectItem>
-                      ))}
+                      .map((r) => {
+                        const pr = r.purchase_requisitions;
+                        const items =
+                          pr?.pr_line_items?.map((it: any) => it.description).filter(Boolean).join(", ") ||
+                          pr?.scope ||
+                          pr?.pr_number;
+                        const quotesCount = r.quotation_lines?.length || 0;
+                        const minReq = r.required_min_quotations || 3;
+                        const ready = quotesCount >= minReq;
+                        return (
+                          <SelectItem key={r.id} value={r.id}>
+                            {r.rfq_number} — {items} ({quotesCount} quote{quotesCount === 1 ? "" : "s"}
+                            {ready ? " · Ready" : ` · Min ${minReq} needed`})
+                          </SelectItem>
+                        );
+                      })}
                   </SelectContent>
                 </Select>
               </div>
+
+              {selectedRfq && vendorQuotes.length < (selectedRfq.required_min_quotations || 3) && (
+                <div className="p-3 bg-amber-50 dark:bg-amber-950/50 border border-amber-300 rounded-lg text-xs text-amber-800 dark:text-amber-200 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-amber-600" />
+                  <span>
+                    This RFQ has received <strong>{vendorQuotes.length}</strong> quotation(s). The SOP
+                    requires at least <strong>{selectedRfq.required_min_quotations || 3}</strong>{" "}
+                    vendor quotations before a Comparative Statement can be prepared.
+                  </span>
+                </div>
+              )}
 
               {/* Vendor Quotes Overview */}
               {vendorQuotes.length > 0 && (
@@ -699,7 +730,12 @@ export default function ComparativeStatements() {
               </Button>
               <Button
                 onClick={handlePrepareCs}
-                disabled={submitting || !selectedRfqId || !recommendedVendorId}
+                disabled={
+                  submitting ||
+                  !selectedRfqId ||
+                  !recommendedVendorId ||
+                  vendorQuotes.length < (selectedRfq?.required_min_quotations || 3)
+                }
                 className="bg-emerald-600 hover:bg-emerald-700 text-white"
               >
                 {submitting ? "Submitting..." : "Submit CS for Approval"}

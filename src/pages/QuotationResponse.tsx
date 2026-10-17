@@ -101,6 +101,7 @@ export default function QuotationResponse() {
     description?: string | null;
     product_name?: string | null;
     quantity?: number | null;
+    unit?: string | null;
     last_reply_date?: string | null;
     status?: string | null;
     admin_status?: string | null;
@@ -108,6 +109,8 @@ export default function QuotationResponse() {
     isRfq?: boolean;
     vendorId?: string;
     vendorName?: string;
+    pr_line_items?: any[] | null;
+    rfq?: any;
   } | null>(null);
   const [existingResponse, setExistingResponse] = useState<{
     id: string;
@@ -212,14 +215,30 @@ export default function QuotationResponse() {
             }
           }
 
+          const prItems: any[] = rfqData.purchase_requisitions?.pr_line_items || [];
+          const itemNames = prItems
+            .map((i: any) => i.description)
+            .filter(Boolean)
+            .join(", ");
+          const totalQty = prItems.reduce(
+            (sum: number, i: any) => sum + (Number(i.net_qty_to_procure || i.qty_required) || 1),
+            0,
+          );
+          const firstUnit = prItems[0]?.unit || "pcs";
+
           resolvedQuotation = {
             id: rfqData.id,
-            product_name: `RFQ ${rfqData.rfq_number}`,
+            product_name:
+              itemNames ||
+              rfqData.purchase_requisitions?.scope ||
+              rfqData.purchase_requisitions?.pr_number ||
+              `RFQ ${rfqData.rfq_number}`,
             description:
               rfqData.purchase_requisitions?.scope ||
               rfqData.purchase_requisitions?.justification ||
               "Requisitioned goods/services requirement for AMC institutions.",
-            quantity: 1,
+            quantity: totalQty || 1,
+            unit: firstUnit,
             last_reply_date: rfqData.response_deadline,
             status: rfqData.status,
             // RFQ quotes are evaluated via the Comparative Statement, not an admin accept/reject.
@@ -232,6 +251,7 @@ export default function QuotationResponse() {
             vendorId: rfqVendorId,
             vendorName,
             rfq: rfqData,
+            pr_line_items: prItems,
           };
         }
       }
@@ -511,18 +531,45 @@ export default function QuotationResponse() {
   }
 
   if (accessDenied) {
+    const isClosedOrCs =
+      accessDeniedReason?.toLowerCase().includes("concluded") ||
+      accessDeniedReason?.toLowerCase().includes("comparative statement") ||
+      accessDeniedReason?.toLowerCase().includes("closed");
+
     return (
       <div className="container mx-auto py-16 px-4 max-w-md">
-        <Card className="border-rose-200 dark:border-rose-900 shadow-xl bg-card">
+        <Card
+          className={`shadow-xl bg-card ${
+            isClosedOrCs
+              ? "border-amber-200 dark:border-amber-900"
+              : "border-rose-200 dark:border-rose-900"
+          }`}
+        >
           <CardHeader className="text-center pb-2">
-            <div className="mx-auto w-12 h-12 bg-rose-100 dark:bg-rose-950/60 rounded-full flex items-center justify-center mb-2">
-              <ShieldAlert className="w-6 h-6 text-rose-600 dark:text-rose-400" />
+            <div
+              className={`mx-auto w-12 h-12 rounded-full flex items-center justify-center mb-2 ${
+                isClosedOrCs
+                  ? "bg-amber-100 dark:bg-amber-950/60"
+                  : "bg-rose-100 dark:bg-rose-950/60"
+              }`}
+            >
+              {isClosedOrCs ? (
+                <Clock className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+              ) : (
+                <ShieldAlert className="w-6 h-6 text-rose-600 dark:text-rose-400" />
+              )}
             </div>
             <CardTitle className="text-xl font-bold text-slate-900 dark:text-white">
-              Access Restricted
+              {isClosedOrCs ? "Quotation Window Concluded" : "Access Restricted"}
             </CardTitle>
-            <CardDescription className="text-xs text-rose-700 dark:text-rose-400 font-medium">
-              Vendor-Specific Protected Link
+            <CardDescription
+              className={`text-xs font-medium ${
+                isClosedOrCs
+                  ? "text-amber-700 dark:text-amber-400"
+                  : "text-rose-700 dark:text-rose-400"
+              }`}
+            >
+              {isClosedOrCs ? "Comparative Evaluation In Progress" : "Vendor-Specific Protected Link"}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4 pt-2 text-center text-sm text-slate-600 dark:text-slate-400">
@@ -531,8 +578,9 @@ export default function QuotationResponse() {
               Quotation Ref: {id}
             </div>
             <p className="text-xs text-slate-400">
-              If you are an invited vendor, please ensure you clicked the unique quotation link sent
-              to your registered email address.
+              {isClosedOrCs
+                ? "This RFQ has proceeded to Comparative Statement evaluation. Additional vendor submissions are no longer accepted."
+                : "If you are an invited vendor, please ensure you clicked the unique quotation link sent to your registered email address."}
             </p>
           </CardContent>
         </Card>
@@ -625,15 +673,17 @@ export default function QuotationResponse() {
               <div className="flex items-center gap-2">
                 <Package className="h-4 w-4 text-muted-foreground" />
                 <div>
-                  <label className="text-sm font-medium">Product Name</label>
-                  <p className="text-sm text-muted-foreground">{quotation.product_name}</p>
+                  <label className="text-sm font-medium">Product / Requirement</label>
+                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{quotation.product_name}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <Package className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <label className="text-sm font-medium">Quantity</label>
-                  <p className="text-sm text-muted-foreground">{quotation.quantity} units</p>
+                  <p className="text-sm text-muted-foreground">
+                    {quotation.quantity} {quotation.unit || "units"}
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -648,8 +698,41 @@ export default function QuotationResponse() {
                 </div>
               </div>
             </div>
+            {quotation.pr_line_items && quotation.pr_line_items.length > 0 && (
+              <div className="mt-4 pt-4 border-t">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-2">
+                  Line Items To Quote
+                </label>
+                <div className="border rounded-md overflow-hidden bg-background">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted/80 text-muted-foreground">
+                      <tr>
+                        <th className="p-2 text-left w-12">#</th>
+                        <th className="p-2 text-left">Item Description</th>
+                        <th className="p-2 text-right w-24">Qty</th>
+                        <th className="p-2 text-left w-20">Unit</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {quotation.pr_line_items.map((it: any, idx: number) => (
+                        <tr key={it.id || idx}>
+                          <td className="p-2 font-mono text-muted-foreground">{idx + 1}</td>
+                          <td className="p-2 font-medium text-slate-900 dark:text-slate-100">
+                            {it.description}
+                          </td>
+                          <td className="p-2 text-right font-semibold">
+                            {it.net_qty_to_procure || it.qty_required}
+                          </td>
+                          <td className="p-2 text-muted-foreground">{it.unit || "pcs"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
             <div className="mt-4">
-              <label className="text-sm font-medium">Request Description</label>
+              <label className="text-sm font-medium">Request Description / Scope</label>
               <p className="text-sm text-muted-foreground bg-background p-3 rounded border mt-1">
                 {quotation.description}
               </p>
