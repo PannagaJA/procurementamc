@@ -495,7 +495,7 @@ export const issuePo = createServerFn({ method: "POST" })
 
     const { data: po, error } = await supabaseAdmin
       .from("purchase_orders")
-      .select("id, status, po_number, vendor_id, pr_id")
+      .select("id, status, po_number, vendor_id, pr_id, department_id, total_value, price, taxes, purchase_requisitions(budget_head)")
       .eq("id", data.po_id)
       .maybeSingle();
 
@@ -525,6 +525,27 @@ export const issuePo = createServerFn({ method: "POST" })
         ok: false as const,
         error: `Update did not persist. DB status is still "${updated?.status}".`,
       };
+    }
+
+    // SOP §8.1 C6: Live table deducting committed amounts dynamically upon PO generation
+    try {
+      const budgetHeadCode = (po as any).purchase_requisitions?.budget_head;
+      if (budgetHeadCode) {
+        const { recordBudgetSpendDeduction } = await import("@/lib/procurement/budget.functions");
+        const val = Number((po as any).total_value || (Number((po as any).price || 0) + Number((po as any).taxes || 0)));
+        recordBudgetSpendDeduction({
+          budgetHeadCode,
+          departmentId: (po as any).department_id,
+          amount: val,
+          type: "commit",
+          poId: po.id,
+          poNumber: po.po_number,
+          prId: po.pr_id,
+          description: `Order issued: ${po.po_number} (₹${val.toLocaleString("en-IN")})`,
+        });
+      }
+    } catch {
+      // non-blocking
     }
 
     return { ok: true as const, poId: po.id, status: "issued", poNumber: po.po_number };

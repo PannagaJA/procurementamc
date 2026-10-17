@@ -455,7 +455,7 @@ export function PoPrintPreviewModal({ open, onOpenChange, po }: PoPrintPreviewMo
                 </div>
               </div>
 
-              {/* Circulation Copy Endorsement (SOP §8.5, Page 20) */}
+              {/* Circulation Copy Endorsement */}
               <div className="border border-slate-200 rounded p-3 bg-slate-50/70 space-y-1.5 text-[10.5px]">
                 <div className="font-bold text-slate-800 text-[11px] uppercase border-b border-slate-200 pb-1 flex items-center gap-1.5">
                   <FileText className="w-3.5 h-3.5 text-indigo-700" /> Formal Copy Circulation

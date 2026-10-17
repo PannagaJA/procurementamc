@@ -41,11 +41,20 @@ import {
   XCircle,
   ShieldAlert,
   AlertTriangle,
-  RefreshCw,
   Clock,
   Building2,
   Lock,
+  Download,
+  FileText,
+  FileSpreadsheet,
 } from "lucide-react";
+import {
+  detectEmergencyAnomalies,
+  exportQuarterlyEmergencyAuditReport,
+  FISCAL_QUARTERS,
+  type FiscalQuarter,
+  type EmergencyAnomaly,
+} from "@/lib/procurement/emergencyAnomalyDetector";
 
 export default function EmergencyProcurement() {
   const { toast } = useToast();
@@ -75,6 +84,12 @@ export default function EmergencyProcurement() {
   const [rejectionRemarks, setRejectionRemarks] = useState("");
   const [acting, setActing] = useState(false);
 
+  // Quarterly Audit & Anomaly Detection State
+  const [auditModalOpen, setAuditModalOpen] = useState(false);
+  const [selectedQuarter, setSelectedQuarter] = useState<FiscalQuarter>("Q1 (Apr–Jun)");
+  const [auditExportFormat, setAuditExportFormat] = useState<"pdf" | "csv">("pdf");
+  const [anomalies, setAnomalies] = useState<EmergencyAnomaly[]>([]);
+
   const loadData = async () => {
     setLoading(true);
     try {
@@ -87,6 +102,11 @@ export default function EmergencyProcurement() {
       if (epRes?.ok) {
         setData(epRes);
         setTotal((epRes.emergencyProcurements || []).length);
+        const detected = detectEmergencyAnomalies(
+          epRes.emergencyProcurements || [],
+          deptRes.data || [],
+        );
+        setAnomalies(detected);
       }
       setDepartments(deptRes.data || []);
       setVendors(vendorRes.data || []);
@@ -95,6 +115,24 @@ export default function EmergencyProcurement() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleExportAudit = () => {
+    const list = data?.emergencyProcurements || [];
+    exportQuarterlyEmergencyAuditReport({
+      quarter: selectedQuarter,
+      financialYear: ledger.financial_year || "2026-27",
+      records: list,
+      ledger,
+      departments,
+      anomalies,
+      format: auditExportFormat,
+    });
+    setAuditModalOpen(false);
+    toast({
+      title: "Audit Report Generated",
+      description: `Formal quarterly Emergency Procurement audit export (${auditExportFormat.toUpperCase()}) prepared successfully.`,
+    });
   };
 
   useEffect(() => {
@@ -243,6 +281,13 @@ export default function EmergencyProcurement() {
 
           <div className="flex items-center gap-2">
             <Button
+              variant="outline"
+              onClick={() => setAuditModalOpen(true)}
+              className="gap-2 border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              <Download className="w-4 h-4 text-slate-600 dark:text-slate-400" /> Quarterly Audit Report
+            </Button>
+            <Button
               onClick={() => setRequestOpen(true)}
               className="gap-2 bg-amber-600 hover:bg-amber-700 text-white shadow-sm"
             >
@@ -287,6 +332,54 @@ export default function EmergencyProcurement() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Repeat-Pattern Anomaly Alert Box */}
+        {anomalies.length > 0 && (
+          <Card className="border-2 border-red-400 bg-red-50/70 dark:bg-red-950/30 dark:border-red-900 shadow-sm">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-red-900 dark:text-red-200">
+                  <ShieldAlert className="w-5 h-5 text-red-600 shrink-0" />
+                  <CardTitle className="text-base font-bold">
+                    Repeat-Pattern Anomaly Flagged ({anomalies.length} finding{anomalies.length > 1 ? "s" : ""})
+                  </CardTitle>
+                </div>
+                <Badge variant="destructive" className="text-xs">
+                  RFQ/PR Bypass Risk Detected
+                </Badge>
+              </div>
+              <CardDescription className="text-xs text-red-800/90 dark:text-red-300">
+                Mandatory audit review: departments repeatedly utilizing emergency procurement for identical routine items within 90 days.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3 pt-1">
+              {anomalies.map((a) => (
+                <div
+                  key={a.id}
+                  className="p-3 rounded-lg bg-white dark:bg-slate-900 border border-red-200 dark:border-red-900/60 text-xs space-y-1.5"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                    <span className="font-bold text-slate-900 dark:text-slate-100">
+                      {a.departmentName} — Item: {a.itemKeyword} ({a.matchedCount} repeat requests)
+                    </span>
+                    <span className="font-mono font-bold text-red-600 dark:text-red-400">
+                      Total: ₹{a.totalCost.toLocaleString("en-IN")}
+                    </span>
+                  </div>
+                  <p className="text-slate-600 dark:text-slate-400">{a.details}</p>
+                  <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-100 dark:border-slate-800">
+                    <span className="text-red-700 dark:text-red-300 font-semibold">
+                      Recommendation: {a.recommendedAction}
+                    </span>
+                    <span className="font-mono text-slate-400">
+                      Incidents: {a.incidentNumbers.join(", ")}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Emergency Procurements List */}
         <div className="space-y-4">
@@ -631,6 +724,66 @@ export default function EmergencyProcurement() {
                 disabled={acting || !rejectionRemarks.trim()}
               >
                 {acting ? "Rejecting..." : "Reject Emergency Request"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal: Quarterly Emergency Audit Report */}
+        <Dialog open={auditModalOpen} onOpenChange={setAuditModalOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FileSpreadsheet className="w-5 h-5 text-amber-600" /> Quarterly Emergency Register Audit Report
+              </DialogTitle>
+              <DialogDescription>
+                Formal quarterly reporting to Director of Admin & Finance, Procurement Committee, and EVP.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Audit Quarter</Label>
+                <Select value={selectedQuarter} onValueChange={(v: any) => setSelectedQuarter(v)}>
+                  <SelectTrigger className="text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FISCAL_QUARTERS.map((q) => (
+                      <SelectItem key={q.name} value={q.name}>{q.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Export Document Format</Label>
+                <Select value={auditExportFormat} onValueChange={(v: any) => setAuditExportFormat(v)}>
+                  <SelectTrigger className="text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pdf">Official PDF Audit Register (Signed Columns)</SelectItem>
+                    <SelectItem value="csv">Excel Spreadsheet (CSV Data)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="p-3 rounded-lg bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 text-xs space-y-1">
+                <span className="font-semibold text-amber-900 dark:text-amber-200">Statutory Governance Audit Inclusions:</span>
+                <ul className="list-disc list-inside text-[11px] text-amber-800 dark:text-amber-300 space-y-0.5">
+                  <li>Full 48-hour post-facto ratification verification register</li>
+                  <li>Statutory ₹10,00,000 annual hard cap consumption ledger</li>
+                  <li>Repeat pattern anomaly detection findings</li>
+                  <li>Official 3-tier signature authority verification block</li>
+                </ul>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setAuditModalOpen(false)}>Cancel</Button>
+              <Button onClick={handleExportAudit} className="bg-amber-600 hover:bg-amber-700 text-white gap-1.5">
+                <Download className="w-3.5 h-3.5" /> Download {auditExportFormat.toUpperCase()} Report
               </Button>
             </DialogFooter>
           </DialogContent>

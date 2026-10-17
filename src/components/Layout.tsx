@@ -27,6 +27,7 @@ import {
   Menu,
   X,
   Workflow,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 
@@ -280,6 +281,14 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
         path: "/procurement/approvals",
         icon: UserCheck,
         activeClass: TINT.purple,
+      },
+    ]),
+    ...show(proc.budgets, [
+      {
+        label: "Annual Budgets",
+        path: "/procurement/budgets",
+        icon: Wallet,
+        activeClass: TINT.emerald,
       },
     ]),
     ...show(proc.pr, [

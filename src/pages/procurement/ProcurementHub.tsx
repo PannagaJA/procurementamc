@@ -20,6 +20,7 @@ import {
   Zap,
   Award,
   History,
+  Wallet,
 } from "lucide-react";
 
 export default function ProcurementHub() {
@@ -86,6 +87,29 @@ export default function ProcurementHub() {
 
         {/* Workflow Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+          {/* 0. Annual Budget Card */}
+          {access.budgets && (
+            <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-emerald-500/50 flex flex-col justify-between">
+              <CardHeader className="p-4">
+                <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center text-emerald-600 dark:text-emerald-400 mb-1.5">
+                  <Wallet className="w-4 h-4" />
+                </div>
+                <CardTitle className="text-base">Annual Budgets</CardTitle>
+                <CardDescription className="text-xs">
+                  March estimates, April consolidation, May sanction, & live balance deductions.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 pt-0 space-y-3">
+                <Button
+                  onClick={() => navigate({ to: "/procurement/budgets" })}
+                  className="w-full gap-1.5 text-xs h-8 bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  Manage Budgets <ArrowRight className="w-3.5 h-3.5" />
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
           {/* 1. PR Card */}
           {access.pr && (
             <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-500/50 flex flex-col justify-between">
