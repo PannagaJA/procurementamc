@@ -219,6 +219,19 @@ export const createPr = createServerFn({ method: "POST" })
       remarks: resolved.reason,
     });
 
+    // Notify approver via SMTP in background
+    import("@/server/email/notificationDispatcher")
+      .then(({ notifyApproversForPr }) =>
+        notifyApproversForPr({
+          prNumber: pr.pr_number,
+          role: approverRole,
+          estimatedValue: value,
+          category: data.category,
+          departmentId: data.department_id,
+        }),
+      )
+      .catch((e) => console.warn("[Email] PR dispatch failed:", e));
+
     return {
       ok: true as const,
       pr,
@@ -364,6 +377,32 @@ async function decide(
     decision,
     remarks: data.remarks ?? null,
   });
+
+  // Notify requester or escalated authority via SMTP in background
+  if (decision === "approved" || decision === "rejected") {
+    import("@/server/email/notificationDispatcher")
+      .then(({ notifyPrRequester }) =>
+        notifyPrRequester({
+          requesterId: pr.requested_by,
+          prNumber: pr.pr_number,
+          decision,
+          remarks: data.remarks ?? undefined,
+        }),
+      )
+      .catch((e) => console.warn("[Email] PR decision notification failed:", e));
+  } else if (decision === "escalated") {
+    import("@/server/email/notificationDispatcher")
+      .then(({ notifyApproversForPr }) =>
+        notifyApproversForPr({
+          prNumber: pr.pr_number,
+          role: "evp",
+          estimatedValue: Number(pr.estimated_value) || 0,
+          category: pr.category,
+          departmentId: pr.department_id,
+        }),
+      )
+      .catch((e) => console.warn("[Email] PR escalation notification failed:", e));
+  }
 
   return { ok: true as const, status: nextStatus, reason: resolved.reason };
 }

@@ -435,6 +435,30 @@ export const technicalVerify = createServerFn({ method: "POST" })
 
     if (error) return { ok: false as const, error: error.message };
 
+    // When rejected, notify vendor via SMTP
+    if (!data.is_accepted) {
+      mutationDb
+        .from("grns")
+        .select("grn_number, po_id, purchase_orders (po_number, vendor_id)")
+        .eq("id", data.grn_id)
+        .maybeSingle()
+        .then(({ data: grnWithPo }: any) => {
+          if (grnWithPo?.purchase_orders?.vendor_id) {
+            import("@/server/email/notificationDispatcher")
+              .then(({ notifyVendorMaterialDiscrepancy }) =>
+                notifyVendorMaterialDiscrepancy({
+                  vendorId: grnWithPo.purchase_orders.vendor_id,
+                  poNumber: grnWithPo.purchase_orders.po_number,
+                  grnNumber: grnWithPo.grn_number,
+                  reason: data.remarks || "Goods rejected during technical inspection.",
+                }),
+              )
+              .catch(() => {});
+          }
+        })
+        .catch(() => {});
+    }
+
     // When GRN is accepted, ensure underlying PO status is issued so lifecycle is fully aligned
     if (data.is_accepted) {
       try {

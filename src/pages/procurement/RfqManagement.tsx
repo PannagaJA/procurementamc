@@ -28,6 +28,7 @@ import { usePagination } from "@/hooks/use-pagination";
 import { PaginationControls } from "@/components/PaginationControls";
 import { supabase } from "@/integrations/supabase/client";
 import { createRfq, sendRfq, listRfqs, awardDirectPurchase } from "@/lib/procurement/rfq.functions";
+import { dispatchRfqEmail } from "@/lib/procurement/email.functions";
 import {
   Send,
   PlusCircle,
@@ -267,30 +268,18 @@ export default function RfqManagement() {
 
           if (vEmail) {
             try {
-              const emailRes = await supabase.functions.invoke("send-quotation-email", {
-                body: {
-                  quotationId: res.rfqId,
-                  companyEmails: [vEmail],
-                  publicQuotationUrl,
-                  vendorName: v.name,
-                  quotationData: {
-                    productName: `RFQ: ${res.rfq?.rfq_number || "Request for Quotation"}`,
-                    categoryName: res.rfq?.purchase_requisitions?.category || "General Procurement",
-                    description:
-                      res.rfq?.purchase_requisitions?.scope ||
-                      res.rfq?.purchase_requisitions?.justification ||
-                      "Goods / services requirement for AMC institutions.",
-                    quantity: 1,
-                    lastReplyDate: res.rfq?.response_deadline || "Within stipulated window",
-                  },
+              const emailRes = await (dispatchRfqEmail as any)({
+                data: {
+                  rfq_id: res.rfqId,
+                  vendor_id: v.id,
+                  quotation_url: publicQuotationUrl,
                 },
               });
 
-              if (!emailRes.error && emailRes.data?.ok !== false && !emailRes.data?.error) {
+              if (emailRes && emailRes.ok) {
                 emailsDispatched++;
               } else {
-                emailNotice =
-                  emailRes.data?.message || emailRes.error?.message || "Email rejected by provider";
+                emailNotice = emailRes?.error || "Email delivery failed";
               }
             } catch (callErr: any) {
               emailNotice = callErr?.message;

@@ -257,6 +257,17 @@ export const prepareComparativeStatement = createServerFn({ method: "POST" })
       await supabaseAdmin.from("cs_line_scores").insert(scoreRows);
     }
 
+    // Notify CS approver via SMTP in background
+    import("@/server/email/notificationDispatcher")
+      .then(({ notifyApproversForCs }) =>
+        notifyApproversForCs({
+          csNumber: cs.cs_number,
+          role: resolved.role,
+          recommendedTotal: Number(cs.recommended_total) || 0,
+        }),
+      )
+      .catch((e) => console.warn("[Email] CS approver dispatch failed:", e));
+
     return {
       ok: true as const,
       cs,
@@ -325,6 +336,19 @@ export const approveCs = createServerFn({ method: "POST" })
       };
     }
 
+    // Notify CS preparer of approval via SMTP
+    if (cs.prepared_by) {
+      import("@/server/email/notificationDispatcher")
+        .then(({ notifyCsPreparer }) =>
+          notifyCsPreparer({
+            preparerId: cs.prepared_by!,
+            csNumber: cs.cs_number || "CS",
+            decision: "approved",
+          }),
+        )
+        .catch((e) => console.warn("[Email] CS approve notice failed:", e));
+    }
+
     return { ok: true as const, csId: cs.id, status: "approved" };
   });
 
@@ -342,7 +366,7 @@ export const rejectCs = createServerFn({ method: "POST" })
 
     const { data: cs, error } = await supabaseAdmin
       .from("comparative_statements")
-      .select("id, status, current_approver_role, prepared_by")
+      .select("id, status, current_approver_role, prepared_by, cs_number")
       .eq("id", data.cs_id)
       .maybeSingle();
 
@@ -382,6 +406,20 @@ export const rejectCs = createServerFn({ method: "POST" })
         ok: false as const,
         error: `Rejection did not persist. DB status is still "${updated?.status || "unknown"}".`,
       };
+    }
+
+    // Notify CS preparer of rejection via SMTP
+    if (cs.prepared_by) {
+      import("@/server/email/notificationDispatcher")
+        .then(({ notifyCsPreparer }) =>
+          notifyCsPreparer({
+            preparerId: cs.prepared_by!,
+            csNumber: cs.cs_number || "CS",
+            decision: "rejected",
+            remarks: data.rejection_remarks,
+          }),
+        )
+        .catch((e) => console.warn("[Email] CS rejection notice failed:", e));
     }
 
     return { ok: true as const, csId: cs.id, status: "rejected" };

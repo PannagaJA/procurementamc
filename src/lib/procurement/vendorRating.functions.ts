@@ -179,6 +179,17 @@ export const submitVendorRating = createServerFn({ method: "POST" })
             `Debarred via Performance Evaluation (Score: ${weightedScore}/100, Period: ${data.review_period})`,
           blacklisted_by: context.userId,
         });
+
+        // Send formal debarment notice to vendor via SMTP
+        import("@/server/email/notificationDispatcher")
+          .then(({ notifyVendorEmpanelmentStatus }) =>
+            notifyVendorEmpanelmentStatus({
+              vendorId: data.vendor_id,
+              status: "debarred",
+              remarks: finalNotes || `Debarred via Performance Evaluation (Score: ${weightedScore}/100, Period: ${data.review_period})`,
+            }),
+          )
+          .catch((e) => console.warn("[Email] Vendor debarment notice failed:", e));
       }
       // If pending EVP countersignature, vendor status in Master remains unchanged until countersigned
     } else if (outcome === "preferred" || outcome === "active" || outcome === "active_notice") {
