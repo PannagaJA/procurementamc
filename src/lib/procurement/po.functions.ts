@@ -342,6 +342,17 @@ export const createPo = createServerFn({ method: "POST" })
 
     if (poErr) return { ok: false as const, error: poErr.message, code: "insert_po_failed" };
 
+    // Notify PO approver via SMTP in background
+    import("@/server/email/notificationDispatcher")
+      .then(({ notifyApproversForPo }) =>
+        notifyApproversForPo({
+          poNumber: po.po_number || "PO",
+          role: resolvedRole,
+          totalValue,
+        }),
+      )
+      .catch((e) => console.warn("[Email] PO approver dispatch failed:", e));
+
     return {
       ok: true as const,
       po,

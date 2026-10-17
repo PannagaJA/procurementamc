@@ -171,6 +171,18 @@ export const approveEmpanelment = createServerFn({ method: "POST" })
       .single();
 
     if (error) return { ok: false as const, error: error.message };
+
+    // Notify vendor via SMTP
+    import("@/server/email/notificationDispatcher")
+      .then(({ notifyVendorEmpanelmentStatus }) =>
+        notifyVendorEmpanelmentStatus({
+          vendorId: data.vendor_id,
+          status: "empanelled",
+          validUntil: expiry.toISOString().slice(0, 10),
+        }),
+      )
+      .catch((e) => console.warn("[Email] Vendor empanelment notification failed:", e));
+
     return {
       ok: true as const,
       vendor: updated,

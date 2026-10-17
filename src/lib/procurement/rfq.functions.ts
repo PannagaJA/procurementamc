@@ -264,15 +264,16 @@ export const listRfqs = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input?: { pr_id?: string }) => input)
   .handler(async ({ data, context }) => {
-    const db = context.supabase as any;
-    let query = db
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    let query = supabaseAdmin
       .from("rfqs")
       .select(
         `
         *,
         purchase_requisitions (
           id, pr_number, category, scope, estimated_value, status, justification,
-          departments (id, name)
+          departments (id, name),
+          pr_line_items (id, description, unit, qty_required, net_qty_to_procure, est_unit_price)
         ),
         rfq_vendors (
           id, vendor_id, sent_at, response_received_at,
@@ -280,8 +281,10 @@ export const listRfqs = createServerFn({ method: "GET" })
         ),
         quotation_lines (
           id, vendor_id, description, quantity, unit_price, tax_amount, total_price,
-          meets_technical_spec, technical_remarks, delivery_days, warranty_months, quotation_ref
-        )
+          meets_technical_spec, technical_remarks, delivery_days, warranty_months, quotation_ref, submitted_at,
+          vendors (id, name)
+        ),
+        comparative_statements (id, cs_number, status)
       `,
       )
       .order("created_at", { ascending: false });
@@ -294,20 +297,25 @@ export const listRfqs = createServerFn({ method: "GET" })
     if (error) return { ok: false as const, error: error.message };
 
     const { resolveApprover, isDirectPurchase } = await import("@/lib/procurement/authorityMatrix");
-    const { data: rules } = await db.from("approval_matrix_rules").select("*").eq("active", true);
-    const withFlags = (rfqs ?? []).map((r: any) => ({
-      ...r,
-      is_direct: r.purchase_requisitions
-        ? isDirectPurchase(
-            resolveApprover(
-              r.purchase_requisitions.category,
-              Number(r.purchase_requisitions.estimated_value || 0),
-              0,
-              rules ?? [],
-            ),
-          )
-        : false,
-    }));
+    const { data: rules } = await supabaseAdmin.from("approval_matrix_rules").select("*").eq("active", true);
+    const withFlags = (rfqs ?? []).map((r: any) => {
+      const activeCs = (r.comparative_statements ?? []).find((c: any) => c.status !== "rejected");
+      return {
+        ...r,
+        has_cs: Boolean(activeCs),
+        cs: activeCs || null,
+        is_direct: r.purchase_requisitions
+          ? isDirectPurchase(
+              resolveApprover(
+                r.purchase_requisitions.category,
+                Number(r.purchase_requisitions.estimated_value || 0),
+                0,
+                rules ?? [],
+              ),
+            )
+          : false,
+      };
+    });
     return { ok: true as const, rfqs: withFlags };
   });
 
@@ -335,32 +343,59 @@ export const getRfqForVendor = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!rv) return { ok: false as const, error: "Vendor is not invited to this RFQ." };
 
-    const [{ data: rfq, error: rfqErr }, { data: vendor }, { data: lines }] = await Promise.all([
-      supabaseAdmin
-        .from("rfqs")
-        .select(
-          "id, rfq_number, status, response_deadline, purchase_requisitions (id, pr_number, category, scope, estimated_value, justification, pr_line_items (*))",
-        )
-        .eq("id", data.rfq_id)
-        .maybeSingle(),
-      supabaseAdmin
-        .from("vendors")
-        .select("id, name, bank_details_json")
-        .eq("id", data.vendor_id)
-        .maybeSingle(),
-      supabaseAdmin
-        .from("quotation_lines")
-        .select("*")
-        .eq("rfq_id", data.rfq_id)
-        .eq("vendor_id", data.vendor_id),
-    ]);
+    const [{ data: rfq, error: rfqErr }, { data: vendor }, { data: lines }, { data: csRows }] =
+      await Promise.all([
+        supabaseAdmin
+          .from("rfqs")
+          .select(
+            "id, rfq_number, status, response_deadline, purchase_requisitions (id, pr_number, category, scope, estimated_value, justification, pr_line_items (*))",
+          )
+          .eq("id", data.rfq_id)
+          .maybeSingle(),
+        supabaseAdmin
+          .from("vendors")
+          .select("id, name, bank_details_json")
+          .eq("id", data.vendor_id)
+          .maybeSingle(),
+        supabaseAdmin
+          .from("quotation_lines")
+          .select("*")
+          .eq("rfq_id", data.rfq_id)
+          .eq("vendor_id", data.vendor_id),
+        supabaseAdmin
+          .from("comparative_statements")
+          .select("id, cs_number, status")
+          .eq("rfq_id", data.rfq_id),
+      ]);
     if (rfqErr || !rfq) return { ok: false as const, error: rfqErr?.message || "RFQ not found" };
+
+    const activeCs = (csRows ?? []).find((c: any) => c.status !== "rejected");
+    const hasSubmitted = (lines ?? []).length > 0;
+
+    // If CS has already been prepared, non-submitting vendors are blocked from entering bids
+    if (activeCs && !hasSubmitted) {
+      return {
+        ok: false as const,
+        error:
+          "The quotation submission window for this RFQ has concluded because a Comparative Statement has already been prepared.",
+        code: "cs_already_prepared",
+      };
+    }
+
+    if (rfq.status !== "sent" && !hasSubmitted) {
+      return {
+        ok: false as const,
+        error: `This RFQ is ${rfq.status} and is no longer accepting quotations.`,
+        code: "rfq_not_open",
+      };
+    }
 
     return {
       ok: true as const,
       rfq: rfq as any,
       vendor: vendor as any,
       lines: (lines ?? []) as any[],
+      has_cs: Boolean(activeCs),
     };
   });
 
@@ -550,6 +585,23 @@ export const submitRfqQuotationResponse = createServerFn({ method: "POST" })
         ok: false as const,
         error: `This RFQ is ${rfqState?.status ?? "unavailable"} and no longer accepts quotations.`,
         code: "rfq_not_open",
+      };
+    }
+
+    // Check if a Comparative Statement has already been prepared for this RFQ
+    const { data: activeCs } = await supabaseAdmin
+      .from("comparative_statements")
+      .select("id, cs_number, status")
+      .eq("rfq_id", data.rfq_id)
+      .neq("status", "rejected")
+      .maybeSingle();
+
+    if (activeCs) {
+      return {
+        ok: false as const,
+        error:
+          "Quotation submission is closed. A Comparative Statement has already been prepared for this RFQ.",
+        code: "cs_already_prepared",
       };
     }
     // Deadline is picked as a date (stored as 00:00 UTC) — accept quotes through that whole day.

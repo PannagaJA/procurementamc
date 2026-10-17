@@ -34,6 +34,7 @@ import {
   closePo,
   listPurchaseOrders,
 } from "@/lib/procurement/po.functions";
+import { dispatchPoEmail } from "@/lib/procurement/email.functions";
 import { listComparativeStatements } from "@/lib/procurement/cs.functions";
 import {
   ShoppingBag,
@@ -350,18 +351,16 @@ export default function PurchaseOrders() {
       try {
         const doc = await buildPoPdf({ ...po, status: "issued" });
         const pdfBase64 = doc.output("datauristring").split(",")[1];
-        const { data: mail, error: mailErr } = await supabase.functions.invoke("send-po-email", {
-          body: { po_id: po.id, pdf_base64: pdfBase64 },
+        const mail = await (dispatchPoEmail as any)({
+          data: { po_id: po.id, pdf_base64: pdfBase64 },
         });
         emailNote =
-          !mailErr && mail?.ok
+          mail && mail.ok
             ? `PDF emailed to ${mail.to}.` +
-              (mail.copies?.recipients
-                ? mail.copies.sent
-                  ? ` Copies sent to the user department, Stores and Finance (${mail.copies.recipients}).`
-                  : ` Copies to the user department, Stores and Finance were not sent: ${String(mail.copies.message).replace(/\.+$/, "")}.`
+              (mail.copiesCount
+                ? ` Copies sent to internal stakeholders (${mail.copiesCount}).`
                 : "")
-            : `Email not sent: ${mail?.message || mailErr?.message || "unknown error"}. Download the PDF and send it manually.`;
+            : `Email notice: ${mail?.error || "could not dispatch email"}. Download the PDF and send it manually.`;
       } catch (mailEx: any) {
         emailNote = `Email not sent: ${mailEx?.message || "could not generate the PDF"}.`;
       }
