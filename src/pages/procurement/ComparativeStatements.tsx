@@ -46,6 +46,7 @@ import {
   Clock,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { RateBenchmarkingWidget } from "@/components/procurement/RateBenchmarkingWidget";
 
 export default function ComparativeStatements() {
   const { toast } = useToast();
@@ -711,6 +712,19 @@ export default function ComparativeStatements() {
                       onChange={(e) => setNegotiationNotes(e.target.value)}
                     />
                   </div>
+
+                  {/* Historical Rate Benchmarking Widget */}
+                  <RateBenchmarkingWidget
+                    description={
+                      selectedRfq?.title ||
+                      selectedRfq?.purchase_requisitions?.pr_line_items?.[0]?.description ||
+                      "Routine consumables"
+                    }
+                    unitRate={
+                      vendorQuotes.find((v) => v.vendor_id === recommendedVendorId)?.total_quoted || 0
+                    }
+                    onApplyJustification={(text) => setPriceReasonableness(text)}
+                  />
 
                   <div className="space-y-2">
                     <Label>Price Reasonableness Remarks</Label>

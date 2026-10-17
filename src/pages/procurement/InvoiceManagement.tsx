@@ -48,8 +48,10 @@ import {
   Scale,
   DollarSign,
   ArrowRight,
+  Database,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { GlAccountingModal } from "@/components/procurement/GlAccountingModal";
 
 export default function InvoiceManagement() {
   const { toast } = useToast();
@@ -88,6 +90,7 @@ export default function InvoiceManagement() {
 
   // Action state
   const [acting, setActing] = useState(false);
+  const [glModalOpen, setGlModalOpen] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -300,12 +303,21 @@ export default function InvoiceManagement() {
 
           <div className="flex items-center gap-2">
             {(auth.hasRole("admin") || auth.hasRole("finance")) && (
-              <Button
-                onClick={() => setSubmitOpen(true)}
-                className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
-              >
-                <PlusCircle className="w-4 h-4" /> Submit Invoice
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setGlModalOpen(true)}
+                  className="gap-2 border-indigo-300 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950 shadow-sm"
+                >
+                  <Database className="w-4 h-4 text-indigo-600" /> GL Handoff (Tally / SAP)
+                </Button>
+                <Button
+                  onClick={() => setSubmitOpen(true)}
+                  className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                >
+                  <PlusCircle className="w-4 h-4" /> Submit Invoice
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -936,6 +948,13 @@ export default function InvoiceManagement() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Direct General Ledger (Tally / SAP) Accounting Connector Modal */}
+        <GlAccountingModal
+          open={glModalOpen}
+          onOpenChange={setGlModalOpen}
+          invoices={invoices}
+        />
       </div>
     </Layout>
   );

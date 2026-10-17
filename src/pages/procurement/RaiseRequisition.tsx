@@ -39,6 +39,7 @@ import {
   Shield,
   FileCheck2,
   Check,
+  Wallet,
 } from "lucide-react";
 import {
   resolveApprover,
@@ -48,6 +49,12 @@ import {
 } from "@/lib/procurement/authorityMatrix";
 import { createPr, rateContractCoverage } from "@/lib/procurement/pr.functions";
 import { ITEM_GROUPS, itemGroupLabel } from "@/lib/procurement/itemGroups";
+import {
+  listActiveBudgetHeads,
+  recordBudgetSpendDeduction,
+  type BudgetHead,
+} from "@/lib/procurement/budget.functions";
+import { RateBenchmarkingWidget } from "@/components/procurement/RateBenchmarkingWidget";
 
 type LineItem = {
   id: string;
@@ -75,6 +82,7 @@ export default function RaiseRequisition() {
 
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
   const [matrixRules, setMatrixRules] = useState<any[]>([]);
+  const [availableBudgetHeads, setAvailableBudgetHeads] = useState<BudgetHead[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdResult, setCreatedResult] = useState<any | null>(null);
 
@@ -136,6 +144,19 @@ export default function RaiseRequisition() {
     }
   }, [userDeptId, departments]);
 
+  // Load active budget heads for selected department
+  useEffect(() => {
+    if (!departmentId) return;
+    listActiveBudgetHeads({ departmentId }).then((res) => {
+      if (res.ok) {
+        setAvailableBudgetHeads(res.budgetHeads);
+        if (res.budgetHeads.length > 0 && !budgetHead) {
+          setBudgetHead(res.budgetHeads[0].code);
+        }
+      }
+    });
+  }, [departmentId]);
+
   // Compute item totals and estimated total value
   const computedItems = useMemo(() => {
     return lineItems.map((item) => {
@@ -152,6 +173,17 @@ export default function RaiseRequisition() {
   const totalEstimatedValue = useMemo(() => {
     return computedItems.reduce((sum, item) => sum + item.line_total, 0);
   }, [computedItems]);
+
+  const selectedBudgetHeadObj = useMemo(() => {
+    return availableBudgetHeads.find(
+      (b) => b.code.toLowerCase() === (budgetHead || "").toLowerCase().trim(),
+    );
+  }, [availableBudgetHeads, budgetHead]);
+
+  const isBudgetOverdraft = useMemo(() => {
+    if (!selectedBudgetHeadObj) return false;
+    return totalEstimatedValue > selectedBudgetHeadObj.balance_available;
+  }, [selectedBudgetHeadObj, totalEstimatedValue]);
 
   // Real-time Authority Matrix Resolver preview
   const liveRouting = useMemo(() => {
@@ -312,6 +344,20 @@ export default function RaiseRequisition() {
       }
 
       setCreatedResult(res);
+
+      // Automatically deduct committed spend from balance_available
+      if (budgetHead) {
+        recordBudgetSpendDeduction({
+          budgetHeadCode: budgetHead,
+          departmentId,
+          amount: totalEstimatedValue,
+          type: "commit",
+          prId: res.pr?.id || null,
+          prNumber: res.pr?.pr_number || null,
+          description: `PR ${res.pr?.pr_number || "Requisition"} spend encumbrance`,
+        });
+      }
+
       toast({
         title: "Requisition Raised Successfully!",
         description: `PR Number: ${res.pr.pr_number} routed to ${res.routing.role.toUpperCase()}`,
@@ -483,14 +529,64 @@ export default function RaiseRequisition() {
                     </Select>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="budgetHead">Budget Head (Optional)</Label>
-                    <Input
-                      id="budgetHead"
-                      placeholder="e.g. LAB-EQUIP-2026 / OPEX"
-                      value={budgetHead}
-                      onChange={(e) => setBudgetHead(e.target.value)}
-                    />
+                  <div className="space-y-2 md:col-span-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="budgetHead" className="font-semibold text-xs flex items-center gap-1.5">
+                        <Wallet className="w-3.5 h-3.5 text-emerald-600" /> Allocated Departmental Budget Head
+                      </Label>
+                      {selectedBudgetHeadObj && (
+                        <span className="text-[11px] font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                          Balance Available: ₹{selectedBudgetHeadObj.balance_available.toLocaleString("en-IN")}
+                        </span>
+                      )}
+                    </div>
+
+                    {availableBudgetHeads.length > 0 ? (
+                      <Select value={budgetHead} onValueChange={setBudgetHead}>
+                        <SelectTrigger id="budgetHead" className="bg-white dark:bg-slate-900">
+                          <SelectValue placeholder="Select active budget head..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableBudgetHeads.map((bh) => (
+                            <SelectItem key={bh.code} value={bh.code}>
+                              <div className="flex items-center justify-between w-full gap-4 text-xs">
+                                <span className="font-mono font-bold">{bh.code}</span>
+                                <span className="text-muted-foreground">— {bh.title} (₹{bh.balance_available.toLocaleString("en-IN")} available)</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input
+                        id="budgetHead"
+                        placeholder="e.g. CSE-LAB-EQUIP-26 / OPEX"
+                        value={budgetHead}
+                        onChange={(e) => setBudgetHead(e.target.value)}
+                      />
+                    )}
+
+                    {selectedBudgetHeadObj && (
+                      <div className={`p-2.5 rounded-lg border text-xs space-y-1 ${
+                        isBudgetOverdraft
+                          ? "bg-red-50 dark:bg-red-950/40 border-red-300 dark:border-red-900 text-red-900 dark:text-red-200"
+                          : "bg-emerald-50/60 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/40 text-emerald-900 dark:text-emerald-200"
+                      }`}>
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold">
+                            {isBudgetOverdraft ? "⚠️ Budget Overdraft Warning" : "✓ Active Sanctioned Head"}
+                          </span>
+                          <span className="font-mono">
+                            Allocated: ₹{selectedBudgetHeadObj.allocated_amount.toLocaleString("en-IN")} • Committed: ₹{selectedBudgetHeadObj.committed_amount.toLocaleString("en-IN")}
+                          </span>
+                        </div>
+                        {isBudgetOverdraft && (
+                          <p className="text-[11px] text-red-700 dark:text-red-300">
+                            Requisition total ₹{totalEstimatedValue.toLocaleString("en-IN")} exceeds the remaining balance ₹{selectedBudgetHeadObj.balance_available.toLocaleString("en-IN")}. Approver review or budget virement required.
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -652,6 +748,15 @@ export default function RaiseRequisition() {
                             </span>
                           </div>
                         </div>
+
+                        {/* Value-for-Money Historical Rate Benchmarking Widget */}
+                        <RateBenchmarkingWidget
+                          description={item.description}
+                          unitRate={Number(item.est_unit_price || 0)}
+                          onApplyJustification={(text) =>
+                            setMarketSurveyNotes((prev) => (prev ? `${prev}\n${text}` : text))
+                          }
+                        />
                       </div>
                     );
                   })}

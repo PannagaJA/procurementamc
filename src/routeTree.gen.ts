@@ -34,6 +34,7 @@ import { Route as PrincipalIndexRouteImport } from './routes/principal.index'
 import { Route as PrincipalApprovalsRouteImport } from './routes/principal.approvals'
 import { Route as ProcurementIndexRouteImport } from './routes/procurement.index'
 import { Route as ProcurementApprovalsRouteImport } from './routes/procurement.approvals'
+import { Route as ProcurementBudgetsRouteImport } from './routes/procurement.budgets'
 import { Route as ProcurementCsRouteImport } from './routes/procurement.cs'
 import { Route as ProcurementEmergencyRouteImport } from './routes/procurement.emergency'
 import { Route as ProcurementGrnsRouteImport } from './routes/procurement.grns'
@@ -178,6 +179,11 @@ const ProcurementApprovalsRoute = ProcurementApprovalsRouteImport.update({
   path: '/procurement/approvals',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProcurementBudgetsRoute = ProcurementBudgetsRouteImport.update({
+  id: '/procurement/budgets',
+  path: '/procurement/budgets',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProcurementCsRoute = ProcurementCsRouteImport.update({
   id: '/procurement/cs',
   path: '/procurement/cs',
@@ -291,6 +297,7 @@ export interface FileRoutesByFullPath {
   '/librarian/return': typeof LibrarianReturnRoute
   '/principal/approvals': typeof PrincipalApprovalsRoute
   '/procurement/approvals': typeof ProcurementApprovalsRoute
+  '/procurement/budgets': typeof ProcurementBudgetsRoute
   '/procurement/cs': typeof ProcurementCsRoute
   '/procurement/emergency': typeof ProcurementEmergencyRoute
   '/procurement/grns': typeof ProcurementGrnsRoute
@@ -336,6 +343,7 @@ export interface FileRoutesByTo {
   '/librarian/return': typeof LibrarianReturnRoute
   '/principal/approvals': typeof PrincipalApprovalsRoute
   '/procurement/approvals': typeof ProcurementApprovalsRoute
+  '/procurement/budgets': typeof ProcurementBudgetsRoute
   '/procurement/cs': typeof ProcurementCsRoute
   '/procurement/emergency': typeof ProcurementEmergencyRoute
   '/procurement/grns': typeof ProcurementGrnsRoute
@@ -382,6 +390,7 @@ export interface FileRoutesById {
   '/librarian/return': typeof LibrarianReturnRoute
   '/principal/approvals': typeof PrincipalApprovalsRoute
   '/procurement/approvals': typeof ProcurementApprovalsRoute
+  '/procurement/budgets': typeof ProcurementBudgetsRoute
   '/procurement/cs': typeof ProcurementCsRoute
   '/procurement/emergency': typeof ProcurementEmergencyRoute
   '/procurement/grns': typeof ProcurementGrnsRoute
@@ -429,6 +438,7 @@ export interface FileRouteTypes {
     | '/librarian/return'
     | '/principal/approvals'
     | '/procurement/approvals'
+    | '/procurement/budgets'
     | '/procurement/cs'
     | '/procurement/emergency'
     | '/procurement/grns'
@@ -474,6 +484,7 @@ export interface FileRouteTypes {
     | '/librarian/return'
     | '/principal/approvals'
     | '/procurement/approvals'
+    | '/procurement/budgets'
     | '/procurement/cs'
     | '/procurement/emergency'
     | '/procurement/grns'
@@ -519,6 +530,7 @@ export interface FileRouteTypes {
     | '/librarian/return'
     | '/principal/approvals'
     | '/procurement/approvals'
+    | '/procurement/budgets'
     | '/procurement/cs'
     | '/procurement/emergency'
     | '/procurement/grns'
@@ -565,6 +577,7 @@ export interface RootRouteChildren {
   LibrarianReturnRoute: typeof LibrarianReturnRoute
   PrincipalApprovalsRoute: typeof PrincipalApprovalsRoute
   ProcurementApprovalsRoute: typeof ProcurementApprovalsRoute
+  ProcurementBudgetsRoute: typeof ProcurementBudgetsRoute
   ProcurementCsRoute: typeof ProcurementCsRoute
   ProcurementEmergencyRoute: typeof ProcurementEmergencyRoute
   ProcurementGrnsRoute: typeof ProcurementGrnsRoute
@@ -766,6 +779,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProcurementApprovalsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/procurement/budgets': {
+      id: '/procurement/budgets'
+      path: '/procurement/budgets'
+      fullPath: '/procurement/budgets'
+      preLoaderRoute: typeof ProcurementBudgetsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/procurement/cs': {
       id: '/procurement/cs'
       path: '/procurement/cs'
@@ -928,6 +948,7 @@ const rootRouteChildren: RootRouteChildren = {
   LibrarianReturnRoute: LibrarianReturnRoute,
   PrincipalApprovalsRoute: PrincipalApprovalsRoute,
   ProcurementApprovalsRoute: ProcurementApprovalsRoute,
+  ProcurementBudgetsRoute: ProcurementBudgetsRoute,
   ProcurementCsRoute: ProcurementCsRoute,
   ProcurementEmergencyRoute: ProcurementEmergencyRoute,
   ProcurementGrnsRoute: ProcurementGrnsRoute,

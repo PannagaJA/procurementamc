@@ -49,6 +49,8 @@ import {
   Filter,
   ChevronDown,
 } from "lucide-react";
+import { SlaDaemonWidget } from "@/components/procurement/SlaDaemonWidget";
+import { RateBenchmarkingWidget } from "@/components/procurement/RateBenchmarkingWidget";
 
 export default function MyApprovals() {
   const { toast } = useToast();
@@ -353,6 +355,9 @@ export default function MyApprovals() {
           </div>
         </div>
 
+        {/* Background SLA Reminder & Escalation Daemon Monitor */}
+        <SlaDaemonWidget onRefreshParent={loadData} />
+
         {/* Tabs for PR, CS, PO, Amendments, Invoices, Emergency */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <FilterSelect
@@ -386,10 +391,20 @@ export default function MyApprovals() {
                         <Badge variant="outline">{pr.category}</Badge>
                         <Badge variant="secondary">{pr.status.toUpperCase()}</Badge>
                       </div>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Dept: {pr.departments?.name || "Academic"} • Est. Value: ₹
-                        {Number(pr.estimated_value).toLocaleString("en-IN")}
-                      </p>
+                      <div className="text-xs text-slate-500 mt-1 flex flex-wrap items-center gap-2">
+                        <span>
+                          Dept: {pr.departments?.name || "Academic"} • Est. Value: ₹
+                          {Number(pr.estimated_value).toLocaleString("en-IN")}
+                        </span>
+                        <RateBenchmarkingWidget
+                          compact
+                          description={pr.pr_line_items?.[0]?.description || pr.category}
+                          unitRate={
+                            Number(pr.estimated_value || 0) /
+                            Math.max(1, pr.pr_line_items?.length || 1)
+                          }
+                        />
+                      </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       <Button
