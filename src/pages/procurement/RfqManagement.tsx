@@ -52,6 +52,7 @@ export default function RfqManagement() {
   const [rfqs, setRfqs] = useState<any[]>([]);
   const { pagination, setPage, setPageSize, setTotal } = usePagination(10, 1);
   const [approvedPrs, setApprovedPrs] = useState<any[]>([]);
+  const [existingRfqPrIds, setExistingRfqPrIds] = useState<string[]>([]);
   const [empanelledVendors, setEmpanelledVendors] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [rfqFilter, setRfqFilter] = useState("active");
@@ -83,17 +84,36 @@ export default function RfqManagement() {
     setLoading(true);
     try {
       const res = await (listRfqs as any)();
+      const list = res?.ok ? res.rfqs || [] : [];
       if (res?.ok) {
-        const list = res.rfqs || [];
         setRfqs(list);
         setTotal(list.length);
       }
 
-      // Fetch approved PRs
-      const { data: prData } = await supabase
-        .from("purchase_requisitions")
-        .select("id, pr_number, category, scope, estimated_value, status, justification")
-        .eq("status", "approved");
+      // Fetch approved PRs, existing RFQ PRs, and existing PO PRs
+      const [{ data: prData }, { data: allRfqPrs }, { data: allPoPrs }] = await Promise.all([
+        supabase
+          .from("purchase_requisitions")
+          .select(
+            "id, pr_number, category, scope, estimated_value, status, justification, pr_line_items (id, description, net_qty_to_procure, unit)",
+          )
+          .eq("status", "approved"),
+        supabase.from("rfqs").select("pr_id"),
+        supabase.from("purchase_orders").select("pr_id"),
+      ]);
+
+      const takenPrIds = new Set<string>();
+      (allRfqPrs || []).forEach((r: any) => {
+        if (r.pr_id) takenPrIds.add(r.pr_id);
+      });
+      (allPoPrs || []).forEach((p: any) => {
+        if (p.pr_id) takenPrIds.add(p.pr_id);
+      });
+      (list || []).forEach((r: any) => {
+        if (r.pr_id) takenPrIds.add(r.pr_id);
+      });
+
+      setExistingRfqPrIds(Array.from(takenPrIds));
       setApprovedPrs(prData || []);
 
       // Fetch empanelled vendors
@@ -339,7 +359,10 @@ export default function RfqManagement() {
               auth.hasRole("procurement_officer") ||
               auth.hasRole("procurement_executive")) && (
               <Button
-                onClick={() => setCreateOpen(true)}
+                onClick={() => {
+                  setCreateOpen(true);
+                  loadData();
+                }}
                 className="gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
               >
                 <PlusCircle className="w-4 h-4" /> Create RFQ
@@ -634,21 +657,34 @@ export default function RfqManagement() {
                   <SelectContent>
                     {approvedPrs
                       .filter(
-                        (pr) => !rfqs.some((r: any) => r.pr_id === pr.id && r.status !== "closed"),
+                        (pr) =>
+                          pr.status === "approved" &&
+                          !existingRfqPrIds.includes(pr.id) &&
+                          !rfqs.some((r: any) => r.pr_id === pr.id),
                       )
-                      .map((pr) => (
-                        <SelectItem key={pr.id} value={pr.id}>
-                          {pr.pr_number || pr.id.slice(0, 8)} — {pr.category} (₹
-                          {Number(pr.estimated_value).toLocaleString("en-IN")})
-                        </SelectItem>
-                      ))}
+                      .map((pr) => {
+                        const lineItems = pr.pr_line_items || [];
+                        const itemDesc = lineItems
+                          .map((i: any) => i.description)
+                          .filter(Boolean)
+                          .join(", ");
+                        return (
+                          <SelectItem key={pr.id} value={pr.id}>
+                            {pr.pr_number} — {itemDesc || pr.category} (₹
+                            {Number(pr.estimated_value).toLocaleString("en-IN")})
+                          </SelectItem>
+                        );
+                      })}
                   </SelectContent>
                 </Select>
                 {approvedPrs.filter(
-                  (pr) => !rfqs.some((r: any) => r.pr_id === pr.id && r.status !== "closed"),
+                  (pr) =>
+                    pr.status === "approved" &&
+                    !existingRfqPrIds.includes(pr.id) &&
+                    !rfqs.some((r: any) => r.pr_id === pr.id),
                 ).length === 0 && (
                   <p className="text-xs text-amber-600">
-                    No active approved PRs available. Raise and approve a new PR first.
+                    No approved requisitions available. All approved PRs already have an RFQ created.
                   </p>
                 )}
               </div>

@@ -67,10 +67,12 @@ export const createRfq = createServerFn({ method: "POST" })
       throw e;
     }
 
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
     // Fetch PR to determine required minimum quotations from category / matrix
-    const { data: pr, error: prErr } = await db
+    const { data: pr, error: prErr } = await supabaseAdmin
       .from("purchase_requisitions")
-      .select("id, category, estimated_value, pr_number")
+      .select("id, category, estimated_value, pr_number, status")
       .eq("id", data.pr_id)
       .single();
 
@@ -78,19 +80,43 @@ export const createRfq = createServerFn({ method: "POST" })
       return { ok: false as const, error: "Requisition not found", code: "pr_not_found" };
     }
 
-    // One open RFQ per PR — re-tendering requires cancelling/closing the previous one.
-    const { data: openRfq } = await db
-      .from("rfqs")
-      .select("rfq_number")
-      .eq("pr_id", data.pr_id)
-      .in("status", ["draft", "sent"])
-      .limit(1)
-      .maybeSingle();
-    if (openRfq) {
+    if (pr.status !== "approved") {
       return {
         ok: false as const,
-        error: `${pr.pr_number} already has an open RFQ (${openRfq.rfq_number}).`,
+        error: `Requisition ${pr.pr_number} is "${pr.status}". Only valid and approved requisitions can be initiated for an RFQ.`,
+        code: "pr_not_approved",
+      };
+    }
+
+    // A PR can only have one RFQ — already created PR's RFQs cannot be duplicated
+    const { data: existingRfq } = await supabaseAdmin
+      .from("rfqs")
+      .select("rfq_number, status")
+      .eq("pr_id", data.pr_id)
+      .limit(1)
+      .maybeSingle();
+
+    if (existingRfq) {
+      return {
+        ok: false as const,
+        error: `${pr.pr_number} already has an RFQ (${existingRfq.rfq_number}, status: ${existingRfq.status}).`,
         code: "rfq_exists",
+      };
+    }
+
+    // Also check if PO already exists
+    const { data: existingPo } = await supabaseAdmin
+      .from("purchase_orders")
+      .select("po_number")
+      .eq("pr_id", data.pr_id)
+      .limit(1)
+      .maybeSingle();
+
+    if (existingPo) {
+      return {
+        ok: false as const,
+        error: `${pr.pr_number} already has a Purchase Order (${existingPo.po_number}).`,
+        code: "po_exists",
       };
     }
 
@@ -105,8 +131,6 @@ export const createRfq = createServerFn({ method: "POST" })
       (rules ?? []) as any,
     );
     const minQuotes = Math.max(1, resolved.minQuotations);
-
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const { data: rfq, error: rfqErr } = await supabaseAdmin
       .from("rfqs")
