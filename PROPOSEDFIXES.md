@@ -42,4 +42,68 @@ Please refer to the full documentation at: [docs/PROPOSEDFIXES.md](file:///c:/Us
   - Added hover drop-shadow glow for enhanced interactive contrast.
   - Added `dark:[color-scheme:dark]` to `src/components/ui/input.tsx`.
 
+---
+
+## SOP Compliance Missing Features Implemented:
+
+### 5. Annual Departmental Budget Formulation & Consolidation UI (SOP §8.1 C1–C6)
+- **Problem:** Requisitions previously accepted manually typed `budget_head` and `balance_available` strings without annual planning or automated spend deduction.
+- **Implemented Solution:**
+  - **Database & Schemas:** Created `annual_budget_proposals`, `department_budget_heads`, and `budget_spend_transactions` (`supabase/migrations/20261017000001_annual_budgets_and_escalations.sql`).
+  - **Budget Functions (`budget.functions.ts`):** Complete workflow engine for HOD annual estimates (March), Finance institutional consolidation (April), Trustee / EVP sanction & locking (May), and real-time live balance deductions.
+  - **Dedicated UI (`BudgetManagement.tsx` & `/procurement/budgets`):** 4-tab interactive dashboard:
+    1. *Departmental Estimates (March - HOD):* Multi-line departmental proposal creation and submission.
+    2. *Finance Consolidation (April - Finance):* Institutional rollup, review, and recommendation.
+    3. *EVP / Trustee Sanction (May - Executive):* Formal sanction, allocation adjustment, and fiscal locking.
+    4. *Live Spend & Ledger:* Real-time tracking of Allocated, Committed, Spent, and Balance Available with dynamic status badges.
+  - **PR Integration (`RaiseRequisition.tsx`):** Dynamic dropdown selecting active budget heads with real-time balance display, automated deduction preview, and overdraft blocking warning.
+  - **PO Integration (`po.functions.ts`):** Automatically registers a `COMMITTED` transaction against the requisition's budget head upon Purchase Order issuance.
+
+### 6. Background SLA Reminder & Escalation Daemon (SOP §8.3 E12, §8.4 F5, §8.5 G12)
+- **Problem:** No automated background service monitored pending procurement approvals against working-day turnaround SLAs or escalated overdue items to higher authorities.
+- **Implemented Solution:**
+  - **SLA Calculation Engine (`slaDaemon.ts`):** Working-day calculation utility measuring age excluding weekends across all procurement stages:
+    - PR Review: 1–2 days (Escalates to Principal / Purchase Committee)
+    - RFQ Quotation Window: 7 days (Escalates to Procurement Head)
+    - PO Issuance: 1 day (Escalates to Finance Officer)
+    - GRN Inspection: 1–2 days (Escalates to Store Superintendent)
+    - Invoice Processing: 3–5 days (Escalates to Finance Officer / EVP)
+  - **Supabase Edge Function (`supabase/functions/sla-reminder-daemon/index.ts`):** Automated cron daemon querying overdue records across PRs, RFQs, POs, and Invoices, dispatching notification digests and logging escalations to `sla_escalation_logs`.
+  - **Approvals SLA Widget (`SlaDaemonWidget.tsx`):** Interactive status banner on `/procurement/approvals` showing SLA compliance rate, overdue task counts, escalation tier alerts, and a manual "Run SLA Scan" trigger for immediate audits.
+
+### 7. Value-for-Money Historical Rate Benchmarking Widget (SOP §10 K1)
+- **Problem:** PR reviews and CS evaluations lacked historical pricing context, requiring officers to manually search past purchase orders.
+- **Implemented Solution:**
+  - **Benchmarking Engine (`rateBenchmarking.ts`):** Queries previous 6 months of issued PO line items to compute rolling moving averages for routine consumables (stationery, housekeeping, lab consumables, electrical, IT peripherals).
+  - **Interactive Widget (`RateBenchmarkingWidget.tsx`):** Renders contextual benchmark comparisons:
+    - Calculates exact percentage variance against 6-month average (e.g. *"Rate ₹120 is 8% below 6-month avg ₹130"*).
+    - Status badges: `Below Average (Favorable)`, `Normal / At Market`, or `Above Average (Requires Review)`.
+    - One-click **"Auto-Fill SOP §10 K1 Justification"** button copying standard compliance text directly into the evaluation notes.
+  - **Cross-App Integration:** Embedded in `RaiseRequisition.tsx`, `ComparativeStatements.tsx` (CS quote review), and `MyApprovals.tsx` (approver verification).
+
+### 8. Quarterly Emergency Register Review & Anomaly Detection (SOP §9 J7, J8)
+- **Problem:** Emergency procurement lacked statutory quarterly audit reporting to Trustees/EVP and repeat-pattern anomaly detection to prevent bypassing standard competition.
+- **Implemented Solution:**
+  - **Anomaly Detection Engine (`emergencyAnomalyDetector.ts`):**
+    - Scans 90-day rolling window for identical routine items repeatedly procured under emergency status by the same department.
+    - Computes repeat frequency and risk level (`HIGH`, `MEDIUM`, `LOW`).
+  - **Quarterly Audit Reporter:** Generates one-click quarterly emergency reports formatted per SOP §9 J7 requirements for Director / Purchase Committee / EVP review, exportable in both PDF and Excel/CSV formats.
+  - **Emergency UI Integration (`EmergencyProcurement.tsx`):**
+    - High-visibility amber **Repeat Pattern Anomaly Banner** warning admins and approvers of bypass attempts.
+    - **"Quarterly Audit Report"** dialog with quarter selector (Q1, Q2, Q3, Q4) and instant PDF / CSV export actions.
+
+### 9. Direct General Ledger (Tally / SAP / ERP) Accounting Connector (SOP §8.7, §11)
+- **Problem:** Approved and paid invoices had to be manually re-entered into institutional double-entry financial software with no direct batch export.
+- **Implemented Solution:**
+  - **Double-Entry Voucher Generator (`accountingConnector.ts`):** Automatically maps approved/paid invoices to standard double-entry accounting transactions:
+    - **Debit:** Departmental Expense or Fixed Asset Capitalization Account.
+    - **Credit:** Sundry Creditors (Vendor Ledger) and Bank/Disbursement Account.
+  - **Multi-Format Ingestion Support:**
+    - **Tally XML:** Native `<ENVELOPE>` voucher format ready for direct import via Tally Gateway.
+    - **SAP BAPI CSV:** Standard SAP format with Document Type `KR` (Vendor Invoice).
+    - **Generic Accounting CSV:** Compatible with QuickBooks, Zoho Books, and Microsoft Dynamics.
+    - **Live ERP Webhook:** Sends direct signed JSON payload to institution ERP endpoints.
+  - **Invoice UI Integration (`InvoiceManagement.tsx` & `GlAccountingModal.tsx`):** Added **"GL Handoff (Tally / SAP)"** action button in invoice management providing filterable invoice selection, format picker, preview tabs, and one-click file download or webhook dispatch.
+
+
 

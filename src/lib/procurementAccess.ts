@@ -74,6 +74,16 @@ export function procurementAccess(has: HasRole) {
         "director_admin_finance",
       ]),
     vendors: admin || any(["procurement_officer", "procurement_executive", "purchase_committee"]),
+    budgets:
+      admin ||
+      any([
+        "hod",
+        "finance",
+        "principal",
+        "evp",
+        "director_admin_finance",
+        "procurement_officer",
+      ]),
     architecture: admin,
   };
   return { ...access, any: Object.values(access).some(Boolean) };
