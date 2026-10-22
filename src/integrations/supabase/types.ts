@@ -1812,8 +1812,62 @@ export type Database = {
           },
         ];
       };
+      invoice_events: {
+        Row: {
+          action: string;
+          actor_id: string | null;
+          amount: number | null;
+          created_at: string;
+          from_status: string | null;
+          id: string;
+          invoice_id: string;
+          notes: string | null;
+          to_status: string | null;
+        };
+        Insert: {
+          action: string;
+          actor_id?: string | null;
+          amount?: number | null;
+          created_at?: string;
+          from_status?: string | null;
+          id?: string;
+          invoice_id: string;
+          notes?: string | null;
+          to_status?: string | null;
+        };
+        Update: {
+          action?: string;
+          actor_id?: string | null;
+          amount?: number | null;
+          created_at?: string;
+          from_status?: string | null;
+          id?: string;
+          invoice_id?: string;
+          notes?: string | null;
+          to_status?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "invoice_events_invoice_id_fkey";
+            columns: ["invoice_id"];
+            isOneToOne: false;
+            referencedRelation: "invoices";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       invoices: {
         Row: {
+          approved_amount: number | null;
+          deductions_json: Json | null;
+          deviation_approved_at: string | null;
+          deviation_approved_by: string | null;
+          deviation_reason: string | null;
+          deviation_requested_by: string | null;
+          deviation_status: string | null;
+          held_at: string | null;
+          hold_code: string | null;
+          revision_of: string | null;
           approved_at: string | null;
           approved_by: string | null;
           created_at: string;
@@ -1834,6 +1888,16 @@ export type Database = {
           vendor_id: string;
         };
         Insert: {
+          approved_amount?: number | null;
+          deductions_json?: Json | null;
+          deviation_approved_at?: string | null;
+          deviation_approved_by?: string | null;
+          deviation_reason?: string | null;
+          deviation_requested_by?: string | null;
+          deviation_status?: string | null;
+          held_at?: string | null;
+          hold_code?: string | null;
+          revision_of?: string | null;
           approved_at?: string | null;
           approved_by?: string | null;
           created_at?: string;
@@ -1854,6 +1918,16 @@ export type Database = {
           vendor_id: string;
         };
         Update: {
+          approved_amount?: number | null;
+          deductions_json?: Json | null;
+          deviation_approved_at?: string | null;
+          deviation_approved_by?: string | null;
+          deviation_reason?: string | null;
+          deviation_requested_by?: string | null;
+          deviation_status?: string | null;
+          held_at?: string | null;
+          hold_code?: string | null;
+          revision_of?: string | null;
           approved_at?: string | null;
           approved_by?: string | null;
           created_at?: string;
@@ -1874,6 +1948,13 @@ export type Database = {
           vendor_id?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "invoices_revision_of_fkey";
+            columns: ["revision_of"];
+            isOneToOne: false;
+            referencedRelation: "invoices";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "invoices_grn_id_fkey";
             columns: ["grn_id"];

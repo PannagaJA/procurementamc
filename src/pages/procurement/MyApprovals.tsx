@@ -21,7 +21,7 @@ import { getMyPendingApprovals, getMyApprovalHistory } from "@/lib/procurement/a
 import { approvePr, rejectPr, escalateToEvp } from "@/lib/procurement/pr.functions";
 import { approveCs, rejectCs } from "@/lib/procurement/cs.functions";
 import { approvePo, rejectPo } from "@/lib/procurement/po.functions";
-import { approveInvoice } from "@/lib/procurement/invoice.functions";
+import { approveInvoice, decideDeviation } from "@/lib/procurement/invoice.functions";
 import { approveEmergency } from "@/lib/procurement/emergency.functions";
 import {
   DropdownMenu,
@@ -73,6 +73,8 @@ export default function MyApprovals() {
     | "am_approve"
     | "am_reject"
     | "inv_approve"
+    | "dev_approve"
+    | "dev_reject"
     | "ep_approve"
     | "ep_reject"
   >("pr_approve");
@@ -205,6 +207,18 @@ export default function MyApprovals() {
         toast({
           title: "Invoice Approved",
           description: `Invoice ${activeItem.invoice_number} approved for payment.`,
+        });
+      } else if (dialogType === "dev_approve" || dialogType === "dev_reject") {
+        const res = await (decideDeviation as any)({
+          data: { invoice_id: activeItem.id, approve: dialogType === "dev_approve", remarks },
+        });
+        if (!res.ok) throw new Error(res.error);
+        toast({
+          title: dialogType === "dev_approve" ? "Deviation Approved" : "Deviation Rejected",
+          description:
+            dialogType === "dev_approve"
+              ? `Invoice ${activeItem.invoice_number} can now be approved for payment.`
+              : `Invoice ${activeItem.invoice_number} stays on hold.`,
         });
       } else if (dialogType === "ep_approve") {
         const res = await (approveEmergency as any)({
@@ -638,7 +652,7 @@ export default function MyApprovals() {
               <div className="p-8 text-center text-slate-500">Loading matched invoices...</div>
             ) : (data?.invoices || []).length === 0 ? (
               <Card className="p-8 text-center text-slate-500">
-                No invoices awaiting Finance approval.
+                No invoices awaiting approval.
               </Card>
             ) : (
               data?.invoices?.map((inv: any) => (
@@ -647,23 +661,53 @@ export default function MyApprovals() {
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-mono font-bold whitespace-nowrap">Invoice: {inv.invoice_number}</span>
-                        <Badge variant="outline" className="text-emerald-700 border-emerald-400">
-                          3-Way Matched
-                        </Badge>
+                        {inv.deviation_status === "requested" ? (
+                          <Badge variant="outline" className="text-amber-700 border-amber-400 dark:text-amber-300">
+                            Deviation request
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-emerald-700 border-emerald-400">
+                            3-Way Matched
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-xs text-slate-500 mt-1">
                         Vendor: {inv.vendors?.name} • PO: {inv.purchase_orders?.po_number} • Amount:
                         ₹{Number(inv.invoice_amount).toLocaleString("en-IN")}
                       </p>
+                      {inv.deviation_status === "requested" && (
+                        <div className="mt-2 space-y-1 text-xs">
+                          <p className="text-red-700 dark:text-red-300">{inv.hold_reason}</p>
+                          <p className="text-slate-600 dark:text-slate-300">
+                            <span className="font-semibold">Why accept it: </span>
+                            {inv.deviation_reason}
+                          </p>
+                        </div>
+                      )}
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => handleOpenAction(inv, "inv_approve")}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
-                      >
-                        <CheckCircle className="w-3.5 h-3.5" /> Approve for Payment
-                      </Button>
+                      {inv.deviation_status === "requested" ? (
+                        <>
+                          <Button
+                            size="sm"
+                            onClick={() => handleOpenAction(inv, "dev_approve")}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                          >
+                            <CheckCircle className="w-3.5 h-3.5" /> Accept Difference
+                          </Button>
+                          <Button size="sm" variant="destructive" onClick={() => handleOpenAction(inv, "dev_reject")}>
+                            Reject
+                          </Button>
+                        </>
+                      ) : (
+                        <Button
+                          size="sm"
+                          onClick={() => handleOpenAction(inv, "inv_approve")}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                        >
+                          <CheckCircle className="w-3.5 h-3.5" /> Approve for Payment
+                        </Button>
+                      )}
                     </div>
                   </CardHeader>
                 </Card>
