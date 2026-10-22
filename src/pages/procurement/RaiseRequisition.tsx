@@ -90,7 +90,6 @@ export default function RaiseRequisition() {
   const [departmentId, setDepartmentId] = useState<string>("");
   const [category, setCategory] = useState<string>("routine_consumable");
   const [scope, setScope] = useState<"academic" | "operational">("operational");
-  const [budgetHeadId, setBudgetHeadId] = useState<string>("");
   const [isEmergency, setIsEmergency] = useState<boolean>(false);
   const [isRecurring, setIsRecurring] = useState<boolean>(false);
   const [recurringFrequency, setRecurringFrequency] = useState<string>("");
@@ -150,7 +149,6 @@ export default function RaiseRequisition() {
     // The department changes on load (first department, then the user's own): ignore the
     // reply for a department that is no longer selected.
     let current = true;
-    setBudgetHeadId("");
     setAvailableBudgetHeads([]);
     (listPrBudgetHeads as any)({ data: { department_id: departmentId } }).then((res: any) => {
       if (current) setAvailableBudgetHeads(res?.ok ? res.heads : []);
@@ -160,11 +158,12 @@ export default function RaiseRequisition() {
     };
   }, [departmentId]);
 
-  // Default to the head for this PR's category
-  useEffect(() => {
-    const match = availableBudgetHeads.find((h) => h.category === normalizeCategory(category));
-    if (match) setBudgetHeadId(match.id);
-  }, [availableBudgetHeads, category]);
+  // One head per category: the category decides it (the server picks the same one)
+  const selectedBudgetHeadObj = availableBudgetHeads.find(
+    (h) => h.category === normalizeCategory(category),
+  );
+  // The department budgets this year but not for this category: the PR can't be raised
+  const noHeadForCategory = availableBudgetHeads.length > 0 && !selectedBudgetHeadObj;
 
   // Compute item totals and estimated total value
   const computedItems = useMemo(() => {
@@ -183,7 +182,6 @@ export default function RaiseRequisition() {
     return computedItems.reduce((sum, item) => sum + item.line_total, 0);
   }, [computedItems]);
 
-  const selectedBudgetHeadObj = availableBudgetHeads.find((b) => b.id === budgetHeadId);
   const isBudgetOverdraft =
     !!selectedBudgetHeadObj && isOverBudget(selectedBudgetHeadObj.balance, totalEstimatedValue);
 
@@ -310,6 +308,15 @@ export default function RaiseRequisition() {
       });
       return;
     }
+    if (noHeadForCategory) {
+      toast({
+        title: "No budget for this category",
+        description:
+          "Your department has no budget for this category this financial year. Ask your HOD to add it in Annual Budgets.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       setIsSubmitting(true);
@@ -318,7 +325,6 @@ export default function RaiseRequisition() {
           department_id: departmentId,
           category: normalizeCategory(category),
           scope,
-          budget_head_id: budgetHeadId || null,
           budget_justification: isBudgetOverdraft ? budgetJustification.trim() || null : null,
           reappropriation_ref: isBudgetOverdraft ? reappropriationRef.trim() || null : null,
           estimated_value: totalEstimatedValue,
@@ -521,32 +527,22 @@ export default function RaiseRequisition() {
                   </div>
 
                   <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="budgetHead" className="font-semibold text-xs flex items-center gap-1.5">
+                    <Label className="font-semibold text-xs flex items-center gap-1.5">
                       <Wallet className="w-3.5 h-3.5 text-emerald-600" /> Budget head (Section B)
                     </Label>
 
-                    {availableBudgetHeads.length > 0 ? (
-                      <Select
-                        value={budgetHeadId}
-                        // Radix Select reports "" when the value is set before its items mount;
-                        // a user can't choose "no head", so ignore it.
-                        onValueChange={(v) => v && setBudgetHeadId(v)}
-                      >
-                        <SelectTrigger id="budgetHead" className="bg-white dark:bg-slate-900">
-                          <SelectValue placeholder="Choose the budget head..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableBudgetHeads.map((bh) => (
-                            <SelectItem key={bh.id} value={bh.id}>
-                              <span className="font-mono font-semibold">{bh.code}</span>
-                              <span className="text-muted-foreground">
-                                {" "}
-                                · ₹{Number(bh.balance).toLocaleString("en-IN")} available
-                              </span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    {selectedBudgetHeadObj ? (
+                      <p className="text-xs rounded-lg border p-2.5 bg-white dark:bg-slate-900">
+                        <span className="font-mono font-semibold">
+                          {selectedBudgetHeadObj.code}
+                        </span>
+                        <span className="text-muted-foreground"> · chosen from the category</span>
+                      </p>
+                    ) : noHeadForCategory ? (
+                      <p className="text-xs rounded-lg border p-2.5 bg-red-50 dark:bg-red-950/40 border-red-300 dark:border-red-900 text-red-900 dark:text-red-200">
+                        Your department has no budget for this category this financial year. Ask
+                        your HOD to add it in Annual Budgets.
+                      </p>
                     ) : (
                       <p className="text-xs text-muted-foreground rounded-lg border border-dashed p-2.5">
                         {departmentId
@@ -926,7 +922,7 @@ export default function RaiseRequisition() {
               <Button
                 type="submit"
                 size="lg"
-                disabled={isSubmitting}
+                disabled={isSubmitting || noHeadForCategory}
                 className="w-full text-base font-semibold shadow-md"
               >
                 {isSubmitting

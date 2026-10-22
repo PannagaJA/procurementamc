@@ -14,10 +14,8 @@ export type CreatePrInput = {
   department_id: string | null;
   category: string;
   scope: "academic" | "operational";
-  /** Legacy free-text head; superseded by budget_head_id. */
+  /** Legacy free-text head; the Section B head is chosen on the server from the category. */
   budget_head?: string | null;
-  /** Section B: the department's budget head this PR is charged to. */
-  budget_head_id?: string | null;
   /** Required when the estimate is over the head's balance (the PR then needs the EVP). */
   budget_justification?: string | null;
   reappropriation_ref?: string | null;
@@ -149,9 +147,10 @@ export const createPr = createServerFn({ method: "POST" })
     }
 
     const { supabaseAdmin: budgetDb } = await import("@/integrations/supabase/client.server");
-    const { prBudgetCheck } = await import("@/server/procurement/budget");
+    const { prBudgetCheck, budgetHeadForCategory } = await import("@/server/procurement/budget");
+    // Section B: the department has one head per category, so the category decides it.
     const budget = await prBudgetCheck(budgetDb, {
-      headId: data.budget_head_id,
+      headId: await budgetHeadForCategory(budgetDb, data.department_id, canonicalCat),
       departmentId: data.department_id,
       amount: value,
     });
