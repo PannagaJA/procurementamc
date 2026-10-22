@@ -8,9 +8,8 @@ import { createJiti } from "jiti";
 const jiti = createJiti(import.meta.url, {
   alias: { "@": new URL("../src", import.meta.url).pathname },
 });
-const { nextIndependentRole, atLeastRole } = await jiti.import(
-  "../src/lib/procurement/separation.ts",
-);
+const { nextIndependentRole, atLeastRole, invoiceApproverRole, canApproveInvoiceAs } =
+  await jiti.import("../src/lib/procurement/separation.ts");
 
 const R = (role, department_id = null) => ({ role, department_id });
 const CSE = "dept-cse";
@@ -70,5 +69,38 @@ assert.equal(atLeastRole("hod", "purchase_committee"), "purchase_committee");
 assert.equal(atLeastRole("purchase_committee", "purchase_committee"), "purchase_committee");
 assert.equal(atLeastRole("evp", "purchase_committee"), "evp");
 assert.equal(atLeastRole("director_admin_finance", "purchase_committee"), "director_admin_finance");
+
+// Invoice approval escalates within Finance: another Finance user, else Director, else EVP
+const U = (user_id, role) => ({ user_id, role });
+const priya = U("priya", "finance");
+const evpUser = U("rajesh", "evp");
+// INV-878676: Priya is the only Finance user and entered it, nobody is Director → EVP
+assert.equal(invoiceApproverRole([priya, evpUser], new Set(["priya"])), "evp");
+// A second Finance user takes it
+assert.equal(
+  invoiceApproverRole([priya, U("anil", "finance"), evpUser], new Set(["priya"])),
+  "finance",
+);
+// No other Finance user but a Director → Director
+assert.equal(
+  invoiceApproverRole([priya, U("dir", "director_admin_finance"), evpUser], new Set(["priya"])),
+  "director_admin_finance",
+);
+// The person who received the goods is excluded too
+assert.equal(invoiceApproverRole([priya, U("anil", "finance")], new Set(["anil"])), "finance");
+assert.equal(invoiceApproverRole([priya, U("anil", "finance")], new Set(["anil", "priya"])), "evp");
+// Nobody at all → EVP
+assert.equal(invoiceApproverRole([], new Set()), "evp");
+
+assert.equal(canApproveInvoiceAs(["evp"], "evp"), true);
+assert.equal(canApproveInvoiceAs(["finance"], "evp"), false);
+assert.equal(canApproveInvoiceAs(["evp"], "finance"), true, "higher in the chain may approve");
+assert.equal(canApproveInvoiceAs(["director_admin_finance"], "director_admin_finance"), true);
+assert.equal(
+  canApproveInvoiceAs(["procurement_officer"], "finance"),
+  false,
+  "not an invoice approver",
+);
+assert.equal(canApproveInvoiceAs(["admin"], "evp"), true);
 
 console.log("separation of duties: all checks passed");

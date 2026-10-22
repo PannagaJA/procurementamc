@@ -23,6 +23,7 @@ import { approveCs, rejectCs } from "@/lib/procurement/cs.functions";
 import { approvePo, rejectPo } from "@/lib/procurement/po.functions";
 import { approveInvoice, decideDeviation } from "@/lib/procurement/invoice.functions";
 import { approveEmergency } from "@/lib/procurement/emergency.functions";
+import { formatRoleTitle } from "@/lib/procurement/authorityMatrix";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -691,6 +692,12 @@ export default function MyApprovals() {
                         Vendor: {inv.vendors?.name} • PO: {inv.purchase_orders?.po_number} • Amount:
                         ₹{Number(inv.invoice_amount).toLocaleString("en-IN")}
                       </p>
+                      {inv.approver_role && inv.approver_role !== "finance" && (
+                        <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                          Sent to {formatRoleTitle(inv.approver_role)}: no other Finance user can approve
+                          this one.
+                        </p>
+                      )}
                       {inv.deviation_status === "requested" && (
                         <div className="mt-2 space-y-1 text-xs">
                           <p className="text-red-700 dark:text-red-300">{inv.hold_reason}</p>

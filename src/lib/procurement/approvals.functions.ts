@@ -7,6 +7,7 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { INVOICE_APPROVER_CHAIN } from "@/lib/procurement/separation";
 
 export const getMyPendingApprovals = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -132,23 +133,31 @@ export const getMyPendingApprovals = createServerFn({ method: "GET" })
     const { data: amendmentsRaw, error: amErr } = await amQuery;
     const amendments = (amendmentsRaw ?? []).filter((a: any) => a.created_by !== context.userId);
 
-    // 5. Pending Invoices (Matched & awaiting approval by Finance / Procurement Officer)
-    let invQuery = db
-      .from("invoices")
-      .select(
-        `
+    // 5. Matched invoices awaiting payment approval, shown to whoever they're waiting on: another
+    //    Finance user, else Director (Admin & Finance), else EVP. Not to the person who entered them.
+    const { data: matchedRaw } =
+      isAdmin || INVOICE_APPROVER_CHAIN.some((r) => held.includes(r))
+        ? await queryDb
+            .from("invoices")
+            .select(
+              `
         *,
         purchase_orders (id, po_number, total_value, vendor_id),
         vendors (id, name, gst_number),
         grns (id, grn_number, accepted_value, status)
       `,
-      )
-      .eq("match_status", "matched")
-      .order("created_at", { ascending: false });
-
-    const isFinanceOrProcOfficer =
-      isAdmin || held.includes("director_admin_finance") || held.includes("procurement_officer");
-    const { data: matchedInvoices } = isFinanceOrProcOfficer ? await invQuery : { data: [] };
+            )
+            .eq("match_status", "matched")
+            .order("created_at", { ascending: false })
+        : { data: [] };
+    const { invoiceApproverRoles } = await import("@/server/procurement/separation");
+    const approverOf = await invoiceApproverRoles(queryDb, matchedRaw ?? []);
+    const matchedInvoices = (matchedRaw ?? [])
+      .map((inv: any) => ({ ...inv, approver_role: approverOf.get(inv.id) }))
+      .filter(
+        (inv: any) =>
+          inv.submitted_by !== context.userId && (isAdmin || held.includes(inv.approver_role)),
+      );
 
     // 5b. Invoice deviations awaiting the EVP (failed match, small gap). Not your own request.
     const { data: deviations } =

@@ -47,3 +47,28 @@ export function atLeastRole(role: string, floor: string): string {
   const b = APPROVER_CHAIN.indexOf(floor as (typeof APPROVER_CHAIN)[number]);
   return a >= 0 && b >= 0 && a < b ? floor : role;
 }
+
+/** Who approves an invoice for payment, lowest first (product owner, 2026-10-22). */
+export const INVOICE_APPROVER_CHAIN = ["finance", "director_admin_finance", "evp"] as const;
+
+/**
+ * The first invoice-approver role someone independent holds. `excluded` are the people who
+ * entered the invoice or received the goods (SOP §8.7); nobody independent at all → EVP.
+ */
+export function invoiceApproverRole(
+  holders: { user_id: string; role: string }[],
+  excluded: Set<string>,
+): string {
+  return (
+    INVOICE_APPROVER_CHAIN.find((role) =>
+      holders.some((h) => h.role === role && !excluded.has(h.user_id)),
+    ) ?? "evp"
+  );
+}
+
+/** Admin, or the invoice's approver role or one above it in the chain. */
+export function canApproveInvoiceAs(callerRoles: string[], role: string): boolean {
+  if (callerRoles.includes("admin")) return true;
+  const from = INVOICE_APPROVER_CHAIN.indexOf(role as (typeof INVOICE_APPROVER_CHAIN)[number]);
+  return INVOICE_APPROVER_CHAIN.slice(Math.max(from, 0)).some((r) => callerRoles.includes(r));
+}
