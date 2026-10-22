@@ -147,10 +147,17 @@ export default function RaiseRequisition() {
   // Load the department's budget heads (current financial year)
   useEffect(() => {
     if (!departmentId) return;
+    // The department changes on load (first department, then the user's own): ignore the
+    // reply for a department that is no longer selected.
+    let current = true;
     setBudgetHeadId("");
+    setAvailableBudgetHeads([]);
     (listPrBudgetHeads as any)({ data: { department_id: departmentId } }).then((res: any) => {
-      setAvailableBudgetHeads(res?.ok ? res.heads : []);
+      if (current) setAvailableBudgetHeads(res?.ok ? res.heads : []);
     });
+    return () => {
+      current = false;
+    };
   }, [departmentId]);
 
   // Default to the head for this PR's category
@@ -519,7 +526,12 @@ export default function RaiseRequisition() {
                     </Label>
 
                     {availableBudgetHeads.length > 0 ? (
-                      <Select value={budgetHeadId} onValueChange={setBudgetHeadId}>
+                      <Select
+                        value={budgetHeadId}
+                        // Radix Select reports "" when the value is set before its items mount;
+                        // a user can't choose "no head", so ignore it.
+                        onValueChange={(v) => v && setBudgetHeadId(v)}
+                      >
                         <SelectTrigger id="budgetHead" className="bg-white dark:bg-slate-900">
                           <SelectValue placeholder="Choose the budget head..." />
                         </SelectTrigger>
