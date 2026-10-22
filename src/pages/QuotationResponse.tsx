@@ -41,7 +41,7 @@ import {
   ShieldAlert,
   Phone,
 } from "lucide-react";
-import { verifyVendorAccessToken } from "@/lib/quotationAuth";
+import { getQuotationForVendor, submitQuotationResponse } from "@/lib/quotations.functions";
 import {
   getRfqForVendor,
   minValidityDate,
@@ -150,17 +150,25 @@ export default function QuotationResponse() {
       const searchParams = new URLSearchParams(window.location.search || location.search);
       const token = searchParams.get("token");
 
-      // 1. Try fetching from quotations table
-      const { data: quotationData } = await supabase
-        .from("quotations")
-        .select(
-          `
-          *,
-          categories (name)
-        `,
-        )
-        .eq("id", id)
-        .maybeSingle();
+      // Links are checked on the server: RFQ links carry vendorId, quotation-request links don't.
+      // Without a link only signed-in staff can preview (row-level security hides the rest).
+      let quotationData: any = null;
+      let vendorResponse: any = undefined;
+      if (token && !searchParams.get("vendorId")) {
+        const res = await getQuotationForVendor({ data: { quotation_id: id, token } });
+        if (!res.ok) {
+          setAccessDenied(true);
+          setAccessDeniedReason(res.error);
+          setIsLoading(false);
+          return;
+        }
+        quotationData = res.quotation;
+        vendorResponse = res.response;
+      } else if (!token) {
+        quotationData = (
+          await supabase.from("quotations").select(`*, categories (name)`).eq("id", id).maybeSingle()
+        ).data;
+      }
 
       if (quotationData) {
         resolvedQuotation = quotationData;
@@ -278,25 +286,6 @@ export default function QuotationResponse() {
           setIsLoading(false);
           return;
         }
-
-        const vendorIdentifier = resolvedQuotation.isRfq
-          ? resolvedQuotation.vendorId
-          : resolvedQuotation.company_email;
-
-        const isValid = await verifyVendorAccessToken(
-          resolvedQuotation.id,
-          vendorIdentifier,
-          token,
-        );
-
-        if (!isValid) {
-          setAccessDenied(true);
-          setAccessDeniedReason(
-            "Invalid or unauthorized quotation access token. Each vendor receives a unique, private link that cannot be shared or accessed by other vendors.",
-          );
-          setIsLoading(false);
-          return;
-        }
       }
 
       // Fetch existing response if any
@@ -326,15 +315,24 @@ export default function QuotationResponse() {
           });
         }
       } else {
-        const { data: responseData, error: responseError } = await supabase
-          .from("quotation_responses")
-          .select("*")
-          .eq("quotation_id", id)
-          .maybeSingle();
+        const responseData =
+          vendorResponse !== undefined
+            ? vendorResponse
+            : (
+                await supabase
+                  .from("quotation_responses")
+                  .select("*")
+                  .eq("quotation_id", id)
+                  .maybeSingle()
+              ).data;
 
         if (responseData) {
           setExistingResponse(responseData);
-        } else if (resolvedQuotation.status === "responded" && !resolvedQuotation.isRfq) {
+        } else if (
+          vendorResponse === undefined &&
+          resolvedQuotation.status === "responded" &&
+          !resolvedQuotation.isRfq
+        ) {
           await supabase.from("quotations").update({ status: "sent" }).eq("id", id);
           resolvedQuotation.status = "sent";
         }
@@ -447,51 +445,21 @@ export default function QuotationResponse() {
 
     setIsSubmitting(true);
     try {
-      const responseData = {
-        quotation_id: quotation.id,
-        company_email: quotation.company_email,
-        description: `${data.description}\n\nDelivery Time: ${data.deliveryTime} days\nContact Person: ${data.contactPerson}\nContact Phone: ${data.contactPhone}\nPayment Terms: ${data.paymentTerms}${data.additionalNotes ? `\n\nAdditional Notes: ${data.additionalNotes}` : ""}`,
-        total_amount: parseFloat(data.totalAmount),
-        quotation_validity: data.quotationValidity || null,
-        terms_accepted: data.termsAccepted === true,
-      };
-
-      console.log("Attempting to insert response:", responseData);
-
-      const { data: insertedResponse, error } = await supabase
-        .from("quotation_responses")
-        .insert(responseData)
-        .select()
-        .single();
-
-      console.log("Insert result:", { insertedResponse, error });
-
-      if (error) {
-        console.error("Insert error:", error);
-        // Check for duplicate key error
-        if (error.code === "23505") {
-          toast({
-            title: "Already Responded",
-            description: "You have already submitted a response for this quotation.",
-            variant: "destructive",
-          });
-          return;
-        }
-        throw error;
+      const res = await submitQuotationResponse({
+        data: {
+          quotation_id: quotation.id,
+          token: new URLSearchParams(window.location.search || location.search).get("token") || "",
+          description: `${data.description}\n\nDelivery Time: ${data.deliveryTime} days\nContact Person: ${data.contactPerson}\nContact Phone: ${data.contactPhone}\nPayment Terms: ${data.paymentTerms}${data.additionalNotes ? `\n\nAdditional Notes: ${data.additionalNotes}` : ""}`,
+          total_amount: parseFloat(data.totalAmount),
+          quotation_validity: data.quotationValidity || null,
+          terms_accepted: data.termsAccepted === true,
+        },
+      });
+      if (!res.ok) {
+        toast({ title: "Submission Failed", description: res.error, variant: "destructive" });
+        return;
       }
-
-      // Update quotation status
-      const { error: updateError } = await supabase
-        .from("quotations")
-        .update({ status: "responded" })
-        .eq("id", quotation.id);
-
-      console.log("Status update result:", { updateError });
-
-      if (updateError) {
-        console.error("Update error:", updateError);
-        // Don't throw here as the response was already inserted
-      }
+      const insertedResponse = res.response;
 
       toast({
         title: "Success",
@@ -502,7 +470,6 @@ export default function QuotationResponse() {
       setQuotation((prev) => (prev ? { ...prev, status: "responded" } : null));
       setExistingResponse(insertedResponse);
 
-      console.log("Local state updated:", { newStatus: "responded", response: insertedResponse });
 
       form.reset();
     } catch (error) {

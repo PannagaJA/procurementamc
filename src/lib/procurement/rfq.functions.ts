@@ -351,8 +351,8 @@ export const listRfqs = createServerFn({ method: "GET" })
 export const getRfqForVendor = createServerFn({ method: "POST" })
   .validator((input: { rfq_id: string; vendor_id: string; token: string }) => input)
   .handler(async ({ data }) => {
-    const { verifyVendorAccessToken } = await import("@/lib/quotationAuth");
-    const valid = await verifyVendorAccessToken(data.rfq_id, data.vendor_id, data.token);
+    const { verifyQuoteToken } = await import("@/server/quoteLinks");
+    const valid = verifyQuoteToken(data.rfq_id, data.vendor_id, data.token);
     if (!valid) {
       return { ok: false as const, error: "Invalid or unauthorized quotation access token." };
     }
@@ -571,8 +571,8 @@ export const submitRfqQuotationResponse = createServerFn({ method: "POST" })
     }) => input,
   )
   .handler(async ({ data }) => {
-    const { verifyVendorAccessToken } = await import("@/lib/quotationAuth");
-    const valid = await verifyVendorAccessToken(data.rfq_id, data.vendor_id, data.token);
+    const { verifyQuoteToken } = await import("@/server/quoteLinks");
+    const valid = verifyQuoteToken(data.rfq_id, data.vendor_id, data.token);
     if (!valid) {
       return {
         ok: false as const,
@@ -754,4 +754,30 @@ export const submitRfqQuotationResponse = createServerFn({ method: "POST" })
       .eq("vendor_id", data.vendor_id);
 
     return { ok: true as const, linesCount: rows.length };
+  });
+
+/** Private quotation link for one invited vendor (procurement only); signed on the server. */
+export const getVendorQuoteLink = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: { rfq_id: string; vendor_id: string; origin?: string | null }) => input)
+  .handler(async ({ data, context }) => {
+    const { getCallerRoles } = await import("@/server/procurement/roles");
+    const held = (await getCallerRoles(context.supabase as any, context.userId)).map((r) => r.role);
+    if (!["admin", "procurement_officer", "procurement_executive"].some((r) => held.includes(r))) {
+      return { ok: false as const, error: "Only the procurement team can share vendor links." };
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rv } = await supabaseAdmin
+      .from("rfq_vendors")
+      .select("id")
+      .eq("rfq_id", data.rfq_id)
+      .eq("vendor_id", data.vendor_id)
+      .maybeSingle();
+    if (!rv) return { ok: false as const, error: "That vendor isn't invited to this RFQ." };
+    try {
+      const { linkOrigin, rfqVendorLink } = await import("@/server/quoteLinks");
+      return { ok: true as const, url: rfqVendorLink(linkOrigin(data.origin), data.rfq_id, data.vendor_id) };
+    } catch (e: any) {
+      return { ok: false as const, error: e.message };
+    }
   });
