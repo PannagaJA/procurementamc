@@ -515,6 +515,18 @@ export const recordPayment = createServerFn({ method: "POST" })
       actor: context.userId,
     });
 
+    // Budget: the paid amount moves from committed to spent on the PO's budget head.
+    const budget = inv.po_id ? await import("@/server/procurement/budget") : null;
+    if (budget && inv.po_id) {
+      await budget.spendForPayment(supabaseAdmin as any, {
+        poId: inv.po_id,
+        invoiceId: inv.id,
+        amount: paymentAmount,
+        actorId: context.userId,
+        notes: `Invoice ${inv.invoice_number} paid`,
+      });
+    }
+
     // 3. Check PO settlement and close PO if fully invoiced
     if (inv.po_id) {
       const { data: allInvoices } = await db
@@ -546,6 +558,14 @@ export const recordPayment = createServerFn({ method: "POST" })
         .eq("id", inv.po_id);
 
       if (poUpErr) console.error("[recordPayment] PO settlement update failed:", poUpErr.message);
+      if (!poUpErr && isFull && budget) {
+        await budget.releasePoRemainder(
+          supabaseAdmin as any,
+          inv.po_id,
+          context.userId,
+          "Order settled",
+        );
+      }
     }
 
     return { ok: true as const, payment, status: "paid" };

@@ -394,7 +394,7 @@ export const approvePo = createServerFn({ method: "POST" })
 
     const { data: po, error } = await supabaseAdmin
       .from("purchase_orders")
-      .select("id, status, current_approver_role, po_number, created_by, department_id")
+      .select("id, status, current_approver_role, po_number, created_by, department_id, budget_status")
       .eq("id", data.po_id)
       .maybeSingle();
 
@@ -410,6 +410,7 @@ export const approvePo = createServerFn({ method: "POST" })
         approved_by: context.userId,
         approved_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        ...(po.budget_status === "over_pending_evp" ? { budget_status: "evp_approved" } : {}),
       })
       .eq("id", po.id)
       .select("id, status")
@@ -521,7 +522,9 @@ export const issuePo = createServerFn({ method: "POST" })
 
     const { data: po, error } = await supabaseAdmin
       .from("purchase_orders")
-      .select("id, status, po_number, vendor_id, pr_id, department_id, total_value, price, taxes, purchase_requisitions(budget_head)")
+      .select(
+        "id, status, po_number, vendor_id, pr_id, department_id, total_value, price, taxes, issued_at, budget_status, purchase_requisitions(budget_head_id, budget_status, category, department_id)",
+      )
       .eq("id", data.po_id)
       .maybeSingle();
 
@@ -534,12 +537,42 @@ export const issuePo = createServerFn({ method: "POST" })
       };
     }
 
+    // Budget (SOP §8.1): commit the order value now. If it no longer fits the head's balance
+    // and the EVP hasn't approved the overspend, the PO goes to the EVP first.
+    const pr: any = (po as any).purchase_requisitions;
+    const total = Number(po.total_value || Number(po.price || 0) + Number(po.taxes || 0));
+    const { syncPoCommitment, addMonthlySpend, overBudgetReason } =
+      await import("@/server/procurement/budget");
+    const budget = await syncPoCommitment(supabaseAdmin as any, {
+      po: { id: po.id, po_number: po.po_number ?? "PO", pr_id: po.pr_id, total, budget_status: po.budget_status },
+      pr,
+      actorId: context.userId,
+    });
+    if (!budget.ok) {
+      await supabaseAdmin
+        .from("purchase_orders")
+        .update({
+          status: "pending_approval",
+          current_approver_role: "evp",
+          budget_status: "over_pending_evp",
+          routing_reason: overBudgetReason(budget.balance, total),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", po.id);
+      return {
+        ok: false as const,
+        error: `${po.po_number} is over the budget head's balance, so it was sent to the EVP. Issue it once the EVP approves.`,
+        code: "budget_needs_evp",
+      };
+    }
+
     const { data: updated, error: upErr } = await supabaseAdmin
       .from("purchase_orders")
       .update({
         status: "issued",
         issued_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        budget_status: budget.status,
       })
       .eq("id", po.id)
       .select("id, status")
@@ -553,25 +586,13 @@ export const issuePo = createServerFn({ method: "POST" })
       };
     }
 
-    // SOP §8.1 C6: Live table deducting committed amounts dynamically upon PO generation
-    try {
-      const budgetHeadCode = (po as any).purchase_requisitions?.budget_head;
-      if (budgetHeadCode) {
-        const { recordBudgetSpendDeduction } = await import("@/lib/procurement/budget.functions");
-        const val = Number((po as any).total_value || (Number((po as any).price || 0) + Number((po as any).taxes || 0)));
-        recordBudgetSpendDeduction({
-          budgetHeadCode,
-          departmentId: (po as any).department_id,
-          amount: val,
-          type: "commit",
-          poId: po.id,
-          poNumber: po.po_number,
-          prId: po.pr_id,
-          description: `Order issued: ${po.po_number} (₹${val.toLocaleString("en-IN")})`,
-        });
-      }
-    } catch {
-      // non-blocking
+    // Month-to-date spend feeds the authority matrix's monthly caps (counted at first issue).
+    if (!po.issued_at) {
+      await addMonthlySpend(supabaseAdmin as any, {
+        departmentId: pr?.department_id ?? po.department_id,
+        category: pr?.category ?? null,
+        amount: total,
+      });
     }
 
     return { ok: true as const, poId: po.id, status: "issued", poNumber: po.po_number };
@@ -688,12 +709,38 @@ export const amendPo = createServerFn({ method: "POST" })
     const newRank = roleHierarchy.indexOf(resolvedNew.role.toLowerCase());
 
     // Re-approval goes to whichever is higher: the original approver or the new value's approver.
-    const reapprovalRole = newRank >= originalRank ? resolvedNew.role : originalRole;
+    let reapprovalRole = newRank >= originalRank ? resolvedNew.role : originalRole;
 
-    const requiresReapproval =
+    let requiresReapproval =
       newRank > originalRank ||
       (resolvedNew.escalate && !resolvedOld.escalate) ||
       newTotal > oldTotal * 1.1;
+
+    // Budget: the increase on an issued order is committed straight away, so it must fit the
+    // head's balance — otherwise the EVP approves it first (unless the EVP already approved).
+    let budgetFields: Record<string, unknown> = {};
+    const { data: budgetPr } = po.pr_id
+      ? await supabaseAdmin
+          .from("purchase_requisitions")
+          .select("budget_head_id, budget_status")
+          .eq("id", po.pr_id)
+          .maybeSingle()
+      : { data: null };
+    if (po.issued_at && newTotal > oldTotal && budgetPr?.budget_head_id) {
+      const { headWithBalance, overBudgetReason } = await import("@/server/procurement/budget");
+      const { isOverBudget } = await import("@/lib/procurement/budgetLedger");
+      const h = await headWithBalance(supabaseAdmin as any, budgetPr.budget_head_id);
+      const evpApproved =
+        budgetPr.budget_status === "evp_approved" || po.budget_status === "evp_approved";
+      if (h && !evpApproved && isOverBudget(h.balance, newTotal - oldTotal)) {
+        requiresReapproval = true;
+        reapprovalRole = "evp";
+        budgetFields = {
+          budget_status: "over_pending_evp",
+          routing_reason: overBudgetReason(h.balance, newTotal - oldTotal),
+        };
+      }
+    }
 
     // Record Amendment
     const { data: amendment, error: amErr } = await supabaseAdmin
@@ -736,12 +783,23 @@ export const amendPo = createServerFn({ method: "POST" })
         current_approver_role: requiresReapproval ? reapprovalRole : po.current_approver_role,
         routing_reason: resolvedNew.reason,
         updated_at: new Date().toISOString(),
+        ...budgetFields,
       })
       .eq("id", po.id)
       .select("id, status")
       .single();
 
     if (upErr) return { ok: false as const, error: upErr.message };
+
+    // Live issued order changed value without re-approval: move its commitment to match.
+    if (!requiresReapproval && nextStatus === "issued") {
+      const { syncPoCommitment } = await import("@/server/procurement/budget");
+      await syncPoCommitment(supabaseAdmin as any, {
+        po: { id: po.id, po_number: po.po_number ?? "PO", pr_id: po.pr_id, total: newTotal, budget_status: po.budget_status },
+        pr: budgetPr ?? null,
+        actorId: context.userId,
+      });
+    }
 
     return {
       ok: true as const,
@@ -756,6 +814,15 @@ export const closePo = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: ClosePoInput) => input)
   .handler(async ({ data, context }) => {
+    const { getCallerRoles } = await import("@/server/procurement/roles");
+    const held = (await getCallerRoles(context.supabase as any, context.userId)).map((r) => r.role);
+    if (
+      !["admin", "procurement_officer", "finance", "director_admin_finance"].some((r) =>
+        held.includes(r),
+      )
+    ) {
+      return { ok: false as const, error: "Only the procurement team or Finance can close orders." };
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const nextStatus = data.partially ? "partially_closed" : "closed";
 
@@ -769,6 +836,10 @@ export const closePo = createServerFn({ method: "POST" })
       .eq("id", data.po_id);
 
     if (error) return { ok: false as const, error: error.message };
+    if (nextStatus === "closed") {
+      const { releasePoRemainder } = await import("@/server/procurement/budget");
+      await releasePoRemainder(supabaseAdmin as any, data.po_id, context.userId, "Order closed");
+    }
     return { ok: true as const, status: nextStatus };
   });
 
