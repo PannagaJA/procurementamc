@@ -35,6 +35,9 @@ import {
   listPurchaseOrders,
 } from "@/lib/procurement/po.functions";
 import { dispatchPoEmail } from "@/lib/procurement/email.functions";
+import { createRfq, sendRfq } from "@/lib/procurement/rfq.functions";
+import { emailQuoteInvites } from "@/lib/procurement/quoteInvites";
+import { useNavigate } from "@tanstack/react-router";
 import { listComparativeStatements } from "@/lib/procurement/cs.functions";
 import {
   ShoppingBag,
@@ -62,6 +65,7 @@ import { ITEM_GROUPS } from "@/lib/procurement/itemGroups";
 
 export default function PurchaseOrders() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const auth = useAuth();
   const [orders, setOrders] = useState<any[]>([]);
   const { pagination, setPage, setPageSize, setTotal } = usePagination(10, 1);
@@ -101,6 +105,15 @@ export default function PurchaseOrders() {
   // Direct purchase (small value): stores check is required; quotes are optional.
   const [storesConfirmed, setStoresConfirmed] = useState(false);
   const [quotesNote, setQuotesNote] = useState("");
+  // Direct purchase: buy from one vendor now, or ask several vendors for quotes first
+  const [directMode, setDirectMode] = useState<"single" | "quotes">("single");
+  const [quoteVendorIds, setQuoteVendorIds] = useState<string[]>([]);
+  const [quoteDeadline, setQuoteDeadline] = useState(() =>
+    new Date(Date.now() + 3 * 86_400_000).toISOString().slice(0, 10),
+  );
+  const [quoteNotes, setQuoteNotes] = useState("");
+  // PR id -> RFQ number for requisitions already out for quotes
+  const [openRfqByPr, setOpenRfqByPr] = useState<Record<string, string>>({});
   const [scopeOfSupply, setScopeOfSupply] = useState("");
   const [price, setPrice] = useState<number | "">(0);
   const [taxes, setTaxes] = useState<number | "">(0);
@@ -210,6 +223,12 @@ export default function PurchaseOrders() {
       );
       setApprovedPrs((prData || []).filter((p: any) => !existingPoPrIds.has(p.id)));
 
+      const { data: openRfqs } = await supabase
+        .from("rfqs")
+        .select("pr_id, rfq_number")
+        .in("status", ["draft", "sent"]);
+      setOpenRfqByPr(Object.fromEntries((openRfqs || []).map((r: any) => [r.pr_id, r.rfq_number])));
+
       // Fetch empanelled / active vendors
       const { data: vData } = await supabase
         .from("vendors")
@@ -258,6 +277,66 @@ export default function PurchaseOrders() {
       }
     }
   }, [selectedCsId, selectedRcId, poType, approvedCss, rateContracts]);
+
+  const handleRequestQuotes = async () => {
+    if (!selectedPrId || quoteVendorIds.length < 2) {
+      toast({
+        title: "Select vendors",
+        description: "Choose the requisition and at least 2 vendors to compare quotes.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setCreating(true);
+    try {
+      const created = await (createRfq as any)({
+        data: {
+          pr_id: selectedPrId,
+          response_deadline: quoteDeadline || null,
+          notes: quoteNotes.trim() || null,
+        },
+      });
+      if (!created.ok) {
+        toast({
+          title: "Couldn't request quotes",
+          description: created.error,
+          variant: "destructive",
+        });
+        return;
+      }
+      const rfqNumber = created.rfq.rfq_number;
+      const sent = await (sendRfq as any)({
+        data: { rfq_id: created.rfq.id, vendor_ids: quoteVendorIds },
+      });
+      if (!sent.ok) {
+        toast({
+          title: "Quote request saved but not sent",
+          description: `${sent.error} Send ${rfqNumber} from the RFQ page.`,
+          variant: "destructive",
+        });
+        setCreateOpen(false);
+        navigate({ to: "/procurement/rfqs" });
+        return;
+      }
+      const { sent: emailed, notice } = await emailQuoteInvites(sent.rfqId, sent.vendors ?? []);
+      toast({
+        title: "Quote requests sent",
+        description: [
+          `${rfqNumber} sent to ${sent.sentCount} vendors${emailed ? `, ${emailed} by email` : ""}.`,
+          notice ? `${notice}.` : null,
+          "When the quotes are in, award the lowest from the RFQ page.",
+        ]
+          .filter(Boolean)
+          .join(" "),
+      });
+      setCreateOpen(false);
+      navigate({ to: "/procurement/rfqs" });
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const handleCreatePo = async () => {
     if (!selectedPrId || !selectedVendorId || Number(price) <= 0) {
@@ -916,8 +995,8 @@ export default function PurchaseOrders() {
                   </Select>
                   {poType === "direct_purchase" && (
                     <p className="text-[11px] text-muted-foreground">
-                      No quotes needed. To compare vendors first, send an RFQ and award from the RFQ
-                      page.
+                      No minimum number of quotes. Buy from one vendor, or ask several for quotes
+                      and pick the lowest.
                     </p>
                   )}
                 </div>
@@ -971,6 +1050,33 @@ export default function PurchaseOrders() {
 
               {poType === "direct_purchase" && (
                 <div className="space-y-3 rounded-lg border p-3">
+                  <div
+                    role="radiogroup"
+                    aria-label="How to choose the vendor"
+                    className="grid grid-cols-2 gap-1 rounded-md bg-muted p-1 text-xs font-medium"
+                  >
+                    {(
+                      [
+                        ["single", "Buy from one vendor"],
+                        ["quotes", "Compare quotes"],
+                      ] as const
+                    ).map(([mode, label]) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        role="radio"
+                        aria-checked={directMode === mode}
+                        onClick={() => setDirectMode(mode)}
+                        className={`rounded px-2 py-1.5 transition-colors ${
+                          directMode === mode
+                            ? "bg-background text-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                   <div className="space-y-1">
                     <Label>Approved Small-Value Requisition *</Label>
                     <Select
@@ -1003,54 +1109,122 @@ export default function PurchaseOrders() {
                           approvedPrs
                             .filter((p) => p.category === "small_value")
                             .map((pr) => (
-                              <SelectItem key={pr.id} value={pr.id}>
+                              <SelectItem key={pr.id} value={pr.id} disabled={!!openRfqByPr[pr.id]}>
                                 {pr.pr_number} — {pr.departments?.name || "Dept"} (₹
                                 {Number(pr.estimated_value || 0).toLocaleString("en-IN")})
+                                {openRfqByPr[pr.id]
+                                  ? ` · quotes requested on ${openRfqByPr[pr.id]}`
+                                  : ""}
                               </SelectItem>
                             ))
                         )}
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-1">
-                    <Label>Vendor *</Label>
-                    <Select value={selectedVendorId} onValueChange={setSelectedVendorId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select empanelled vendor..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {vendorsList.map((v: any) => (
-                          <SelectItem key={v.id} value={v.id}>
-                            {v.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <label className="flex items-start gap-2 text-xs cursor-pointer">
-                    <input
-                      type="checkbox"
-                      className="mt-0.5 h-4 w-4 accent-indigo-600"
-                      checked={storesConfirmed}
-                      onChange={(e) => setStoresConfirmed(e.target.checked)}
-                    />
-                    <span>
-                      I confirmed these items are <strong>not available in Central Stores</strong>.
-                    </span>
-                  </label>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Quotes obtained (optional)</Label>
-                    <Input
-                      value={quotesNote}
-                      onChange={(e) => setQuotesNote(e.target.value)}
-                      placeholder="e.g. 2 shop quotes: ₹1,650 (Lenovo), ₹1,720 (Dell)"
-                      className="h-8 text-xs"
-                    />
-                  </div>
-                  <p className="text-[11px] text-muted-foreground">
-                    The requisition's approval authorises this purchase, so the PO is approved on
-                    creation (unless recent orders to the same vendor need a higher approval).
-                  </p>
+                  {directMode === "quotes" ? (
+                    <>
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <Label>Vendors to ask for quotes *</Label>
+                          <span className="text-[11px] text-muted-foreground">
+                            {quoteVendorIds.length} selected
+                          </span>
+                        </div>
+                        <div className="max-h-48 overflow-y-auto rounded-md border divide-y">
+                          {vendorsList
+                            .filter((v: any) => v.status === "empanelled")
+                            .map((v: any) => (
+                              <label
+                                key={v.id}
+                                className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-muted/50"
+                              >
+                                <input
+                                  type="checkbox"
+                                  className="h-4 w-4 accent-indigo-600"
+                                  checked={quoteVendorIds.includes(v.id)}
+                                  onChange={(e) =>
+                                    setQuoteVendorIds((ids) =>
+                                      e.target.checked
+                                        ? [...ids, v.id]
+                                        : ids.filter((id) => id !== v.id),
+                                    )
+                                  }
+                                />
+                                <span className="truncate">{v.name}</span>
+                              </label>
+                            ))}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Quotes due by</Label>
+                          <Input
+                            type="date"
+                            min={new Date().toISOString().slice(0, 10)}
+                            value={quoteDeadline}
+                            onChange={(e) => setQuoteDeadline(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Note to vendors (optional)</Label>
+                          <Input
+                            value={quoteNotes}
+                            onChange={(e) => setQuoteNotes(e.target.value)}
+                            placeholder="e.g. Include GST and delivery"
+                          />
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        Each vendor gets a private link to quote. No Comparative Statement is
+                        needed: once the quotes are in, award the lowest from the RFQ page (choosing
+                        anyone else needs a reason).
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="space-y-1">
+                        <Label>Vendor *</Label>
+                        <Select value={selectedVendorId} onValueChange={setSelectedVendorId}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select empanelled vendor..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {vendorsList.map((v: any) => (
+                              <SelectItem key={v.id} value={v.id}>
+                                {v.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <label className="flex items-start gap-2 text-xs cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="mt-0.5 h-4 w-4 accent-indigo-600"
+                          checked={storesConfirmed}
+                          onChange={(e) => setStoresConfirmed(e.target.checked)}
+                        />
+                        <span>
+                          I confirmed these items are{" "}
+                          <strong>not available in Central Stores</strong>.
+                        </span>
+                      </label>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Quotes obtained (optional)</Label>
+                        <Input
+                          value={quotesNote}
+                          onChange={(e) => setQuotesNote(e.target.value)}
+                          placeholder="e.g. 2 shop quotes: ₹1,650 (Lenovo), ₹1,720 (Dell)"
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        The requisition's approval authorises this purchase, so the PO is approved
+                        on creation (unless recent orders to the same vendor need a higher
+                        approval).
+                      </p>
+                    </>
+                  )}
                 </div>
               )}
 
@@ -1088,68 +1262,80 @@ export default function PurchaseOrders() {
                 </div>
               )}
 
-              <div className="space-y-1">
-                <Label>Scope of Supply / Order Description</Label>
-                <Textarea
-                  value={scopeOfSupply}
-                  onChange={(e) => setScopeOfSupply(e.target.value)}
-                  placeholder="Detailed specifications, model numbers, deliverables..."
-                  rows={3}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label>Base Price (₹)</Label>
-                  <Input
-                    type="number"
-                    placeholder="0"
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value === "" ? "" : Number(e.target.value))}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label>Taxes & GST (₹)</Label>
-                  <Input
-                    type="number"
-                    placeholder="0"
-                    value={taxes}
-                    onChange={(e) => setTaxes(e.target.value === "" ? "" : Number(e.target.value))}
-                  />
-                </div>
-              </div>
-
-              <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg flex items-center justify-between text-xs">
-                <span className="font-medium text-slate-500">Calculated Total PO Value:</span>
-                <span className="font-mono font-bold whitespace-nowrap text-base text-slate-900 dark:text-white">
-                  ₹{(Number(price) + Number(taxes)).toLocaleString("en-IN")}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label>Delivery Timeline</Label>
-                  <Input
-                    value={deliveryTimeline}
-                    onChange={(e) => setDeliveryTimeline(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label>Payment Terms</Label>
-                  <Input value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} />
-                </div>
-              </div>
-
-              {recentPoForVendor && (
-                <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
-                  <div>
-                    <span className="font-semibold">Recent order to this vendor:</span>{" "}
-                    <strong className="font-mono">{recentPoForVendor.po_number}</strong> was issued
-                    to this vendor in the last 30 days. If this is the same requirement, combine it
-                    into one order. Splitting it to stay under an approval limit isn't allowed.
+              {!(poType === "direct_purchase" && directMode === "quotes") && (
+                <>
+                  <div className="space-y-1">
+                    <Label>Scope of Supply / Order Description</Label>
+                    <Textarea
+                      value={scopeOfSupply}
+                      onChange={(e) => setScopeOfSupply(e.target.value)}
+                      placeholder="Detailed specifications, model numbers, deliverables..."
+                      rows={3}
+                    />
                   </div>
-                </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label>Base Price (₹)</Label>
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        value={price}
+                        onChange={(e) =>
+                          setPrice(e.target.value === "" ? "" : Number(e.target.value))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Taxes & GST (₹)</Label>
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        value={taxes}
+                        onChange={(e) =>
+                          setTaxes(e.target.value === "" ? "" : Number(e.target.value))
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg flex items-center justify-between text-xs">
+                    <span className="font-medium text-slate-500">Calculated Total PO Value:</span>
+                    <span className="font-mono font-bold whitespace-nowrap text-base text-slate-900 dark:text-white">
+                      ₹{(Number(price) + Number(taxes)).toLocaleString("en-IN")}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label>Delivery Timeline</Label>
+                      <Input
+                        value={deliveryTimeline}
+                        onChange={(e) => setDeliveryTimeline(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Payment Terms</Label>
+                      <Input
+                        value={paymentTerms}
+                        onChange={(e) => setPaymentTerms(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {recentPoForVendor && (
+                    <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                      <div>
+                        <span className="font-semibold">Recent order to this vendor:</span>{" "}
+                        <strong className="font-mono">{recentPoForVendor.po_number}</strong> was
+                        issued to this vendor in the last 30 days. If this is the same requirement,
+                        combine it into one order. Splitting it to stay under an approval limit
+                        isn't allowed.
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
@@ -1157,17 +1343,28 @@ export default function PurchaseOrders() {
               <Button variant="outline" onClick={() => setCreateOpen(false)}>
                 Cancel
               </Button>
-              <Button
-                onClick={handleCreatePo}
-                disabled={creating || !selectedPrId || Number(price) <= 0}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white"
-              >
-                {creating
-                  ? "Creating..."
-                  : poType === "direct_purchase"
-                    ? "Create Purchase Order"
-                    : "Create & Route for Approval"}
-              </Button>
+              {poType === "direct_purchase" && directMode === "quotes" ? (
+                <Button
+                  onClick={handleRequestQuotes}
+                  disabled={creating || !selectedPrId || quoteVendorIds.length < 2}
+                  className="gap-1 bg-indigo-600 hover:bg-indigo-700 text-white"
+                >
+                  <Send className="w-4 h-4" />
+                  {creating ? "Sending..." : `Send quote requests (${quoteVendorIds.length})`}
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleCreatePo}
+                  disabled={creating || !selectedPrId || Number(price) <= 0}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                >
+                  {creating
+                    ? "Creating..."
+                    : poType === "direct_purchase"
+                      ? "Create Purchase Order"
+                      : "Create & Route for Approval"}
+                </Button>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>

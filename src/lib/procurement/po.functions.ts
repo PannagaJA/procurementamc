@@ -219,6 +219,21 @@ export const createPo = createServerFn({ method: "POST" })
         storesConfirmed: data.stores_confirmed === true,
       });
       if (!check.ok) return check;
+      // Quotes already requested: the order comes from awarding that RFQ, not a parallel PO.
+      const { data: openRfq } = await supabaseAdmin
+        .from("rfqs")
+        .select("rfq_number")
+        .eq("pr_id", data.pr_id)
+        .in("status", ["draft", "sent"])
+        .limit(1)
+        .maybeSingle();
+      if (openRfq) {
+        return {
+          ok: false as const,
+          error: `Quotes for ${check.pr.pr_number} were requested on ${openRfq.rfq_number}. Award the order from the RFQ page.`,
+          code: "quotes_pending",
+        };
+      }
       const scope = [
         data.scope_of_supply?.trim() || `Direct purchase against ${check.pr.pr_number}`,
         "Checked: not available in Central Stores.",
