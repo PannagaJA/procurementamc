@@ -242,7 +242,7 @@ export default function InvoiceManagement() {
   const canResolve = ["admin", "finance", "director_admin_finance", "procurement_officer"].some((r) =>
     auth.hasRole(r as any),
   );
-  const canDeduct = ["admin", "finance", "director_admin_finance", "evp"].some((r) => auth.hasRole(r as any));
+  const canDeduct = ["admin", "finance", "director_admin_finance"].some((r) => auth.hasRole(r as any));
 
   const handleOpenPay = (inv: any) => {
     setActiveInvoice(inv);
