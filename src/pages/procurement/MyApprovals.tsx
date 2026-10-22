@@ -404,6 +404,9 @@ export default function MyApprovals() {
                         <span className="font-mono font-bold whitespace-nowrap">{pr.pr_number}</span>
                         <Badge variant="outline">{pr.category}</Badge>
                         <Badge variant="secondary">{pr.status.toUpperCase()}</Badge>
+                        {pr.budget_status === "over" && (
+                          <Badge className="bg-red-600 hover:bg-red-600 text-white">Over budget</Badge>
+                        )}
                       </div>
                       <div className="text-xs text-slate-500 mt-1 flex flex-wrap items-center gap-2">
                         <span>
@@ -457,6 +460,15 @@ export default function MyApprovals() {
                       </span>
                       {pr.routing_reason}
                     </div>
+                    {pr.budget_status === "over" && (pr.budget_justification || pr.reappropriation_ref) && (
+                      <div className="p-2 rounded border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/30 text-red-900 dark:text-red-200">
+                        <span className="font-medium">Why over budget: </span>
+                        {pr.budget_justification}
+                        {pr.reappropriation_ref && (
+                          <span className="font-mono"> (re-appropriation {pr.reappropriation_ref})</span>
+                        )}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))
@@ -545,6 +557,9 @@ export default function MyApprovals() {
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-mono font-bold whitespace-nowrap">{po.po_number}</span>
                         <Badge variant="outline">{po.type.toUpperCase()}</Badge>
+                        {po.budget_status === "over_pending_evp" && (
+                          <Badge className="bg-red-600 hover:bg-red-600 text-white">Over budget</Badge>
+                        )}
                       </div>
                       <p className="text-xs text-slate-500 mt-1">
                         Vendor:{" "}

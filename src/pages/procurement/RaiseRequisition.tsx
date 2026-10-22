@@ -49,11 +49,8 @@ import {
 } from "@/lib/procurement/authorityMatrix";
 import { createPr, rateContractCoverage } from "@/lib/procurement/pr.functions";
 import { ITEM_GROUPS, itemGroupLabel } from "@/lib/procurement/itemGroups";
-import {
-  listActiveBudgetHeads,
-  recordBudgetSpendDeduction,
-  type BudgetHead,
-} from "@/lib/procurement/budget.functions";
+import { listPrBudgetHeads } from "@/lib/procurement/budget.functions";
+import { isOverBudget } from "@/lib/procurement/budgetLedger";
 import { RateBenchmarkingWidget } from "@/components/procurement/RateBenchmarkingWidget";
 
 type LineItem = {
@@ -82,7 +79,10 @@ export default function RaiseRequisition() {
 
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
   const [matrixRules, setMatrixRules] = useState<any[]>([]);
-  const [availableBudgetHeads, setAvailableBudgetHeads] = useState<BudgetHead[]>([]);
+  // Section B: the department's budget heads for this financial year, with live balances
+  const [availableBudgetHeads, setAvailableBudgetHeads] = useState<any[]>([]);
+  const [budgetJustification, setBudgetJustification] = useState("");
+  const [reappropriationRef, setReappropriationRef] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdResult, setCreatedResult] = useState<any | null>(null);
 
@@ -90,7 +90,7 @@ export default function RaiseRequisition() {
   const [departmentId, setDepartmentId] = useState<string>("");
   const [category, setCategory] = useState<string>("routine_consumable");
   const [scope, setScope] = useState<"academic" | "operational">("operational");
-  const [budgetHead, setBudgetHead] = useState<string>("");
+  const [budgetHeadId, setBudgetHeadId] = useState<string>("");
   const [isEmergency, setIsEmergency] = useState<boolean>(false);
   const [isRecurring, setIsRecurring] = useState<boolean>(false);
   const [recurringFrequency, setRecurringFrequency] = useState<string>("");
@@ -144,18 +144,20 @@ export default function RaiseRequisition() {
     }
   }, [userDeptId, departments]);
 
-  // Load active budget heads for selected department
+  // Load the department's budget heads (current financial year)
   useEffect(() => {
     if (!departmentId) return;
-    listActiveBudgetHeads({ departmentId }).then((res) => {
-      if (res.ok) {
-        setAvailableBudgetHeads(res.budgetHeads);
-        if (res.budgetHeads.length > 0 && !budgetHead) {
-          setBudgetHead(res.budgetHeads[0].code);
-        }
-      }
+    setBudgetHeadId("");
+    (listPrBudgetHeads as any)({ data: { department_id: departmentId } }).then((res: any) => {
+      setAvailableBudgetHeads(res?.ok ? res.heads : []);
     });
   }, [departmentId]);
+
+  // Default to the head for this PR's category
+  useEffect(() => {
+    const match = availableBudgetHeads.find((h) => h.category === normalizeCategory(category));
+    if (match) setBudgetHeadId(match.id);
+  }, [availableBudgetHeads, category]);
 
   // Compute item totals and estimated total value
   const computedItems = useMemo(() => {
@@ -174,16 +176,9 @@ export default function RaiseRequisition() {
     return computedItems.reduce((sum, item) => sum + item.line_total, 0);
   }, [computedItems]);
 
-  const selectedBudgetHeadObj = useMemo(() => {
-    return availableBudgetHeads.find(
-      (b) => b.code.toLowerCase() === (budgetHead || "").toLowerCase().trim(),
-    );
-  }, [availableBudgetHeads, budgetHead]);
-
-  const isBudgetOverdraft = useMemo(() => {
-    if (!selectedBudgetHeadObj) return false;
-    return totalEstimatedValue > selectedBudgetHeadObj.balance_available;
-  }, [selectedBudgetHeadObj, totalEstimatedValue]);
+  const selectedBudgetHeadObj = availableBudgetHeads.find((b) => b.id === budgetHeadId);
+  const isBudgetOverdraft =
+    !!selectedBudgetHeadObj && isOverBudget(selectedBudgetHeadObj.balance, totalEstimatedValue);
 
   // Real-time Authority Matrix Resolver preview
   const liveRouting = useMemo(() => {
@@ -316,7 +311,9 @@ export default function RaiseRequisition() {
           department_id: departmentId,
           category: normalizeCategory(category),
           scope,
-          budget_head: budgetHead.trim() || null,
+          budget_head_id: budgetHeadId || null,
+          budget_justification: isBudgetOverdraft ? budgetJustification.trim() || null : null,
+          reappropriation_ref: isBudgetOverdraft ? reappropriationRef.trim() || null : null,
           estimated_value: totalEstimatedValue,
           is_recurring: isRecurring,
           recurring_frequency: isRecurring ? recurringFrequency : null,
@@ -344,19 +341,6 @@ export default function RaiseRequisition() {
       }
 
       setCreatedResult(res);
-
-      // Automatically deduct committed spend from balance_available
-      if (budgetHead) {
-        recordBudgetSpendDeduction({
-          budgetHeadCode: budgetHead,
-          departmentId,
-          amount: totalEstimatedValue,
-          type: "commit",
-          prId: res.pr?.id || null,
-          prNumber: res.pr?.pr_number || null,
-          description: `PR ${res.pr?.pr_number || "Requisition"} spend encumbrance`,
-        });
-      }
 
       toast({
         title: "Requisition Raised Successfully!",
@@ -530,60 +514,83 @@ export default function RaiseRequisition() {
                   </div>
 
                   <div className="space-y-2 md:col-span-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="budgetHead" className="font-semibold text-xs flex items-center gap-1.5">
-                        <Wallet className="w-3.5 h-3.5 text-emerald-600" /> Allocated Departmental Budget Head
-                      </Label>
-                      {selectedBudgetHeadObj && (
-                        <span className="text-[11px] font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                          Balance Available: ₹{selectedBudgetHeadObj.balance_available.toLocaleString("en-IN")}
-                        </span>
-                      )}
-                    </div>
+                    <Label htmlFor="budgetHead" className="font-semibold text-xs flex items-center gap-1.5">
+                      <Wallet className="w-3.5 h-3.5 text-emerald-600" /> Budget head (Section B)
+                    </Label>
 
                     {availableBudgetHeads.length > 0 ? (
-                      <Select value={budgetHead} onValueChange={setBudgetHead}>
+                      <Select value={budgetHeadId} onValueChange={setBudgetHeadId}>
                         <SelectTrigger id="budgetHead" className="bg-white dark:bg-slate-900">
-                          <SelectValue placeholder="Select active budget head..." />
+                          <SelectValue placeholder="Choose the budget head..." />
                         </SelectTrigger>
                         <SelectContent>
                           {availableBudgetHeads.map((bh) => (
-                            <SelectItem key={bh.code} value={bh.code}>
-                              <div className="flex items-center justify-between w-full gap-4 text-xs">
-                                <span className="font-mono font-bold">{bh.code}</span>
-                                <span className="text-muted-foreground">— {bh.title} (₹{bh.balance_available.toLocaleString("en-IN")} available)</span>
-                              </div>
+                            <SelectItem key={bh.id} value={bh.id}>
+                              <span className="font-mono font-semibold">{bh.code}</span>
+                              <span className="text-muted-foreground">
+                                {" "}
+                                · ₹{Number(bh.balance).toLocaleString("en-IN")} available
+                              </span>
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     ) : (
-                      <Input
-                        id="budgetHead"
-                        placeholder="e.g. CSE-LAB-EQUIP-26 / OPEX"
-                        value={budgetHead}
-                        onChange={(e) => setBudgetHead(e.target.value)}
-                      />
+                      <p className="text-xs text-muted-foreground rounded-lg border border-dashed p-2.5">
+                        {departmentId
+                          ? "No budget has been set for this department this year, so no budget check applies."
+                          : "Choose the department to see its budget heads."}
+                      </p>
                     )}
 
                     {selectedBudgetHeadObj && (
-                      <div className={`p-2.5 rounded-lg border text-xs space-y-1 ${
-                        isBudgetOverdraft
-                          ? "bg-red-50 dark:bg-red-950/40 border-red-300 dark:border-red-900 text-red-900 dark:text-red-200"
-                          : "bg-emerald-50/60 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/40 text-emerald-900 dark:text-emerald-200"
-                      }`}>
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold">
-                            {isBudgetOverdraft ? "⚠️ Budget Overdraft Warning" : "✓ Active Sanctioned Head"}
-                          </span>
-                          <span className="font-mono">
-                            Allocated: ₹{selectedBudgetHeadObj.allocated_amount.toLocaleString("en-IN")} • Committed: ₹{selectedBudgetHeadObj.committed_amount.toLocaleString("en-IN")}
-                          </span>
-                        </div>
+                      <div
+                        className={`p-2.5 rounded-lg border text-xs space-y-2 ${
+                          isBudgetOverdraft
+                            ? "bg-red-50 dark:bg-red-950/40 border-red-300 dark:border-red-900 text-red-900 dark:text-red-200"
+                            : "bg-emerald-50/60 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/40 text-emerald-900 dark:text-emerald-200"
+                        }`}
+                      >
+                        <dl className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono">
+                          {[
+                            ["Approved budget", selectedBudgetHeadObj.allocated],
+                            ["Spent this year", selectedBudgetHeadObj.spent],
+                            ["Committed", selectedBudgetHeadObj.committed],
+                            ["Balance available", selectedBudgetHeadObj.balance],
+                          ].map(([label, value]) => (
+                            <div key={label as string}>
+                              <dt className="font-sans text-[10px] opacity-80">{label}</dt>
+                              <dd className="font-bold">₹{Number(value).toLocaleString("en-IN")}</dd>
+                            </div>
+                          ))}
+                        </dl>
+                        <p className="font-semibold">
+                          Is budget available?{" "}
+                          {isBudgetOverdraft
+                            ? `No — this requisition (₹${totalEstimatedValue.toLocaleString("en-IN")}) is over the balance, so the EVP must approve it.`
+                            : "Yes"}
+                        </p>
                         {isBudgetOverdraft && (
-                          <p className="text-[11px] text-red-700 dark:text-red-300">
-                            Requisition total ₹{totalEstimatedValue.toLocaleString("en-IN")} exceeds the remaining balance ₹{selectedBudgetHeadObj.balance_available.toLocaleString("en-IN")}. Approver review or budget virement required.
-                          </p>
+                          <div className="grid gap-2 sm:grid-cols-2">
+                            <div className="space-y-1 sm:col-span-2">
+                              <Label className="text-[11px]">Justification for spending over budget</Label>
+                              <Textarea
+                                rows={2}
+                                value={budgetJustification}
+                                onChange={(e) => setBudgetJustification(e.target.value)}
+                                className="bg-white dark:bg-slate-900"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-[11px]">Re-appropriation reference (if any)</Label>
+                              <Input
+                                value={reappropriationRef}
+                                onChange={(e) => setReappropriationRef(e.target.value)}
+                                placeholder="e.g. FIN/REAPP/2026/014"
+                                className="bg-white dark:bg-slate-900"
+                              />
+                            </div>
+                          </div>
                         )}
                       </div>
                     )}

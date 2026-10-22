@@ -13,7 +13,13 @@ export type CreatePrInput = {
   department_id: string | null;
   category: string;
   scope: "academic" | "operational";
-  budget_head: string | null;
+  /** Legacy free-text head; superseded by budget_head_id. */
+  budget_head?: string | null;
+  /** Section B: the department's budget head this PR is charged to. */
+  budget_head_id?: string | null;
+  /** Required when the estimate is over the head's balance (the PR then needs the EVP). */
+  budget_justification?: string | null;
+  reappropriation_ref?: string | null;
   estimated_value: number;
   is_recurring: boolean;
   recurring_frequency: string | null;
@@ -156,6 +162,26 @@ export const createPr = createServerFn({ method: "POST" })
       }
     }
 
+    const { supabaseAdmin: budgetDb } = await import("@/integrations/supabase/client.server");
+    const { prBudgetCheck } = await import("@/server/procurement/budget");
+    const budget = await prBudgetCheck(budgetDb, {
+      headId: data.budget_head_id,
+      departmentId: data.department_id,
+      amount: value,
+    });
+    if (!budget.ok) return budget;
+    if (
+      budget.status === "over" &&
+      !data.budget_justification?.trim() &&
+      !data.reappropriation_ref?.trim()
+    ) {
+      return {
+        ok: false as const,
+        error: `This is more than the budget balance (Rs. ${Number(budget.balance).toLocaleString("en-IN")}). Give a justification or a re-appropriation reference; the EVP will then decide.`,
+        code: "budget_justification_required",
+      };
+    }
+
     const resolved = await resolve(db, canonicalCat, data.department_id, value);
     const approverRole = await independentApprover(
       context.userId,
@@ -175,7 +201,11 @@ export const createPr = createServerFn({ method: "POST" })
         category: canonicalCat,
         scope: data.scope,
         status: "submitted",
-        budget_head: data.budget_head,
+        budget_head: budget.status === "none" ? (data.budget_head ?? null) : (budget.code ?? null),
+        budget_head_id: budget.headId,
+        budget_status: budget.status,
+        budget_justification: data.budget_justification?.trim() || null,
+        reappropriation_ref: data.reappropriation_ref?.trim() || null,
         estimated_value: value,
         is_recurring: data.is_recurring,
         recurring_frequency: data.recurring_frequency,
@@ -239,6 +269,7 @@ export const createPr = createServerFn({ method: "POST" })
         role: approverRole,
         escalate: resolved.escalate,
         reason: routingReason,
+        budgetStatus: budget.status,
         minQuotations: resolved.minQuotations,
         requiresRateContract: resolved.requiresRateContract,
       },
@@ -287,7 +318,7 @@ async function decide(
   const { data: pr, error } = await db
     .from("purchase_requisitions")
     .select(
-      "id, pr_number, status, category, estimated_value, department_id, current_approver_role, requested_by",
+      "id, pr_number, status, category, estimated_value, department_id, current_approver_role, requested_by, budget_head_id, budget_status",
     )
     .eq("id", data.pr_id)
     .maybeSingle();
@@ -360,11 +391,42 @@ async function decide(
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+  // Budget (SOP Section B): re-check the balance at approval. Over budget needs the EVP —
+  // an approver below the EVP sends it on instead of approving.
+  let budgetUpdate: Record<string, unknown> = {};
+  let sentToEvpForBudget = false;
+  if (decision === "approved" && pr.budget_head_id) {
+    const { prBudgetCheck, overBudgetReason } = await import("@/server/procurement/budget");
+    const budget = await prBudgetCheck(supabaseAdmin as any, {
+      headId: pr.budget_head_id,
+      departmentId: pr.department_id,
+      amount: Number(pr.estimated_value) || 0,
+    });
+    if (budget.ok && budget.status === "over") {
+      if (routedRole === "evp" || held.includes("evp")) {
+        budgetUpdate = { budget_status: "evp_approved" };
+      } else {
+        sentToEvpForBudget = true;
+        budgetUpdate = {
+          budget_status: "over",
+          routing_reason: overBudgetReason(Number(budget.balance), Number(pr.estimated_value) || 0),
+        };
+      }
+    } else if (budget.ok) {
+      budgetUpdate = { budget_status: budget.status };
+    }
+  }
+  if (sentToEvpForBudget) {
+    nextStatus = "escalated_to_evp";
+    decision = "escalated";
+  }
+
   const { error: upErr } = await (supabaseAdmin as any)
     .from("purchase_requisitions")
     .update({
       status: nextStatus,
       current_approver_role: decision === "escalated" ? "evp" : pr.current_approver_role,
+      ...budgetUpdate,
     })
     .eq("id", pr.id);
   if (upErr) return { ok: false as const, error: upErr.message };
@@ -374,8 +436,12 @@ async function decide(
     stage,
     approver_role: held.find((h) => allowed.includes(h)) ?? "admin",
     approver_id: context.userId,
-    decision,
-    remarks: data.remarks ?? null,
+    decision: sentToEvpForBudget ? "approved" : decision,
+    remarks: sentToEvpForBudget
+      ? [data.remarks?.trim(), "Approved; over budget, so sent to the EVP."]
+          .filter(Boolean)
+          .join(" ")
+      : (data.remarks ?? null),
   });
 
   // Notify requester or escalated authority via SMTP in background
@@ -404,7 +470,11 @@ async function decide(
       .catch((e) => console.warn("[Email] PR escalation notification failed:", e));
   }
 
-  return { ok: true as const, status: nextStatus, reason: resolved.reason };
+  return {
+    ok: true as const,
+    status: nextStatus,
+    reason: sentToEvpForBudget ? "Over budget: sent to the EVP for approval." : resolved.reason,
+  };
 }
 
 export const reviewPr = createServerFn({ method: "POST" })
