@@ -43,7 +43,14 @@ const fail = (error: string, code: string): Failure => ({ ok: false, error, code
 export async function directPurchaseChecks(
   db: Db,
   admin: Db,
-  input: { prId: string; vendorId: string; total: number; storesConfirmed: boolean },
+  input: {
+    prId: string;
+    vendorId: string;
+    total: number;
+    storesConfirmed: boolean;
+    /** Who is creating the PO: an escalation never routes back to their own role. */
+    actorId?: string | null;
+  },
 ): Promise<Failure | Passed> {
   const { data: pr } = await admin
     .from("purchase_requisitions")
@@ -133,6 +140,17 @@ export async function directPurchaseChecks(
   } catch (e) {
     if (e instanceof ProcurementRuleError) return fail(e.message, e.code);
     throw e;
+  }
+  if (escalation) {
+    const { independentRole } = await import("./separation");
+    escalation = {
+      ...escalation,
+      escalateRole: await independentRole(admin, {
+        actorId: input.actorId,
+        departmentId: pr.department_id ?? null,
+        role: escalation.escalateRole,
+      }),
+    };
   }
 
   const { data: approval } = await admin

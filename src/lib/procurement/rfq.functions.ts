@@ -502,6 +502,7 @@ export const awardDirectPurchase = createServerFn({ method: "POST" })
       vendorId: data.vendor_id,
       total,
       storesConfirmed: data.stores_confirmed === true,
+      actorId: context.userId,
     });
     if (!check.ok) return check;
 

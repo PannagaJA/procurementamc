@@ -172,6 +172,25 @@ export const prepareComparativeStatement = createServerFn({ method: "POST" })
 
     const resolved = resolveApprover(canonicalCat, recTotal, spend, rules ?? []);
 
+    // The Purchase Committee evaluates comparative statements (SOP §8.4), or a higher authority
+    // when the value needs one; and whoever prepared it can't be the one to approve it.
+    const { atLeastRole } = await import("@/lib/procurement/separation");
+    const { independentRole } = await import("@/server/procurement/separation");
+    const { roleLabel } = await import("@/lib/procurement/labels");
+    const committeeOrAbove = atLeastRole(resolved.role, "purchase_committee");
+    const csRole = await independentRole(supabaseAdmin as any, {
+      actorId: context.userId,
+      departmentId: pr.department_id ?? null,
+      role: committeeOrAbove,
+    });
+    const csReason =
+      csRole === resolved.role
+        ? resolved.reason
+        : `${resolved.reason} Comparative statements are approved by the ${roleLabel(csRole)}` +
+          (csRole !== committeeOrAbove
+            ? ` because the preparer holds the ${roleLabel(committeeOrAbove)} role.`
+            : ".");
+
     // 7. Insert or update Comparative Statement
     const { data: existingCs } = await supabaseAdmin
       .from("comparative_statements")
@@ -212,8 +231,8 @@ export const prepareComparativeStatement = createServerFn({ method: "POST" })
       is_lowest_price: effectiveIsLowest,
       non_lowest_rationale: effectiveIsLowest ? null : data.non_lowest_rationale?.trim(),
       status: "submitted",
-      current_approver_role: resolved.role,
-      routing_reason: resolved.reason,
+      current_approver_role: csRole,
+      routing_reason: csReason,
     };
 
     let cs: any = null;
@@ -263,7 +282,7 @@ export const prepareComparativeStatement = createServerFn({ method: "POST" })
       .then(({ notifyApproversForCs }) =>
         notifyApproversForCs({
           csNumber: cs.cs_number,
-          role: resolved.role,
+          role: csRole,
           recommendedTotal: Number(cs.recommended_total) || 0,
         }),
       )
@@ -273,7 +292,7 @@ export const prepareComparativeStatement = createServerFn({ method: "POST" })
       ok: true as const,
       cs,
       routing: {
-        role: resolved.role,
+        role: csRole,
         escalate: resolved.escalate,
         reason: resolved.reason,
       },

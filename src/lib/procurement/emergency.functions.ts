@@ -183,6 +183,12 @@ export const approveEmergency = createServerFn({ method: "POST" })
 
     if (epErr || !ep)
       return { ok: false as const, error: "Emergency procurement record not found" };
+    if (ep.requested_by && ep.requested_by === context.userId) {
+      return {
+        ok: false as const,
+        error: "You raised this emergency purchase, so another approver must decide it.",
+      };
+    }
 
     // 2. Post-Facto 2-Day Rule Check (§9.3)
     if (ep.is_post_facto && data.decision === "approved") {
