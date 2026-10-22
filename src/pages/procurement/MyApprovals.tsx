@@ -624,7 +624,7 @@ export default function MyApprovals() {
                           {am.purchase_orders?.po_number} Amendment
                         </span>
                         <Badge variant="outline" className="text-purple-700 border-purple-400">
-                          Escalated Tier
+                          Needs re-approval
                         </Badge>
                       </div>
                       <p className="text-xs text-slate-500 mt-1">

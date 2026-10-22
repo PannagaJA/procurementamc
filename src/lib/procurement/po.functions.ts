@@ -829,7 +829,8 @@ export const amendPo = createServerFn({ method: "POST" })
       ok: true as const,
       amendmentId: amendment.id,
       requiresReapproval,
-      newApproverRole: resolvedNew.role,
+      // Where the amendment actually went (budget → EVP, never the amender's own role).
+      newApproverRole: requiresReapproval ? reapprovalRole : null,
       status: nextStatus,
     };
   });

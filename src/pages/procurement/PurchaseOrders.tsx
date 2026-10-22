@@ -62,6 +62,7 @@ import { useAuth } from "@/lib/auth";
 import { PoPrintPreviewModal } from "@/components/procurement/PoPrintPreviewModal";
 import { buildPoPdf } from "@/lib/procurement/poPdf";
 import { ITEM_GROUPS } from "@/lib/procurement/itemGroups";
+import { roleLabel } from "@/lib/procurement/labels";
 
 export default function PurchaseOrders() {
   const { toast } = useToast();
@@ -493,7 +494,7 @@ export default function PurchaseOrders() {
       if (res.requiresReapproval) {
         toast({
           title: "Amendment Requires Re-approval",
-          description: `Value increase exceeded authority limit. Re-routed to ${res.newApproverRole?.toUpperCase()} for approval.`,
+          description: `Sent to the ${roleLabel(res.newApproverRole)} for approval. Re-issue the order once it is approved; if it is rejected, the order goes back to its previous value.`,
           variant: "default",
         });
       } else {
@@ -928,17 +929,14 @@ export default function PurchaseOrders() {
                                       <div className="flex items-center gap-1.5 shrink-0">
                                         {am.requires_reapproval ? (
                                           <Badge className="bg-amber-500 text-white text-[10px]">
-                                            Escalated to {am.new_approver_role?.toUpperCase()}
+                                            Re-approval: {roleLabel(am.new_approver_role)}
                                           </Badge>
                                         ) : (
                                           <Badge
                                             variant="outline"
                                             className="text-[10px] text-slate-600 dark:text-slate-300"
                                           >
-                                            Within Tier{" "}
-                                            {am.original_approver_role
-                                              ? `(${am.original_approver_role.toUpperCase()})`
-                                              : "Approved"}
+                                            No re-approval needed
                                           </Badge>
                                         )}
                                       </div>
