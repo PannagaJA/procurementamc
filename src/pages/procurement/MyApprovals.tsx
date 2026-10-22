@@ -49,7 +49,8 @@ import {
   Filter,
   ChevronDown,
 } from "lucide-react";
-import { SlaDaemonWidget } from "@/components/procurement/SlaDaemonWidget";
+import { TurnaroundWidget } from "@/components/procurement/TurnaroundWidget";
+import { statusLabel, roleLabel, poTypeLabel, categoryLabel } from "@/lib/procurement/labels";
 import { RateBenchmarkingWidget } from "@/components/procurement/RateBenchmarkingWidget";
 
 export default function MyApprovals() {
@@ -329,7 +330,7 @@ export default function MyApprovals() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-200 mb-2">
-              <UserCheck className="w-3.5 h-3.5" /> Unified Approvals Inbox
+              <UserCheck className="w-3.5 h-3.5" /> Approvals
             </div>
             <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
               My Procurement Approvals
@@ -344,7 +345,7 @@ export default function MyApprovals() {
         {/* User Roles Banner */}
         <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
           <div>
-            <span className="text-slate-500 font-medium block">Your Active Procurement Roles:</span>
+            <span className="text-slate-500 font-medium block">Your roles:</span>
             <div className="flex flex-wrap gap-1.5 mt-1">
               {userRoles.length > 0 ? (
                 userRoles.map((r: string) => (
@@ -353,7 +354,7 @@ export default function MyApprovals() {
                     variant="secondary"
                     className="font-semibold bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300"
                   >
-                    {r.toUpperCase()}
+                    {roleLabel(r)}
                   </Badge>
                 ))
               ) : (
@@ -369,8 +370,8 @@ export default function MyApprovals() {
           </div>
         </div>
 
-        {/* Background SLA Reminder & Escalation Daemon Monitor */}
-        <SlaDaemonWidget onRefreshParent={loadData} />
+        {/* How long open items have been waiting */}
+        <TurnaroundWidget />
 
         {/* Tabs for PR, CS, PO, Amendments, Invoices, Emergency */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
@@ -402,8 +403,8 @@ export default function MyApprovals() {
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-mono font-bold whitespace-nowrap">{pr.pr_number}</span>
-                        <Badge variant="outline">{pr.category}</Badge>
-                        <Badge variant="secondary">{pr.status.toUpperCase()}</Badge>
+                        <Badge variant="outline">{categoryLabel(pr.category)}</Badge>
+                        <Badge variant="secondary">{statusLabel(pr.status)}</Badge>
                         {pr.budget_status === "over" && (
                           <Badge className="bg-red-600 hover:bg-red-600 text-white">Over budget</Badge>
                         )}
@@ -415,7 +416,7 @@ export default function MyApprovals() {
                         </span>
                         <RateBenchmarkingWidget
                           compact
-                          description={pr.pr_line_items?.[0]?.description || pr.category}
+                          description={pr.pr_line_items?.[0]?.description || categoryLabel(pr.category)}
                           unitRate={
                             Number(pr.estimated_value || 0) /
                             Math.max(1, pr.pr_line_items?.length || 1)
@@ -556,7 +557,7 @@ export default function MyApprovals() {
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-mono font-bold whitespace-nowrap">{po.po_number}</span>
-                        <Badge variant="outline">{po.type.toUpperCase()}</Badge>
+                        <Badge variant="outline">{poTypeLabel(po.type)}</Badge>
                         {po.budget_status === "over_pending_evp" && (
                           <Badge className="bg-red-600 hover:bg-red-600 text-white">Over budget</Badge>
                         )}
@@ -682,7 +683,7 @@ export default function MyApprovals() {
                           </Badge>
                         ) : (
                           <Badge variant="outline" className="text-emerald-700 border-emerald-400">
-                            3-Way Matched
+                            Matches order & delivery
                           </Badge>
                         )}
                       </div>
@@ -897,14 +898,14 @@ export default function MyApprovals() {
                                 PR
                               </Badge>
                               <span className="font-mono font-bold whitespace-nowrap">{pr.pr_number}</span>
-                              <Badge variant="outline">{pr.category}</Badge>
+                              <Badge variant="outline">{categoryLabel(pr.category)}</Badge>
                               <Badge
                                 variant={
                                   isApproved ? "default" : isRejected ? "destructive" : "secondary"
                                 }
                                 className={isApproved ? "bg-emerald-600 text-white" : ""}
                               >
-                                {pr.status.toUpperCase()}
+                                {statusLabel(pr.status)}
                               </Badge>
                             </div>
                             <p className="text-xs text-slate-500 mt-1">
@@ -955,7 +956,7 @@ export default function MyApprovals() {
                                 }
                                 className={isApproved ? "bg-emerald-600 text-white" : ""}
                               >
-                                {cs.status.toUpperCase()}
+                                {statusLabel(cs.status)}
                               </Badge>
                             </div>
                             <p className="text-xs text-slate-500 mt-1">
@@ -997,7 +998,7 @@ export default function MyApprovals() {
                                 variant={po.status === "issued" ? "default" : "secondary"}
                                 className={po.status === "issued" ? "bg-indigo-600 text-white" : ""}
                               >
-                                {po.status.toUpperCase()}
+                                {statusLabel(po.status)}
                               </Badge>
                             </div>
                             <p className="text-xs text-slate-500 mt-1">
@@ -1041,7 +1042,7 @@ export default function MyApprovals() {
                                   inv.match_status === "paid" ? "bg-emerald-600 text-white" : ""
                                 }
                               >
-                                {inv.match_status.toUpperCase()}
+                                {statusLabel(inv.match_status)}
                               </Badge>
                             </div>
                             <p className="text-xs text-slate-500 mt-1">

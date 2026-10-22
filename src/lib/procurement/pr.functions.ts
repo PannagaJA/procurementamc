@@ -7,6 +7,7 @@
  * imported inside the handlers so it never enters the client bundle.
  */
 import { createServerFn } from "@tanstack/react-start";
+import { roleLabel } from "@/lib/procurement/labels";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export type CreatePrInput = {
@@ -191,7 +192,7 @@ export const createPr = createServerFn({ method: "POST" })
     const routingReason =
       approverRole === resolved.role
         ? resolved.reason
-        : `${resolved.reason} Routed to the ${approverRole.replace(/_/g, " ").toUpperCase()} because the requester holds the ${resolved.role.replace(/_/g, " ").toUpperCase()} role.`;
+        : `${resolved.reason} Routed to the ${roleLabel(approverRole)} because the requester holds the ${roleLabel(resolved.role)} role.`;
 
     const { data: pr, error } = await db
       .from("purchase_requisitions")
@@ -363,7 +364,7 @@ async function decide(
   try {
     if (!held.includes("admin") && !allowed.some((a) => held.includes(a))) {
       throw new ForbiddenError(
-        `This requisition is waiting for the ${routedRole.replace(/_/g, " ").toUpperCase()}. You don't hold that role.`,
+        `This requisition is waiting for the ${roleLabel(routedRole)}. You don't hold that role.`,
       );
     }
     // If the approval requires HOD, ensure the caller is HOD for this PR's department
