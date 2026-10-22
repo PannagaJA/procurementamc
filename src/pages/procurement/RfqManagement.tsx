@@ -259,6 +259,30 @@ export default function RfqManagement() {
     }
   };
 
+  const [reemailing, setReemailing] = useState<string | null>(null);
+  const handleReemail = async (rfq: any) => {
+    const pending = (rfq.rfq_vendors ?? [])
+      .filter((rv: any) => !rv.response_received_at)
+      .map((rv: any) => ({ id: rv.vendor_id, name: rv.vendors?.name }));
+    if (!pending.length) return;
+    setReemailing(rfq.id);
+    try {
+      const { sent, notice } = await emailQuoteInvites(rfq.id, pending);
+      toast({
+        title: sent ? "Invitations emailed" : "No emails sent",
+        description: [
+          `${sent} of ${pending.length} vendor${pending.length === 1 ? "" : "s"} emailed for ${rfq.rfq_number}.`,
+          notice || null,
+        ]
+          .filter(Boolean)
+          .join(" "),
+        variant: sent ? undefined : "destructive",
+      });
+    } finally {
+      setReemailing(null);
+    }
+  };
+
   const handleSendRfq = async () => {
     if (!activeRfq) return;
     const minReq = activeRfq.required_min_quotations || 3;
@@ -296,7 +320,7 @@ export default function RfqManagement() {
           emailsDispatched > 0
             ? `RFQ sent to ${res.sentCount} vendors. Dispatched ${emailsDispatched} invitation emails.`
             : emailNotice
-              ? `RFQ sent to ${res.sentCount} vendors. Email notice: ${emailNotice}. You can copy private links directly from each vendor badge.`
+              ? `RFQ sent to ${res.sentCount} vendors. ${emailNotice} You can copy each vendor's link from their badge.`
               : `RFQ sent to ${res.sentCount} vendors. Quotation links generated and ready to copy.`,
       });
       setSendOpen(false);
@@ -461,6 +485,23 @@ export default function RfqManagement() {
                                       <Send className="w-3.5 h-3.5" /> Invite Vendors
                                     </Button>
                                   )}
+                                  {rfq.status === "sent" &&
+                                    !rfq.has_cs &&
+                                    (rfq.rfq_vendors ?? []).some(
+                                      (rv: any) => !rv.response_received_at,
+                                    ) && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleReemail(rfq)}
+                                        disabled={reemailing === rfq.id}
+                                        className="gap-1"
+                                        title="Email a fresh link to every vendor who hasn't quoted yet"
+                                      >
+                                        <Send className="w-3.5 h-3.5" />
+                                        {reemailing === rfq.id ? "Emailing..." : "Email vendors again"}
+                                      </Button>
+                                    )}
                                   {rfq.status === "sent" &&
                                     rfq.is_direct &&
                                     (auth.hasRole("admin") ||

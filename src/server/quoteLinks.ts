@@ -15,6 +15,11 @@ function secret(): string | null {
 const payload = (recordId: string, vendorKey: string) =>
   `${recordId.trim().toLowerCase()}:${vendorKey.trim().toLowerCase()}`;
 
+/** False until QUOTE_LINK_SECRET is set: vendor links can't be made or opened. */
+export function linksConfigured(): boolean {
+  return secret() !== null;
+}
+
 export function signQuoteToken(recordId: string, vendorKey: string): string {
   const s = secret();
   if (!s) throw new Error("Vendor links aren't configured: set QUOTE_LINK_SECRET on the server.");
