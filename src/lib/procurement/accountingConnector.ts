@@ -102,7 +102,7 @@ export function buildGlVoucher(invoice: any): GlVoucher {
   const payment = invoice.payments && invoice.payments.length > 0 ? invoice.payments[0] : null;
   const isPaid = !!payment || invoice.match_status === "paid";
 
-  const total = Number(invoice.amount || po.total_value || 0);
+  const total = Number(invoice.approved_amount ?? invoice.invoice_amount ?? po.total_value ?? 0);
   const taxes = Number(po.taxes || Math.round(total * 0.18 / 1.18));
   const baseAmount = total - taxes;
 

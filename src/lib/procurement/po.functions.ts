@@ -611,14 +611,14 @@ export const amendPo = createServerFn({ method: "POST" })
     // Never reduce an order below what has already been received or billed.
     const [{ data: grns }, { data: invs }] = await Promise.all([
       supabaseAdmin.from("grns").select("accepted_value, status").eq("po_id", po.id),
-      supabaseAdmin.from("invoices").select("invoice_amount, match_status").eq("po_id", po.id),
+      supabaseAdmin.from("invoices").select("invoice_amount, approved_amount, match_status").eq("po_id", po.id),
     ]);
     const received = (grns ?? [])
       .filter((g: any) => g.status === "accepted" || g.status === "partially_accepted")
       .reduce((sum: number, g: any) => sum + Number(g.accepted_value || 0), 0);
     const billed = (invs ?? [])
       .filter((i: any) => ["matched", "approved", "paid"].includes(i.match_status))
-      .reduce((sum: number, i: any) => sum + Number(i.invoice_amount || 0), 0);
+      .reduce((sum: number, i: any) => sum + Number(i.approved_amount ?? i.invoice_amount ?? 0), 0);
     const floor = Math.max(received, billed);
     if (newTotal + 1 < floor) {
       return {

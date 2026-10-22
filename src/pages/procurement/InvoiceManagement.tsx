@@ -29,7 +29,6 @@ import { PaginationControls } from "@/components/PaginationControls";
 import { supabase } from "@/integrations/supabase/client";
 import {
   submitInvoice,
-  runThreeWayMatch,
   approveInvoice,
   recordPayment,
   listInvoices,
@@ -52,6 +51,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { GlAccountingModal } from "@/components/procurement/GlAccountingModal";
+import { InvoiceHoldResolution } from "@/components/procurement/InvoiceHoldResolution";
 
 export default function InvoiceManagement() {
   const { toast } = useToast();
@@ -75,6 +75,8 @@ export default function InvoiceManagement() {
   const [isServicePo, setIsServicePo] = useState(false);
   const [serviceCertUrl, setServiceCertUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  // Revised invoice for one returned to the vendor (null for a new invoice)
+  const [revisionOf, setRevisionOf] = useState<any>(null);
 
   // Payment Modal
   const [payOpen, setPayOpen] = useState(false);
@@ -166,6 +168,7 @@ export default function InvoiceManagement() {
           },
           is_service_po: isServicePo,
           service_completion_cert_url: serviceCertUrl || null,
+          revision_of: revisionOf?.id ?? null,
         },
       });
 
@@ -192,6 +195,7 @@ export default function InvoiceManagement() {
       }
 
       setSubmitOpen(false);
+      setRevisionOf(null);
       setInvoiceNumber("");
       setVendorGstin("");
       loadData();
@@ -226,9 +230,23 @@ export default function InvoiceManagement() {
     }
   };
 
+  const handleRevise = (inv: any) => {
+    setRevisionOf(inv);
+    setSelectedPoId(inv.po_id);
+    setInvoiceNumber(`${inv.invoice_number}/R1`);
+    setIsServicePo(!!inv.is_service_po);
+    setServiceCertUrl(inv.service_completion_cert_url || "");
+    setSubmitOpen(true);
+  };
+
+  const canResolve = ["admin", "finance", "director_admin_finance", "procurement_officer"].some((r) =>
+    auth.hasRole(r as any),
+  );
+  const canDeduct = ["admin", "finance", "director_admin_finance"].some((r) => auth.hasRole(r as any));
+
   const handleOpenPay = (inv: any) => {
     setActiveInvoice(inv);
-    setPayAmount(Number(inv.invoice_amount || 0));
+    setPayAmount(Number(inv.approved_amount ?? inv.invoice_amount ?? 0));
     setExternalRef(`UTR-${Date.now().toString().slice(-8)}`);
     const poNum = inv.purchase_orders?.po_number || "";
     setPaymentRemarks(
@@ -280,6 +298,7 @@ export default function InvoiceManagement() {
   const invoiceFilterOptions = statusFilterOptions(invoices, (i: any) => i.match_status, ["paid", "rejected"], {
     matched: "Matched (ready to approve)",
     on_hold: "On Hold",
+    returned: "Returned to Vendor",
     approved: "Approved for Payment",
   });
 
@@ -410,6 +429,12 @@ export default function InvoiceManagement() {
                           text: "Approved for Disbursement",
                           cls: "text-emerald-700 dark:text-emerald-300",
                         };
+                      if (inv.match_status === "returned")
+                        return {
+                          icon: "↩️",
+                          text: "Returned to Vendor",
+                          cls: "text-slate-600 dark:text-slate-300",
+                        };
                       if (hasValueMismatch)
                         return {
                           icon: "❌",
@@ -454,7 +479,7 @@ export default function InvoiceManagement() {
                                           : "destructive"
                                   }
                                 >
-                                  {inv.match_status.toUpperCase()}
+                                  {inv.match_status === "returned" ? "RETURNED" : inv.match_status.toUpperCase().replace("_", " ")}
                                 </Badge>
                                 {inv.is_service_po && (
                                   <Badge
@@ -599,7 +624,7 @@ export default function InvoiceManagement() {
                             )}
 
                             {/* Value mismatch warning — caught at render time */}
-                            {hasValueMismatch && (
+                            {hasValueMismatch && !isOnHold && inv.approved_amount == null && !["returned", "paid"].includes(inv.match_status) && (
                               <div className="p-2.5 bg-red-50 dark:bg-red-950/40 border border-red-300 dark:border-red-900 rounded-lg text-xs text-red-900 dark:text-red-200 flex items-start gap-2">
                                 <AlertOctagon className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
                                 <div>
@@ -610,6 +635,14 @@ export default function InvoiceManagement() {
                                 </div>
                               </div>
                             )}
+
+                            <InvoiceHoldResolution
+                              inv={inv}
+                              canResolve={canResolve}
+                              canDeduct={canDeduct}
+                              onChanged={loadData}
+                              onRevise={handleRevise}
+                            />
 
                             {/* Payment Settlement Details (when Paid) */}
                             {isPaid && inv.payments && inv.payments.length > 0 && (
@@ -689,25 +722,34 @@ export default function InvoiceManagement() {
         </div>
 
         {/* Modal: Submit Invoice */}
-        <Dialog open={submitOpen} onOpenChange={setSubmitOpen}>
+        <Dialog
+          open={submitOpen}
+          onOpenChange={(o) => {
+            setSubmitOpen(o);
+            if (!o) setRevisionOf(null);
+          }}
+        >
           <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Submit Vendor Invoice</DialogTitle>
+              <DialogTitle>{revisionOf ? "Enter Revised Invoice" : "Submit Vendor Invoice"}</DialogTitle>
               <DialogDescription>
-                Finance entry for vendor invoice with automatic 3-way match validation.
+                {revisionOf
+                  ? `Replaces returned invoice ${revisionOf.invoice_number}. The three-way match runs again.`
+                  : "Finance entry for vendor invoice with automatic 3-way match validation."}
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 py-2">
               <div className="space-y-1">
                 <Label>Issued Purchase Order</Label>
-                <Select value={selectedPoId} onValueChange={setSelectedPoId}>
+                <Select value={selectedPoId} onValueChange={setSelectedPoId} disabled={!!revisionOf}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select PO..." />
                   </SelectTrigger>
                   <SelectContent>
                     {pos
                       .filter((p) => {
+                        if (revisionOf) return p.id === revisionOf.po_id;
                         // Exclude closed, cancelled, or rejected POs
                         if (
                           p.status === "closed" ||
@@ -724,7 +766,10 @@ export default function InvoiceManagement() {
                               inv.po_id === p.id &&
                               ["matched", "approved", "paid"].includes(inv.match_status),
                           )
-                          .reduce((sum: number, inv: any) => sum + Number(inv.invoice_amount || 0), 0);
+                          .reduce(
+                            (sum: number, inv: any) => sum + Number(inv.approved_amount ?? inv.invoice_amount ?? 0),
+                            0,
+                          );
                         if (invoiced >= Number(p.total_value || 0) - 1) return false;
 
                         // If goods PO, must have an accepted GRN (or partially accepted)
@@ -878,9 +923,11 @@ export default function InvoiceManagement() {
 
             <div className="space-y-4 py-2">
               <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded text-xs flex justify-between items-center">
-                <span className="text-slate-500">Approved Invoice Amount:</span>
+                <span className="text-slate-500">
+                  {activeInvoice?.approved_amount != null ? "Approved Amount (after deductions):" : "Approved Invoice Amount:"}
+                </span>
                 <span className="font-mono font-bold whitespace-nowrap text-sm text-slate-800 dark:text-slate-100">
-                  ₹{Number(activeInvoice?.invoice_amount || 0).toLocaleString("en-IN")}
+                  ₹{Number(activeInvoice?.approved_amount ?? activeInvoice?.invoice_amount ?? 0).toLocaleString("en-IN")}
                 </span>
               </div>
 

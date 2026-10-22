@@ -148,7 +148,21 @@ export const getMyPendingApprovals = createServerFn({ method: "GET" })
 
     const isFinanceOrProcOfficer =
       isAdmin || held.includes("director_admin_finance") || held.includes("procurement_officer");
-    const { data: invoices } = isFinanceOrProcOfficer ? await invQuery : { data: [] };
+    const { data: matchedInvoices } = isFinanceOrProcOfficer ? await invQuery : { data: [] };
+
+    // 5b. Invoice deviations awaiting the EVP (failed match, small gap). Not your own request.
+    const { data: deviations } =
+      isAdmin || held.includes("evp")
+        ? await queryDb
+            .from("invoices")
+            .select(
+              `*, purchase_orders (id, po_number, total_value, vendor_id), vendors (id, name, gst_number)`,
+            )
+            .eq("deviation_status", "requested")
+            .neq("deviation_requested_by", context.userId)
+            .order("updated_at", { ascending: false })
+        : { data: [] };
+    const invoices = [...(matchedInvoices ?? []), ...(deviations ?? [])];
 
     // 6. Pending Emergency Procurements (Awaiting EVP approval)
     let epQuery = db
