@@ -22,8 +22,6 @@ import {
   type MatchContext,
   type MatchTolerance,
 } from "@/lib/procurement/threeWayMatch";
-import { canApproveInvoiceAs } from "@/lib/procurement/separation";
-import { formatRoleTitle } from "@/lib/procurement/authorityMatrix";
 
 export { evaluateThreeWayMatch, normalizeInvoiceNumber };
 
@@ -102,14 +100,15 @@ async function loadTolerance(admin: any): Promise<MatchTolerance> {
 
 const FINANCE_ROLES = ["admin", "finance", "director_admin_finance"];
 
-/** Separation of duties (§8.7): the invoice's approver didn't enter it or receive the goods. */
+/**
+ * Separation of duties (§8.7): whoever received the goods doesn't approve the invoice.
+ * Finance may approve an invoice they entered themselves (product owner, 2026-10-22).
+ */
 async function approverConflict(
   admin: any,
-  inv: { po_id: string; submitted_by?: string | null },
+  inv: { po_id: string },
   userId: string,
 ): Promise<string | null> {
-  if (inv.submitted_by && inv.submitted_by === userId)
-    return "You entered this invoice, so someone else must approve it.";
   const { data: receipts } = await admin
     .from("grns")
     .select("id")
@@ -119,19 +118,6 @@ async function approverConflict(
   return (receipts ?? []).length
     ? "You received these goods, so someone else must approve the invoice."
     : null;
-}
-
-/** Escalation within Finance: another Finance user, else Director (Admin & Finance), else EVP. */
-async function invoiceApproverError(
-  admin: any,
-  inv: { id: string; po_id: string; submitted_by?: string | null },
-  held: string[],
-): Promise<string | null> {
-  const { invoiceApproverRoles } = await import("@/server/procurement/separation");
-  const role = (await invoiceApproverRoles(admin, [inv])).get(inv.id)!;
-  return canApproveInvoiceAs(held, role)
-    ? null
-    : `This invoice is waiting on ${formatRoleTitle(role)}: they're the first approver who didn't enter it or receive the goods.`;
 }
 const RESOLVER_ROLES = [...FINANCE_ROLES, "procurement_officer"];
 
@@ -377,9 +363,14 @@ export const approveInvoice = createServerFn({ method: "POST" })
     const roles = await getCallerRoles(db, context.userId);
     const held = roles.map((r) => r.role);
 
-    if (!canApproveInvoiceAs(held, "finance")) {
+    if (
+      !held.includes("admin") &&
+      !held.includes("director_admin_finance") &&
+      !held.includes("finance") &&
+      !held.includes("procurement_officer")
+    ) {
       throw new ForbiddenError(
-        `Invoice approval requires Finance, Director (Admin & Finance) or EVP authorization. You hold: ${held.join(", ") || "none"}.`,
+        `Invoice approval requires Finance or Procurement Officer authorization. You hold: ${held.join(", ") || "none"}.`,
       );
     }
 
@@ -396,8 +387,6 @@ export const approveInvoice = createServerFn({ method: "POST" })
       const { supabaseAdmin: sodDb } = await import("@/integrations/supabase/client.server");
       const conflict = await approverConflict(sodDb, inv, context.userId);
       if (conflict) return { ok: false as const, error: conflict, code: "separation_of_duties" };
-      const waitingOn = await invoiceApproverError(sodDb, inv, held);
-      if (waitingOn) return { ok: false as const, error: waitingOn, code: "separation_of_duties" };
     }
 
     if (inv.match_status !== "matched") {
@@ -741,12 +730,8 @@ export const approveWithDeductions = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const held = await callerRoles(context);
-    if (!canApproveInvoiceAs(held, "finance"))
-      return {
-        ok: false as const,
-        error:
-          "Only Finance, Director (Admin & Finance) or the EVP can approve an invoice with deductions.",
-      };
+    if (!FINANCE_ROLES.some((r) => held.includes(r)))
+      return { ok: false as const, error: "Only Finance can approve an invoice with deductions." };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: inv } = await supabaseAdmin
       .from("invoices")
@@ -763,9 +748,7 @@ export const approveWithDeductions = createServerFn({ method: "POST" })
       };
     }
 
-    const conflict =
-      (await approverConflict(supabaseAdmin, inv, context.userId)) ??
-      (await invoiceApproverError(supabaseAdmin, inv, held));
+    const conflict = await approverConflict(supabaseAdmin, inv, context.userId);
     if (conflict) return { ok: false as const, error: conflict };
 
     const ctx = await loadMatchContext(supabaseAdmin, inv.po_id, {
