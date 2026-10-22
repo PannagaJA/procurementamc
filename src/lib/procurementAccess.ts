@@ -61,7 +61,7 @@ export function procurementAccess(has: HasRole) {
       ]),
     pos: admin || any(["procurement_officer", "procurement_executive", "stores", "finance"]),
     grns: admin || any(["stores", "hod", "finance"]),
-    invoices: admin || any(["finance"]),
+    invoices: admin || any(["finance", "director_admin_finance", "evp"]),
     emergency:
       pr || any(["evp", "director_admin_finance", "procurement_officer", "procurement_executive"]),
     vendorRatings:
