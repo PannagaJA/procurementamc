@@ -4,7 +4,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 export interface SendRfqEmailInput {
   rfq_id: string;
   vendor_id: string;
-  quotation_url: string;
+  /** Site the link should open (localhost sends use VITE_PUBLIC_APP_URL). */
+  origin?: string | null;
 }
 
 export interface SendPoEmailInput {
@@ -17,8 +18,28 @@ export const dispatchRfqEmail = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: SendRfqEmailInput) => input)
   .handler(async ({ data, context }) => {
+    const { getCallerRoles } = await import("@/server/procurement/roles");
+    const held = (await getCallerRoles(context.supabase as any, context.userId)).map((r) => r.role);
+    if (!["admin", "procurement_officer", "procurement_executive"].some((r) => held.includes(r))) {
+      return { ok: false as const, error: "Only the procurement team can email vendors." };
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { sendRfqInvitationEmail } = await import("@/server/email/smtp");
+    const { linkOrigin, rfqVendorLink } = await import("@/server/quoteLinks");
+
+    const { data: invited } = await (supabaseAdmin as any)
+      .from("rfq_vendors")
+      .select("id")
+      .eq("rfq_id", data.rfq_id)
+      .eq("vendor_id", data.vendor_id)
+      .maybeSingle();
+    if (!invited) return { ok: false as const, error: "That vendor isn't invited to this RFQ." };
+    let quotationUrl: string;
+    try {
+      quotationUrl = rfqVendorLink(linkOrigin(data.origin), data.rfq_id, data.vendor_id);
+    } catch (e: any) {
+      return { ok: false as const, error: e.message };
+    }
 
     // Fetch vendor details
     const { data: vendor, error: vErr } = await (supabaseAdmin as any)
@@ -62,7 +83,7 @@ export const dispatchRfqEmail = createServerFn({ method: "POST" })
         rfq.purchase_requisitions?.justification ||
         "Institutional procurement requirement",
       deadline: rfq.response_deadline || "Within 7 Days",
-      quotationUrl: data.quotation_url,
+      quotationUrl,
     });
 
     return result.ok

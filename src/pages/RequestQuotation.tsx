@@ -35,7 +35,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Layout from "@/components/Layout";
 import { Copy, ExternalLink } from "lucide-react";
-import { computeVendorAccessToken, buildVendorQuotationLink } from "@/lib/quotationAuth";
+import { publicAppOrigin } from "@/lib/quotationAuth";
+import { getQuotationLink } from "@/lib/quotations.functions";
 
 const quotationSchema = z.object({
   categoryId: z.string().min(1, "Category is required"),
@@ -131,9 +132,11 @@ export default function RequestQuotation() {
 
   const handleCopyVendorLink = async (quotationId: string, companyEmail: string) => {
     try {
-      const token = await computeVendorAccessToken(quotationId, companyEmail);
-      const link = buildVendorQuotationLink(window.location.origin, quotationId, token);
-      await navigator.clipboard.writeText(link);
+      const res = await (getQuotationLink as any)({
+        data: { quotation_id: quotationId, origin: publicAppOrigin() },
+      });
+      if (!res?.ok) throw new Error(res?.error);
+      await navigator.clipboard.writeText(res.url);
       toast({
         title: "Vendor Link Copied",
         description: `Private isolated link for ${companyEmail} copied to clipboard.`,
@@ -183,15 +186,14 @@ export default function RequestQuotation() {
 
       // Call edge function to send emails with vendor-isolated token links
       const emailPromises = quotations.map(async (quotation) => {
-        const token = await computeVendorAccessToken(quotation.id, quotation.company_email);
-        const publicQuotationUrl = buildVendorQuotationLink(
-          window.location.origin,
-          quotation.id,
-          token,
-        );
-
+        let publicQuotationUrl = "";
         let emailDispatched = false;
         try {
+          const link = await (getQuotationLink as any)({
+            data: { quotation_id: quotation.id, origin: publicAppOrigin() },
+          });
+          if (!link?.ok) throw new Error(link?.error);
+          publicQuotationUrl = link.url;
           const res = await supabase.functions.invoke("send-quotation-email", {
             body: {
               quotationId: quotation.id,

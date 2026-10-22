@@ -27,8 +27,14 @@ import { useToast } from "@/hooks/use-toast";
 import { usePagination } from "@/hooks/use-pagination";
 import { PaginationControls } from "@/components/PaginationControls";
 import { supabase } from "@/integrations/supabase/client";
-import { createRfq, sendRfq, listRfqs, awardDirectPurchase } from "@/lib/procurement/rfq.functions";
-import { dispatchRfqEmail } from "@/lib/procurement/email.functions";
+import {
+  createRfq,
+  sendRfq,
+  listRfqs,
+  awardDirectPurchase,
+  getVendorQuoteLink,
+} from "@/lib/procurement/rfq.functions";
+import { emailQuoteInvites } from "@/lib/procurement/quoteInvites";
 import {
   Send,
   PlusCircle,
@@ -44,7 +50,7 @@ import {
   Award,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { computeVendorAccessToken } from "@/lib/quotationAuth";
+import { publicAppOrigin } from "@/lib/quotationAuth";
 
 export default function RfqManagement() {
   const { toast } = useToast();
@@ -234,9 +240,11 @@ export default function RfqManagement() {
 
   const handleCopyVendorLink = async (rfqId: string, vendorId: string, vendorName?: string) => {
     try {
-      const token = await computeVendorAccessToken(rfqId, vendorId);
-      const url = `${window.location.origin}/quotation/${rfqId}?vendorId=${vendorId}&token=${token}`;
-      await navigator.clipboard.writeText(url);
+      const res = await (getVendorQuoteLink as any)({
+        data: { rfq_id: rfqId, vendor_id: vendorId, origin: publicAppOrigin() },
+      });
+      if (!res?.ok) throw new Error(res?.error);
+      await navigator.clipboard.writeText(res.url);
       toast({
         title: "Vendor Link Copied",
         description: `Private quotation link for ${vendorName || "vendor"} copied to clipboard.`,
@@ -245,7 +253,7 @@ export default function RfqManagement() {
       console.error("Failed to copy link:", err);
       toast({
         title: "Copy Failed",
-        description: "Could not copy link to clipboard.",
+        description: (err as Error)?.message || "Could not copy link to clipboard.",
         variant: "destructive",
       });
     }
@@ -277,44 +285,10 @@ export default function RfqManagement() {
         return;
       }
 
-      // Dispatch quotation invitation emails using Edge Function
-      let emailsDispatched = 0;
-      let emailNotice = "";
-      const noEmailVendors: string[] = [];
-
-      if (res.vendors && res.vendors.length > 0) {
-        for (const v of res.vendors) {
-          const vEmail = (v.bank_details_json as any)?.email;
-          const token = await computeVendorAccessToken(res.rfqId, v.id);
-          const publicQuotationUrl = `${window.location.origin}/quotation/${res.rfqId}?vendorId=${v.id}&token=${token}`;
-
-          if (vEmail) {
-            try {
-              const emailRes = await (dispatchRfqEmail as any)({
-                data: {
-                  rfq_id: res.rfqId,
-                  vendor_id: v.id,
-                  quotation_url: publicQuotationUrl,
-                },
-              });
-
-              if (emailRes && emailRes.ok) {
-                emailsDispatched++;
-              } else {
-                emailNotice = emailRes?.error || "Email delivery failed";
-              }
-            } catch (callErr: any) {
-              emailNotice = callErr?.message;
-            }
-          } else {
-            noEmailVendors.push(v.name);
-          }
-        }
-      }
-      if (noEmailVendors.length > 0) {
-        const missing = `No email on file for: ${noEmailVendors.join(", ")}`;
-        emailNotice = emailNotice ? `${emailNotice}. ${missing}` : missing;
-      }
+      const { sent: emailsDispatched, notice: emailNotice } = await emailQuoteInvites(
+        res.rfqId,
+        res.vendors ?? [],
+      );
 
       toast({
         title: "RFQ Dispatched",
