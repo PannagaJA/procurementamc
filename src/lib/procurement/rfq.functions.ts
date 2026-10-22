@@ -8,6 +8,7 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { RateItem } from "@/lib/procurement/rateContracts";
 
 export type CreateRfqInput = {
   pr_id: string;
@@ -149,6 +150,80 @@ export const createRfq = createServerFn({ method: "POST" })
       return { ok: false as const, error: rfqErr.message, code: "insert_failed" };
     }
 
+    return { ok: true as const, rfq };
+  });
+
+export type CreateRateRfqInput = {
+  title: string;
+  category: string;
+  items: { group: string; description: string; unit: string }[];
+  response_deadline?: string | null;
+  notes?: string | null;
+};
+
+/**
+ * Rate finalisation RFQ (SOP Section VI): vendors quote a unit rate per item; no PR. The rates
+ * of the chosen vendor become a rate contract once at least three complete quotes are in.
+ */
+export const createRateRfq = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: CreateRateRfqInput) => input)
+  .handler(async ({ data, context }) => {
+    const db = context.supabase as any;
+    const { getCallerRoles } = await import("@/server/procurement/roles");
+    const held = (await getCallerRoles(db, context.userId)).map((r) => r.role);
+    if (!held.includes("admin") && !held.includes("procurement_officer")) {
+      return {
+        ok: false as const,
+        error: "Only Procurement Officers can create RFQs.",
+        code: "unauthorized",
+      };
+    }
+
+    const { RATE_CONTRACT_CATEGORIES, RATE_CONTRACT_MIN_QUOTES } =
+      await import("@/lib/procurement/rateContracts");
+    const { ITEM_GROUPS } = await import("@/lib/procurement/itemGroups");
+    const groups = ITEM_GROUPS.map((g) => g.id as string).filter((g) => g !== "not_consumable");
+    const items = (data.items ?? [])
+      .map((i) => ({
+        group: i.group,
+        description: (i.description ?? "").trim(),
+        unit: (i.unit ?? "").trim() || "nos",
+      }))
+      .filter((i) => i.description);
+
+    if (!data.title?.trim())
+      return { ok: false as const, error: "Give the RFQ a title.", code: "title_required" };
+    if (!RATE_CONTRACT_CATEGORIES.some((c) => c.id === data.category))
+      return { ok: false as const, error: "Choose a rate contract category.", code: "bad_category" };
+    if (!items.length)
+      return { ok: false as const, error: "Add at least one item to price.", code: "items_required" };
+    const ungrouped = items.find((i) => !groups.includes(i.group));
+    if (ungrouped)
+      return {
+        ok: false as const,
+        error: `Choose a routine-consumable item group for "${ungrouped.description}".`,
+        code: "item_group_required",
+      };
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rfq, error } = await supabaseAdmin
+      .from("rfqs")
+      .insert({
+        purpose: "rate_contract",
+        pr_id: null,
+        title: data.title.trim(),
+        category: data.category,
+        rate_items_json: items,
+        required_min_quotations: RATE_CONTRACT_MIN_QUOTES,
+        status: "draft",
+        response_deadline: data.response_deadline ?? null,
+        notes: data.notes ?? null,
+        created_by: context.userId,
+      })
+      .select("*")
+      .single();
+    if (error) return { ok: false as const, error: error.message, code: "insert_failed" };
     return { ok: true as const, rfq };
   });
 
@@ -314,7 +389,7 @@ export const listRfqs = createServerFn({ method: "GET" })
           vendors (id, name, gst_number, status)
         ),
         quotation_lines (
-          id, vendor_id, description, quantity, unit_price, tax_amount, total_price,
+          id, vendor_id, description, quantity, unit, unit_price, tax_amount, total_price, rate_item_no,
           meets_technical_spec, technical_remarks, delivery_days, warranty_months, quotation_ref, submitted_at,
           vendors (id, name)
         ),
@@ -382,7 +457,7 @@ export const getRfqForVendor = createServerFn({ method: "POST" })
         supabaseAdmin
           .from("rfqs")
           .select(
-            "id, rfq_number, status, response_deadline, purchase_requisitions (id, pr_number, category, scope, estimated_value, justification, pr_line_items (*))",
+            "id, rfq_number, status, response_deadline, purpose, title, category, rate_items_json, purchase_requisitions (id, pr_number, category, scope, estimated_value, justification, pr_line_items (*))",
           )
           .eq("id", data.rfq_id)
           .maybeSingle(),
@@ -567,6 +642,8 @@ export const submitRfqQuotationResponse = createServerFn({ method: "POST" })
       quotation_ref?: string;
       notes?: string;
       quotation_validity?: string;
+      /** Rate finalisation RFQs: the unit rate for each item, in the RFQ's item order. */
+      rates?: number[];
       lines?: Array<{
         pr_line_item_id?: string | null;
         description: string;
@@ -612,7 +689,7 @@ export const submitRfqQuotationResponse = createServerFn({ method: "POST" })
 
     const { data: rfqState } = await supabaseAdmin
       .from("rfqs")
-      .select("status, response_deadline")
+      .select("status, response_deadline, purpose, rate_items_json")
       .eq("id", data.rfq_id)
       .maybeSingle();
     if (rfqState?.status !== "sent") {
@@ -654,7 +731,19 @@ export const submitRfqQuotationResponse = createServerFn({ method: "POST" })
 
     // Public endpoint — re-validate what the form enforces.
     const invalid = (error: string) => ({ ok: false as const, error, code: "invalid_input" });
-    if (!(Number(data.total_amount) > 0)) return invalid("Total amount must be greater than 0.");
+    // Rate finalisation: a unit rate for every item; the total is their sum.
+    const rateItems =
+      rfqState.purpose === "rate_contract"
+        ? ((rfqState.rate_items_json ?? []) as unknown as RateItem[])
+        : [];
+    let totalAmount = Number(data.total_amount);
+    if (rateItems.length) {
+      const rates = data.rates ?? [];
+      if (rates.length !== rateItems.length || !rates.every((r) => Number(r) > 0))
+        return invalid("Enter a unit rate greater than 0 for every item.");
+      totalAmount = rates.reduce((s, r) => s + Number(r), 0);
+    }
+    if (!(totalAmount > 0)) return invalid("Total amount must be greater than 0.");
     const days = Number(data.delivery_days);
     if (!Number.isInteger(days) || days < 1 || days > 365)
       return invalid("Delivery time must be whole days between 1 and 365.");
@@ -679,8 +768,22 @@ export const submitRfqQuotationResponse = createServerFn({ method: "POST" })
     ].join("\n\n");
 
     // Prepare quotation lines
-    let lineItems = data.lines;
-    if (!lineItems || lineItems.length === 0) {
+    let lineItems: (NonNullable<typeof data.lines>[number] & { rate_item_no?: number })[] | undefined =
+      data.lines;
+    if (rateItems.length) {
+      lineItems = rateItems.map((it, i) => ({
+        rate_item_no: i,
+        description: it.description,
+        quantity: 1,
+        unit: it.unit,
+        unit_price: Number(data.rates![i]),
+        tax_amount: 0,
+        delivery_days: days,
+        warranty_months: 0,
+        meets_technical_spec: true,
+        technical_remarks: commercialTerms,
+      }));
+    } else if (!lineItems || lineItems.length === 0) {
       const { data: rfqRow } = await supabaseAdmin
         .from("rfqs")
         .select("pr_id")
@@ -740,6 +843,7 @@ export const submitRfqQuotationResponse = createServerFn({ method: "POST" })
         rfq_id: data.rfq_id,
         vendor_id: data.vendor_id,
         pr_line_item_id: l.pr_line_item_id ?? null,
+        rate_item_no: l.rate_item_no ?? null,
         description: l.description,
         quantity: qty,
         unit: l.unit ?? null,

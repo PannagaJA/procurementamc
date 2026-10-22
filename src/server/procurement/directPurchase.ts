@@ -23,6 +23,7 @@ export async function rateContractCover(admin: Db, groups: string[]) {
   const { data: contracts } = await admin
     .from("rate_contracts")
     .select("contract_number, valid_from, valid_to, approved_rates_json")
+    .eq("status", "active") // only EVP-approved contracts take precedence (SOP Section VI)
     .lte("valid_from", today)
     .gte("valid_to", today);
   return coveringContracts(groups, contracts ?? [], today);

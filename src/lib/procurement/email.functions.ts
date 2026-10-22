@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { rateCategoryLabel } from "@/lib/procurement/rateContracts";
 
 export interface SendRfqEmailInput {
   rfq_id: string;
@@ -61,7 +62,7 @@ export const dispatchRfqEmail = createServerFn({ method: "POST" })
     const { data: rfq, error: rfqErr } = await (supabaseAdmin as any)
       .from("rfqs")
       .select(`
-        id, rfq_number, response_deadline,
+        id, rfq_number, response_deadline, purpose, title, category,
         purchase_requisitions (
           category, scope, justification
         )
@@ -73,12 +74,16 @@ export const dispatchRfqEmail = createServerFn({ method: "POST" })
       return { ok: false as const, error: "RFQ record not found." };
     }
 
+    const isRate = rfq.purpose === "rate_contract";
     const result = await sendRfqInvitationEmail({
       vendorEmail: email,
       vendorName: vendor.name,
       rfqNumber: rfq.rfq_number || "RFQ",
-      category: rfq.purchase_requisitions?.category || "General Procurement",
+      category: isRate
+        ? `Rate contract (${rateCategoryLabel(rfq.category)})`
+        : rfq.purchase_requisitions?.category || "General Procurement",
       description:
+        (isRate && `${rfq.title}: quote a unit rate for each item, valid up to 6 months.`) ||
         rfq.purchase_requisitions?.scope ||
         rfq.purchase_requisitions?.justification ||
         "Institutional procurement requirement",

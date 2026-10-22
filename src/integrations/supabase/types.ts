@@ -1333,11 +1333,17 @@ export type Database = {
       rate_contracts: {
         Row: {
           approved_rates_json: Json;
+          approved_at: string | null;
+          approved_by: string | null;
           category: string;
           contract_number: string | null;
           created_at: string;
           created_by: string | null;
+          decision_remarks: string | null;
           id: string;
+          rfq_id: string | null;
+          selection_note: string | null;
+          status: string;
           title: string;
           updated_at: string;
           valid_from: string;
@@ -1346,11 +1352,17 @@ export type Database = {
         };
         Insert: {
           approved_rates_json?: Json;
+          approved_at?: string | null;
+          approved_by?: string | null;
           category: string;
           contract_number?: string | null;
           created_at?: string;
           created_by?: string | null;
+          decision_remarks?: string | null;
           id?: string;
+          rfq_id?: string | null;
+          selection_note?: string | null;
+          status?: string;
           title: string;
           updated_at?: string;
           valid_from: string;
@@ -1359,11 +1371,17 @@ export type Database = {
         };
         Update: {
           approved_rates_json?: Json;
+          approved_at?: string | null;
+          approved_by?: string | null;
           category?: string;
           contract_number?: string | null;
           created_at?: string;
           created_by?: string | null;
+          decision_remarks?: string | null;
           id?: string;
+          rfq_id?: string | null;
+          selection_note?: string | null;
+          status?: string;
           title?: string;
           updated_at?: string;
           valid_from?: string;
@@ -1371,6 +1389,13 @@ export type Database = {
           vendor_id?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "rate_contracts_rfq_id_fkey";
+            columns: ["rfq_id"];
+            isOneToOne: false;
+            referencedRelation: "rfqs";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "rate_contracts_vendor_id_fkey";
             columns: ["vendor_id"];
@@ -1382,39 +1407,51 @@ export type Database = {
       };
       rfqs: {
         Row: {
+          category: string | null;
           created_at: string;
           created_by: string | null;
           id: string;
           notes: string | null;
-          pr_id: string;
+          pr_id: string | null;
+          purpose: string;
+          rate_items_json: Json;
           required_min_quotations: number;
           response_deadline: string | null;
           rfq_number: string | null;
           status: string;
+          title: string | null;
           updated_at: string;
         };
         Insert: {
+          category?: string | null;
           created_at?: string;
           created_by?: string | null;
           id?: string;
           notes?: string | null;
-          pr_id: string;
+          pr_id?: string | null;
+          purpose?: string;
+          rate_items_json?: Json;
           required_min_quotations?: number;
           response_deadline?: string | null;
           rfq_number?: string | null;
           status?: string;
+          title?: string | null;
           updated_at?: string;
         };
         Update: {
+          category?: string | null;
           created_at?: string;
           created_by?: string | null;
           id?: string;
           notes?: string | null;
-          pr_id?: string;
+          pr_id?: string | null;
+          purpose?: string;
+          rate_items_json?: Json;
           required_min_quotations?: number;
           response_deadline?: string | null;
           rfq_number?: string | null;
           status?: string;
+          title?: string | null;
           updated_at?: string;
         };
         Relationships: [
@@ -1479,6 +1516,7 @@ export type Database = {
           pr_line_item_id: string | null;
           quantity: number;
           quotation_ref: string | null;
+          rate_item_no: number | null;
           rfq_id: string;
           submitted_at: string;
           tax_amount: number;
@@ -1498,6 +1536,7 @@ export type Database = {
           pr_line_item_id?: string | null;
           quantity?: number;
           quotation_ref?: string | null;
+          rate_item_no?: number | null;
           rfq_id: string;
           submitted_at?: string;
           tax_amount?: number;
@@ -1517,6 +1556,7 @@ export type Database = {
           pr_line_item_id?: string | null;
           quantity?: number;
           quotation_ref?: string | null;
+          rate_item_no?: number | null;
           rfq_id?: string;
           submitted_at?: string;
           tax_amount?: number;
