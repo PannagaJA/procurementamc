@@ -9,6 +9,7 @@
  *   requires_reapproval=true and routes to the higher authority tier.
  */
 import { createServerFn } from "@tanstack/react-start";
+import { roleLabel } from "@/lib/procurement/labels";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export type CreatePoInput = {
@@ -75,7 +76,7 @@ function poDecisionError(
   const required = po.current_approver_role;
   if (held.includes("admin") || !required) return null;
   if (!held.includes(required))
-    return `This purchase order is waiting for the ${required.replace(/_/g, " ").toUpperCase()}.`;
+    return `This purchase order is waiting for the ${roleLabel(required)}.`;
   if (
     required === "hod" &&
     !roles.some((r) => r.role === "hod" && r.department_id === po.department_id)

@@ -7,6 +7,7 @@
  * - Approval routing re-evaluated via Authority Matrix (e.g. ₹60k item routes to EVP).
  */
 import { createServerFn } from "@tanstack/react-start";
+import { roleLabel } from "@/lib/procurement/labels";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export type LineScoreInput = {
@@ -311,7 +312,7 @@ export const approveCs = createServerFn({ method: "POST" })
     if (!held.includes("admin") && requiredRole && !held.includes(requiredRole)) {
       return {
         ok: false as const,
-        error: `This comparative statement is waiting for the ${requiredRole.replace(/_/g, " ").toUpperCase()}.`,
+        error: `This comparative statement is waiting for the ${roleLabel(requiredRole)}.`,
       };
     }
 
@@ -383,7 +384,7 @@ export const rejectCs = createServerFn({ method: "POST" })
     if (!held.includes("admin") && requiredRole && !held.includes(requiredRole)) {
       return {
         ok: false as const,
-        error: `This comparative statement is waiting for the ${requiredRole.replace(/_/g, " ").toUpperCase()}.`,
+        error: `This comparative statement is waiting for the ${roleLabel(requiredRole)}.`,
       };
     }
 

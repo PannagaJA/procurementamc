@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { workingDaysSince } from "@/lib/procurement/turnaround";
 import {
   runThreeWayMatch,
   returnInvoice,
@@ -32,19 +33,6 @@ import {
 } from "lucide-react";
 
 const inr = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
-
-/** Working days (Mon–Fri) since a timestamp — SOP §8.7 asks for resolution in 2–3 working days. */
-function workingDaysSince(iso: string | null | undefined): number {
-  if (!iso) return 0;
-  let days = 0;
-  const d = new Date(iso);
-  const now = new Date();
-  while (d < now) {
-    d.setDate(d.getDate() + 1);
-    if (d <= now && d.getDay() !== 0 && d.getDay() !== 6) days++;
-  }
-  return days;
-}
 
 const GUIDANCE: Record<string, string> = {
   no_grn:

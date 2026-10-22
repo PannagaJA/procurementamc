@@ -242,7 +242,7 @@ export function resolveApprover(
     return {
       role: ESCALATION_ROLE,
       escalate: true,
-      reason: `No active authority-matrix rule exists for category "${category}". Escalated to Executive Vice President (EVP).`,
+      reason: `No approval limit is set up for this kind of purchase, so it goes to the Executive Vice President (EVP).`,
       rule: null,
       minQuotations: 3,
       requiresRateContract: false,

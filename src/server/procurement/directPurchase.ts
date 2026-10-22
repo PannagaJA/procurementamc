@@ -8,6 +8,7 @@
  * Shared by createPo (direct PO, no quotes) and awardDirectPurchase (optional quotes).
  */
 import { coveringContracts } from "@/lib/procurement/itemGroups";
+import { roleLabel } from "@/lib/procurement/labels";
 import {
   isDirectPurchase,
   normalizeCategory,
@@ -179,6 +180,6 @@ export function directPurchaseApprovalFields(check: Passed) {
     current_approver_role: role,
     approved_by: check.prApproval.approverId,
     approved_at: new Date().toISOString(),
-    routing_reason: `Direct purchase — authorised by the ${role.replace(/_/g, " ").toUpperCase()}'s approval of ${check.pr.pr_number}.`,
+    routing_reason: `Direct purchase — authorised by the ${roleLabel(role)}'s approval of ${check.pr.pr_number}.`,
   };
 }
