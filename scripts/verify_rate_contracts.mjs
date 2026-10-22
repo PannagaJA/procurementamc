@@ -39,12 +39,17 @@ assert.deepEqual(
 assert.deepEqual(r.ranked[0].rates, [245, 1750]);
 
 // Only two vendors → blocked
-r = rankRateQuotes(items, full.filter((l) => l.vendor_id !== "classic"));
+r = rankRateQuotes(
+  items,
+  full.filter((l) => l.vendor_id !== "classic"),
+);
 assert.equal(r.ok, false);
 assert.match(r.error, /at least 3 complete quotations/);
 
 // A vendor who skipped an item doesn't count
-r = rankRateQuotes(items, [...full.filter((l) => !(l.vendor_id === "classic" && l.rate_item_no === 1))]);
+r = rankRateQuotes(items, [
+  ...full.filter((l) => !(l.vendor_id === "classic" && l.rate_item_no === 1)),
+]);
 assert.equal(r.ok, false);
 // ...nor does a zero rate, or a line with no item number
 r = rankRateQuotes(items, [

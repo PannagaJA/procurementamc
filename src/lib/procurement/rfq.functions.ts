@@ -195,9 +195,17 @@ export const createRateRfq = createServerFn({ method: "POST" })
     if (!data.title?.trim())
       return { ok: false as const, error: "Give the RFQ a title.", code: "title_required" };
     if (!RATE_CONTRACT_CATEGORIES.some((c) => c.id === data.category))
-      return { ok: false as const, error: "Choose a rate contract category.", code: "bad_category" };
+      return {
+        ok: false as const,
+        error: "Choose a rate contract category.",
+        code: "bad_category",
+      };
     if (!items.length)
-      return { ok: false as const, error: "Add at least one item to price.", code: "items_required" };
+      return {
+        ok: false as const,
+        error: "Add at least one item to price.",
+        code: "items_required",
+      };
     const ungrouped = items.find((i) => !groups.includes(i.group));
     if (ungrouped)
       return {
@@ -768,8 +776,8 @@ export const submitRfqQuotationResponse = createServerFn({ method: "POST" })
     ].join("\n\n");
 
     // Prepare quotation lines
-    let lineItems: (NonNullable<typeof data.lines>[number] & { rate_item_no?: number })[] | undefined =
-      data.lines;
+    type LineInput = NonNullable<typeof data.lines>[number] & { rate_item_no?: number };
+    let lineItems: LineInput[] | undefined = data.lines;
     if (rateItems.length) {
       lineItems = rateItems.map((it, i) => ({
         rate_item_no: i,

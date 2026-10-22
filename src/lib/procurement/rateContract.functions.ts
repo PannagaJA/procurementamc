@@ -69,7 +69,8 @@ export const createRateContractFromRfq = createServerFn({ method: "POST" })
     const ranking = rankRateQuotes(items, lines ?? []);
     if (!ranking.ok) return fail(ranking.error, "min_quotations_not_met");
     const chosen = ranking.ranked.find((q) => q.vendor_id === data.vendor_id);
-    if (!chosen) return fail("This vendor didn't quote a rate for every item.", "vendor_not_quoted");
+    if (!chosen)
+      return fail("This vendor didn't quote a rate for every item.", "vendor_not_quoted");
     const isLowest = chosen === ranking.ranked[0];
     if (!isLowest && !data.justification?.trim())
       return fail(
