@@ -155,7 +155,6 @@ export default function PurchaseOrders() {
     Array<{ description: string; unit: string; rate: number; group: string }>
   >([{ description: "", unit: "pcs", rate: 0, group: "" }]);
   const [savingRc, setSavingRc] = useState(false);
-  const [empanelledVendors, setEmpanelledVendors] = useState<any[]>([]);
 
   // General action state
   const [acting, setActing] = useState(false);
@@ -230,11 +229,14 @@ export default function PurchaseOrders() {
         .in("status", ["draft", "sent"]);
       setOpenRfqByPr(Object.fromEntries((openRfqs || []).map((r: any) => [r.pr_id, r.rfq_number])));
 
-      // Fetch empanelled / active vendors
+      // Vendors that can be awarded work: empanelled and not past expiry (same rule as assertVendorEmpanelled)
       const { data: vData } = await supabase
         .from("vendors")
-        .select("id, name, gst_number, status")
-        .in("status", ["empanelled", "active"])
+        .select("id, name, gst_number, status, empanelment_expiry")
+        .eq("status", "empanelled")
+        .or(
+          `empanelment_expiry.is.null,empanelment_expiry.gte.${new Date().toISOString().split("T")[0]}`,
+        )
         .order("name");
       setVendorsList(vData || []);
 
@@ -534,7 +536,7 @@ export default function PurchaseOrders() {
     const y = new Date().getFullYear();
     const rand = Math.floor(1000 + Math.random() * 9000);
     setRcContractNumber(`RC-${y}-${rand}`);
-    setRcVendorId(empanelledVendors[0]?.id || "");
+    setRcVendorId(vendorsList[0]?.id || "");
     setRcCategory("routine_consumable");
     setRcTitle("");
     const today = new Date().toISOString().split("T")[0];
@@ -1486,12 +1488,12 @@ export default function PurchaseOrders() {
                     <SelectValue placeholder="Select active empanelled vendor..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {empanelledVendors.length === 0 ? (
+                    {vendorsList.length === 0 ? (
                       <SelectItem value="_none" disabled>
                         No empanelled vendors found
                       </SelectItem>
                     ) : (
-                      empanelledVendors.map((v) => (
+                      vendorsList.map((v) => (
                         <SelectItem key={v.id} value={v.id}>
                           {v.name} {v.gst_number ? `(${v.gst_number})` : ""}
                         </SelectItem>
