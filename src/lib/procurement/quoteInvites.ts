@@ -2,36 +2,29 @@ import { dispatchRfqEmail } from "@/lib/procurement/email.functions";
 import { publicAppOrigin } from "@/lib/quotationAuth";
 
 /**
- * After sendRfq succeeds: email each vendor their private quotation link.
- * Returns how many emails went out and a notice for anything that didn't.
+ * Email each vendor their private quotation link (the server looks up the address and signs the
+ * link). Returns how many went out and one sentence per distinct problem.
  */
 export async function emailQuoteInvites(
   rfqId: string,
-  vendors: { id: string; name: string; bank_details_json?: any }[],
+  vendors: { id: string; name?: string }[],
 ): Promise<{ sent: number; notice: string }> {
   let sent = 0;
-  let notice = "";
-  const noEmail: string[] = [];
+  const problems = new Set<string>();
 
   for (const v of vendors) {
-    if (!(v.bank_details_json as any)?.email) {
-      noEmail.push(v.name);
-      continue;
-    }
     try {
       const res = await (dispatchRfqEmail as any)({
         data: { rfq_id: rfqId, vendor_id: v.id, origin: publicAppOrigin() },
       });
       if (res?.ok) sent++;
-      else notice = res?.error || "Email delivery failed";
+      else problems.add(res?.error || `Email to ${v.name ?? "a vendor"} failed`);
     } catch (e: any) {
-      notice = e?.message;
+      problems.add(e?.message || `Email to ${v.name ?? "a vendor"} failed`);
     }
   }
 
-  if (noEmail.length) {
-    const missing = `No email on file for: ${noEmail.join(", ")}`;
-    notice = notice ? `${notice}. ${missing}` : missing;
-  }
+  // One sentence per problem, each ending in exactly one full stop.
+  const notice = [...problems].map((p) => p.trim().replace(/\.*$/, ".")).join(" ");
   return { sent, notice };
 }

@@ -169,6 +169,16 @@ export const sendRfq = createServerFn({ method: "POST" })
       };
     }
 
+    const { linksConfigured } = await import("@/server/quoteLinks");
+    if (!linksConfigured()) {
+      return {
+        ok: false as const,
+        error:
+          "Vendor links aren't set up on the server yet (QUOTE_LINK_SECRET), so vendors couldn't open their quotation. Ask your administrator to set it, then send again.",
+        code: "links_not_configured",
+      };
+    }
+
     const { assertVendorEmpanelled } = await import("@/server/procurement/guards");
     const { ProcurementRuleError } = await import("@/server/procurement/errors");
 

@@ -323,7 +323,7 @@ export default function PurchaseOrders() {
         title: "Quote requests sent",
         description: [
           `${rfqNumber} sent to ${sent.sentCount} vendors${emailed ? `, ${emailed} by email` : ""}.`,
-          notice ? `${notice}.` : null,
+          notice || null,
           "When the quotes are in, award the lowest from the RFQ page.",
         ]
           .filter(Boolean)
