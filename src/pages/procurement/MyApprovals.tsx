@@ -143,10 +143,12 @@ export default function MyApprovals() {
       if (dialogType === "pr_approve") {
         const res = await (approvePr as any)({ data: { pr_id: activeItem.id, remarks } });
         if (!res.ok) throw new Error(res.error);
-        toast({
-          title: "Requisition Approved",
-          description: `PR ${activeItem.pr_number} approved.`,
-        });
+        // Over budget: the approval sends it on to the EVP rather than approving it.
+        toast(
+          res.status === "escalated_to_evp"
+            ? { title: "Sent to the EVP", description: `${activeItem.pr_number}: ${res.reason}` }
+            : { title: "Requisition Approved", description: `PR ${activeItem.pr_number} approved.` },
+        );
       } else if (dialogType === "pr_reject") {
         const res = await (rejectPr as any)({ data: { pr_id: activeItem.id, remarks } });
         if (!res.ok) throw new Error(res.error);
