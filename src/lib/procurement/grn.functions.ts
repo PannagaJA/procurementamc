@@ -423,6 +423,22 @@ export const technicalVerify = createServerFn({ method: "POST" })
     const mutationDb = await getMutationDb(context);
     const nextStatus = data.is_accepted ? "accepted" : "rejected";
 
+    // Separation of duties: the person who prepared the GRN doesn't inspect it.
+    const { supabaseAdmin: sodDb } = await import("@/integrations/supabase/client.server");
+    const { data: grn } = await sodDb
+      .from("grns")
+      .select("prepared_by")
+      .eq("id", data.grn_id)
+      .maybeSingle();
+    if (!grn) return { ok: false as const, error: "Goods receipt not found." };
+    if (grn.prepared_by && grn.prepared_by === context.userId) {
+      return {
+        ok: false as const,
+        error: "You prepared this goods receipt, so someone else must do the technical inspection.",
+        code: "separation_of_duties",
+      };
+    }
+
     const { error } = await mutationDb
       .from("grns")
       .update({

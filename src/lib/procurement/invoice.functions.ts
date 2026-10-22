@@ -99,6 +99,25 @@ async function loadTolerance(admin: any): Promise<MatchTolerance> {
 }
 
 const FINANCE_ROLES = ["admin", "finance", "director_admin_finance"];
+
+/** Separation of duties (§8.7): the invoice's approver didn't enter it or receive the goods. */
+async function approverConflict(
+  admin: any,
+  inv: { po_id: string; submitted_by?: string | null },
+  userId: string,
+): Promise<string | null> {
+  if (inv.submitted_by && inv.submitted_by === userId)
+    return "You entered this invoice, so someone else must approve it.";
+  const { data: receipts } = await admin
+    .from("grns")
+    .select("id")
+    .eq("po_id", inv.po_id)
+    .eq("prepared_by", userId)
+    .limit(1);
+  return (receipts ?? []).length
+    ? "You received these goods, so someone else must approve the invoice."
+    : null;
+}
 const RESOLVER_ROLES = [...FINANCE_ROLES, "procurement_officer"];
 
 async function callerRoles(context: any): Promise<string[]> {
@@ -357,12 +376,17 @@ export const approveInvoice = createServerFn({ method: "POST" })
     const { data: inv, error: invErr } = await db
       .from("invoices")
       .select(
-        "id, po_id, invoice_number, match_status, hold_reason, invoice_amount, is_service_po, service_completion_cert_url, deviation_status",
+        "id, po_id, invoice_number, match_status, hold_reason, invoice_amount, is_service_po, service_completion_cert_url, deviation_status, submitted_by",
       )
       .eq("id", data.invoice_id)
       .single();
 
     if (invErr || !inv) return { ok: false as const, error: "Invoice not found" };
+    {
+      const { supabaseAdmin: sodDb } = await import("@/integrations/supabase/client.server");
+      const conflict = await approverConflict(sodDb, inv, context.userId);
+      if (conflict) return { ok: false as const, error: conflict, code: "separation_of_duties" };
+    }
 
     if (inv.match_status !== "matched") {
       return {
@@ -463,6 +487,23 @@ export const recordPayment = createServerFn({ method: "POST" })
 
     if (invErr || !inv) return { ok: false as const, error: "Invoice not found" };
     const payable = committed(inv);
+
+    // Separation of duties: whoever created the purchase order doesn't release its payment.
+    if (inv.po_id) {
+      const { supabaseAdmin: sodDb } = await import("@/integrations/supabase/client.server");
+      const { data: order } = await sodDb
+        .from("purchase_orders")
+        .select("created_by")
+        .eq("id", inv.po_id)
+        .maybeSingle();
+      if (order?.created_by && order.created_by === context.userId) {
+        return {
+          ok: false as const,
+          error: "You created this purchase order, so someone else must record its payment.",
+          code: "separation_of_duties",
+        };
+      }
+    }
 
     // Strict Gate: Invoice must be approved before payment
     if (inv.match_status !== "approved") {
@@ -694,7 +735,7 @@ export const approveWithDeductions = createServerFn({ method: "POST" })
     const { data: inv } = await supabaseAdmin
       .from("invoices")
       .select(
-        "id, po_id, invoice_number, invoice_amount, match_status, is_service_po, service_completion_cert_url",
+        "id, po_id, invoice_number, invoice_amount, match_status, is_service_po, service_completion_cert_url, submitted_by",
       )
       .eq("id", data.invoice_id)
       .maybeSingle();
@@ -706,18 +747,8 @@ export const approveWithDeductions = createServerFn({ method: "POST" })
       };
     }
 
-    const { data: receipts } = await supabaseAdmin
-      .from("grns")
-      .select("prepared_by")
-      .eq("po_id", inv.po_id)
-      .eq("prepared_by", context.userId)
-      .limit(1);
-    if ((receipts ?? []).length) {
-      return {
-        ok: false as const,
-        error: "You received these goods, so someone else must approve the invoice.",
-      };
-    }
+    const conflict = await approverConflict(supabaseAdmin, inv, context.userId);
+    if (conflict) return { ok: false as const, error: conflict };
 
     const ctx = await loadMatchContext(supabaseAdmin, inv.po_id, {
       excludeInvoiceId: inv.id,

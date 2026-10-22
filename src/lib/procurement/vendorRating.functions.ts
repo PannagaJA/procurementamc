@@ -244,12 +244,18 @@ export const countersignDebarment = createServerFn({ method: "POST" })
 
     const { data: rating, error: rErr } = await db
       .from("vendor_ratings")
-      .select("id, vendor_id, outcome, weighted_score, review_period, notes")
+      .select("id, vendor_id, outcome, weighted_score, review_period, notes, reviewed_by")
       .eq("id", data.rating_id)
       .single();
 
     if (rErr || !rating) {
       return { ok: false as const, error: "Rating record not found." };
+    }
+    if (rating.reviewed_by && rating.reviewed_by === context.userId) {
+      return {
+        ok: false as const,
+        error: "You carried out this vendor review, so someone else must countersign the debarment.",
+      };
     }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

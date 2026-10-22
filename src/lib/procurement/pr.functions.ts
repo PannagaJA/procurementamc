@@ -42,15 +42,6 @@ function monthKey(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
 }
 
-const APPROVER_CHAIN = [
-  "hod",
-  "principal",
-  "procurement_officer",
-  "purchase_committee",
-  "director_admin_finance",
-  "evp",
-];
-
 /**
  * Nobody approves their own requisition: if the requester holds the routed role (an HOD for
  * their own department), route to the next authority up the chain instead.
@@ -60,15 +51,9 @@ async function independentApprover(
   departmentId: string | null,
   role: string,
 ): Promise<string> {
-  if (!requesterId) return role;
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { getCallerRoles } = await import("@/server/procurement/roles");
-  const theirs = await getCallerRoles(supabaseAdmin as any, requesterId);
-  const holds = (r: string) =>
-    theirs.some((x) => x.role === r && (r !== "hod" || x.department_id === departmentId));
-  if (!holds(role)) return role;
-  const from = APPROVER_CHAIN.indexOf(role);
-  return APPROVER_CHAIN.slice(from + 1).find((r) => !holds(r)) ?? "evp";
+  const { independentRole } = await import("@/server/procurement/separation");
+  return independentRole(supabaseAdmin as any, { actorId: requesterId, departmentId, role });
 }
 
 /** Active rate contracts covering the given item groups (SOP §VII.5), keyed by group. */

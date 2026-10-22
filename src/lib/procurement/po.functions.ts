@@ -218,6 +218,7 @@ export const createPo = createServerFn({ method: "POST" })
         vendorId: data.vendor_id,
         total: price + taxes,
         storesConfirmed: data.stores_confirmed === true,
+        actorId: context.userId,
       });
       if (!check.ok) return check;
       // Quotes already requested: the order comes from awarding that RFQ, not a parallel PO.
@@ -324,8 +325,21 @@ export const createPo = createServerFn({ method: "POST" })
     }
 
     const standardResolved = resolveApprover(canonicalCat, totalValue, spend, rules ?? []);
-    const resolvedRole = escalationInfo?.escalateRole || standardResolved.role;
-    const resolvedReason = escalationInfo?.reason || standardResolved.reason;
+    const matrixRole = escalationInfo?.escalateRole || standardResolved.role;
+    // Whoever creates the PO can't approve it: route past their own role.
+    const { independentRole } = await import("@/server/procurement/separation");
+    const { roleLabel } = await import("@/lib/procurement/labels");
+    const { supabaseAdmin: rolesDb } = await import("@/integrations/supabase/client.server");
+    const resolvedRole = await independentRole(rolesDb as any, {
+      actorId: context.userId,
+      departmentId: pr?.department_id ?? null,
+      role: matrixRole,
+    });
+    const resolvedReason =
+      (escalationInfo?.reason || standardResolved.reason) +
+      (resolvedRole !== matrixRole
+        ? ` Routed to the ${roleLabel(resolvedRole)} because the creator holds the ${roleLabel(matrixRole)} role.`
+        : "");
     const isEscalated = Boolean(escalationInfo || standardResolved.escalate);
 
     // In database schema check constraint (purchase_orders_type_check): type IN ('regular', 'rate_contract').
@@ -741,6 +755,15 @@ export const amendPo = createServerFn({ method: "POST" })
           routing_reason: overBudgetReason(h.balance, newTotal - oldTotal),
         };
       }
+    }
+
+    if (requiresReapproval) {
+      const { independentRole } = await import("@/server/procurement/separation");
+      reapprovalRole = await independentRole(supabaseAdmin as any, {
+        actorId: context.userId,
+        departmentId: po.purchase_requisitions?.department_id ?? po.department_id ?? null,
+        role: reapprovalRole,
+      });
     }
 
     // Record Amendment
