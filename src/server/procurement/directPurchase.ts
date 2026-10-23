@@ -163,6 +163,20 @@ export async function directPurchaseChecks(
     .limit(1)
     .maybeSingle();
 
+  // Separation of Duties (SOP §8.5): PR approver cannot self-approve / create PO without independent check
+  if (!escalation && input.actorId && approval?.approver_id && input.actorId === approval.approver_id) {
+    const { independentRole } = await import("./separation");
+    const nextRole = await independentRole(admin, {
+      actorId: input.actorId,
+      departmentId: pr.department_id ?? null,
+      role: approval.approver_role ?? "procurement_officer",
+    });
+    escalation = {
+      escalateRole: nextRole,
+      reason: `The purchase order was created by the same officer who approved requisition ${pr.pr_number}. Under Separation of Duties, another approver (${roleLabel(nextRole)}) must approve the order.`,
+    };
+  }
+
   return {
     ok: true,
     pr: {

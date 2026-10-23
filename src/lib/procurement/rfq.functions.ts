@@ -274,13 +274,16 @@ export const sendRfq = createServerFn({ method: "POST" })
     if (rfqErr || !rfq)
       return { ok: false as const, error: "RFQ not found", code: "rfq_not_found" };
 
-    const minRequired = Number(rfq.required_min_quotations || 3);
+    const minRequired = Math.max(2, Number(rfq.required_min_quotations || 2));
     const selectedCount = (data.vendor_ids ?? []).length;
 
     if (selectedCount < minRequired) {
       return {
         ok: false as const,
-        error: `Select at least ${minRequired} empanelled vendors to send this RFQ (you selected ${selectedCount}).`,
+        error:
+          minRequired === 2
+            ? "Choose the requisition and at least 2 vendors to compare quotes."
+            : `Select at least ${minRequired} empanelled vendors to send this RFQ (you selected ${selectedCount}).`,
         code: "min_vendors_not_met",
       };
     }

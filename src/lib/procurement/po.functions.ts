@@ -67,11 +67,15 @@ function poDecisionError(
   },
   roles: { role: string; department_id: string | null }[],
   userId: string,
+  pendingAmendmentCreatorId?: string | null,
 ): string | null {
   const held = roles.map((r) => r.role);
   if (po.status !== "pending_approval")
     return `${po.po_number} is "${po.status}", not awaiting approval.`;
-  if (po.created_by && po.created_by === userId)
+  // Separation of Duties: cannot approve an amendment you submitted, or a PO you created
+  if (pendingAmendmentCreatorId && pendingAmendmentCreatorId === userId)
+    return "You created this amendment, so another approver must decide it.";
+  if (!pendingAmendmentCreatorId && po.created_by && po.created_by === userId)
     return "You created this purchase order, so another approver must decide it.";
   const required = po.current_approver_role;
   if (held.includes("admin") || !required) return null;
@@ -273,6 +277,19 @@ export const createPo = createServerFn({ method: "POST" })
         .select("*")
         .single();
       if (poErr) return { ok: false as const, error: poErr.message, code: "insert_po_failed" };
+
+      // When direct purchase escalates (e.g. anti-splitting or SoD), notify the approver
+      if (check.escalation && po.status === "pending_approval") {
+        import("@/server/email/notificationDispatcher")
+          .then(({ notifyApproversForPo }) =>
+            notifyApproversForPo({
+              poNumber: po.po_number || "PO",
+              role: po.current_approver_role || "evp",
+              totalValue: price + taxes,
+            }),
+          )
+          .catch((e) => console.warn("[Email] Escalated PO approver dispatch failed:", e));
+      }
       return {
         ok: true as const,
         po,
@@ -426,7 +443,16 @@ export const approvePo = createServerFn({ method: "POST" })
 
     if (error || !po) return { ok: false as const, error: "Purchase Order not found" };
 
-    const authError = poDecisionError(po, roles, context.userId);
+    const { data: pendingAm } = await supabaseAdmin
+      .from("po_amendments")
+      .select("id, created_by")
+      .eq("po_id", po.id)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const authError = poDecisionError(po, roles, context.userId, pendingAm?.created_by);
     if (authError) return { ok: false as const, error: authError };
 
     const { data: updated, error: upErr } = await supabaseAdmin
@@ -487,18 +513,19 @@ export const rejectPo = createServerFn({ method: "POST" })
       .eq("id", data.po_id)
       .maybeSingle();
     if (!po) return { ok: false as const, error: "Purchase Order not found" };
-    const authError = poDecisionError(po, roles, context.userId);
-    if (authError) return { ok: false as const, error: authError };
 
     const now = new Date().toISOString();
     const { data: amendment } = await supabaseAdmin
       .from("po_amendments")
-      .select("id, old_value_total, changed_fields_json, original_approver_role")
+      .select("id, created_by, old_value_total, changed_fields_json, original_approver_role")
       .eq("po_id", po.id)
       .eq("status", "pending")
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
+
+    const authError = poDecisionError(po, roles, context.userId, amendment?.created_by);
+    if (authError) return { ok: false as const, error: authError };
 
     if (amendment) {
       const prev = (amendment.changed_fields_json as any)?.previous ?? {};
@@ -730,12 +757,18 @@ export const amendPo = createServerFn({ method: "POST" })
       "director_admin_finance",
       "evp",
     ];
-    const originalRole = po.original_approver_role || resolvedOld.role;
-    const originalRank = roleHierarchy.indexOf(originalRole.toLowerCase());
+    const canonicalApproverRole = (r: string) => {
+      const lower = (r || "").toLowerCase();
+      if (lower === "admin") return "evp";
+      if (!roleHierarchy.includes(lower)) return resolvedOld.role.toLowerCase();
+      return lower;
+    };
+    const effectiveOriginalRole = canonicalApproverRole(po.original_approver_role || resolvedOld.role);
+    const originalRank = roleHierarchy.indexOf(effectiveOriginalRole);
     const newRank = roleHierarchy.indexOf(resolvedNew.role.toLowerCase());
 
     // Re-approval goes to whichever is higher: the original approver or the new value's approver.
-    let reapprovalRole = newRank >= originalRank ? resolvedNew.role : originalRole;
+    let reapprovalRole = newRank >= originalRank ? resolvedNew.role : effectiveOriginalRole;
 
     let requiresReapproval =
       newRank > originalRank ||
@@ -786,7 +819,7 @@ export const amendPo = createServerFn({ method: "POST" })
         new_value_total: newTotal,
         reason: data.reason,
         requires_reapproval: requiresReapproval,
-        original_approver_role: originalRole,
+        original_approver_role: effectiveOriginalRole,
         new_approver_role: reapprovalRole,
         status: requiresReapproval ? "pending" : "approved",
         changed_fields_json: {

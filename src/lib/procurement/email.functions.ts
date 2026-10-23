@@ -101,6 +101,17 @@ export const dispatchPoEmail = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: SendPoEmailInput) => input)
   .handler(async ({ data, context }) => {
+    const db = context.supabase as any;
+    const { getCallerRoles } = await import("@/server/procurement/roles");
+    const roles = (await getCallerRoles(db, context.userId)).map((r) => r.role);
+    if (!roles.includes("admin") && !roles.includes("procurement_officer")) {
+      return {
+        ok: false as const,
+        error: "Only Procurement Officers can dispatch Purchase Order emails.",
+        code: "unauthorized",
+      };
+    }
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { sendPoIssuedEmail } = await import("@/server/email/smtp");
 
@@ -108,7 +119,7 @@ export const dispatchPoEmail = createServerFn({ method: "POST" })
     const { data: po, error: poErr } = await (supabaseAdmin as any)
       .from("purchase_orders")
       .select(`
-        id, po_number, price, taxes, delivery_timeline, department_id,
+        id, po_number, status, price, taxes, delivery_timeline, department_id,
         vendors (id, name, bank_details_json)
       `)
       .eq("id", data.po_id)
@@ -116,6 +127,14 @@ export const dispatchPoEmail = createServerFn({ method: "POST" })
 
     if (poErr || !po) {
       return { ok: false as const, error: "Purchase Order not found." };
+    }
+
+    if (po.status !== "issued" && po.status !== "amended") {
+      return {
+        ok: false as const,
+        error: `Purchase Order ${po.po_number || data.po_id} is "${po.status}". Only issued orders can be emailed to vendors.`,
+        code: "invalid_status",
+      };
     }
 
     const vendor = po.vendors as any;

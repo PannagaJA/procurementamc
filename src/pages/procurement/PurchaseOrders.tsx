@@ -544,9 +544,7 @@ export default function PurchaseOrders() {
           </div>
 
           <div className="flex items-center gap-2">
-            {(auth.hasRole("admin") ||
-              auth.hasRole("procurement_officer") ||
-              auth.hasRole("procurement_executive")) && (
+            {(auth.hasRole("admin") || auth.hasRole("procurement_officer")) && (
               <>
                 <Button
                   variant="outline"
@@ -705,8 +703,7 @@ export default function PurchaseOrders() {
 
                               {isIssued &&
                                 (auth.hasRole("admin") ||
-                                  auth.hasRole("procurement_officer") ||
-                                  auth.hasRole("procurement_executive")) && (
+                                  auth.hasRole("procurement_officer")) && (
                                   <>
                                     <Button
                                       size="sm"
@@ -1238,7 +1235,12 @@ export default function PurchaseOrders() {
               ) : (
                 <Button
                   onClick={handleCreatePo}
-                  disabled={creating || !selectedPrId || Number(price) <= 0}
+                  disabled={
+                    creating ||
+                    !selectedPrId ||
+                    Number(price) <= 0 ||
+                    (poType === "direct_purchase" && !storesConfirmed)
+                  }
                   className="bg-indigo-600 hover:bg-indigo-700 text-white"
                 >
                   {creating
