@@ -115,9 +115,21 @@ async function approverConflict(
     .eq("po_id", inv.po_id)
     .eq("prepared_by", userId)
     .limit(1);
-  return (receipts ?? []).length
-    ? "You received these goods, so someone else must approve the invoice."
-    : null;
+  if ((receipts ?? []).length) {
+    return "You received these goods, so someone else must approve the invoice.";
+  }
+
+  const { data: po } = await admin
+    .from("purchase_orders")
+    .select("created_by")
+    .eq("id", inv.po_id)
+    .maybeSingle();
+
+  if (po?.created_by && po.created_by === userId) {
+    return "You created this purchase order, so someone else must approve the invoice.";
+  }
+
+  return null;
 }
 const RESOLVER_ROLES = [...FINANCE_ROLES, "procurement_officer"];
 
@@ -131,11 +143,11 @@ async function loadMatchContext(
   admin: any,
   poId: string,
   opts: { excludeInvoiceId?: string; isServicePo?: boolean; serviceCertUrl?: string | null },
-): Promise<MatchContext & { poNumber: string; vendorId: string; isServiceCategory: boolean }> {
+): Promise<MatchContext & { poNumber: string; vendorId: string; poStatus?: string; isServiceCategory: boolean }> {
   const [{ data: po }, { data: grns }, { data: invoices }] = await Promise.all([
     admin
       .from("purchase_orders")
-      .select("id, po_number, vendor_id, total_value, purchase_requisitions (category)")
+      .select("id, po_number, vendor_id, total_value, status, purchase_requisitions (category)")
       .eq("id", poId)
       .single(),
     admin.from("grns").select("accepted_value, status").eq("po_id", poId),
@@ -148,6 +160,7 @@ async function loadMatchContext(
   return {
     poNumber: po?.po_number,
     vendorId: po?.vendor_id,
+    poStatus: po?.status,
     isServiceCategory,
     poTotal: Number(po?.total_value || 0),
     acceptedGrnTotal: (grns ?? [])
@@ -186,6 +199,15 @@ export const submitInvoice = createServerFn({ method: "POST" })
     if (!invoiceNumber)
       return { ok: false as const, error: "Enter the invoice number.", code: "invalid_input" };
 
+    const amountNum = Number(data.invoice_amount);
+    if (!Number.isFinite(amountNum) || amountNum <= 0) {
+      return {
+        ok: false as const,
+        error: "Invoice amount must be greater than zero.",
+        code: "invalid_invoice_amount",
+      };
+    }
+
     // A revised invoice replaces one that was returned to the vendor (SOP §8.7).
     if (data.revision_of) {
       const { data: original } = await supabaseAdmin
@@ -215,6 +237,14 @@ export const submitInvoice = createServerFn({ method: "POST" })
     });
     if (!ctx.poNumber)
       return { ok: false as const, error: "Purchase Order not found", code: "po_not_found" };
+
+    if (ctx.poStatus === "closed" || ctx.poStatus === "cancelled") {
+      return {
+        ok: false as const,
+        error: `Invoices cannot be submitted for a ${ctx.poStatus} purchase order (${ctx.poNumber}).`,
+        code: "po_closed",
+      };
+    }
     if (data.is_service_po && !ctx.isServiceCategory) {
       return {
         ok: false as const,
@@ -527,6 +557,38 @@ export const recordPayment = createServerFn({ method: "POST" })
     // Service-role client: both payments INSERT and invoices UPDATE are blocked for authenticated users.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+    // Idempotency & concurrency check: ensure payment has not already been recorded
+    const { data: existingPayment } = await supabaseAdmin
+      .from("payments")
+      .select("id")
+      .eq("invoice_id", inv.id)
+      .limit(1);
+
+    if (existingPayment && existingPayment.length > 0) {
+      return {
+        ok: false as const,
+        error: `A payment has already been recorded for invoice "${inv.invoice_number}".`,
+        code: "payment_already_recorded",
+      };
+    }
+
+    // Atomically transition invoice from approved to paid to lock out race conditions
+    const { data: claimedInvoice, error: claimErr } = await supabaseAdmin
+      .from("invoices")
+      .update({ match_status: "paid", updated_at: new Date().toISOString() })
+      .eq("id", inv.id)
+      .eq("match_status", "approved")
+      .select("id")
+      .maybeSingle();
+
+    if (claimErr || !claimedInvoice) {
+      return {
+        ok: false as const,
+        error: `Payment is already being processed or has already been recorded for invoice "${inv.invoice_number}".`,
+        code: "payment_already_recorded",
+      };
+    }
+
     // 1. Insert Payment
     const { data: payment, error: pErr } = await supabaseAdmin
       .from("payments")
@@ -542,13 +604,16 @@ export const recordPayment = createServerFn({ method: "POST" })
       .select("*")
       .single();
 
-    if (pErr) return { ok: false as const, error: pErr.message, code: "insert_payment_failed" };
+    if (pErr) {
+      // Revert invoice match_status if payment insert failed
+      await supabaseAdmin
+        .from("invoices")
+        .update({ match_status: "approved", updated_at: new Date().toISOString() })
+        .eq("id", inv.id);
+      return { ok: false as const, error: pErr.message, code: "insert_payment_failed" };
+    }
 
-    // 2. Mark Invoice as paid (UPDATE denied for authenticated users — use service-role)
-    await supabaseAdmin
-      .from("invoices")
-      .update({ match_status: "paid", updated_at: new Date().toISOString() })
-      .eq("id", inv.id);
+    // 2. Log event
     await logEvent(supabaseAdmin, inv.id, "paid", {
       from: "approved",
       to: "paid",

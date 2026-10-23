@@ -414,6 +414,14 @@ export const rejectCs = createServerFn({ method: "POST" })
       };
     }
 
+    if (!data.rejection_remarks || !data.rejection_remarks.trim()) {
+      return {
+        ok: false as const,
+        error: "Rejection remarks are required when rejecting a comparative statement.",
+        code: "remarks_required",
+      };
+    }
+
     const { data: updated, error: upErr } = await supabaseAdmin
       .from("comparative_statements")
       .update({

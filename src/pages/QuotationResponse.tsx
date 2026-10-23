@@ -57,6 +57,18 @@ function extractFromDescription(desc: string, label: string) {
   return m ? m[1].trim() : null;
 }
 
+// Deadline check: date stored as 00:00 UTC accepts responses through the full deadline day
+function isQuotationExpired(lastReplyDate?: string | null): boolean {
+  if (!lastReplyDate) return false;
+  const d = new Date(lastReplyDate);
+  if (isNaN(d.getTime())) return false;
+  const deadlineMs =
+    lastReplyDate.length <= 10 || (d.getUTCHours() === 0 && d.getUTCMinutes() === 0)
+      ? d.getTime() + 24 * 60 * 60 * 1000
+      : d.getTime();
+  return Date.now() > deadlineMs;
+}
+
 const responseSchema = z.object({
   description: z.string().min(10, "Description must be at least 10 characters"),
   totalAmount: z
@@ -379,11 +391,7 @@ export default function QuotationResponse() {
     }
 
     // Check if quotation has expired
-    const deadline = quotation.last_reply_date
-      ? new Date(quotation.last_reply_date)
-      : new Date(8640000000000000);
-    const now = new Date();
-    if (now > deadline) {
+    if (isQuotationExpired(quotation.last_reply_date)) {
       toast({
         title: "Quotation Expired",
         description: "The response deadline for this quotation has passed.",
@@ -595,9 +603,7 @@ export default function QuotationResponse() {
     );
   }
 
-  const isExpired = quotation?.last_reply_date
-    ? new Date() > new Date(quotation.last_reply_date)
-    : false;
+  const isExpired = isQuotationExpired(quotation?.last_reply_date);
   const hasResponded = quotation
     ? quotation.isRfq
       ? !!existingResponse

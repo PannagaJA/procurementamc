@@ -91,6 +91,23 @@ export const recordDelivery = createServerFn({ method: "POST" })
       return { ok: false as const, error: "Purchase order not found", code: "po_not_found" };
     }
 
+    const validPoStatuses = ["issued", "amended", "partially_closed"];
+    if (!validPoStatuses.includes(po.status)) {
+      return {
+        ok: false as const,
+        error: `Delivery challans can only be recorded for issued purchase orders. This PO is currently "${po.status}".`,
+        code: "po_not_issued",
+      };
+    }
+
+    if (data.vendor_id && data.vendor_id !== po.vendor_id) {
+      return {
+        ok: false as const,
+        error: "Vendor does not match the vendor on the Purchase Order.",
+        code: "vendor_mismatch",
+      };
+    }
+
     const { data: challan, error: cErr } = await mutationDb
       .from("delivery_challans")
       .insert({
@@ -212,15 +229,31 @@ export const createGrn = createServerFn({ method: "POST" })
       };
     }
 
+    if (challan.po_id !== data.po_id) {
+      return {
+        ok: false as const,
+        error: "This Delivery Challan was issued for a different Purchase Order.",
+        code: "challan_po_mismatch",
+      };
+    }
+
     // 2. Fetch PO & check over-delivery
     const { data: po, error: poErr } = await mutationDb
       .from("purchase_orders")
-      .select("id, po_number, pr_id, price, taxes, total_value, cs_id, vendor_id")
+      .select("id, po_number, pr_id, price, taxes, total_value, cs_id, vendor_id, status")
       .eq("id", data.po_id)
       .single();
 
     if (poErr || !po) {
       return { ok: false as const, error: "Purchase Order not found", code: "po_not_found" };
+    }
+
+    if (!["issued", "amended", "partially_closed"].includes(po.status)) {
+      return {
+        ok: false as const,
+        error: `Goods receipt notes can only be issued for approved and issued purchase orders. This PO is currently "${po.status}".`,
+        code: "po_not_issued",
+      };
     }
 
     // Directly query PR line items to get the authoritative ordered quantity
@@ -273,15 +306,17 @@ export const createGrn = createServerFn({ method: "POST" })
       .select("id, status, accepted_value, grn_lines (qty_delivered, qty_accepted)")
       .eq("po_id", data.po_id);
 
-    const priorDelivered = (priorGrns ?? []).reduce((sum: number, g: any) => {
-      return (
-        sum +
-        (g.grn_lines ?? []).reduce(
-          (lSum: number, l: any) => lSum + (Number(l.qty_delivered) || 0),
-          0,
-        )
-      );
-    }, 0);
+    const priorDelivered = (priorGrns ?? [])
+      .filter((g: any) => g.status !== "rejected")
+      .reduce((sum: number, g: any) => {
+        return (
+          sum +
+          (g.grn_lines ?? []).reduce(
+            (lSum: number, l: any) => lSum + (Number(l.qty_delivered) || 0),
+            0,
+          )
+        );
+      }, 0);
 
     const cumulativeDelivered = priorDelivered + totalDelivered;
 
@@ -423,20 +458,74 @@ export const technicalVerify = createServerFn({ method: "POST" })
     const mutationDb = await getMutationDb(context);
     const nextStatus = data.is_accepted ? "accepted" : "rejected";
 
-    // Separation of duties: the person who prepared the GRN doesn't inspect it.
+    if (!data.is_accepted && (!data.remarks || !data.remarks.trim())) {
+      return {
+        ok: false as const,
+        error: "A rejection reason is required when rejecting goods during technical inspection.",
+        code: "remarks_required",
+      };
+    }
+
+    // Separation of duties & state checks
     const { supabaseAdmin: sodDb } = await import("@/integrations/supabase/client.server");
     const { data: grn } = await sodDb
       .from("grns")
-      .select("prepared_by")
+      .select(`
+        id, status, prepared_by, technical_verified_at, po_id,
+        purchase_orders (
+          id, status, department_id,
+          purchase_requisitions (id, department_id)
+        )
+      `)
       .eq("id", data.grn_id)
       .maybeSingle();
+
     if (!grn) return { ok: false as const, error: "Goods receipt not found." };
+
+    if (grn.status === "accepted" || grn.status === "rejected" || grn.technical_verified_at) {
+      return {
+        ok: false as const,
+        error: `This goods receipt has already been ${grn.status === "rejected" ? "rejected" : "accepted"} and its technical inspection cannot be changed.`,
+        code: "grn_already_decided",
+      };
+    }
+
     if (grn.prepared_by && grn.prepared_by === context.userId) {
       return {
         ok: false as const,
         error: "You prepared this goods receipt, so someone else must do the technical inspection.",
         code: "separation_of_duties",
       };
+    }
+
+    const poStatus = grn.purchase_orders?.status;
+    if (poStatus === "pending_approval" || poStatus === "rejected" || poStatus === "draft") {
+      return {
+        ok: false as const,
+        error: `Cannot inspect GRN: the Purchase Order is not yet approved (currently "${poStatus}").`,
+        code: "po_not_approved",
+      };
+    }
+
+    const { getCallerRoles } = await import("@/server/procurement/roles");
+    const callerRoles = await getCallerRoles(sodDb, context.userId);
+    const isHod = callerRoles.some((r) => r.role === "hod");
+    const isAdminOrStores = callerRoles.some((r) => r.role === "admin" || r.role === "stores");
+    if (isHod && !isAdminOrStores) {
+      const poDeptId =
+        grn.purchase_orders?.department_id ||
+        grn.purchase_orders?.purchase_requisitions?.department_id;
+      const hodDepts = callerRoles
+        .filter((r) => r.role === "hod")
+        .map((r) => r.department_id)
+        .filter(Boolean);
+      if (poDeptId && !hodDepts.includes(poDeptId)) {
+        return {
+          ok: false as const,
+          error: "You can only perform technical inspection for your own department.",
+          code: "cross_department_forbidden",
+        };
+      }
     }
 
     const { error } = await mutationDb
@@ -475,37 +564,17 @@ export const technicalVerify = createServerFn({ method: "POST" })
         .catch(() => {});
     }
 
-    // When GRN is accepted, ensure underlying PO status is issued so lifecycle is fully aligned
-    if (data.is_accepted) {
+    // When GRN is accepted, ensure underlying PO status is issued if it was approved
+    if (data.is_accepted && grn.purchase_orders?.status === "approved") {
       try {
-        const { data: grnRecord } = await mutationDb
-          .from("grns")
-          .select("po_id")
-          .eq("id", data.grn_id)
-          .maybeSingle();
-
-        if (grnRecord?.po_id) {
-          const { data: poRecord } = await mutationDb
-            .from("purchase_orders")
-            .select("id, status")
-            .eq("id", grnRecord.po_id)
-            .maybeSingle();
-
-          if (
-            poRecord &&
-            (poRecord.status === "pending_approval" || poRecord.status === "approved")
-          ) {
-            await mutationDb
-              .from("purchase_orders")
-              .update({
-                status: "issued",
-                approved_at: new Date().toISOString(),
-                issued_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", grnRecord.po_id);
-          }
-        }
+        await mutationDb
+          .from("purchase_orders")
+          .update({
+            status: "issued",
+            issued_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", grn.po_id);
       } catch (poErr) {
         console.warn("[GRN] Failed to sync PO status to issued on technical acceptance:", poErr);
       }
