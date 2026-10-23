@@ -160,7 +160,8 @@ export async function assertNoPoSplitting(
     }
   }
 
-  if (approved > 0 && projected > approved * (1 + PO_SPLIT_TOLERANCE)) {
+  // Requisitions and budget checks allow +₹1 rounding tolerance across the platform
+  if (approved > 0 && projected > approved + 1) {
     const priorRef = priorPoMatch ? ` (${priorPoMatch.po_number})` : "";
     throw ruleError(
       "po_splitting",
