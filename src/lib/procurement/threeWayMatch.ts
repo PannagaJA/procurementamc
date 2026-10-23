@@ -129,3 +129,26 @@ export function validateDeductions(
   }
   return null;
 }
+
+/**
+ * Is a purchase order settled after a payment? Yes when it's paid in full, or when the vendor has
+ * billed the whole order and every invoice on it is paid — what was deducted is not owed, so the
+ * rest of the order's budget can be released (SOP §8.7: payable = invoice less deductions).
+ */
+export function isOrderSettled(
+  poTotal: number,
+  invoices: { invoice_amount?: unknown; approved_amount?: unknown; match_status: string }[],
+): boolean {
+  const total = Number(poTotal) || 0;
+  const paid = invoices.filter((i) => i.match_status === "paid");
+  const paidAmount = paid.reduce(
+    (s, i) => s + Number(i.approved_amount ?? i.invoice_amount ?? 0),
+    0,
+  );
+  if (paidAmount >= total - TOLERANCE) return true;
+  const open = invoices.some((i) =>
+    ["pending", "matched", "on_hold", "approved"].includes(i.match_status),
+  );
+  const billed = paid.reduce((s, i) => s + Number(i.invoice_amount ?? 0), 0);
+  return !open && billed >= total - TOLERANCE;
+}

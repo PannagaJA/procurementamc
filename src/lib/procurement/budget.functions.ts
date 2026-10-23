@@ -315,11 +315,28 @@ export const decideBudgetProposal = createServerFn({ method: "POST" })
     if (p.status !== "with_evp")
       return { ok: false as const, error: "This budget isn't waiting for the EVP." };
 
+    // Approval replaces any head this department already has for a category (e.g. an opening
+    // budget); report each replacement so the decision is explicit (the screen shows it first).
+    const replaced: { category: string; from: number; to: number; source: string }[] = [];
     if (data.approve) {
+      const { data: current } = await supabaseAdmin
+        .from("budget_heads")
+        .select("category, allocated_amount, source")
+        .eq("financial_year", p.financial_year)
+        .eq("department_id", p.department_id);
       for (const [category, amount] of Object.entries(
         (p.category_allocations ?? {}) as Record<string, number>,
       )) {
         if (!(Number(amount) > 0)) continue;
+        const existing = (current ?? []).find((h: any) => h.category === category);
+        if (existing && Math.abs(Number(existing.allocated_amount) - Number(amount)) > 0.005) {
+          replaced.push({
+            category,
+            from: Number(existing.allocated_amount),
+            to: Number(amount),
+            source: existing.source,
+          });
+        }
         const res = await upsertHead(supabaseAdmin, {
           financial_year: p.financial_year,
           department_id: p.department_id,
@@ -345,7 +362,7 @@ export const decideBudgetProposal = createServerFn({ method: "POST" })
       })
       .eq("id", p.id);
     if (error) return { ok: false as const, error: error.message };
-    return { ok: true as const };
+    return { ok: true as const, replaced };
   });
 
 /**

@@ -508,13 +508,14 @@ export const rejectPo = createServerFn({ method: "POST" })
     const { data: po } = await supabaseAdmin
       .from("purchase_orders")
       .select(
-        "id, status, current_approver_role, po_number, created_by, department_id, taxes, issued_at",
+        "id, status, current_approver_role, po_number, created_by, department_id, taxes, issued_at, budget_status",
       )
       .eq("id", data.po_id)
       .maybeSingle();
     if (!po) return { ok: false as const, error: "Purchase Order not found" };
 
     const now = new Date().toISOString();
+    const { recomputeMonthlySpend, releasePoRemainder } = await import("@/server/procurement/budget");
     const { data: amendment } = await supabaseAdmin
       .from("po_amendments")
       .select("id, created_by, old_value_total, changed_fields_json, original_approver_role")
@@ -546,7 +547,45 @@ export const rejectPo = createServerFn({ method: "POST" })
         })
         .eq("id", po.id);
       if (error) return { ok: false as const, error: error.message };
+      await recomputeMonthlySpend(supabaseAdmin as any, po.id);
       return { ok: true as const, status: "amendment_rejected" };
+    }
+
+    // An order already issued whose approved increase went to the EVP at re-issue (over budget):
+    // rejecting the overspend undoes that increase and the order stays issued at its old value,
+    // which is what its budget commitment still covers.
+    if (po.issued_at && po.budget_status === "over_pending_evp") {
+      const { data: increase } = await supabaseAdmin
+        .from("po_amendments")
+        .select("id, old_value_total, changed_fields_json")
+        .eq("po_id", po.id)
+        .eq("status", "approved")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (increase) {
+        const prev = (increase.changed_fields_json as any)?.previous ?? {};
+        const oldTaxes = prev.taxes ?? Number(po.taxes || 0);
+        const oldPrice = prev.price ?? Number(increase.old_value_total) - oldTaxes;
+        await supabaseAdmin
+          .from("po_amendments")
+          .update({ status: "rejected", approved_by: context.userId, approved_at: now })
+          .eq("id", increase.id);
+        const { error } = await supabaseAdmin
+          .from("purchase_orders")
+          .update({
+            price: oldPrice,
+            taxes: oldTaxes,
+            status: "issued",
+            budget_status: "within",
+            routing_reason: `Over-budget increase rejected: ${data.remarks.trim()} The order stays issued at Rs. ${(oldPrice + oldTaxes).toLocaleString("en-IN")}.`,
+            updated_at: now,
+          })
+          .eq("id", po.id);
+        if (error) return { ok: false as const, error: error.message };
+        await recomputeMonthlySpend(supabaseAdmin as any, po.id);
+        return { ok: true as const, status: "increase_rejected" };
+      }
     }
 
     const { error } = await supabaseAdmin
@@ -558,6 +597,9 @@ export const rejectPo = createServerFn({ method: "POST" })
       })
       .eq("id", po.id);
     if (error) return { ok: false as const, error: error.message };
+    // A cancelled order holds no budget and no monthly spend.
+    await releasePoRemainder(supabaseAdmin as any, po.id, context.userId, "Order cancelled");
+    await recomputeMonthlySpend(supabaseAdmin as any, po.id);
     return { ok: true as const, status: "cancelled" };
   });
 
@@ -594,7 +636,7 @@ export const issuePo = createServerFn({ method: "POST" })
     // and the EVP hasn't approved the overspend, the PO goes to the EVP first.
     const pr: any = (po as any).purchase_requisitions;
     const total = Number(po.total_value || Number(po.price || 0) + Number(po.taxes || 0));
-    const { syncPoCommitment, addMonthlySpend, overBudgetReason } =
+    const { syncPoCommitment, recomputeMonthlySpend, overBudgetReason } =
       await import("@/server/procurement/budget");
     const budget = await syncPoCommitment(supabaseAdmin as any, {
       po: { id: po.id, po_number: po.po_number ?? "PO", pr_id: po.pr_id, total, budget_status: po.budget_status },
@@ -623,7 +665,8 @@ export const issuePo = createServerFn({ method: "POST" })
       .from("purchase_orders")
       .update({
         status: "issued",
-        issued_at: new Date().toISOString(),
+        // First issue date: re-issuing after an amendment keeps the order in its original month.
+        issued_at: po.issued_at ?? new Date().toISOString(),
         updated_at: new Date().toISOString(),
         budget_status: budget.status,
       })
@@ -639,14 +682,8 @@ export const issuePo = createServerFn({ method: "POST" })
       };
     }
 
-    // Month-to-date spend feeds the authority matrix's monthly caps (counted at first issue).
-    if (!po.issued_at) {
-      await addMonthlySpend(supabaseAdmin as any, {
-        departmentId: pr?.department_id ?? po.department_id,
-        category: pr?.category ?? null,
-        amount: total,
-      });
-    }
+    // Month-to-date spend for the authority matrix's monthly caps (amended values included).
+    await recomputeMonthlySpend(supabaseAdmin as any, po.id);
 
     return { ok: true as const, poId: po.id, status: "issued", poNumber: po.po_number };
   });
@@ -868,6 +905,9 @@ export const amendPo = createServerFn({ method: "POST" })
         actorId: context.userId,
       });
     }
+    // Month-to-date spend follows the order's current value (no-op if it was never issued).
+    const { recomputeMonthlySpend } = await import("@/server/procurement/budget");
+    await recomputeMonthlySpend(supabaseAdmin as any, po.id);
 
     return {
       ok: true as const,
@@ -905,11 +945,12 @@ export const closePo = createServerFn({ method: "POST" })
       .eq("id", data.po_id);
 
     if (error) return { ok: false as const, error: error.message };
+    let released = 0;
     if (nextStatus === "closed") {
       const { releasePoRemainder } = await import("@/server/procurement/budget");
-      await releasePoRemainder(supabaseAdmin as any, data.po_id, context.userId, "Order closed");
+      released = await releasePoRemainder(supabaseAdmin as any, data.po_id, context.userId, "Order closed");
     }
-    return { ok: true as const, status: nextStatus };
+    return { ok: true as const, status: nextStatus, released };
   });
 
 export const listPurchaseOrders = createServerFn({ method: "GET" })

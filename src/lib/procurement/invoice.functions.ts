@@ -647,12 +647,9 @@ export const recordPayment = createServerFn({ method: "POST" })
         .eq("id", inv.po_id)
         .single();
 
-      const totalPaid = (allInvoices ?? [])
-        .filter((i: any) => i.match_status === "paid")
-        .reduce((sum: number, i: any) => sum + committed(i), 0);
-
-      const poTotal = Number(po?.total_value || 0);
-      const isFull = totalPaid >= poTotal - 1;
+      // Paid in full, or fully billed with every invoice paid (deductions are final).
+      const { isOrderSettled } = await import("@/lib/procurement/threeWayMatch");
+      const isFull = isOrderSettled(Number(po?.total_value || 0), allInvoices ?? []);
 
       // Use service-role client: "POs direct client updates denied" RLS blocks this for authenticated users.
       const { error: poUpErr } = await supabaseAdmin
