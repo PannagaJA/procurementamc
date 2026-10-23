@@ -84,7 +84,6 @@ export function procurementAccess(has: HasRole) {
         "director_admin_finance",
         "procurement_officer",
       ]),
-    architecture: admin,
   };
   return { ...access, any: Object.values(access).some(Boolean) };
 }
