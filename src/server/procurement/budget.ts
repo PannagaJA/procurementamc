@@ -25,6 +25,23 @@ export async function headWithBalance(admin: Db, headId: string) {
   return { head, ...headTotals(head.allocated_amount, entries ?? []) };
 }
 
+/** The department's head for a PR category this year (one per category); null if none. */
+export async function budgetHeadForCategory(
+  admin: Db,
+  departmentId: string | null,
+  category: string,
+): Promise<string | null> {
+  if (!departmentId) return null;
+  const { data } = await admin
+    .from("budget_heads")
+    .select("id")
+    .eq("department_id", departmentId)
+    .eq("financial_year", financialYear())
+    .eq("category", normalizeCategory(category))
+    .maybeSingle();
+  return data?.id ?? null;
+}
+
 /**
  * PR Section B: validate the chosen head and say whether the amount fits.
  * A department with heads this year must charge PRs to one; without heads, budget is "none".
@@ -51,7 +68,10 @@ export async function prBudgetCheck(
       .eq("department_id", input.departmentId)
       .eq("financial_year", fy);
     return count
-      ? fail("Choose the budget head this requisition is charged to.", "budget_head_required")
+      ? fail(
+          "Your department has no budget for this category this financial year. Ask your HOD to add it in Annual Budgets.",
+          "budget_head_required",
+        )
       : { ok: true, status: "none", headId: null, balance: null };
   }
   const h = await headWithBalance(admin, input.headId);
