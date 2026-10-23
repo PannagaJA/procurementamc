@@ -277,15 +277,15 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
         badge: pendingPrincipalCount,
       },
     ]),
-    // How the system works — for every signed-in user.
-    {
-      label: "System Architecture",
-      path: "/architecture",
-      icon: Workflow,
-      iconClass: "text-indigo-500",
-      activeClass: TINT.blue,
-    },
   ];
+  // How the system works — for every signed-in user, pinned to the bottom of the sidebar.
+  const architectureItem: NavItem = {
+    label: "System Architecture",
+    path: "/architecture",
+    icon: Workflow,
+    iconClass: "text-indigo-500",
+    activeClass: TINT.blue,
+  };
   const procurementNav: NavItem[] = [
     ...show(proc.hub, [
       { label: "Procurement Hub", path: "/procurement", icon: Home, activeClass: TINT.blue },
@@ -380,7 +380,7 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
   const isActive = (item: NavItem) =>
     item.prefix ? location.pathname.startsWith(item.path) : location.pathname === item.path;
 
-  const renderNav = (mobile: boolean) => {
+  const renderNav = (mobile: boolean, footer = false) => {
     const button = (item: NavItem) => (
       <li key={item.path}>
         <button
@@ -407,6 +407,7 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
         </button>
       </li>
     );
+    if (footer) return <ul>{button(architectureItem)}</ul>;
     return (
       <ul className="space-y-1">
         {campusNav.map(button)}
@@ -493,15 +494,22 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
       {/* Mobile Drawer (xs to md) */}
       {mobileMenuOpen && (
         <div className="md:hidden fixed inset-0 z-30 pt-20 bg-slate-900/60 backdrop-blur-sm animate-in fade-in-0 duration-200">
-          <div className="bg-white dark:bg-slate-900 w-4/5 max-w-sm h-full shadow-2xl overflow-y-auto border-r border-slate-200 dark:border-slate-800 p-4">
-            <nav className="py-2">{renderNav(true)}</nav>
+          <div className="bg-white dark:bg-slate-900 w-4/5 max-w-sm h-full shadow-2xl border-r border-slate-200 dark:border-slate-800 flex flex-col">
+            <nav className="flex-1 overflow-y-auto p-4 py-6">{renderNav(true)}</nav>
+            <div className="shrink-0 border-t border-slate-200 dark:border-slate-800 p-3">
+              {renderNav(true, true)}
+            </div>
           </div>
         </div>
       )}
 
       {/* Sidebar for md+ */}
-      <aside className="hidden md:block md:fixed md:top-20 md:left-0 md:h-[calc(100vh-5rem)] md:w-64 lg:w-72 md:bg-white/90 md:backdrop-blur-md md:shadow-sm dark:md:bg-slate-900/90 dark:md:border-slate-700 md:border-r md:overflow-y-auto z-20">
-        <nav className="px-3.5 py-6">{renderNav(false)}</nav>
+      <aside className="hidden md:flex md:flex-col md:fixed md:top-20 md:left-0 md:h-[calc(100vh-5rem)] md:w-64 lg:w-72 md:bg-white/90 md:backdrop-blur-md md:shadow-sm dark:md:bg-slate-900/90 dark:md:border-slate-700 md:border-r z-20">
+        <nav className="flex-1 overflow-y-auto px-3.5 py-6">{renderNav(false)}</nav>
+        {/* Pinned to the bottom-left for every role */}
+        <div className="shrink-0 border-t border-slate-200 dark:border-slate-700 px-3.5 py-3">
+          {renderNav(false, true)}
+        </div>
       </aside>
 
       {/* Main content wrapper positioned to the right of fixed sidebar */}
