@@ -33,4 +33,4 @@ supabase db query --linked -f scripts/qa/reset_p2p_data.sql
 
 Check afterwards: `select count(*) from purchase_requisitions` → 0, vendors and user_roles unchanged.
 
-The test cases that follow a reset are in `docs/qa/P2P_TEST_CASES.md` (start with TC-SET).
+The test cases that follow a reset are kept locally in `local/testing/atomic/` (start with `00_README.md`).
