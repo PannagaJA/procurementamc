@@ -200,7 +200,9 @@ export default function MyApprovals() {
           description:
             res.status === "amendment_rejected"
               ? "The order is back to its previous value."
-              : "The purchase order was cancelled.",
+              : res.status === "increase_rejected"
+                ? "The increase was rejected; the order stays issued at its previous value."
+                : "The purchase order was cancelled.",
         });
       } else if (dialogType === "am_approve") {
         const res = await (approvePo as any)({ data: { po_id: activeItem.po_id, remarks } });

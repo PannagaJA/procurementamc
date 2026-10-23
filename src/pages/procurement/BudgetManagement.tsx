@@ -197,7 +197,13 @@ export default function BudgetManagement() {
               />
             </TabsContent>
             <TabsContent value="approvals" className="mt-4">
-              <Approvals fy={fy} me={me} proposals={data?.proposals ?? []} onChanged={load} />
+              <Approvals
+                fy={fy}
+                me={me}
+                proposals={data?.proposals ?? []}
+                heads={heads}
+                onChanged={load}
+              />
             </TabsContent>
             <TabsContent value="opening" className="mt-4">
               <OpeningBudget
@@ -633,15 +639,32 @@ function ProposalEditor({
   );
 }
 
+/** What approving a proposal would change: categories that already have a head this year. */
+function replacements(p: any, heads: any[]) {
+  return Object.entries((p.category_allocations ?? {}) as Record<string, number>)
+    .map(([category, to]) => {
+      const h = heads.find((x) => x.department_id === p.department_id && x.category === category);
+      return h && Math.abs(Number(h.allocated) - Number(to)) > 0.005
+        ? { category, from: Number(h.allocated), to: Number(to), source: h.source }
+        : null;
+    })
+    .filter(Boolean) as { category: string; from: number; to: number; source: string }[];
+}
+
+const replacementText = (r: { category: string; from: number; to: number; source: string }) =>
+  `${categoryLabel(r.category)}: ${r.source === "opening" ? "opening" : "approved"} ${inr(r.from)} → ${inr(r.to)}`;
+
 function Approvals({
   fy,
   me,
   proposals,
+  heads,
   onChanged,
 }: {
   fy: string;
   me: any;
   proposals: any[];
+  heads: any[];
   onChanged: () => void;
 }) {
   const { toast } = useToast();
@@ -675,6 +698,10 @@ function Approvals({
             : dialog.kind === "approve"
               ? "Budget approved — its heads are live"
               : "Budget sent back to the HOD",
+        description:
+          dialog.kind === "approve" && res.replaced?.length
+            ? `Replaced: ${res.replaced.map(replacementText).join("; ")}`
+            : undefined,
       });
       setDialog(null);
       onChanged();
@@ -757,11 +784,25 @@ function Approvals({
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  {Object.entries(p.category_allocations ?? {}).map(([c, v]) => (
-                    <Badge key={c} variant="outline" className="text-[11px] font-normal">
-                      {categoryLabel(c)}: <span className="font-mono ml-1">{inr(v as number)}</span>
-                    </Badge>
-                  ))}
+                  {Object.entries(p.category_allocations ?? {}).map(([c, v]) => {
+                    const r = replacements(p, heads).find((x) => x.category === c);
+                    return (
+                      <Badge
+                        key={c}
+                        variant="outline"
+                        className={`text-[11px] font-normal ${r ? "border-amber-400 text-amber-800 dark:text-amber-300" : ""}`}
+                      >
+                        {categoryLabel(c)}:{" "}
+                        <span className="font-mono ml-1">{inr(v as number)}</span>
+                        {r && p.status !== "sanctioned" && (
+                          <span className="ml-1">
+                            (replaces {r.source === "opening" ? "opening" : "approved"}{" "}
+                            {inr(r.from)})
+                          </span>
+                        )}
+                      </Badge>
+                    );
+                  })}
                 </div>
                 {(p.hod_remarks || p.finance_remarks || p.evp_remarks) && (
                   <div className="text-xs text-muted-foreground space-y-0.5">
@@ -788,7 +829,9 @@ function Approvals({
             </DialogTitle>
             <DialogDescription>
               {dialog?.kind === "approve"
-                ? "Its category amounts become budget heads that requisitions are charged to."
+                ? replacements(dialog.proposal, heads).length
+                  ? `Its category amounts become budget heads. This replaces amounts already set for this year — ${replacements(dialog.proposal, heads).map(replacementText).join("; ")}.`
+                  : "Its category amounts become budget heads that requisitions are charged to."
                 : dialog?.kind === "rework"
                   ? "The HOD can edit and resubmit it."
                   : `${submitted.length} submitted budget${submitted.length === 1 ? "" : "s"} go to the EVP together.`}

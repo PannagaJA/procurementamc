@@ -14,6 +14,7 @@ const {
   deviationEligible,
   validateDeductions,
   DEFAULT_MATCH_TOLERANCE,
+  isOrderSettled,
 } = await jiti.import("../src/lib/procurement/threeWayMatch.ts");
 const { poUnitRate } = await jiti.import("../src/lib/procurement/poRates.ts");
 
@@ -171,5 +172,31 @@ const po1020 = {
 assert.equal(poUnitRate(po1020, "books") * 10 + poUnitRate(po1020, "paper") * 1000, 1700);
 // PO priced above the PR estimate: rates scale up so the GRN still reaches the PO total
 assert.equal(poUnitRate({ ...po1020, total_value: 3400 }, "books"), 240);
+
+// Order settlement (BUD-48/49/50): paid in full, or fully billed with every invoice paid
+const paid = (amt, approved) => ({
+  invoice_amount: amt,
+  approved_amount: approved ?? null,
+  match_status: "paid",
+});
+assert.equal(isOrderSettled(1500, [paid(1500)]), true, "paid in full");
+assert.equal(isOrderSettled(1500, [paid(1501)]), true, "within Rs. 1");
+assert.equal(isOrderSettled(5000, [paid(3000)]), false, "part delivered and paid: stays open");
+assert.equal(
+  isOrderSettled(5000, [paid(5000, 4500)]),
+  true,
+  "billed in full, paid less after a deduction: settled",
+);
+assert.equal(isOrderSettled(2000, [paid(2500, 2000)]), true, "over-billed, paid the PO value");
+assert.equal(
+  isOrderSettled(5000, [paid(3000, 2800), { invoice_amount: 2000, match_status: "approved" }]),
+  false,
+  "another invoice still to be paid",
+);
+assert.equal(
+  isOrderSettled(5000, [paid(3000), { invoice_amount: 2000, match_status: "returned" }]),
+  false,
+);
+assert.equal(isOrderSettled(5000, []), false);
 
 console.log("three-way match: all checks passed");

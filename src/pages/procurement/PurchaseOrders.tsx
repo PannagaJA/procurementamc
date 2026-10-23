@@ -503,7 +503,13 @@ export default function PurchaseOrders() {
         toast({ title: "Failed to close PO", description: res.error, variant: "destructive" });
         return;
       }
-      toast({ title: "PO Closed", description: `Order ${po.po_number} marked as closed.` });
+      toast({
+        title: "PO Closed",
+        description:
+          Number(res.released) > 0
+            ? `Order ${po.po_number} closed. Rs. ${Number(res.released).toLocaleString("en-IN")} of unused budget released.`
+            : `Order ${po.po_number} marked as closed.`,
+      });
       loadData();
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
@@ -519,11 +525,10 @@ export default function PurchaseOrders() {
     (rc) => rc.status === "pending_approval",
   ).length;
 
-  const poFilterOptions = statusFilterOptions(orders, (o: any) => o.status, [
-    "closed",
-    "cancelled",
-    "partially_closed",
-  ]);
+  // Part-paid orders are still open (more invoices, or Close PO to release the rest).
+  const poFilterOptions = statusFilterOptions(orders, (o: any) => o.status, ["closed", "cancelled"], {
+    partially_closed: "Part paid",
+  });
 
   return (
     <Layout>
@@ -701,10 +706,11 @@ export default function PurchaseOrders() {
                                   </Button>
                                 )}
 
-                              {isIssued &&
+                              {(isIssued || po.status === "partially_closed") &&
                                 (auth.hasRole("admin") ||
                                   auth.hasRole("procurement_officer")) && (
                                   <>
+                                    {isIssued && (
                                     <Button
                                       size="sm"
                                       variant="outline"
@@ -713,6 +719,7 @@ export default function PurchaseOrders() {
                                     >
                                       <FileEdit className="w-3.5 h-3.5" /> Amend
                                     </Button>
+                                    )}
                                     <Button
                                       size="sm"
                                       variant="outline"
