@@ -83,6 +83,13 @@ export const prepareComparativeStatement = createServerFn({ method: "POST" })
 
     if (rfqErr || !rfq)
       return { ok: false as const, error: "RFQ not found", code: "rfq_not_found" };
+    // Rate finalisation RFQs have no PR; their quotes become a rate contract, not a CS.
+    if (!rfq.pr_id)
+      return {
+        ok: false as const,
+        error: `${rfq.rfq_number} finalises rate-contract rates. Create the rate contract from its quotes instead.`,
+        code: "rate_rfq_no_cs",
+      };
 
     const { data: pr, error: prErr } = await supabaseAdmin
       .from("purchase_requisitions")

@@ -23,6 +23,8 @@ import { approveCs, rejectCs } from "@/lib/procurement/cs.functions";
 import { approvePo, rejectPo } from "@/lib/procurement/po.functions";
 import { approveInvoice, decideDeviation } from "@/lib/procurement/invoice.functions";
 import { approveEmergency } from "@/lib/procurement/emergency.functions";
+import { decideRateContract } from "@/lib/procurement/rateContract.functions";
+import { rateCategoryLabel } from "@/lib/procurement/rateContracts";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,6 +45,7 @@ import {
   FileEdit,
   Receipt,
   Zap,
+  ScrollText,
   UserCheck,
   History,
   Calendar,
@@ -78,6 +81,8 @@ export default function MyApprovals() {
     | "dev_reject"
     | "ep_approve"
     | "ep_reject"
+    | "rc_approve"
+    | "rc_reject"
   >("pr_approve");
   const [activeItem, setActiveItem] = useState<any>(null);
   const [remarks, setRemarks] = useState("");
@@ -238,6 +243,18 @@ export default function MyApprovals() {
         });
         if (!res.ok) throw new Error(res.error);
         toast({ title: "Emergency Procurement Rejected", description: "Recorded in register." });
+      } else if (dialogType === "rc_approve" || dialogType === "rc_reject") {
+        const approved = dialogType === "rc_approve";
+        const res = await decideRateContract({
+          data: { id: activeItem.id, decision: approved ? "approved" : "rejected", remarks },
+        });
+        if (!res.ok) throw new Error(res.error);
+        toast({
+          title: approved ? "Rate contract approved" : "Rate contract rejected",
+          description: approved
+            ? `${activeItem.contract_number} now covers purchases until ${activeItem.valid_to}.`
+            : `${activeItem.contract_number} won't be used.`,
+        });
       }
 
       setDialogOpen(false);
@@ -256,6 +273,7 @@ export default function MyApprovals() {
     amendments: 0,
     invoices: 0,
     emergency: 0,
+    rateContracts: 0,
     total: 0,
   };
   const userRoles = data?.roles || [];
@@ -314,6 +332,14 @@ export default function MyApprovals() {
       icon: Zap,
       color: "text-amber-600",
       count: counts.emergency,
+    },
+    {
+      id: "rateContracts",
+      label: "Rate contracts",
+      fullLabel: "Rate Contracts (EVP approval)",
+      icon: ScrollText,
+      color: "text-violet-600",
+      count: counts.rateContracts ?? 0,
     },
     {
       id: "history",
@@ -784,6 +810,92 @@ export default function MyApprovals() {
                       <span className="font-medium">Reason Standard Process Failed: </span>
                       {ep.reason_standard_process_failed}
                     </p>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </TabsContent>
+
+          {/* Rate Contracts Tab (SOP Section VI: approved by the EVP, from 3+ quotations) */}
+          <TabsContent value="rateContracts" className="space-y-3">
+            {loading ? (
+              <div className="p-8 text-center text-slate-500">Loading rate contracts...</div>
+            ) : (data?.rateContracts || []).length === 0 ? (
+              <Card className="p-8 text-center text-slate-500">
+                No rate contracts awaiting EVP approval.
+              </Card>
+            ) : (
+              data?.rateContracts?.map((rc: any) => (
+                <Card key={rc.id} className="border border-slate-200 dark:border-slate-800">
+                  <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono font-bold whitespace-nowrap">
+                          {rc.contract_number}
+                        </span>
+                        <Badge variant="outline" className="text-violet-700 border-violet-400">
+                          {rateCategoryLabel(rc.category)}
+                        </Badge>
+                        {rc.rfqs?.rfq_number && (
+                          <Badge variant="secondary">From {rc.rfqs.rfq_number}</Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1">
+                        {rc.title} • Vendor: {rc.vendors?.name} • Valid {rc.valid_from} to{" "}
+                        {rc.valid_to}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => handleOpenAction(rc, "rc_approve")}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                      >
+                        <CheckCircle className="w-3.5 h-3.5" /> Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleOpenAction(rc, "rc_reject")}
+                        className="gap-1"
+                      >
+                        <XCircle className="w-3.5 h-3.5" /> Reject
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-4 pt-2 text-xs space-y-2">
+                    <div className="flex flex-wrap gap-x-4 gap-y-1">
+                      {(rc.approved_rates_json || []).map((r: any, i: number) => (
+                        <span key={i}>
+                          {r.description}:{" "}
+                          <span className="font-mono font-semibold">
+                            ₹{Number(r.rate).toLocaleString("en-IN")}
+                          </span>
+                          /{r.unit}
+                        </span>
+                      ))}
+                    </div>
+                    {rc.quotes?.length ? (
+                      <p className="text-slate-600 dark:text-slate-300">
+                        <span className="font-medium">Quotes (total of unit rates): </span>
+                        {rc.quotes
+                          .map(
+                            (q: any, i: number) =>
+                              `${q.vendor_name} ₹${Number(q.total).toLocaleString("en-IN")}${i === 0 ? " (lowest)" : ""}`,
+                          )
+                          .join(" · ")}
+                      </p>
+                    ) : (
+                      <p className="text-amber-700 dark:text-amber-300">
+                        Registered before the 3-quotation rule: no quotes on record.
+                      </p>
+                    )}
+                    {rc.selection_note && (
+                      <p className="text-amber-800 dark:text-amber-300">
+                        <span className="font-medium">Why not the lowest quote: </span>
+                        {rc.selection_note}
+                      </p>
+                    )}
                   </CardContent>
                 </Card>
               ))

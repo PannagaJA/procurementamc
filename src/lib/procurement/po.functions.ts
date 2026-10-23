@@ -193,12 +193,23 @@ export const createPo = createServerFn({ method: "POST" })
       const today = new Date().toISOString().split("T")[0];
       const { data: rc, error: rcErr } = await db
         .from("rate_contracts")
-        .select("id, vendor_id, valid_from, valid_to")
+        .select("id, contract_number, vendor_id, valid_from, valid_to, status")
         .eq("id", data.rate_contract_id)
         .single();
 
       if (rcErr || !rc)
         return { ok: false as const, error: "Rate contract not found", code: "rc_not_found" };
+      // SOP Section VI: a rate contract counts only once the EVP has approved it.
+      if (rc.status !== "active") {
+        return {
+          ok: false as const,
+          error:
+            rc.status === "rejected"
+              ? `Rate contract ${rc.contract_number} was rejected by the EVP.`
+              : `Rate contract ${rc.contract_number} is waiting for the EVP's approval.`,
+          code: "rc_not_approved",
+        };
+      }
       if (rc.valid_from > today || rc.valid_to < today) {
         return {
           ok: false as const,

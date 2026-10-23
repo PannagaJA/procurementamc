@@ -42,6 +42,7 @@ import {
   Phone,
 } from "lucide-react";
 import { getQuotationForVendor, submitQuotationResponse } from "@/lib/quotations.functions";
+import { rateCategoryLabel, type RateItem } from "@/lib/procurement/rateContracts";
 import {
   getRfqForVendor,
   minValidityDate,
@@ -122,6 +123,8 @@ export default function QuotationResponse() {
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Rate contract RFQs: one unit rate per item, in the RFQ's item order
+  const [rates, setRates] = useState<string[]>([]);
   const [accessDenied, setAccessDenied] = useState(false);
   const [accessDeniedReason, setAccessDeniedReason] = useState("");
   const { toast } = useToast();
@@ -234,14 +237,18 @@ export default function QuotationResponse() {
           );
           const firstUnit = prItems[0]?.unit || "pcs";
 
+          const isRateRfq = rfqData.purpose === "rate_contract";
           resolvedQuotation = {
             id: rfqData.id,
             product_name:
+              (isRateRfq && rfqData.title) ||
               itemNames ||
               rfqData.purchase_requisitions?.scope ||
               rfqData.purchase_requisitions?.pr_number ||
               `RFQ ${rfqData.rfq_number}`,
             description:
+              (isRateRfq &&
+                `Unit rates for a rate contract valid up to 6 months. Quote a rate for every item below.${rfqData.notes ? ` ${rfqData.notes}` : ""}`) ||
               rfqData.purchase_requisitions?.scope ||
               rfqData.purchase_requisitions?.justification ||
               "Requisitioned goods/services requirement for AMC institutions.",
@@ -253,7 +260,9 @@ export default function QuotationResponse() {
             admin_status: "pending",
             company_email: vendorEmail || vendorName,
             categories: {
-              name: rfqData.purchase_requisitions?.category || "Institutional Procurement",
+              name: isRateRfq
+                ? `Rate contract · ${rateCategoryLabel(rfqData.category)}`
+                : rfqData.purchase_requisitions?.category || "Institutional Procurement",
             },
             isRfq: true,
             vendorId: rfqVendorId,
@@ -353,6 +362,15 @@ export default function QuotationResponse() {
     fetchQuotationAndResponse();
   }, [fetchQuotationAndResponse]);
 
+  const rateItems: RateItem[] =
+    quotation?.rfq?.purpose === "rate_contract" ? (quotation.rfq.rate_items_json ?? []) : [];
+  // The total of a rate quote is the sum of its unit rates.
+  useEffect(() => {
+    if (!rateItems.length) return;
+    const sum = rateItems.reduce((s, _, i) => s + (Number(rates[i]) || 0), 0);
+    form.setValue("totalAmount", sum > 0 ? String(sum) : "", { shouldValidate: sum > 0 });
+  }, [rates, rateItems.length, form]);
+
   const onSubmit = async (data: ResponseForm) => {
     console.log("onSubmit called with data:", data);
     if (!quotation) {
@@ -392,12 +410,22 @@ export default function QuotationResponse() {
         return;
       }
 
+      if (rateItems.length && !rateItems.every((_, i) => Number(rates[i]) > 0)) {
+        toast({
+          title: "Unit rates required",
+          description: "Enter a unit rate greater than 0 for every item.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       setIsSubmitting(true);
       try {
         const searchParams = new URLSearchParams(window.location.search || location.search);
         const token = searchParams.get("token") || "";
         const res = await submitRfqQuotationResponse({
           data: {
+            rates: rateItems.length ? rateItems.map((_, i) => Number(rates[i])) : undefined,
             rfq_id: quotation.id,
             vendor_id: quotation.vendorId || "",
             token,
@@ -665,6 +693,54 @@ export default function QuotationResponse() {
                 </div>
               </div>
             </div>
+            {rateItems.length > 0 && (
+              <div className="mt-4 pt-4 border-t">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-2">
+                  Unit rates to quote (every item)
+                </label>
+                <div className="border rounded-md overflow-hidden bg-background">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted/80 text-muted-foreground">
+                      <tr>
+                        <th className="p-2 text-left w-12">#</th>
+                        <th className="p-2 text-left">Item</th>
+                        <th className="p-2 text-left w-20">Unit</th>
+                        <th className="p-2 text-right w-36">Rate per unit (₹)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {rateItems.map((it, idx) => (
+                        <tr key={idx}>
+                          <td className="p-2 font-mono text-muted-foreground">{idx + 1}</td>
+                          <td className="p-2 font-medium text-slate-900 dark:text-slate-100">
+                            {it.description}
+                          </td>
+                          <td className="p-2 text-muted-foreground">{it.unit}</td>
+                          <td className="p-2">
+                            <Input
+                              inputMode="decimal"
+                              className="h-8 text-right"
+                              placeholder="0.00"
+                              disabled={!!existingResponse}
+                              value={rates[idx] ?? ""}
+                              onChange={(e) => {
+                                const v = e.target.value.replace(/[^0-9.]/g, "");
+                                setRates((prev) => {
+                                  const next = [...prev];
+                                  next[idx] = v;
+                                  return next;
+                                });
+                              }}
+                              aria-label={`Rate per ${it.unit} for ${it.description}`}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
             {quotation.pr_line_items && quotation.pr_line_items.length > 0 && (
               <div className="mt-4 pt-4 border-t">
                 <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-2">
@@ -987,6 +1063,7 @@ export default function QuotationResponse() {
                             <Input
                               type="text"
                               placeholder="0.00"
+                              readOnly={rateItems.length > 0}
                               {...field}
                               onChange={(e) => {
                                 // Allow only numbers and decimal point
@@ -1002,7 +1079,9 @@ export default function QuotationResponse() {
                             />
                           </FormControl>
                           <FormDescription>
-                            Enter the total cost including all fees and taxes in Indian Rupees
+                            {rateItems.length > 0
+                              ? "The sum of your unit rates above (filled in for you)"
+                              : "Enter the total cost including all fees and taxes in Indian Rupees"}
                           </FormDescription>
                           <FormMessage />
                         </FormItem>

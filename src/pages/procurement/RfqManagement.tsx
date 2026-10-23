@@ -35,6 +35,8 @@ import {
   getVendorQuoteLink,
 } from "@/lib/procurement/rfq.functions";
 import { emailQuoteInvites } from "@/lib/procurement/quoteInvites";
+import { NewRateRfqDialog, RateQuotesDialog } from "@/components/procurement/RateContractRfq";
+import { rateCategoryLabel } from "@/lib/procurement/rateContracts";
 import {
   Send,
   PlusCircle,
@@ -63,6 +65,9 @@ export default function RfqManagement() {
   const [loading, setLoading] = useState(true);
   const [rfqFilter, setRfqFilter] = useState("active");
   const [viewQuotesRfq, setViewQuotesRfq] = useState<any>(null);
+  // Rate finalisation RFQs (rate contracts, SOP Section VI)
+  const [rateRfqOpen, setRateRfqOpen] = useState(false);
+  const [rateQuotesRfq, setRateQuotesRfq] = useState<any>(null);
 
   // Create RFQ Modal
   const [createOpen, setCreateOpen] = useState(false);
@@ -366,6 +371,16 @@ export default function RfqManagement() {
                 <PlusCircle className="w-4 h-4" /> Create RFQ
               </Button>
             )}
+            {(auth.hasRole("admin") || auth.hasRole("procurement_officer")) && (
+              <Button
+                variant="outline"
+                onClick={() => setRateRfqOpen(true)}
+                className="gap-2"
+                title="Collect at least 3 quotations to finalise rate-contract rates"
+              >
+                <PlusCircle className="w-4 h-4" /> Rate contract RFQ
+              </Button>
+            )}
           </div>
         </div>
 
@@ -412,6 +427,7 @@ export default function RfqManagement() {
                       rfq.rfq_vendors?.filter((v: any) => v.response_received_at)?.length || 0;
                     const minReq = rfq.required_min_quotations || 3;
                     const pr = rfq.purchase_requisitions;
+                    const isRateRfq = rfq.purpose === "rate_contract";
 
                     return (
                       <Card
@@ -449,15 +465,27 @@ export default function RfqManagement() {
                                     Direct purchase · no CS
                                   </Badge>
                                 )}
+                                {isRateRfq && (
+                                  <Badge className="text-xs bg-violet-100 text-violet-800 hover:bg-violet-100 dark:bg-violet-950 dark:text-violet-300">
+                                    Rate contract · no CS
+                                  </Badge>
+                                )}
                               </div>
-                              <p className="text-xs text-slate-500">
-                                PR Ref:{" "}
-                                <span className="font-semibold text-slate-700 dark:text-slate-300">
-                                  {pr?.pr_number || "PR"}
-                                </span>{" "}
-                                • Category: {pr?.category} • Est. Value: ₹
-                                {Number(pr?.estimated_value || 0).toLocaleString("en-IN")}
-                              </p>
+                              {isRateRfq ? (
+                                <p className="text-xs text-slate-500">
+                                  Rate finalisation • {rateCategoryLabel(rfq.category)} •{" "}
+                                  {(rfq.rate_items_json ?? []).length} item(s) to price
+                                </p>
+                              ) : (
+                                <p className="text-xs text-slate-500">
+                                  PR Ref:{" "}
+                                  <span className="font-semibold text-slate-700 dark:text-slate-300">
+                                    {pr?.pr_number || "PR"}
+                                  </span>{" "}
+                                  • Category: {pr?.category} • Est. Value: ₹
+                                  {Number(pr?.estimated_value || 0).toLocaleString("en-IN")}
+                                </p>
+                              )}
                             </div>
 
                             <div className="flex flex-wrap items-center gap-2">
@@ -465,7 +493,9 @@ export default function RfqManagement() {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => setViewQuotesRfq(rfq)}
+                                  onClick={() =>
+                                    isRateRfq ? setRateQuotesRfq(rfq) : setViewQuotesRfq(rfq)
+                                  }
                                   className="gap-1.5 border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 shadow-sm"
                                 >
                                   <Eye className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
@@ -531,7 +561,9 @@ export default function RfqManagement() {
                             <span className="font-semibold text-slate-700 dark:text-slate-200">
                               Scope of Requirement:{" "}
                             </span>
-                            {pr?.scope || "Requisitioned goods/services."}
+                            {isRateRfq
+                              ? `${rfq.title}: ${(rfq.rate_items_json ?? []).map((it: any) => it.description).join(", ")}`
+                              : pr?.scope || "Requisitioned goods/services."}
                           </div>
 
                           {/* Stats */}
@@ -915,6 +947,19 @@ export default function RfqManagement() {
         </Dialog>
 
         {/* Modal: View Submitted Quotations */}
+        <NewRateRfqDialog open={rateRfqOpen} onOpenChange={setRateRfqOpen} onCreated={loadData} />
+        <RateQuotesDialog
+          key={rateQuotesRfq?.id ?? "none"}
+          rfq={rateQuotesRfq}
+          canCreate={
+            auth.hasRole("admin") ||
+            auth.hasRole("procurement_officer") ||
+            auth.hasRole("procurement_executive")
+          }
+          onClose={() => setRateQuotesRfq(null)}
+          onCreated={loadData}
+        />
+
         <Dialog open={!!viewQuotesRfq} onOpenChange={(open) => !open && setViewQuotesRfq(null)}>
           <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>

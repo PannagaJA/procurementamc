@@ -591,6 +591,7 @@ export default function ComparativeStatements() {
                       .filter(
                         (r) =>
                           r.status === "sent" &&
+                          r.purpose !== "rate_contract" && // rate RFQs become a rate contract, not a CS
                           !csList.some((c: any) => c.rfq_id === r.id && c.status !== "rejected"),
                       )
                       .map((r) => {
