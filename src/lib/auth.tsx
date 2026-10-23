@@ -117,7 +117,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const {
         data: { user: authUser },
+        error: userError,
       } = await supabase.auth.getUser();
+      // Network trouble (offline, waking from sleep): keep the cached user and roles.
+      if (userError && userError.name !== "AuthSessionMissingError") return;
       setUserId(authUser?.id ?? null);
       setUser(authUser ?? null);
       if (!authUser) {
@@ -158,7 +161,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     load();
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      // Only a real sign-out clears the user; a failed refresh while offline doesn't.
+      if (!session && event !== "SIGNED_OUT") return;
       if (!session) {
         setUserId(null);
         setUser(null);
