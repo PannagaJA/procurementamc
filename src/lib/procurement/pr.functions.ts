@@ -9,6 +9,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { roleLabel } from "@/lib/procurement/labels";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { normalizeCategory } from "@/lib/procurement/authorityMatrix";
 
 export type CreatePrInput = {
   department_id: string | null;
@@ -72,21 +73,13 @@ export const rateContractCoverage = createServerFn({ method: "POST" })
 
 /** Load matrix rules + month-to-date spend and resolve the approver. */
 async function resolve(db: any, category: string, departmentId: string | null, value: number) {
-  const { resolveApprover, normalizeCategory } = await import("@/lib/procurement/authorityMatrix");
+  const { resolveApprover, normalizeCategory, fetchMonthlySpendBreakdown } =
+    await import("@/lib/procurement/authorityMatrix");
   const canonicalCat = normalizeCategory(category);
   const { data: rules } = await db.from("approval_matrix_rules").select("*").eq("active", true);
 
-  let spend = 0;
-  if (departmentId) {
-    const { data: rows } = await db
-      .from("department_monthly_spend")
-      .select("total_spent")
-      .eq("department_id", departmentId)
-      .eq("month", monthKey())
-      .eq("category", canonicalCat);
-    spend = (rows ?? []).reduce((s: number, r: any) => s + Number(r.total_spent ?? 0), 0);
-  }
-  return resolveApprover(category, value, spend, (rules ?? []) as any);
+  const spendContext = await fetchMonthlySpendBreakdown(db, canonicalCat, departmentId);
+  return resolveApprover(category, value, spendContext, (rules ?? []) as any);
 }
 
 export const createPr = createServerFn({ method: "POST" })
@@ -99,7 +92,12 @@ export const createPr = createServerFn({ method: "POST" })
     const { ProcurementRuleError } = await import("@/server/procurement/errors");
     const roles = await getCallerRoles(db, context.userId);
 
-    const value = Number(data.estimated_value) || 0;
+    const linesRaw = data.line_items ?? [];
+    const computedTotal = linesRaw.reduce((sum, item) => {
+      const net = Math.max(0, Number(item.qty_required || 0) - Number(item.qty_in_stock || 0));
+      return sum + net * Number(item.est_unit_price || 0);
+    }, 0);
+    const value = computedTotal > 0 ? computedTotal : (Number(data.estimated_value) || 0);
     const canonicalCat = normalizeCategory(data.category);
 
     if (data.is_emergency) {
@@ -340,10 +338,15 @@ async function decide(
     pr.status === "escalated_to_evp"
       ? "evp"
       : await independentApprover(pr.requested_by, pr.department_id, resolved.role);
+  const isSmallValueShared =
+    (routedRole === "principal" || routedRole === "procurement_officer") &&
+    normalizeCategory(pr.category) === "small_value";
   const allowed =
     decision === "escalated"
       ? [routedRole, "director_admin_finance", "purchase_committee"]
-      : [routedRole];
+      : isSmallValueShared
+        ? ["principal", "procurement_officer"]
+        : [routedRole];
 
   try {
     if (!held.includes("admin") && !allowed.some((a) => held.includes(a))) {

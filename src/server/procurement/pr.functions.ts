@@ -35,22 +35,13 @@ function monthKey(d = new Date()) {
 
 /** Load matrix rules + month-to-date spend and resolve the approver. */
 async function resolve(db: any, category: string, departmentId: string | null, value: number) {
-  const { resolveApprover, normalizeCategory } =
+  const { resolveApprover, normalizeCategory, fetchMonthlySpendBreakdown } =
     await import("@/server/procurement/authorityMatrix");
   const canonicalCat = normalizeCategory(category);
   const { data: rules } = await db.from("approval_matrix_rules").select("*").eq("active", true);
 
-  let spend = 0;
-  if (departmentId) {
-    const { data: rows } = await db
-      .from("department_monthly_spend")
-      .select("total_spent")
-      .eq("department_id", departmentId)
-      .eq("month", monthKey())
-      .eq("category", canonicalCat);
-    spend = (rows ?? []).reduce((s: number, r: any) => s + Number(r.total_spent ?? 0), 0);
-  }
-  return resolveApprover(category, value, spend, (rules ?? []) as any);
+  const spendContext = await fetchMonthlySpendBreakdown(db, canonicalCat, departmentId);
+  return resolveApprover(category, value, spendContext, (rules ?? []) as any);
 }
 
 export const createPr = createServerFn({ method: "POST" })

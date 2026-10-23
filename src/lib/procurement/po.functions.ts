@@ -410,19 +410,10 @@ export const createPo = createServerFn({ method: "POST" })
 
     const canonicalCat = normalizeCategory(pr?.category ?? "routine_consumable");
     const { data: rules } = await db.from("approval_matrix_rules").select("*").eq("active", true);
+    const { fetchMonthlySpendBreakdown } = await import("@/lib/procurement/authorityMatrix");
+    const spendContext = await fetchMonthlySpendBreakdown(db, canonicalCat, pr?.department_id ?? null);
 
-    let spend = 0;
-    if (pr?.department_id) {
-      const { data: rows } = await db
-        .from("department_monthly_spend")
-        .select("total_spent")
-        .eq("department_id", pr.department_id)
-        .eq("month", monthKey())
-        .eq("category", canonicalCat);
-      spend = (rows ?? []).reduce((s: number, r: any) => s + Number(r.total_spent ?? 0), 0);
-    }
-
-    const standardResolved = resolveApprover(canonicalCat, totalValue, spend, rules ?? []);
+    const standardResolved = resolveApprover(canonicalCat, totalValue, spendContext, rules ?? []);
     const matrixRole = escalationInfo?.escalateRole || standardResolved.role;
     // Whoever creates the PO can't approve it: route past their own role.
     const { independentRole } = await import("@/server/procurement/separation");
@@ -840,20 +831,11 @@ export const amendPo = createServerFn({ method: "POST" })
       po.purchase_requisitions?.category ?? "routine_consumable",
     );
     const { data: rules } = await db.from("approval_matrix_rules").select("*").eq("active", true);
+    const { fetchMonthlySpendBreakdown } = await import("@/lib/procurement/authorityMatrix");
+    const spendContext = await fetchMonthlySpendBreakdown(db, canonicalCat, po.purchase_requisitions?.department_id ?? null);
 
-    let spend = 0;
-    if (po.purchase_requisitions?.department_id) {
-      const { data: rows } = await db
-        .from("department_monthly_spend")
-        .select("total_spent")
-        .eq("department_id", po.purchase_requisitions.department_id)
-        .eq("month", monthKey())
-        .eq("category", canonicalCat);
-      spend = (rows ?? []).reduce((s: number, r: any) => s + Number(r.total_spent ?? 0), 0);
-    }
-
-    const resolvedNew = resolveApprover(canonicalCat, newTotal, spend, rules ?? []);
-    const resolvedOld = resolveApprover(canonicalCat, oldTotal, spend, rules ?? []);
+    const resolvedNew = resolveApprover(canonicalCat, newTotal, spendContext, rules ?? []);
+    const resolvedOld = resolveApprover(canonicalCat, oldTotal, spendContext, rules ?? []);
 
     // Check if new total exceeds original approver's tier
     const roleHierarchy = [
