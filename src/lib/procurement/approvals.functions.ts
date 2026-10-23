@@ -34,7 +34,10 @@ export const getMyPendingApprovals = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false });
 
     if (!isAdmin) {
-      prQuery = prQuery.in("current_approver_role", held);
+      const queryRoles = new Set(held);
+      if (held.includes("principal")) queryRoles.add("procurement_officer");
+      if (held.includes("procurement_officer")) queryRoles.add("principal");
+      prQuery = prQuery.in("current_approver_role", Array.from(queryRoles));
     }
     const { data: prsRaw, error: prErr } = await prQuery;
 

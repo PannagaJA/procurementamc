@@ -207,6 +207,7 @@ export type Database = {
       };
       approval_matrix_rules: {
         Row: {
+          aggregation_scope: string | null;
           active: boolean | null;
           approval_role: string;
           category: string;
@@ -219,6 +220,7 @@ export type Database = {
           requires_rate_contract: boolean | null;
         };
         Insert: {
+          aggregation_scope?: string | null;
           active?: boolean | null;
           approval_role: string;
           category: string;
@@ -231,6 +233,7 @@ export type Database = {
           requires_rate_contract?: boolean | null;
         };
         Update: {
+          aggregation_scope?: string | null;
           active?: boolean | null;
           approval_role?: string;
           category?: string;
