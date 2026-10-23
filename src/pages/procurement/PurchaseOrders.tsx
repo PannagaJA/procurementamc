@@ -331,6 +331,44 @@ export default function PurchaseOrders() {
       return;
     }
 
+    if (poType === "rate_contract") {
+      const chosenRc = activeRateContracts.find((c) => c.id === selectedRcId);
+      if (chosenRc) {
+        if (chosenRc.vendor_id && chosenRc.vendor_id !== selectedVendorId) {
+          toast({
+            title: "Vendor Mismatch",
+            description: `The purchase order must go to the vendor awarded in rate contract ${chosenRc.contract_number}.`,
+            variant: "destructive",
+          });
+          return;
+        }
+        const approvedRates = Array.isArray(chosenRc.approved_rates_json) ? chosenRc.approved_rates_json : [];
+        const approvedGroups = new Set(
+          approvedRates.map((r: any) => r.group?.trim().toLowerCase()).filter(Boolean),
+        );
+        const pr = approvedPrs.find((p) => p.id === selectedPrId);
+        const prItems = pr?.pr_line_items || [];
+        const uncovered = prItems.find((it: any) => {
+          const g = it.item_group?.trim().toLowerCase();
+          const groupMatches = g && approvedGroups.has(g);
+          const descMatches = approvedRates.some((ar: any) => {
+            const arDesc = (ar.description || "").trim().toLowerCase();
+            const itDesc = (it.description || "").trim().toLowerCase();
+            return arDesc && itDesc && (arDesc === itDesc || itDesc.includes(arDesc) || arDesc.includes(itDesc));
+          });
+          return !groupMatches && !descMatches;
+        });
+        if (uncovered) {
+          toast({
+            title: "Item Not Covered",
+            description: `Item "${uncovered.description}" is not covered by rate contract ${chosenRc.contract_number}.`,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+    }
+
     setCreating(true);
     try {
       const res = await (createPo as any)({
@@ -503,7 +541,13 @@ export default function PurchaseOrders() {
         toast({ title: "Failed to close PO", description: res.error, variant: "destructive" });
         return;
       }
-      toast({ title: "PO Closed", description: `Order ${po.po_number} marked as closed.` });
+      toast({
+        title: "PO Closed",
+        description:
+          Number(res.released) > 0
+            ? `Order ${po.po_number} closed. Rs. ${Number(res.released).toLocaleString("en-IN")} of unused budget released.`
+            : `Order ${po.po_number} marked as closed.`,
+      });
       loadData();
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
@@ -519,11 +563,10 @@ export default function PurchaseOrders() {
     (rc) => rc.status === "pending_approval",
   ).length;
 
-  const poFilterOptions = statusFilterOptions(orders, (o: any) => o.status, [
-    "closed",
-    "cancelled",
-    "partially_closed",
-  ]);
+  // Part-paid orders are still open (more invoices, or Close PO to release the rest).
+  const poFilterOptions = statusFilterOptions(orders, (o: any) => o.status, ["closed", "cancelled"], {
+    partially_closed: "Part paid",
+  });
 
   return (
     <Layout>
@@ -701,10 +744,11 @@ export default function PurchaseOrders() {
                                   </Button>
                                 )}
 
-                              {isIssued &&
+                              {(isIssued || po.status === "partially_closed") &&
                                 (auth.hasRole("admin") ||
                                   auth.hasRole("procurement_officer")) && (
                                   <>
+                                    {isIssued && (
                                     <Button
                                       size="sm"
                                       variant="outline"
@@ -713,6 +757,7 @@ export default function PurchaseOrders() {
                                     >
                                       <FileEdit className="w-3.5 h-3.5" /> Amend
                                     </Button>
+                                    )}
                                     <Button
                                       size="sm"
                                       variant="outline"
@@ -899,7 +944,16 @@ export default function PurchaseOrders() {
                         + New Contract (via RFQ)
                       </button>
                     </div>
-                    <Select value={selectedRcId} onValueChange={setSelectedRcId}>
+                    <Select
+                      value={selectedRcId}
+                      onValueChange={(val) => {
+                        setSelectedRcId(val);
+                        const rc = activeRateContracts.find((c) => c.id === val);
+                        if (rc && rc.vendor_id) {
+                          setSelectedVendorId(rc.vendor_id);
+                        }
+                      }}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Select Rate Contract..." />
                       </SelectTrigger>

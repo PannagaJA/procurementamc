@@ -182,17 +182,35 @@ export async function releasePoRemainder(admin: Db, poId: string, actorId: strin
   return outstanding;
 }
 
-/** Invoice paid: the money moves from committed to spent on the PO's head. */
+/**
+ * Invoice paid: the money moves from committed to spent on the PO's head. Paying more than the
+ * PO still holds (an EVP-approved deviation) first commits the excess, so the head's balance
+ * reflects the real outflow instead of the PO's commitment going negative.
+ */
 export async function spendForPayment(
   admin: Db,
   input: { poId: string; invoiceId: string; amount: number; actorId: string; notes: string },
 ) {
   const own = await poEntries(admin, input.poId);
   if (!own.headId || !(input.amount > 0)) return;
+  const amount = round(input.amount);
+  const excess = round(amount - (own.commit - own.spend - own.release));
+  if (excess > 0.005) {
+    const { error } = await admin.rpc("budget_commit", {
+      _head_id: own.headId,
+      _amount: excess,
+      _po_id: input.poId,
+      _pr_id: null,
+      _actor: input.actorId,
+      _notes: `Paid above the order value: ${input.notes}`,
+      _allow_over: true,
+    });
+    if (error) throw new Error(error.message);
+  }
   await admin.from("budget_ledger").insert({
     budget_head_id: own.headId,
     entry_type: "spend",
-    amount: round(input.amount),
+    amount,
     po_id: input.poId,
     invoice_id: input.invoiceId,
     actor_id: input.actorId,
@@ -200,19 +218,48 @@ export async function spendForPayment(
   });
 }
 
-/** Month-to-date spend for the authority matrix's monthly caps (per department and category). */
-export async function addMonthlySpend(
-  admin: Db,
-  input: { departmentId: string | null; category: string | null; amount: number },
-) {
-  if (!input.departmentId || !(input.amount > 0)) return;
-  const d = new Date();
-  await admin.rpc("add_department_monthly_spend", {
-    _department_id: input.departmentId,
-    _month: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`,
-    _category: normalizeCategory(input.category ?? "routine_consumable"),
-    _amount: round(input.amount),
-  });
+/**
+ * Month-to-date spend for the authority matrix's monthly caps, per department and category.
+ * Recalculated from the purchase orders themselves: every PO first issued in that month counts
+ * at its current value (amendments included), and cancelled orders don't count.
+ */
+export async function recomputeMonthlySpend(admin: Db, poId: string) {
+  const { data: po } = await admin
+    .from("purchase_orders")
+    .select("department_id, issued_at, purchase_requisitions (category, department_id)")
+    .eq("id", poId)
+    .maybeSingle();
+  const departmentId = po?.purchase_requisitions?.department_id ?? po?.department_id;
+  if (!po?.issued_at || !departmentId) return;
+  const category = normalizeCategory(po.purchase_requisitions?.category ?? "routine_consumable");
+  const d = new Date(po.issued_at);
+  const start = new Date(d.getFullYear(), d.getMonth(), 1);
+  const end = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+  const { data: orders } = await admin
+    .from("purchase_orders")
+    .select("total_value, price, taxes, status, purchase_requisitions (category)")
+    .eq("department_id", departmentId)
+    .neq("status", "cancelled")
+    .gte("issued_at", start.toISOString())
+    .lt("issued_at", end.toISOString());
+  const total = (orders ?? [])
+    .filter((o: any) => normalizeCategory(o.purchase_requisitions?.category ?? "") === category)
+    .reduce(
+      (sum: number, o: any) =>
+        sum + Number(o.total_value ?? Number(o.price || 0) + Number(o.taxes || 0)),
+      0,
+    );
+  const month = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}-01`;
+  await admin.from("department_monthly_spend").upsert(
+    {
+      department_id: departmentId,
+      month,
+      category,
+      total_spent: round(total),
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "department_id,month,category" },
+  );
 }
 
 export const overBudgetReason = (balance: number, amount: number) =>
