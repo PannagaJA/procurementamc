@@ -197,7 +197,7 @@ export const createPo = createServerFn({ method: "POST" })
       const today = new Date().toISOString().split("T")[0];
       const { data: rc, error: rcErr } = await db
         .from("rate_contracts")
-        .select("id, contract_number, vendor_id, valid_from, valid_to, status")
+        .select("id, contract_number, vendor_id, valid_from, valid_to, status, approved_rates_json")
         .eq("id", data.rate_contract_id)
         .single();
 
@@ -220,6 +220,76 @@ export const createPo = createServerFn({ method: "POST" })
           error: `Rate contract is not active (valid: ${rc.valid_from} to ${rc.valid_to}).`,
           code: "rc_expired",
         };
+      }
+
+      // 1. Guard: Vendor must match rate contract vendor (RC-37)
+      if (rc.vendor_id && rc.vendor_id !== data.vendor_id) {
+        return {
+          ok: false as const,
+          error: `The purchase order must go to the vendor awarded in rate contract ${rc.contract_number}.`,
+          code: "rc_vendor_mismatch",
+        };
+      }
+
+      // 2. Guard: Every item in the PR must be covered by the rate contract (RC-38)
+      const approvedRates: Array<{ group?: string | null; description?: string | null; rate?: number | null }> =
+        Array.isArray(rc.approved_rates_json) ? rc.approved_rates_json : [];
+      const approvedGroups = new Set(
+        approvedRates.map((r) => r.group?.trim().toLowerCase()).filter(Boolean),
+      );
+
+      const { data: prItems } = await db
+        .from("pr_line_items")
+        .select("id, description, item_group, qty_required, net_qty_to_procure, est_unit_price")
+        .eq("pr_id", data.pr_id);
+
+      const items = prItems ?? [];
+      if (items.length > 0) {
+        const uncovered = items.find((it: any) => {
+          const g = it.item_group?.trim().toLowerCase();
+          const groupMatches = g && approvedGroups.has(g);
+          const descMatches = approvedRates.some((ar) => {
+            const arDesc = (ar.description || "").trim().toLowerCase();
+            const itDesc = (it.description || "").trim().toLowerCase();
+            return arDesc && itDesc && (arDesc === itDesc || itDesc.includes(arDesc) || arDesc.includes(itDesc));
+          });
+          return !groupMatches && !descMatches;
+        });
+
+        if (uncovered) {
+          const { itemGroupLabel } = await import("@/lib/procurement/itemGroups");
+          const groupName = uncovered.item_group ? itemGroupLabel(uncovered.item_group) : "Unassigned group";
+          return {
+            ok: false as const,
+            error: `Item "${uncovered.description}" (${groupName}) is not covered by rate contract ${rc.contract_number}.`,
+            code: "rc_item_not_covered",
+          };
+        }
+
+        // 3. Guard: Price ceiling check against contract unit rates (RC-36)
+        const orderPrice = Number(data.price) || 0;
+        let maxAllowedTotal = 0;
+        let allPriced = true;
+        for (const it of items) {
+          const qty = Number(it.net_qty_to_procure ?? it.qty_required ?? 1);
+          const itDesc = (it.description || "").trim().toLowerCase();
+          const matchedRate = approvedRates.find((ar) => {
+            const arDesc = (ar.description || "").trim().toLowerCase();
+            return arDesc && itDesc && (arDesc === itDesc || itDesc.includes(arDesc) || arDesc.includes(itDesc));
+          });
+          if (matchedRate && Number(matchedRate.rate) > 0) {
+            maxAllowedTotal += qty * Number(matchedRate.rate);
+          } else {
+            allPriced = false;
+          }
+        }
+        if (allPriced && maxAllowedTotal > 0 && orderPrice > maxAllowedTotal + 1) {
+          return {
+            ok: false as const,
+            error: `Order price (Rs. ${orderPrice.toLocaleString("en-IN")}) exceeds the approved rate contract amount (Rs. ${maxAllowedTotal.toLocaleString("en-IN")}).`,
+            code: "rc_rate_exceeded",
+          };
+        }
       }
     } else if (data.type === "direct_purchase") {
       // Small-value direct purchase: no CS or quotes; the PR approval is the authority.
