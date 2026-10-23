@@ -9,6 +9,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { roleLabel } from "@/lib/procurement/labels";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { normalizeCategory } from "@/lib/procurement/authorityMatrix";
 
 export type CreatePrInput = {
   department_id: string | null;
