@@ -331,6 +331,44 @@ export default function PurchaseOrders() {
       return;
     }
 
+    if (poType === "rate_contract") {
+      const chosenRc = activeRateContracts.find((c) => c.id === selectedRcId);
+      if (chosenRc) {
+        if (chosenRc.vendor_id && chosenRc.vendor_id !== selectedVendorId) {
+          toast({
+            title: "Vendor Mismatch",
+            description: `The purchase order must go to the vendor awarded in rate contract ${chosenRc.contract_number}.`,
+            variant: "destructive",
+          });
+          return;
+        }
+        const approvedRates = Array.isArray(chosenRc.approved_rates_json) ? chosenRc.approved_rates_json : [];
+        const approvedGroups = new Set(
+          approvedRates.map((r: any) => r.group?.trim().toLowerCase()).filter(Boolean),
+        );
+        const pr = approvedPrs.find((p) => p.id === selectedPrId);
+        const prItems = pr?.pr_line_items || [];
+        const uncovered = prItems.find((it: any) => {
+          const g = it.item_group?.trim().toLowerCase();
+          const groupMatches = g && approvedGroups.has(g);
+          const descMatches = approvedRates.some((ar: any) => {
+            const arDesc = (ar.description || "").trim().toLowerCase();
+            const itDesc = (it.description || "").trim().toLowerCase();
+            return arDesc && itDesc && (arDesc === itDesc || itDesc.includes(arDesc) || arDesc.includes(itDesc));
+          });
+          return !groupMatches && !descMatches;
+        });
+        if (uncovered) {
+          toast({
+            title: "Item Not Covered",
+            description: `Item "${uncovered.description}" is not covered by rate contract ${chosenRc.contract_number}.`,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+    }
+
     setCreating(true);
     try {
       const res = await (createPo as any)({
@@ -899,7 +937,16 @@ export default function PurchaseOrders() {
                         + New Contract (via RFQ)
                       </button>
                     </div>
-                    <Select value={selectedRcId} onValueChange={setSelectedRcId}>
+                    <Select
+                      value={selectedRcId}
+                      onValueChange={(val) => {
+                        setSelectedRcId(val);
+                        const rc = activeRateContracts.find((c) => c.id === val);
+                        if (rc && rc.vendor_id) {
+                          setSelectedVendorId(rc.vendor_id);
+                        }
+                      }}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Select Rate Contract..." />
                       </SelectTrigger>
