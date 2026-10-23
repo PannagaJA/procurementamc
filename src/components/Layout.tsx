@@ -58,7 +58,10 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
 
   useEffect(() => {
     // Check authentication
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      // A failed token refresh (offline, laptop waking up) returns an error, not a logout:
+      // stay put — the client retries and onAuthStateChange reports the outcome.
+      if (error && !session) return;
       setUser(session?.user ?? null);
       if (!session) {
         navigate({ to: "/auth" });
@@ -70,6 +73,9 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
+      // A null session on other events (e.g. INITIAL_SESSION after a failed refresh while
+      // offline) isn't a logout; the first-load check above handles "never signed in".
+      if (!session && event !== "SIGNED_OUT") return;
       setUser(session?.user ?? null);
       if (!session) {
         navigate({ to: "/auth" });
@@ -170,7 +176,8 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    // Only this browser: shared accounts stay signed in elsewhere.
+    await supabase.auth.signOut({ scope: "local" });
     toast({
       title: "Logged out",
       description: "You have been successfully logged out.",
@@ -270,6 +277,14 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
         badge: pendingPrincipalCount,
       },
     ]),
+    // How the system works — for every signed-in user.
+    {
+      label: "System Architecture",
+      path: "/architecture",
+      icon: Workflow,
+      iconClass: "text-indigo-500",
+      activeClass: TINT.blue,
+    },
   ];
   const procurementNav: NavItem[] = [
     ...show(proc.hub, [
@@ -357,15 +372,6 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
         path: "/procurement/vendors",
         icon: Users,
         activeClass: TINT.slate,
-      },
-    ]),
-    ...show(proc.architecture, [
-      {
-        label: "System Architecture",
-        path: "/architecture",
-        icon: Workflow,
-        iconClass: "text-indigo-500",
-        activeClass: TINT.blue,
       },
     ]),
     // Never two buttons for one page: the Dashboard already covers its own target.

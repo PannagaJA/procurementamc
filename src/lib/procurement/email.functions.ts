@@ -1,10 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { rateCategoryLabel } from "@/lib/procurement/rateContracts";
 
 export interface SendRfqEmailInput {
   rfq_id: string;
   vendor_id: string;
-  quotation_url: string;
+  /** Site the link should open (localhost sends use VITE_PUBLIC_APP_URL). */
+  origin?: string | null;
 }
 
 export interface SendPoEmailInput {
@@ -17,8 +19,28 @@ export const dispatchRfqEmail = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: SendRfqEmailInput) => input)
   .handler(async ({ data, context }) => {
+    const { getCallerRoles } = await import("@/server/procurement/roles");
+    const held = (await getCallerRoles(context.supabase as any, context.userId)).map((r) => r.role);
+    if (!["admin", "procurement_officer", "procurement_executive"].some((r) => held.includes(r))) {
+      return { ok: false as const, error: "Only the procurement team can email vendors." };
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { sendRfqInvitationEmail } = await import("@/server/email/smtp");
+    const { linkOrigin, rfqVendorLink } = await import("@/server/quoteLinks");
+
+    const { data: invited } = await (supabaseAdmin as any)
+      .from("rfq_vendors")
+      .select("id")
+      .eq("rfq_id", data.rfq_id)
+      .eq("vendor_id", data.vendor_id)
+      .maybeSingle();
+    if (!invited) return { ok: false as const, error: "That vendor isn't invited to this RFQ." };
+    let quotationUrl: string;
+    try {
+      quotationUrl = rfqVendorLink(linkOrigin(data.origin), data.rfq_id, data.vendor_id);
+    } catch (e: any) {
+      return { ok: false as const, error: e.message };
+    }
 
     // Fetch vendor details
     const { data: vendor, error: vErr } = await (supabaseAdmin as any)
@@ -40,7 +62,7 @@ export const dispatchRfqEmail = createServerFn({ method: "POST" })
     const { data: rfq, error: rfqErr } = await (supabaseAdmin as any)
       .from("rfqs")
       .select(`
-        id, rfq_number, response_deadline,
+        id, rfq_number, response_deadline, purpose, title, category,
         purchase_requisitions (
           category, scope, justification
         )
@@ -52,17 +74,21 @@ export const dispatchRfqEmail = createServerFn({ method: "POST" })
       return { ok: false as const, error: "RFQ record not found." };
     }
 
+    const isRate = rfq.purpose === "rate_contract";
     const result = await sendRfqInvitationEmail({
       vendorEmail: email,
       vendorName: vendor.name,
       rfqNumber: rfq.rfq_number || "RFQ",
-      category: rfq.purchase_requisitions?.category || "General Procurement",
+      category: isRate
+        ? `Rate contract (${rateCategoryLabel(rfq.category)})`
+        : rfq.purchase_requisitions?.category || "General Procurement",
       description:
+        (isRate && `${rfq.title}: quote a unit rate for each item, valid up to 6 months.`) ||
         rfq.purchase_requisitions?.scope ||
         rfq.purchase_requisitions?.justification ||
         "Institutional procurement requirement",
       deadline: rfq.response_deadline || "Within 7 Days",
-      quotationUrl: data.quotation_url,
+      quotationUrl,
     });
 
     return result.ok
@@ -75,6 +101,17 @@ export const dispatchPoEmail = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: SendPoEmailInput) => input)
   .handler(async ({ data, context }) => {
+    const db = context.supabase as any;
+    const { getCallerRoles } = await import("@/server/procurement/roles");
+    const roles = (await getCallerRoles(db, context.userId)).map((r) => r.role);
+    if (!roles.includes("admin") && !roles.includes("procurement_officer")) {
+      return {
+        ok: false as const,
+        error: "Only Procurement Officers can dispatch Purchase Order emails.",
+        code: "unauthorized",
+      };
+    }
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { sendPoIssuedEmail } = await import("@/server/email/smtp");
 
@@ -82,7 +119,7 @@ export const dispatchPoEmail = createServerFn({ method: "POST" })
     const { data: po, error: poErr } = await (supabaseAdmin as any)
       .from("purchase_orders")
       .select(`
-        id, po_number, price, taxes, delivery_timeline, department_id,
+        id, po_number, status, price, taxes, delivery_timeline, department_id,
         vendors (id, name, bank_details_json)
       `)
       .eq("id", data.po_id)
@@ -90,6 +127,14 @@ export const dispatchPoEmail = createServerFn({ method: "POST" })
 
     if (poErr || !po) {
       return { ok: false as const, error: "Purchase Order not found." };
+    }
+
+    if (po.status !== "issued" && po.status !== "amended") {
+      return {
+        ok: false as const,
+        error: `Purchase Order ${po.po_number || data.po_id} is "${po.status}". Only issued orders can be emailed to vendors.`,
+        code: "invalid_status",
+      };
     }
 
     const vendor = po.vendors as any;

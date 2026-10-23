@@ -4,8 +4,9 @@ import nodemailer from "nodemailer";
 export function getMailTransporter() {
   const host = process.env.SMTP_HOST || "smtp.gmail.com";
   const port = Number(process.env.SMTP_PORT) || 465;
-  const user = process.env.SMTP_USER || "amcecsoftware@gmail.com";
-  const pass = process.env.SMTP_PASS || "uqnsdzqirxspvszv";
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  if (!user || !pass) return null;
   const secure = process.env.SMTP_SECURE === "true" || port === 465;
 
   return nodemailer.createTransport({
@@ -19,7 +20,8 @@ export function getMailTransporter() {
   });
 }
 
-export const DEFAULT_FROM = process.env.SMTP_FROM || '"AMC Procurement Cell" <amcecsoftware@gmail.com>';
+export const DEFAULT_FROM =
+  process.env.SMTP_FROM || `"AMC Procurement Cell" <${process.env.SMTP_USER ?? ""}>`;
 
 export interface SendMailOptions {
   to: string | string[];
@@ -40,6 +42,9 @@ export interface SendMailOptions {
 export async function sendMail(opts: SendMailOptions) {
   try {
     const transporter = getMailTransporter();
+    if (!transporter) {
+      return { ok: false, error: "Email isn't configured: set SMTP_USER and SMTP_PASS on the server." };
+    }
     const info = await transporter.sendMail({
       from: DEFAULT_FROM,
       to: opts.to,

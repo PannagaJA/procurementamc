@@ -35,7 +35,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Layout from "@/components/Layout";
 import { Copy, ExternalLink } from "lucide-react";
-import { computeVendorAccessToken, buildVendorQuotationLink } from "@/lib/quotationAuth";
+import { publicAppOrigin } from "@/lib/quotationAuth";
+import { getQuotationLink } from "@/lib/quotations.functions";
 
 const quotationSchema = z.object({
   categoryId: z.string().min(1, "Category is required"),
@@ -131,9 +132,11 @@ export default function RequestQuotation() {
 
   const handleCopyVendorLink = async (quotationId: string, companyEmail: string) => {
     try {
-      const token = await computeVendorAccessToken(quotationId, companyEmail);
-      const link = buildVendorQuotationLink(window.location.origin, quotationId, token);
-      await navigator.clipboard.writeText(link);
+      const res = await (getQuotationLink as any)({
+        data: { quotation_id: quotationId, origin: publicAppOrigin() },
+      });
+      if (!res?.ok) throw new Error(res?.error);
+      await navigator.clipboard.writeText(res.url);
       toast({
         title: "Vendor Link Copied",
         description: `Private isolated link for ${companyEmail} copied to clipboard.`,
@@ -183,15 +186,15 @@ export default function RequestQuotation() {
 
       // Call edge function to send emails with vendor-isolated token links
       const emailPromises = quotations.map(async (quotation) => {
-        const token = await computeVendorAccessToken(quotation.id, quotation.company_email);
-        const publicQuotationUrl = buildVendorQuotationLink(
-          window.location.origin,
-          quotation.id,
-          token,
-        );
-
+        let publicQuotationUrl = "";
         let emailDispatched = false;
+        let emailErrorDetail = "";
         try {
+          const link = await (getQuotationLink as any)({
+            data: { quotation_id: quotation.id, origin: publicAppOrigin() },
+          });
+          if (!link?.ok) throw new Error(link?.error);
+          publicQuotationUrl = link.url;
           const res = await supabase.functions.invoke("send-quotation-email", {
             body: {
               quotationId: quotation.id,
@@ -206,24 +209,34 @@ export default function RequestQuotation() {
               },
             },
           });
-          if (!res.error && res.data?.ok !== false) {
+          if (!res.error && res.data?.ok !== false && !res.data?.error) {
             emailDispatched = true;
+          } else {
+            emailErrorDetail =
+              res.data?.message ||
+              res.error?.message ||
+              "Email service rejected delivery.";
           }
-        } catch (callErr) {
+        } catch (callErr: any) {
+          emailErrorDetail = callErr?.message || "Failed to contact edge function.";
           console.warn("send-quotation-email edge function call notice:", callErr);
         }
 
-        return { quotation, publicQuotationUrl, emailDispatched };
+        return { quotation, publicQuotationUrl, emailDispatched, emailErrorDetail };
       });
 
       const dispatchResults = await Promise.all(emailPromises);
       const allMailed = dispatchResults.every((r) => r.emailDispatched);
+      const firstError = dispatchResults.find((r) => r.emailErrorDetail)?.emailErrorDetail;
 
       toast({
-        title: "Quotation Requests Created!",
+        title: allMailed ? "Quotation Requests Sent!" : "Quotation Requests Created",
         description: allMailed
-          ? "Quotation requests and personalized invitations dispatched via email."
-          : `Created ${quotations.length} quotation request(s) with isolated vendor links. You can copy each vendor's private link directly from the View tab.`,
+          ? "Personalized vendor quotation invitations dispatched via email."
+          : firstError
+            ? `Saved with isolated link, but email delivery failed: ${firstError}`
+            : `Created ${quotations.length} quotation request(s). You can copy each vendor's private link directly from the View tab.`,
+        variant: allMailed ? "default" : "destructive",
       });
 
       form.reset();

@@ -41,7 +41,8 @@ import {
   ShieldAlert,
   Phone,
 } from "lucide-react";
-import { verifyVendorAccessToken } from "@/lib/quotationAuth";
+import { getQuotationForVendor, submitQuotationResponse } from "@/lib/quotations.functions";
+import { rateCategoryLabel, type RateItem } from "@/lib/procurement/rateContracts";
 import {
   getRfqForVendor,
   minValidityDate,
@@ -54,6 +55,18 @@ function extractFromDescription(desc: string, label: string) {
   const regex = new RegExp(`${label}:\\s*([^\\n\\r]+)`, "i");
   const m = desc.match(regex);
   return m ? m[1].trim() : null;
+}
+
+// Deadline check: date stored as 00:00 UTC accepts responses through the full deadline day
+function isQuotationExpired(lastReplyDate?: string | null): boolean {
+  if (!lastReplyDate) return false;
+  const d = new Date(lastReplyDate);
+  if (isNaN(d.getTime())) return false;
+  const deadlineMs =
+    lastReplyDate.length <= 10 || (d.getUTCHours() === 0 && d.getUTCMinutes() === 0)
+      ? d.getTime() + 24 * 60 * 60 * 1000
+      : d.getTime();
+  return Date.now() > deadlineMs;
 }
 
 const responseSchema = z.object({
@@ -122,6 +135,8 @@ export default function QuotationResponse() {
   } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Rate contract RFQs: one unit rate per item, in the RFQ's item order
+  const [rates, setRates] = useState<string[]>([]);
   const [accessDenied, setAccessDenied] = useState(false);
   const [accessDeniedReason, setAccessDeniedReason] = useState("");
   const { toast } = useToast();
@@ -150,17 +165,25 @@ export default function QuotationResponse() {
       const searchParams = new URLSearchParams(window.location.search || location.search);
       const token = searchParams.get("token");
 
-      // 1. Try fetching from quotations table
-      const { data: quotationData } = await supabase
-        .from("quotations")
-        .select(
-          `
-          *,
-          categories (name)
-        `,
-        )
-        .eq("id", id)
-        .maybeSingle();
+      // Links are checked on the server: RFQ links carry vendorId, quotation-request links don't.
+      // Without a link only signed-in staff can preview (row-level security hides the rest).
+      let quotationData: any = null;
+      let vendorResponse: any = undefined;
+      if (token && !searchParams.get("vendorId")) {
+        const res = await getQuotationForVendor({ data: { quotation_id: id, token } });
+        if (!res.ok) {
+          setAccessDenied(true);
+          setAccessDeniedReason(res.error);
+          setIsLoading(false);
+          return;
+        }
+        quotationData = res.quotation;
+        vendorResponse = res.response;
+      } else if (!token) {
+        quotationData = (
+          await supabase.from("quotations").select(`*, categories (name)`).eq("id", id).maybeSingle()
+        ).data;
+      }
 
       if (quotationData) {
         resolvedQuotation = quotationData;
@@ -226,14 +249,18 @@ export default function QuotationResponse() {
           );
           const firstUnit = prItems[0]?.unit || "pcs";
 
+          const isRateRfq = rfqData.purpose === "rate_contract";
           resolvedQuotation = {
             id: rfqData.id,
             product_name:
+              (isRateRfq && rfqData.title) ||
               itemNames ||
               rfqData.purchase_requisitions?.scope ||
               rfqData.purchase_requisitions?.pr_number ||
               `RFQ ${rfqData.rfq_number}`,
             description:
+              (isRateRfq &&
+                `Unit rates for a rate contract valid up to 6 months. Quote a rate for every item below.${rfqData.notes ? ` ${rfqData.notes}` : ""}`) ||
               rfqData.purchase_requisitions?.scope ||
               rfqData.purchase_requisitions?.justification ||
               "Requisitioned goods/services requirement for AMC institutions.",
@@ -245,7 +272,9 @@ export default function QuotationResponse() {
             admin_status: "pending",
             company_email: vendorEmail || vendorName,
             categories: {
-              name: rfqData.purchase_requisitions?.category || "Institutional Procurement",
+              name: isRateRfq
+                ? `Rate contract · ${rateCategoryLabel(rfqData.category)}`
+                : rfqData.purchase_requisitions?.category || "Institutional Procurement",
             },
             isRfq: true,
             vendorId: rfqVendorId,
@@ -274,25 +303,6 @@ export default function QuotationResponse() {
           setAccessDenied(true);
           setAccessDeniedReason(
             "Missing vendor access token. To protect vendor privacy and pricing confidentiality, each invited vendor must access the quotation using their unique private link.",
-          );
-          setIsLoading(false);
-          return;
-        }
-
-        const vendorIdentifier = resolvedQuotation.isRfq
-          ? resolvedQuotation.vendorId
-          : resolvedQuotation.company_email;
-
-        const isValid = await verifyVendorAccessToken(
-          resolvedQuotation.id,
-          vendorIdentifier,
-          token,
-        );
-
-        if (!isValid) {
-          setAccessDenied(true);
-          setAccessDeniedReason(
-            "Invalid or unauthorized quotation access token. Each vendor receives a unique, private link that cannot be shared or accessed by other vendors.",
           );
           setIsLoading(false);
           return;
@@ -326,15 +336,24 @@ export default function QuotationResponse() {
           });
         }
       } else {
-        const { data: responseData, error: responseError } = await supabase
-          .from("quotation_responses")
-          .select("*")
-          .eq("quotation_id", id)
-          .maybeSingle();
+        const responseData =
+          vendorResponse !== undefined
+            ? vendorResponse
+            : (
+                await supabase
+                  .from("quotation_responses")
+                  .select("*")
+                  .eq("quotation_id", id)
+                  .maybeSingle()
+              ).data;
 
         if (responseData) {
           setExistingResponse(responseData);
-        } else if (resolvedQuotation.status === "responded" && !resolvedQuotation.isRfq) {
+        } else if (
+          vendorResponse === undefined &&
+          resolvedQuotation.status === "responded" &&
+          !resolvedQuotation.isRfq
+        ) {
           await supabase.from("quotations").update({ status: "sent" }).eq("id", id);
           resolvedQuotation.status = "sent";
         }
@@ -355,6 +374,15 @@ export default function QuotationResponse() {
     fetchQuotationAndResponse();
   }, [fetchQuotationAndResponse]);
 
+  const rateItems: RateItem[] =
+    quotation?.rfq?.purpose === "rate_contract" ? (quotation.rfq.rate_items_json ?? []) : [];
+  // The total of a rate quote is the sum of its unit rates.
+  useEffect(() => {
+    if (!rateItems.length) return;
+    const sum = rateItems.reduce((s, _, i) => s + (Number(rates[i]) || 0), 0);
+    form.setValue("totalAmount", sum > 0 ? String(sum) : "", { shouldValidate: sum > 0 });
+  }, [rates, rateItems.length, form]);
+
   const onSubmit = async (data: ResponseForm) => {
     console.log("onSubmit called with data:", data);
     if (!quotation) {
@@ -363,11 +391,7 @@ export default function QuotationResponse() {
     }
 
     // Check if quotation has expired
-    const deadline = quotation.last_reply_date
-      ? new Date(quotation.last_reply_date)
-      : new Date(8640000000000000);
-    const now = new Date();
-    if (now > deadline) {
+    if (isQuotationExpired(quotation.last_reply_date)) {
       toast({
         title: "Quotation Expired",
         description: "The response deadline for this quotation has passed.",
@@ -394,12 +418,22 @@ export default function QuotationResponse() {
         return;
       }
 
+      if (rateItems.length && !rateItems.every((_, i) => Number(rates[i]) > 0)) {
+        toast({
+          title: "Unit rates required",
+          description: "Enter a unit rate greater than 0 for every item.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       setIsSubmitting(true);
       try {
         const searchParams = new URLSearchParams(window.location.search || location.search);
         const token = searchParams.get("token") || "";
         const res = await submitRfqQuotationResponse({
           data: {
+            rates: rateItems.length ? rateItems.map((_, i) => Number(rates[i])) : undefined,
             rfq_id: quotation.id,
             vendor_id: quotation.vendorId || "",
             token,
@@ -447,51 +481,21 @@ export default function QuotationResponse() {
 
     setIsSubmitting(true);
     try {
-      const responseData = {
-        quotation_id: quotation.id,
-        company_email: quotation.company_email,
-        description: `${data.description}\n\nDelivery Time: ${data.deliveryTime} days\nContact Person: ${data.contactPerson}\nContact Phone: ${data.contactPhone}\nPayment Terms: ${data.paymentTerms}${data.additionalNotes ? `\n\nAdditional Notes: ${data.additionalNotes}` : ""}`,
-        total_amount: parseFloat(data.totalAmount),
-        quotation_validity: data.quotationValidity || null,
-        terms_accepted: data.termsAccepted === true,
-      };
-
-      console.log("Attempting to insert response:", responseData);
-
-      const { data: insertedResponse, error } = await supabase
-        .from("quotation_responses")
-        .insert(responseData)
-        .select()
-        .single();
-
-      console.log("Insert result:", { insertedResponse, error });
-
-      if (error) {
-        console.error("Insert error:", error);
-        // Check for duplicate key error
-        if (error.code === "23505") {
-          toast({
-            title: "Already Responded",
-            description: "You have already submitted a response for this quotation.",
-            variant: "destructive",
-          });
-          return;
-        }
-        throw error;
+      const res = await submitQuotationResponse({
+        data: {
+          quotation_id: quotation.id,
+          token: new URLSearchParams(window.location.search || location.search).get("token") || "",
+          description: `${data.description}\n\nDelivery Time: ${data.deliveryTime} days\nContact Person: ${data.contactPerson}\nContact Phone: ${data.contactPhone}\nPayment Terms: ${data.paymentTerms}${data.additionalNotes ? `\n\nAdditional Notes: ${data.additionalNotes}` : ""}`,
+          total_amount: parseFloat(data.totalAmount),
+          quotation_validity: data.quotationValidity || null,
+          terms_accepted: data.termsAccepted === true,
+        },
+      });
+      if (!res.ok) {
+        toast({ title: "Submission Failed", description: res.error, variant: "destructive" });
+        return;
       }
-
-      // Update quotation status
-      const { error: updateError } = await supabase
-        .from("quotations")
-        .update({ status: "responded" })
-        .eq("id", quotation.id);
-
-      console.log("Status update result:", { updateError });
-
-      if (updateError) {
-        console.error("Update error:", updateError);
-        // Don't throw here as the response was already inserted
-      }
+      const insertedResponse = res.response;
 
       toast({
         title: "Success",
@@ -502,7 +506,6 @@ export default function QuotationResponse() {
       setQuotation((prev) => (prev ? { ...prev, status: "responded" } : null));
       setExistingResponse(insertedResponse);
 
-      console.log("Local state updated:", { newStatus: "responded", response: insertedResponse });
 
       form.reset();
     } catch (error) {
@@ -600,9 +603,7 @@ export default function QuotationResponse() {
     );
   }
 
-  const isExpired = quotation?.last_reply_date
-    ? new Date() > new Date(quotation.last_reply_date)
-    : false;
+  const isExpired = isQuotationExpired(quotation?.last_reply_date);
   const hasResponded = quotation
     ? quotation.isRfq
       ? !!existingResponse
@@ -698,6 +699,54 @@ export default function QuotationResponse() {
                 </div>
               </div>
             </div>
+            {rateItems.length > 0 && (
+              <div className="mt-4 pt-4 border-t">
+                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-2">
+                  Unit rates to quote (every item)
+                </label>
+                <div className="border rounded-md overflow-hidden bg-background">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted/80 text-muted-foreground">
+                      <tr>
+                        <th className="p-2 text-left w-12">#</th>
+                        <th className="p-2 text-left">Item</th>
+                        <th className="p-2 text-left w-20">Unit</th>
+                        <th className="p-2 text-right w-36">Rate per unit (₹)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {rateItems.map((it, idx) => (
+                        <tr key={idx}>
+                          <td className="p-2 font-mono text-muted-foreground">{idx + 1}</td>
+                          <td className="p-2 font-medium text-slate-900 dark:text-slate-100">
+                            {it.description}
+                          </td>
+                          <td className="p-2 text-muted-foreground">{it.unit}</td>
+                          <td className="p-2">
+                            <Input
+                              inputMode="decimal"
+                              className="h-8 text-right"
+                              placeholder="0.00"
+                              disabled={!!existingResponse}
+                              value={rates[idx] ?? ""}
+                              onChange={(e) => {
+                                const v = e.target.value.replace(/[^0-9.]/g, "");
+                                setRates((prev) => {
+                                  const next = [...prev];
+                                  next[idx] = v;
+                                  return next;
+                                });
+                              }}
+                              aria-label={`Rate per ${it.unit} for ${it.description}`}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
             {quotation.pr_line_items && quotation.pr_line_items.length > 0 && (
               <div className="mt-4 pt-4 border-t">
                 <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-2">
@@ -1020,6 +1069,7 @@ export default function QuotationResponse() {
                             <Input
                               type="text"
                               placeholder="0.00"
+                              readOnly={rateItems.length > 0}
                               {...field}
                               onChange={(e) => {
                                 // Allow only numbers and decimal point
@@ -1035,7 +1085,9 @@ export default function QuotationResponse() {
                             />
                           </FormControl>
                           <FormDescription>
-                            Enter the total cost including all fees and taxes in Indian Rupees
+                            {rateItems.length > 0
+                              ? "The sum of your unit rates above (filled in for you)"
+                              : "Enter the total cost including all fees and taxes in Indian Rupees"}
                           </FormDescription>
                           <FormMessage />
                         </FormItem>

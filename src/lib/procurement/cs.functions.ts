@@ -7,6 +7,7 @@
  * - Approval routing re-evaluated via Authority Matrix (e.g. ₹60k item routes to EVP).
  */
 import { createServerFn } from "@tanstack/react-start";
+import { roleLabel } from "@/lib/procurement/labels";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export type LineScoreInput = {
@@ -82,6 +83,13 @@ export const prepareComparativeStatement = createServerFn({ method: "POST" })
 
     if (rfqErr || !rfq)
       return { ok: false as const, error: "RFQ not found", code: "rfq_not_found" };
+    // Rate finalisation RFQs have no PR; their quotes become a rate contract, not a CS.
+    if (!rfq.pr_id)
+      return {
+        ok: false as const,
+        error: `${rfq.rfq_number} finalises rate-contract rates. Create the rate contract from its quotes instead.`,
+        code: "rate_rfq_no_cs",
+      };
 
     const { data: pr, error: prErr } = await supabaseAdmin
       .from("purchase_requisitions")
@@ -171,6 +179,25 @@ export const prepareComparativeStatement = createServerFn({ method: "POST" })
 
     const resolved = resolveApprover(canonicalCat, recTotal, spend, rules ?? []);
 
+    // The Purchase Committee evaluates comparative statements (SOP §8.4), or a higher authority
+    // when the value needs one; and whoever prepared it can't be the one to approve it.
+    const { atLeastRole } = await import("@/lib/procurement/separation");
+    const { independentRole } = await import("@/server/procurement/separation");
+    const { roleLabel } = await import("@/lib/procurement/labels");
+    const committeeOrAbove = atLeastRole(resolved.role, "purchase_committee");
+    const csRole = await independentRole(supabaseAdmin as any, {
+      actorId: context.userId,
+      departmentId: pr.department_id ?? null,
+      role: committeeOrAbove,
+    });
+    const csReason =
+      csRole === resolved.role
+        ? resolved.reason
+        : `${resolved.reason} Comparative statements are approved by the ${roleLabel(csRole)}` +
+          (csRole !== committeeOrAbove
+            ? ` because the preparer holds the ${roleLabel(committeeOrAbove)} role.`
+            : ".");
+
     // 7. Insert or update Comparative Statement
     const { data: existingCs } = await supabaseAdmin
       .from("comparative_statements")
@@ -211,8 +238,8 @@ export const prepareComparativeStatement = createServerFn({ method: "POST" })
       is_lowest_price: effectiveIsLowest,
       non_lowest_rationale: effectiveIsLowest ? null : data.non_lowest_rationale?.trim(),
       status: "submitted",
-      current_approver_role: resolved.role,
-      routing_reason: resolved.reason,
+      current_approver_role: csRole,
+      routing_reason: csReason,
     };
 
     let cs: any = null;
@@ -262,7 +289,7 @@ export const prepareComparativeStatement = createServerFn({ method: "POST" })
       .then(({ notifyApproversForCs }) =>
         notifyApproversForCs({
           csNumber: cs.cs_number,
-          role: resolved.role,
+          role: csRole,
           recommendedTotal: Number(cs.recommended_total) || 0,
         }),
       )
@@ -272,7 +299,7 @@ export const prepareComparativeStatement = createServerFn({ method: "POST" })
       ok: true as const,
       cs,
       routing: {
-        role: resolved.role,
+        role: csRole,
         escalate: resolved.escalate,
         reason: resolved.reason,
       },
@@ -311,7 +338,7 @@ export const approveCs = createServerFn({ method: "POST" })
     if (!held.includes("admin") && requiredRole && !held.includes(requiredRole)) {
       return {
         ok: false as const,
-        error: `This comparative statement is waiting for the ${requiredRole.replace(/_/g, " ").toUpperCase()}.`,
+        error: `This comparative statement is waiting for the ${roleLabel(requiredRole)}.`,
       };
     }
 
@@ -383,7 +410,15 @@ export const rejectCs = createServerFn({ method: "POST" })
     if (!held.includes("admin") && requiredRole && !held.includes(requiredRole)) {
       return {
         ok: false as const,
-        error: `This comparative statement is waiting for the ${requiredRole.replace(/_/g, " ").toUpperCase()}.`,
+        error: `This comparative statement is waiting for the ${roleLabel(requiredRole)}.`,
+      };
+    }
+
+    if (!data.rejection_remarks || !data.rejection_remarks.trim()) {
+      return {
+        ok: false as const,
+        error: "Rejection remarks are required when rejecting a comparative statement.",
+        code: "remarks_required",
       };
     }
 

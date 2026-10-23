@@ -591,6 +591,7 @@ export default function ComparativeStatements() {
                       .filter(
                         (r) =>
                           r.status === "sent" &&
+                          r.purpose !== "rate_contract" && // rate RFQs become a rate contract, not a CS
                           !csList.some((c: any) => c.rfq_id === r.id && c.status !== "rejected"),
                       )
                       .map((r) => {
@@ -599,7 +600,9 @@ export default function ComparativeStatements() {
                           pr?.pr_line_items?.map((it: any) => it.description).filter(Boolean).join(", ") ||
                           pr?.scope ||
                           pr?.pr_number;
-                        const quotesCount = r.quotation_lines?.length || 0;
+                        const quotesCount = new Set(
+                          (r.quotation_lines || []).map((q: any) => q.vendor_id).filter(Boolean),
+                        ).size;
                         const minReq = r.required_min_quotations || 3;
                         const ready = quotesCount >= minReq;
                         return (

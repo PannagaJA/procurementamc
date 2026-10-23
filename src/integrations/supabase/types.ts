@@ -6,6 +6,205 @@ export type Database = {
   };
   public: {
     Tables: {
+      budget_heads: {
+        Row: {
+          allocated_amount: number;
+          category: string;
+          code: string;
+          created_at: string;
+          created_by: string | null;
+          department_id: string;
+          financial_year: string;
+          id: string;
+          proposal_id: string | null;
+          source: string;
+          title: string;
+          updated_at: string;
+        };
+        Insert: {
+          allocated_amount: number;
+          category: string;
+          code: string;
+          created_at?: string;
+          created_by?: string | null;
+          department_id: string;
+          financial_year: string;
+          id?: string;
+          proposal_id?: string | null;
+          source?: string;
+          title: string;
+          updated_at?: string;
+        };
+        Update: {
+          allocated_amount?: number;
+          category?: string;
+          code?: string;
+          created_at?: string;
+          created_by?: string | null;
+          department_id?: string;
+          financial_year?: string;
+          id?: string;
+          proposal_id?: string | null;
+          source?: string;
+          title?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "budget_heads_department_id_fkey";
+            columns: ["department_id"];
+            isOneToOne: false;
+            referencedRelation: "departments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "budget_heads_proposal_id_fkey";
+            columns: ["proposal_id"];
+            isOneToOne: false;
+            referencedRelation: "budget_proposals";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      budget_ledger: {
+        Row: {
+          actor_id: string | null;
+          amount: number;
+          budget_head_id: string;
+          created_at: string;
+          entry_type: string;
+          id: string;
+          invoice_id: string | null;
+          notes: string | null;
+          po_id: string | null;
+          pr_id: string | null;
+        };
+        Insert: {
+          actor_id?: string | null;
+          amount: number;
+          budget_head_id: string;
+          created_at?: string;
+          entry_type: string;
+          id?: string;
+          invoice_id?: string | null;
+          notes?: string | null;
+          po_id?: string | null;
+          pr_id?: string | null;
+        };
+        Update: {
+          actor_id?: string | null;
+          amount?: number;
+          budget_head_id?: string;
+          created_at?: string;
+          entry_type?: string;
+          id?: string;
+          invoice_id?: string | null;
+          notes?: string | null;
+          po_id?: string | null;
+          pr_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "budget_ledger_budget_head_id_fkey";
+            columns: ["budget_head_id"];
+            isOneToOne: false;
+            referencedRelation: "budget_heads";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "budget_ledger_invoice_id_fkey";
+            columns: ["invoice_id"];
+            isOneToOne: false;
+            referencedRelation: "invoices";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "budget_ledger_po_id_fkey";
+            columns: ["po_id"];
+            isOneToOne: false;
+            referencedRelation: "purchase_orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "budget_ledger_pr_id_fkey";
+            columns: ["pr_id"];
+            isOneToOne: false;
+            referencedRelation: "purchase_requisitions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      budget_proposals: {
+        Row: {
+          category_allocations: Json;
+          consolidated_at: string | null;
+          consolidated_by: string | null;
+          created_at: string;
+          decided_at: string | null;
+          decided_by: string | null;
+          department_id: string;
+          evp_remarks: string | null;
+          finance_remarks: string | null;
+          financial_year: string;
+          hod_remarks: string | null;
+          id: string;
+          line_items: Json;
+          status: string;
+          submitted_at: string | null;
+          submitted_by: string | null;
+          total_proposed: number;
+          updated_at: string;
+        };
+        Insert: {
+          category_allocations?: Json;
+          consolidated_at?: string | null;
+          consolidated_by?: string | null;
+          created_at?: string;
+          decided_at?: string | null;
+          decided_by?: string | null;
+          department_id: string;
+          evp_remarks?: string | null;
+          finance_remarks?: string | null;
+          financial_year: string;
+          hod_remarks?: string | null;
+          id?: string;
+          line_items?: Json;
+          status?: string;
+          submitted_at?: string | null;
+          submitted_by?: string | null;
+          total_proposed?: number;
+          updated_at?: string;
+        };
+        Update: {
+          category_allocations?: Json;
+          consolidated_at?: string | null;
+          consolidated_by?: string | null;
+          created_at?: string;
+          decided_at?: string | null;
+          decided_by?: string | null;
+          department_id?: string;
+          evp_remarks?: string | null;
+          finance_remarks?: string | null;
+          financial_year?: string;
+          hod_remarks?: string | null;
+          id?: string;
+          line_items?: Json;
+          status?: string;
+          submitted_at?: string | null;
+          submitted_by?: string | null;
+          total_proposed?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "budget_proposals_department_id_fkey";
+            columns: ["department_id"];
+            isOneToOne: false;
+            referencedRelation: "departments";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       approval_matrix_rules: {
         Row: {
           active: boolean | null;
@@ -664,6 +863,9 @@ export type Database = {
       purchase_requisitions: {
         Row: {
           budget_head: string | null;
+          budget_head_id: string | null;
+          budget_justification: string | null;
+          budget_status: string | null;
           category: string;
           created_at: string;
           current_approver_role: string | null;
@@ -675,6 +877,7 @@ export type Database = {
           justification: string | null;
           market_survey_notes: string | null;
           pr_number: string | null;
+          reappropriation_ref: string | null;
           recurring_frequency: string | null;
           requested_by: string | null;
           routing_reason: string | null;
@@ -685,6 +888,9 @@ export type Database = {
         };
         Insert: {
           budget_head?: string | null;
+          budget_head_id?: string | null;
+          budget_justification?: string | null;
+          budget_status?: string | null;
           category: string;
           created_at?: string;
           current_approver_role?: string | null;
@@ -696,6 +902,7 @@ export type Database = {
           justification?: string | null;
           market_survey_notes?: string | null;
           pr_number?: string | null;
+          reappropriation_ref?: string | null;
           recurring_frequency?: string | null;
           requested_by?: string | null;
           routing_reason?: string | null;
@@ -706,6 +913,9 @@ export type Database = {
         };
         Update: {
           budget_head?: string | null;
+          budget_head_id?: string | null;
+          budget_justification?: string | null;
+          budget_status?: string | null;
           category?: string;
           created_at?: string;
           current_approver_role?: string | null;
@@ -717,6 +927,7 @@ export type Database = {
           justification?: string | null;
           market_survey_notes?: string | null;
           pr_number?: string | null;
+          reappropriation_ref?: string | null;
           recurring_frequency?: string | null;
           requested_by?: string | null;
           routing_reason?: string | null;
@@ -726,6 +937,13 @@ export type Database = {
           updated_at?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "purchase_requisitions_budget_head_id_fkey";
+            columns: ["budget_head_id"];
+            isOneToOne: false;
+            referencedRelation: "budget_heads";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "purchase_requisitions_department_id_fkey";
             columns: ["department_id"];
@@ -1115,11 +1333,17 @@ export type Database = {
       rate_contracts: {
         Row: {
           approved_rates_json: Json;
+          approved_at: string | null;
+          approved_by: string | null;
           category: string;
           contract_number: string | null;
           created_at: string;
           created_by: string | null;
+          decision_remarks: string | null;
           id: string;
+          rfq_id: string | null;
+          selection_note: string | null;
+          status: string;
           title: string;
           updated_at: string;
           valid_from: string;
@@ -1128,11 +1352,17 @@ export type Database = {
         };
         Insert: {
           approved_rates_json?: Json;
+          approved_at?: string | null;
+          approved_by?: string | null;
           category: string;
           contract_number?: string | null;
           created_at?: string;
           created_by?: string | null;
+          decision_remarks?: string | null;
           id?: string;
+          rfq_id?: string | null;
+          selection_note?: string | null;
+          status?: string;
           title: string;
           updated_at?: string;
           valid_from: string;
@@ -1141,11 +1371,17 @@ export type Database = {
         };
         Update: {
           approved_rates_json?: Json;
+          approved_at?: string | null;
+          approved_by?: string | null;
           category?: string;
           contract_number?: string | null;
           created_at?: string;
           created_by?: string | null;
+          decision_remarks?: string | null;
           id?: string;
+          rfq_id?: string | null;
+          selection_note?: string | null;
+          status?: string;
           title?: string;
           updated_at?: string;
           valid_from?: string;
@@ -1153,6 +1389,13 @@ export type Database = {
           vendor_id?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "rate_contracts_rfq_id_fkey";
+            columns: ["rfq_id"];
+            isOneToOne: false;
+            referencedRelation: "rfqs";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "rate_contracts_vendor_id_fkey";
             columns: ["vendor_id"];
@@ -1164,39 +1407,51 @@ export type Database = {
       };
       rfqs: {
         Row: {
+          category: string | null;
           created_at: string;
           created_by: string | null;
           id: string;
           notes: string | null;
-          pr_id: string;
+          pr_id: string | null;
+          purpose: string;
+          rate_items_json: Json;
           required_min_quotations: number;
           response_deadline: string | null;
           rfq_number: string | null;
           status: string;
+          title: string | null;
           updated_at: string;
         };
         Insert: {
+          category?: string | null;
           created_at?: string;
           created_by?: string | null;
           id?: string;
           notes?: string | null;
-          pr_id: string;
+          pr_id?: string | null;
+          purpose?: string;
+          rate_items_json?: Json;
           required_min_quotations?: number;
           response_deadline?: string | null;
           rfq_number?: string | null;
           status?: string;
+          title?: string | null;
           updated_at?: string;
         };
         Update: {
+          category?: string | null;
           created_at?: string;
           created_by?: string | null;
           id?: string;
           notes?: string | null;
-          pr_id?: string;
+          pr_id?: string | null;
+          purpose?: string;
+          rate_items_json?: Json;
           required_min_quotations?: number;
           response_deadline?: string | null;
           rfq_number?: string | null;
           status?: string;
+          title?: string | null;
           updated_at?: string;
         };
         Relationships: [
@@ -1261,6 +1516,7 @@ export type Database = {
           pr_line_item_id: string | null;
           quantity: number;
           quotation_ref: string | null;
+          rate_item_no: number | null;
           rfq_id: string;
           submitted_at: string;
           tax_amount: number;
@@ -1280,6 +1536,7 @@ export type Database = {
           pr_line_item_id?: string | null;
           quantity?: number;
           quotation_ref?: string | null;
+          rate_item_no?: number | null;
           rfq_id: string;
           submitted_at?: string;
           tax_amount?: number;
@@ -1299,6 +1556,7 @@ export type Database = {
           pr_line_item_id?: string | null;
           quantity?: number;
           quotation_ref?: string | null;
+          rate_item_no?: number | null;
           rfq_id?: string;
           submitted_at?: string;
           tax_amount?: number;
@@ -1471,6 +1729,7 @@ export type Database = {
         Row: {
           approved_at: string | null;
           approved_by: string | null;
+          budget_status: string | null;
           closed_at: string | null;
           created_at: string;
           created_by: string | null;
@@ -1490,7 +1749,7 @@ export type Database = {
           scope_of_supply: string | null;
           status: string;
           taxes: number;
-          total_value: number;
+          total_value: number | null;
           type: string;
           updated_at: string;
           vendor_id: string;
@@ -1498,6 +1757,7 @@ export type Database = {
         Insert: {
           approved_at?: string | null;
           approved_by?: string | null;
+          budget_status?: string | null;
           closed_at?: string | null;
           created_at?: string;
           created_by?: string | null;
@@ -1517,6 +1777,7 @@ export type Database = {
           scope_of_supply?: string | null;
           status?: string;
           taxes?: number;
+          total_value?: number | null;
           type: string;
           updated_at?: string;
           vendor_id: string;
@@ -1524,6 +1785,7 @@ export type Database = {
         Update: {
           approved_at?: string | null;
           approved_by?: string | null;
+          budget_status?: string | null;
           closed_at?: string | null;
           created_at?: string;
           created_by?: string | null;
@@ -1543,6 +1805,7 @@ export type Database = {
           scope_of_supply?: string | null;
           status?: string;
           taxes?: number;
+          total_value?: number | null;
           type?: string;
           updated_at?: string;
           vendor_id?: string;
@@ -1556,10 +1819,24 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "purchase_orders_department_id_fkey";
+            columns: ["department_id"];
+            isOneToOne: false;
+            referencedRelation: "departments";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "purchase_orders_pr_id_fkey";
             columns: ["pr_id"];
             isOneToOne: false;
             referencedRelation: "purchase_requisitions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "purchase_orders_rate_contract_id_fkey";
+            columns: ["rate_contract_id"];
+            isOneToOne: false;
+            referencedRelation: "rate_contracts";
             referencedColumns: ["id"];
           },
           {
@@ -1812,8 +2089,62 @@ export type Database = {
           },
         ];
       };
+      invoice_events: {
+        Row: {
+          action: string;
+          actor_id: string | null;
+          amount: number | null;
+          created_at: string;
+          from_status: string | null;
+          id: string;
+          invoice_id: string;
+          notes: string | null;
+          to_status: string | null;
+        };
+        Insert: {
+          action: string;
+          actor_id?: string | null;
+          amount?: number | null;
+          created_at?: string;
+          from_status?: string | null;
+          id?: string;
+          invoice_id: string;
+          notes?: string | null;
+          to_status?: string | null;
+        };
+        Update: {
+          action?: string;
+          actor_id?: string | null;
+          amount?: number | null;
+          created_at?: string;
+          from_status?: string | null;
+          id?: string;
+          invoice_id?: string;
+          notes?: string | null;
+          to_status?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "invoice_events_invoice_id_fkey";
+            columns: ["invoice_id"];
+            isOneToOne: false;
+            referencedRelation: "invoices";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       invoices: {
         Row: {
+          approved_amount: number | null;
+          deductions_json: Json | null;
+          deviation_approved_at: string | null;
+          deviation_approved_by: string | null;
+          deviation_reason: string | null;
+          deviation_requested_by: string | null;
+          deviation_status: string | null;
+          held_at: string | null;
+          hold_code: string | null;
+          revision_of: string | null;
           approved_at: string | null;
           approved_by: string | null;
           created_at: string;
@@ -1834,6 +2165,16 @@ export type Database = {
           vendor_id: string;
         };
         Insert: {
+          approved_amount?: number | null;
+          deductions_json?: Json | null;
+          deviation_approved_at?: string | null;
+          deviation_approved_by?: string | null;
+          deviation_reason?: string | null;
+          deviation_requested_by?: string | null;
+          deviation_status?: string | null;
+          held_at?: string | null;
+          hold_code?: string | null;
+          revision_of?: string | null;
           approved_at?: string | null;
           approved_by?: string | null;
           created_at?: string;
@@ -1854,6 +2195,16 @@ export type Database = {
           vendor_id: string;
         };
         Update: {
+          approved_amount?: number | null;
+          deductions_json?: Json | null;
+          deviation_approved_at?: string | null;
+          deviation_approved_by?: string | null;
+          deviation_reason?: string | null;
+          deviation_requested_by?: string | null;
+          deviation_status?: string | null;
+          held_at?: string | null;
+          hold_code?: string | null;
+          revision_of?: string | null;
           approved_at?: string | null;
           approved_by?: string | null;
           created_at?: string;
@@ -1874,6 +2225,13 @@ export type Database = {
           vendor_id?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "invoices_revision_of_fkey";
+            columns: ["revision_of"];
+            isOneToOne: false;
+            referencedRelation: "invoices";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "invoices_grn_id_fkey";
             columns: ["grn_id"];
@@ -2139,6 +2497,27 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      add_department_monthly_spend: {
+        Args: {
+          _amount: number;
+          _category: string;
+          _department_id: string;
+          _month: string;
+        };
+        Returns: undefined;
+      };
+      budget_commit: {
+        Args: {
+          _actor: string;
+          _allow_over: boolean;
+          _amount: number;
+          _head_id: string;
+          _notes: string;
+          _po_id: string;
+          _pr_id: string;
+        };
+        Returns: number;
+      };
       generate_challan_number: { Args: never; Returns: string };
       generate_cs_number: { Args: never; Returns: string };
       generate_emergency_number: { Args: never; Returns: string };

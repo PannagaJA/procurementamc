@@ -21,8 +21,10 @@ import { getMyPendingApprovals, getMyApprovalHistory } from "@/lib/procurement/a
 import { approvePr, rejectPr, escalateToEvp } from "@/lib/procurement/pr.functions";
 import { approveCs, rejectCs } from "@/lib/procurement/cs.functions";
 import { approvePo, rejectPo } from "@/lib/procurement/po.functions";
-import { approveInvoice } from "@/lib/procurement/invoice.functions";
+import { approveInvoice, decideDeviation } from "@/lib/procurement/invoice.functions";
 import { approveEmergency } from "@/lib/procurement/emergency.functions";
+import { decideRateContract } from "@/lib/procurement/rateContract.functions";
+import { rateCategoryLabel } from "@/lib/procurement/rateContracts";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,13 +45,15 @@ import {
   FileEdit,
   Receipt,
   Zap,
+  ScrollText,
   UserCheck,
   History,
   Calendar,
   Filter,
   ChevronDown,
 } from "lucide-react";
-import { SlaDaemonWidget } from "@/components/procurement/SlaDaemonWidget";
+import { TurnaroundWidget } from "@/components/procurement/TurnaroundWidget";
+import { statusLabel, roleLabel, poTypeLabel, categoryLabel } from "@/lib/procurement/labels";
 import { RateBenchmarkingWidget } from "@/components/procurement/RateBenchmarkingWidget";
 
 export default function MyApprovals() {
@@ -73,8 +77,12 @@ export default function MyApprovals() {
     | "am_approve"
     | "am_reject"
     | "inv_approve"
+    | "dev_approve"
+    | "dev_reject"
     | "ep_approve"
     | "ep_reject"
+    | "rc_approve"
+    | "rc_reject"
   >("pr_approve");
   const [activeItem, setActiveItem] = useState<any>(null);
   const [remarks, setRemarks] = useState("");
@@ -139,10 +147,12 @@ export default function MyApprovals() {
       if (dialogType === "pr_approve") {
         const res = await (approvePr as any)({ data: { pr_id: activeItem.id, remarks } });
         if (!res.ok) throw new Error(res.error);
-        toast({
-          title: "Requisition Approved",
-          description: `PR ${activeItem.pr_number} approved.`,
-        });
+        // Over budget: the approval sends it on to the EVP rather than approving it.
+        toast(
+          res.status === "escalated_to_evp"
+            ? { title: "Sent to the EVP", description: `${activeItem.pr_number}: ${res.reason}` }
+            : { title: "Requisition Approved", description: `PR ${activeItem.pr_number} approved.` },
+        );
       } else if (dialogType === "pr_reject") {
         const res = await (rejectPr as any)({ data: { pr_id: activeItem.id, remarks } });
         if (!res.ok) throw new Error(res.error);
@@ -206,6 +216,18 @@ export default function MyApprovals() {
           title: "Invoice Approved",
           description: `Invoice ${activeItem.invoice_number} approved for payment.`,
         });
+      } else if (dialogType === "dev_approve" || dialogType === "dev_reject") {
+        const res = await (decideDeviation as any)({
+          data: { invoice_id: activeItem.id, approve: dialogType === "dev_approve", remarks },
+        });
+        if (!res.ok) throw new Error(res.error);
+        toast({
+          title: dialogType === "dev_approve" ? "Deviation Approved" : "Deviation Rejected",
+          description:
+            dialogType === "dev_approve"
+              ? `Invoice ${activeItem.invoice_number} can now be approved for payment.`
+              : `Invoice ${activeItem.invoice_number} stays on hold.`,
+        });
       } else if (dialogType === "ep_approve") {
         const res = await (approveEmergency as any)({
           data: { emergency_id: activeItem.id, decision: "approved" },
@@ -221,6 +243,18 @@ export default function MyApprovals() {
         });
         if (!res.ok) throw new Error(res.error);
         toast({ title: "Emergency Procurement Rejected", description: "Recorded in register." });
+      } else if (dialogType === "rc_approve" || dialogType === "rc_reject") {
+        const approved = dialogType === "rc_approve";
+        const res = await decideRateContract({
+          data: { id: activeItem.id, decision: approved ? "approved" : "rejected", remarks },
+        });
+        if (!res.ok) throw new Error(res.error);
+        toast({
+          title: approved ? "Rate contract approved" : "Rate contract rejected",
+          description: approved
+            ? `${activeItem.contract_number} now covers purchases until ${activeItem.valid_to}.`
+            : `${activeItem.contract_number} won't be used.`,
+        });
       }
 
       setDialogOpen(false);
@@ -239,6 +273,7 @@ export default function MyApprovals() {
     amendments: 0,
     invoices: 0,
     emergency: 0,
+    rateContracts: 0,
     total: 0,
   };
   const userRoles = data?.roles || [];
@@ -299,6 +334,14 @@ export default function MyApprovals() {
       count: counts.emergency,
     },
     {
+      id: "rateContracts",
+      label: "Rate contracts",
+      fullLabel: "Rate Contracts (EVP approval)",
+      icon: ScrollText,
+      color: "text-violet-600",
+      count: counts.rateContracts ?? 0,
+    },
+    {
       id: "history",
       label: "History",
       fullLabel: "Approval History",
@@ -315,7 +358,7 @@ export default function MyApprovals() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-200 mb-2">
-              <UserCheck className="w-3.5 h-3.5" /> Unified Approvals Inbox
+              <UserCheck className="w-3.5 h-3.5" /> Approvals
             </div>
             <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
               My Procurement Approvals
@@ -330,7 +373,7 @@ export default function MyApprovals() {
         {/* User Roles Banner */}
         <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
           <div>
-            <span className="text-slate-500 font-medium block">Your Active Procurement Roles:</span>
+            <span className="text-slate-500 font-medium block">Your roles:</span>
             <div className="flex flex-wrap gap-1.5 mt-1">
               {userRoles.length > 0 ? (
                 userRoles.map((r: string) => (
@@ -339,7 +382,7 @@ export default function MyApprovals() {
                     variant="secondary"
                     className="font-semibold bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300"
                   >
-                    {r.toUpperCase()}
+                    {roleLabel(r)}
                   </Badge>
                 ))
               ) : (
@@ -355,8 +398,8 @@ export default function MyApprovals() {
           </div>
         </div>
 
-        {/* Background SLA Reminder & Escalation Daemon Monitor */}
-        <SlaDaemonWidget onRefreshParent={loadData} />
+        {/* How long open items have been waiting */}
+        <TurnaroundWidget />
 
         {/* Tabs for PR, CS, PO, Amendments, Invoices, Emergency */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
@@ -388,8 +431,11 @@ export default function MyApprovals() {
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-mono font-bold whitespace-nowrap">{pr.pr_number}</span>
-                        <Badge variant="outline">{pr.category}</Badge>
-                        <Badge variant="secondary">{pr.status.toUpperCase()}</Badge>
+                        <Badge variant="outline">{categoryLabel(pr.category)}</Badge>
+                        <Badge variant="secondary">{statusLabel(pr.status)}</Badge>
+                        {pr.budget_status === "over" && (
+                          <Badge className="bg-red-600 hover:bg-red-600 text-white">Over budget</Badge>
+                        )}
                       </div>
                       <div className="text-xs text-slate-500 mt-1 flex flex-wrap items-center gap-2">
                         <span>
@@ -398,7 +444,7 @@ export default function MyApprovals() {
                         </span>
                         <RateBenchmarkingWidget
                           compact
-                          description={pr.pr_line_items?.[0]?.description || pr.category}
+                          description={pr.pr_line_items?.[0]?.description || categoryLabel(pr.category)}
                           unitRate={
                             Number(pr.estimated_value || 0) /
                             Math.max(1, pr.pr_line_items?.length || 1)
@@ -443,6 +489,15 @@ export default function MyApprovals() {
                       </span>
                       {pr.routing_reason}
                     </div>
+                    {pr.budget_status === "over" && (pr.budget_justification || pr.reappropriation_ref) && (
+                      <div className="p-2 rounded border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/30 text-red-900 dark:text-red-200">
+                        <span className="font-medium">Why over budget: </span>
+                        {pr.budget_justification}
+                        {pr.reappropriation_ref && (
+                          <span className="font-mono"> (re-appropriation {pr.reappropriation_ref})</span>
+                        )}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))
@@ -530,7 +585,10 @@ export default function MyApprovals() {
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-mono font-bold whitespace-nowrap">{po.po_number}</span>
-                        <Badge variant="outline">{po.type.toUpperCase()}</Badge>
+                        <Badge variant="outline">{poTypeLabel(po.type)}</Badge>
+                        {po.budget_status === "over_pending_evp" && (
+                          <Badge className="bg-red-600 hover:bg-red-600 text-white">Over budget</Badge>
+                        )}
                       </div>
                       <p className="text-xs text-slate-500 mt-1">
                         Vendor:{" "}
@@ -594,7 +652,7 @@ export default function MyApprovals() {
                           {am.purchase_orders?.po_number} Amendment
                         </span>
                         <Badge variant="outline" className="text-purple-700 border-purple-400">
-                          Escalated Tier
+                          Needs re-approval
                         </Badge>
                       </div>
                       <p className="text-xs text-slate-500 mt-1">
@@ -638,7 +696,7 @@ export default function MyApprovals() {
               <div className="p-8 text-center text-slate-500">Loading matched invoices...</div>
             ) : (data?.invoices || []).length === 0 ? (
               <Card className="p-8 text-center text-slate-500">
-                No invoices awaiting Finance approval.
+                No invoices awaiting approval.
               </Card>
             ) : (
               data?.invoices?.map((inv: any) => (
@@ -647,23 +705,53 @@ export default function MyApprovals() {
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-mono font-bold whitespace-nowrap">Invoice: {inv.invoice_number}</span>
-                        <Badge variant="outline" className="text-emerald-700 border-emerald-400">
-                          3-Way Matched
-                        </Badge>
+                        {inv.deviation_status === "requested" ? (
+                          <Badge variant="outline" className="text-amber-700 border-amber-400 dark:text-amber-300">
+                            Deviation request
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-emerald-700 border-emerald-400">
+                            Matches order & delivery
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-xs text-slate-500 mt-1">
                         Vendor: {inv.vendors?.name} • PO: {inv.purchase_orders?.po_number} • Amount:
                         ₹{Number(inv.invoice_amount).toLocaleString("en-IN")}
                       </p>
+                      {inv.deviation_status === "requested" && (
+                        <div className="mt-2 space-y-1 text-xs">
+                          <p className="text-red-700 dark:text-red-300">{inv.hold_reason}</p>
+                          <p className="text-slate-600 dark:text-slate-300">
+                            <span className="font-semibold">Why accept it: </span>
+                            {inv.deviation_reason}
+                          </p>
+                        </div>
+                      )}
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => handleOpenAction(inv, "inv_approve")}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
-                      >
-                        <CheckCircle className="w-3.5 h-3.5" /> Approve for Payment
-                      </Button>
+                      {inv.deviation_status === "requested" ? (
+                        <>
+                          <Button
+                            size="sm"
+                            onClick={() => handleOpenAction(inv, "dev_approve")}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                          >
+                            <CheckCircle className="w-3.5 h-3.5" /> Accept Difference
+                          </Button>
+                          <Button size="sm" variant="destructive" onClick={() => handleOpenAction(inv, "dev_reject")}>
+                            Reject
+                          </Button>
+                        </>
+                      ) : (
+                        <Button
+                          size="sm"
+                          onClick={() => handleOpenAction(inv, "inv_approve")}
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                        >
+                          <CheckCircle className="w-3.5 h-3.5" /> Approve for Payment
+                        </Button>
+                      )}
                     </div>
                   </CardHeader>
                 </Card>
@@ -722,6 +810,92 @@ export default function MyApprovals() {
                       <span className="font-medium">Reason Standard Process Failed: </span>
                       {ep.reason_standard_process_failed}
                     </p>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </TabsContent>
+
+          {/* Rate Contracts Tab (SOP Section VI: approved by the EVP, from 3+ quotations) */}
+          <TabsContent value="rateContracts" className="space-y-3">
+            {loading ? (
+              <div className="p-8 text-center text-slate-500">Loading rate contracts...</div>
+            ) : (data?.rateContracts || []).length === 0 ? (
+              <Card className="p-8 text-center text-slate-500">
+                No rate contracts awaiting EVP approval.
+              </Card>
+            ) : (
+              data?.rateContracts?.map((rc: any) => (
+                <Card key={rc.id} className="border border-slate-200 dark:border-slate-800">
+                  <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono font-bold whitespace-nowrap">
+                          {rc.contract_number}
+                        </span>
+                        <Badge variant="outline" className="text-violet-700 border-violet-400">
+                          {rateCategoryLabel(rc.category)}
+                        </Badge>
+                        {rc.rfqs?.rfq_number && (
+                          <Badge variant="secondary">From {rc.rfqs.rfq_number}</Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1">
+                        {rc.title} • Vendor: {rc.vendors?.name} • Valid {rc.valid_from} to{" "}
+                        {rc.valid_to}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => handleOpenAction(rc, "rc_approve")}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                      >
+                        <CheckCircle className="w-3.5 h-3.5" /> Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleOpenAction(rc, "rc_reject")}
+                        className="gap-1"
+                      >
+                        <XCircle className="w-3.5 h-3.5" /> Reject
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-4 pt-2 text-xs space-y-2">
+                    <div className="flex flex-wrap gap-x-4 gap-y-1">
+                      {(rc.approved_rates_json || []).map((r: any, i: number) => (
+                        <span key={i}>
+                          {r.description}:{" "}
+                          <span className="font-mono font-semibold">
+                            ₹{Number(r.rate).toLocaleString("en-IN")}
+                          </span>
+                          /{r.unit}
+                        </span>
+                      ))}
+                    </div>
+                    {rc.quotes?.length ? (
+                      <p className="text-slate-600 dark:text-slate-300">
+                        <span className="font-medium">Quotes (total of unit rates): </span>
+                        {rc.quotes
+                          .map(
+                            (q: any, i: number) =>
+                              `${q.vendor_name} ₹${Number(q.total).toLocaleString("en-IN")}${i === 0 ? " (lowest)" : ""}`,
+                          )
+                          .join(" · ")}
+                      </p>
+                    ) : (
+                      <p className="text-amber-700 dark:text-amber-300">
+                        Registered before the 3-quotation rule: no quotes on record.
+                      </p>
+                    )}
+                    {rc.selection_note && (
+                      <p className="text-amber-800 dark:text-amber-300">
+                        <span className="font-medium">Why not the lowest quote: </span>
+                        {rc.selection_note}
+                      </p>
+                    )}
                   </CardContent>
                 </Card>
               ))
@@ -838,14 +1012,14 @@ export default function MyApprovals() {
                                 PR
                               </Badge>
                               <span className="font-mono font-bold whitespace-nowrap">{pr.pr_number}</span>
-                              <Badge variant="outline">{pr.category}</Badge>
+                              <Badge variant="outline">{categoryLabel(pr.category)}</Badge>
                               <Badge
                                 variant={
                                   isApproved ? "default" : isRejected ? "destructive" : "secondary"
                                 }
                                 className={isApproved ? "bg-emerald-600 text-white" : ""}
                               >
-                                {pr.status.toUpperCase()}
+                                {statusLabel(pr.status)}
                               </Badge>
                             </div>
                             <p className="text-xs text-slate-500 mt-1">
@@ -896,7 +1070,7 @@ export default function MyApprovals() {
                                 }
                                 className={isApproved ? "bg-emerald-600 text-white" : ""}
                               >
-                                {cs.status.toUpperCase()}
+                                {statusLabel(cs.status)}
                               </Badge>
                             </div>
                             <p className="text-xs text-slate-500 mt-1">
@@ -938,7 +1112,7 @@ export default function MyApprovals() {
                                 variant={po.status === "issued" ? "default" : "secondary"}
                                 className={po.status === "issued" ? "bg-indigo-600 text-white" : ""}
                               >
-                                {po.status.toUpperCase()}
+                                {statusLabel(po.status)}
                               </Badge>
                             </div>
                             <p className="text-xs text-slate-500 mt-1">
@@ -982,7 +1156,7 @@ export default function MyApprovals() {
                                   inv.match_status === "paid" ? "bg-emerald-600 text-white" : ""
                                 }
                               >
-                                {inv.match_status.toUpperCase()}
+                                {statusLabel(inv.match_status)}
                               </Badge>
                             </div>
                             <p className="text-xs text-slate-500 mt-1">

@@ -8,6 +8,7 @@
  * Shared by createPo (direct PO, no quotes) and awardDirectPurchase (optional quotes).
  */
 import { coveringContracts } from "@/lib/procurement/itemGroups";
+import { roleLabel } from "@/lib/procurement/labels";
 import {
   isDirectPurchase,
   normalizeCategory,
@@ -22,6 +23,7 @@ export async function rateContractCover(admin: Db, groups: string[]) {
   const { data: contracts } = await admin
     .from("rate_contracts")
     .select("contract_number, valid_from, valid_to, approved_rates_json")
+    .eq("status", "active") // only EVP-approved contracts take precedence (SOP Section VI)
     .lte("valid_from", today)
     .gte("valid_to", today);
   return coveringContracts(groups, contracts ?? [], today);
@@ -42,7 +44,14 @@ const fail = (error: string, code: string): Failure => ({ ok: false, error, code
 export async function directPurchaseChecks(
   db: Db,
   admin: Db,
-  input: { prId: string; vendorId: string; total: number; storesConfirmed: boolean },
+  input: {
+    prId: string;
+    vendorId: string;
+    total: number;
+    storesConfirmed: boolean;
+    /** Who is creating the PO: an escalation never routes back to their own role. */
+    actorId?: string | null;
+  },
 ): Promise<Failure | Passed> {
   const { data: pr } = await admin
     .from("purchase_requisitions")
@@ -133,6 +142,17 @@ export async function directPurchaseChecks(
     if (e instanceof ProcurementRuleError) return fail(e.message, e.code);
     throw e;
   }
+  if (escalation) {
+    const { independentRole } = await import("./separation");
+    escalation = {
+      ...escalation,
+      escalateRole: await independentRole(admin, {
+        actorId: input.actorId,
+        departmentId: pr.department_id ?? null,
+        role: escalation.escalateRole,
+      }),
+    };
+  }
 
   const { data: approval } = await admin
     .from("pr_approvals")
@@ -142,6 +162,20 @@ export async function directPurchaseChecks(
     .order("decided_at", { ascending: false })
     .limit(1)
     .maybeSingle();
+
+  // Separation of Duties (SOP §8.5): PR approver cannot self-approve / create PO without independent check
+  if (!escalation && input.actorId && approval?.approver_id && input.actorId === approval.approver_id) {
+    const { independentRole } = await import("./separation");
+    const nextRole = await independentRole(admin, {
+      actorId: input.actorId,
+      departmentId: pr.department_id ?? null,
+      role: approval.approver_role ?? "procurement_officer",
+    });
+    escalation = {
+      escalateRole: nextRole,
+      reason: `The purchase order was created by the same officer who approved requisition ${pr.pr_number}. Under Separation of Duties, another approver (${roleLabel(nextRole)}) must approve the order.`,
+    };
+  }
 
   return {
     ok: true,
@@ -179,6 +213,6 @@ export function directPurchaseApprovalFields(check: Passed) {
     current_approver_role: role,
     approved_by: check.prApproval.approverId,
     approved_at: new Date().toISOString(),
-    routing_reason: `Direct purchase — authorised by the ${role.replace(/_/g, " ").toUpperCase()}'s approval of ${check.pr.pr_number}.`,
+    routing_reason: `Direct purchase — authorised by the ${roleLabel(role)}'s approval of ${check.pr.pr_number}.`,
   };
 }

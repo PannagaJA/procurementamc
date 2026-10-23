@@ -147,8 +147,25 @@ export const getMyPendingApprovals = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false });
 
     const isFinanceOrProcOfficer =
-      isAdmin || held.includes("director_admin_finance") || held.includes("procurement_officer");
-    const { data: invoices } = isFinanceOrProcOfficer ? await invQuery : { data: [] };
+      isAdmin ||
+      held.includes("finance") ||
+      held.includes("director_admin_finance") ||
+      held.includes("procurement_officer");
+    const { data: matchedInvoices } = isFinanceOrProcOfficer ? await invQuery : { data: [] };
+
+    // 5b. Invoice deviations awaiting the EVP (failed match, small gap). Not your own request.
+    const { data: deviations } =
+      isAdmin || held.includes("evp")
+        ? await queryDb
+            .from("invoices")
+            .select(
+              `*, purchase_orders (id, po_number, total_value, vendor_id), vendors (id, name, gst_number)`,
+            )
+            .eq("deviation_status", "requested")
+            .neq("deviation_requested_by", context.userId)
+            .order("updated_at", { ascending: false })
+        : { data: [] };
+    const invoices = [...(matchedInvoices ?? []), ...(deviations ?? [])];
 
     // 6. Pending Emergency Procurements (Awaiting EVP approval)
     let epQuery = db
@@ -166,12 +183,43 @@ export const getMyPendingApprovals = createServerFn({ method: "GET" })
     const isEvpOrAdmin = isAdmin || held.includes("evp");
     const { data: emergencyProcurements } = isEvpOrAdmin ? await epQuery : { data: [] };
 
+    // 7. Rate contracts awaiting the EVP (SOP Section VI), with the quotes behind them.
+    //    Not your own; contracts registered before the quotation rule have no RFQ.
+    const { data: rcRaw } = isEvpOrAdmin
+      ? await queryDb
+          .from("rate_contracts")
+          .select("*, vendors (id, name), rfqs (id, rfq_number, rate_items_json)")
+          .eq("status", "pending_approval")
+          .order("created_at", { ascending: false })
+      : { data: [] };
+    const pendingRcs = (rcRaw ?? []).filter((rc: any) => rc.created_by !== context.userId);
+    const rcRfqIds = pendingRcs.map((rc: any) => rc.rfq_id).filter(Boolean);
+    const { data: rcQuotes } = rcRfqIds.length
+      ? await queryDb
+          .from("quotation_lines")
+          .select("rfq_id, vendor_id, rate_item_no, unit_price, vendors (name)")
+          .in("rfq_id", rcRfqIds)
+      : { data: [] };
+    const { rankRateQuotes } = await import("@/lib/procurement/rateContracts");
+    const rateContracts = pendingRcs.map((rc: any) => {
+      const lines = (rcQuotes ?? []).filter((l: any) => l.rfq_id === rc.rfq_id);
+      const ranking = rankRateQuotes(rc.rfqs?.rate_items_json ?? [], lines, 0);
+      const names = new Map(lines.map((l: any) => [l.vendor_id, l.vendors?.name]));
+      return {
+        ...rc,
+        quotes: ranking.ok
+          ? ranking.ranked.map((q) => ({ ...q, vendor_name: names.get(q.vendor_id) ?? "Vendor" }))
+          : [],
+      };
+    });
+
     const prCount = (prs ?? []).length;
     const csCount = (css ?? []).length;
     const poCount = (pos ?? []).length;
     const amCount = (amendments ?? []).length;
     const invCount = (invoices ?? []).length;
     const epCount = (emergencyProcurements ?? []).length;
+    const rcCount = rateContracts.length;
 
     return {
       ok: true as const,
@@ -183,7 +231,8 @@ export const getMyPendingApprovals = createServerFn({ method: "GET" })
         amendments: amCount,
         invoices: invCount,
         emergency: epCount,
-        total: prCount + csCount + poCount + amCount + invCount + epCount,
+        rateContracts: rcCount,
+        total: prCount + csCount + poCount + amCount + invCount + epCount + rcCount,
       },
       prs: prs ?? [],
       comparativeStatements: css ?? [],
@@ -191,6 +240,7 @@ export const getMyPendingApprovals = createServerFn({ method: "GET" })
       amendments: amendments ?? [],
       invoices: invoices ?? [],
       emergencyProcurements: emergencyProcurements ?? [],
+      rateContracts,
     };
   });
 

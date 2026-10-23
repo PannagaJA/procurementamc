@@ -92,7 +92,7 @@ export default function GrnManagement() {
         (listGrns as any)(),
         (listPurchaseOrders as any)().then((r: any) =>
           r?.ok
-            ? { ...r, purchaseOrders: r.purchaseOrders.filter((p: any) => ["issued", "amended"].includes(p.status)) }
+            ? { ...r, purchaseOrders: r.purchaseOrders.filter((p: any) => ["issued", "amended", "partially_closed"].includes(p.status)) }
             : r,
         ),
         supabase
@@ -731,7 +731,7 @@ export default function GrnManagement() {
                                 !isTechDone &&
                                 (auth.hasRole("admin") ||
                                   auth.hasRole("hod") ||
-                                  auth.hasRole("faculty")) && (
+                                  auth.hasRole("stores")) && (
                                   <Button
                                     size="sm"
                                     className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5"
@@ -883,9 +883,6 @@ export default function GrnManagement() {
                     {issuedPos
                       .filter((po) => {
                         if (po.status === "closed" || po.status === "cancelled" || po.status === "rejected") return false;
-                        // Exclude POs that already have an accepted GRN (goods already accepted)
-                        const hasAcceptedGrn = grns.some((g: any) => g.po_id === po.id && g.status === "accepted");
-                        if (hasAcceptedGrn) return false;
                         // Exclude POs that already have an unlinked delivery challan awaiting GRN
                         const hasPendingChallan = unlinkedChallans.some((c: any) => c.po_id === po.id);
                         if (hasPendingChallan) return false;
@@ -1033,10 +1030,27 @@ export default function GrnManagement() {
                       {issuedPos
                         .filter((po) => {
                           if (po.status === "closed" || po.status === "cancelled" || po.status === "rejected") return false;
-                          const hasAcceptedGrn = grns.some((g: any) => g.po_id === po.id && g.status === "accepted");
-                          if (hasAcceptedGrn) return false;
                           const hasUnlinkedChallan = unlinkedChallans.some((c: any) => c.po_id === po.id);
-                          return hasUnlinkedChallan;
+                          if (!hasUnlinkedChallan) return false;
+                          const pr = Array.isArray(po.purchase_requisitions) ? po.purchase_requisitions[0] : po.purchase_requisitions;
+                          const orderedQty = (pr?.pr_line_items ?? []).reduce(
+                            (sum: number, item: any) =>
+                              sum + (Number(item.net_qty_to_procure || item.qty_required) || 0),
+                            0,
+                          );
+                          const priorDelivered = (grns ?? [])
+                            .filter((g: any) => g.po_id === po.id && g.status !== "rejected")
+                            .reduce((sum: number, g: any) => {
+                              return (
+                                sum +
+                                (g.grn_lines ?? []).reduce(
+                                  (lSum: number, l: any) => lSum + (Number(l.qty_delivered) || 0),
+                                  0,
+                                )
+                              );
+                            }, 0);
+                          if (orderedQty > 0 && priorDelivered >= orderedQty) return false;
+                          return true;
                         })
                         .map((po) => (
                           <SelectItem key={po.id} value={po.id}>

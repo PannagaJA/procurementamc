@@ -7,13 +7,18 @@
  * imported inside the handlers so it never enters the client bundle.
  */
 import { createServerFn } from "@tanstack/react-start";
+import { roleLabel } from "@/lib/procurement/labels";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export type CreatePrInput = {
   department_id: string | null;
   category: string;
   scope: "academic" | "operational";
-  budget_head: string | null;
+  /** Legacy free-text head; the Section B head is chosen on the server from the category. */
+  budget_head?: string | null;
+  /** Required when the estimate is over the head's balance (the PR then needs the EVP). */
+  budget_justification?: string | null;
+  reappropriation_ref?: string | null;
   estimated_value: number;
   is_recurring: boolean;
   recurring_frequency: string | null;
@@ -35,15 +40,6 @@ function monthKey(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
 }
 
-const APPROVER_CHAIN = [
-  "hod",
-  "principal",
-  "procurement_officer",
-  "purchase_committee",
-  "director_admin_finance",
-  "evp",
-];
-
 /**
  * Nobody approves their own requisition: if the requester holds the routed role (an HOD for
  * their own department), route to the next authority up the chain instead.
@@ -53,15 +49,9 @@ async function independentApprover(
   departmentId: string | null,
   role: string,
 ): Promise<string> {
-  if (!requesterId) return role;
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { getCallerRoles } = await import("@/server/procurement/roles");
-  const theirs = await getCallerRoles(supabaseAdmin as any, requesterId);
-  const holds = (r: string) =>
-    theirs.some((x) => x.role === r && (r !== "hod" || x.department_id === departmentId));
-  if (!holds(role)) return role;
-  const from = APPROVER_CHAIN.indexOf(role);
-  return APPROVER_CHAIN.slice(from + 1).find((r) => !holds(r)) ?? "evp";
+  const { independentRole } = await import("@/server/procurement/separation");
+  return independentRole(supabaseAdmin as any, { actorId: requesterId, departmentId, role });
 }
 
 /** Active rate contracts covering the given item groups (SOP §VII.5), keyed by group. */
@@ -156,6 +146,27 @@ export const createPr = createServerFn({ method: "POST" })
       }
     }
 
+    const { supabaseAdmin: budgetDb } = await import("@/integrations/supabase/client.server");
+    const { prBudgetCheck, budgetHeadForCategory } = await import("@/server/procurement/budget");
+    // Section B: the department has one head per category, so the category decides it.
+    const budget = await prBudgetCheck(budgetDb, {
+      headId: await budgetHeadForCategory(budgetDb, data.department_id, canonicalCat),
+      departmentId: data.department_id,
+      amount: value,
+    });
+    if (!budget.ok) return budget;
+    if (
+      budget.status === "over" &&
+      !data.budget_justification?.trim() &&
+      !data.reappropriation_ref?.trim()
+    ) {
+      return {
+        ok: false as const,
+        error: `This is more than the budget balance (Rs. ${Number(budget.balance).toLocaleString("en-IN")}). Give a justification or a re-appropriation reference; the EVP will then decide.`,
+        code: "budget_justification_required",
+      };
+    }
+
     const resolved = await resolve(db, canonicalCat, data.department_id, value);
     const approverRole = await independentApprover(
       context.userId,
@@ -165,7 +176,7 @@ export const createPr = createServerFn({ method: "POST" })
     const routingReason =
       approverRole === resolved.role
         ? resolved.reason
-        : `${resolved.reason} Routed to the ${approverRole.replace(/_/g, " ").toUpperCase()} because the requester holds the ${resolved.role.replace(/_/g, " ").toUpperCase()} role.`;
+        : `${resolved.reason} Routed to the ${roleLabel(approverRole)} because the requester holds the ${roleLabel(resolved.role)} role.`;
 
     const { data: pr, error } = await db
       .from("purchase_requisitions")
@@ -175,7 +186,11 @@ export const createPr = createServerFn({ method: "POST" })
         category: canonicalCat,
         scope: data.scope,
         status: "submitted",
-        budget_head: data.budget_head,
+        budget_head: budget.status === "none" ? (data.budget_head ?? null) : (budget.code ?? null),
+        budget_head_id: budget.headId,
+        budget_status: budget.status,
+        budget_justification: data.budget_justification?.trim() || null,
+        reappropriation_ref: data.reappropriation_ref?.trim() || null,
         estimated_value: value,
         is_recurring: data.is_recurring,
         recurring_frequency: data.recurring_frequency,
@@ -239,6 +254,7 @@ export const createPr = createServerFn({ method: "POST" })
         role: approverRole,
         escalate: resolved.escalate,
         reason: routingReason,
+        budgetStatus: budget.status,
         minQuotations: resolved.minQuotations,
         requiresRateContract: resolved.requiresRateContract,
       },
@@ -287,7 +303,7 @@ async function decide(
   const { data: pr, error } = await db
     .from("purchase_requisitions")
     .select(
-      "id, pr_number, status, category, estimated_value, department_id, current_approver_role, requested_by",
+      "id, pr_number, status, category, estimated_value, department_id, current_approver_role, requested_by, budget_head_id, budget_status",
     )
     .eq("id", data.pr_id)
     .maybeSingle();
@@ -332,7 +348,7 @@ async function decide(
   try {
     if (!held.includes("admin") && !allowed.some((a) => held.includes(a))) {
       throw new ForbiddenError(
-        `This requisition is waiting for the ${routedRole.replace(/_/g, " ").toUpperCase()}. You don't hold that role.`,
+        `This requisition is waiting for the ${roleLabel(routedRole)}. You don't hold that role.`,
       );
     }
     // If the approval requires HOD, ensure the caller is HOD for this PR's department
@@ -360,11 +376,42 @@ async function decide(
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+  // Budget (SOP Section B): re-check the balance at approval. Over budget needs the EVP —
+  // an approver below the EVP sends it on instead of approving.
+  let budgetUpdate: Record<string, unknown> = {};
+  let sentToEvpForBudget = false;
+  if (decision === "approved" && pr.budget_head_id) {
+    const { prBudgetCheck, overBudgetReason } = await import("@/server/procurement/budget");
+    const budget = await prBudgetCheck(supabaseAdmin as any, {
+      headId: pr.budget_head_id,
+      departmentId: pr.department_id,
+      amount: Number(pr.estimated_value) || 0,
+    });
+    if (budget.ok && budget.status === "over") {
+      if (routedRole === "evp" || held.includes("evp")) {
+        budgetUpdate = { budget_status: "evp_approved" };
+      } else {
+        sentToEvpForBudget = true;
+        budgetUpdate = {
+          budget_status: "over",
+          routing_reason: overBudgetReason(Number(budget.balance), Number(pr.estimated_value) || 0),
+        };
+      }
+    } else if (budget.ok) {
+      budgetUpdate = { budget_status: budget.status };
+    }
+  }
+  if (sentToEvpForBudget) {
+    nextStatus = "escalated_to_evp";
+    decision = "escalated";
+  }
+
   const { error: upErr } = await (supabaseAdmin as any)
     .from("purchase_requisitions")
     .update({
       status: nextStatus,
       current_approver_role: decision === "escalated" ? "evp" : pr.current_approver_role,
+      ...budgetUpdate,
     })
     .eq("id", pr.id);
   if (upErr) return { ok: false as const, error: upErr.message };
@@ -374,8 +421,12 @@ async function decide(
     stage,
     approver_role: held.find((h) => allowed.includes(h)) ?? "admin",
     approver_id: context.userId,
-    decision,
-    remarks: data.remarks ?? null,
+    decision: sentToEvpForBudget ? "approved" : decision,
+    remarks: sentToEvpForBudget
+      ? [data.remarks?.trim(), "Approved; over budget, so sent to the EVP."]
+          .filter(Boolean)
+          .join(" ")
+      : (data.remarks ?? null),
   });
 
   // Notify requester or escalated authority via SMTP in background
@@ -404,7 +455,11 @@ async function decide(
       .catch((e) => console.warn("[Email] PR escalation notification failed:", e));
   }
 
-  return { ok: true as const, status: nextStatus, reason: resolved.reason };
+  return {
+    ok: true as const,
+    status: nextStatus,
+    reason: sentToEvpForBudget ? "Over budget: sent to the EVP for approval." : resolved.reason,
+  };
 }
 
 export const reviewPr = createServerFn({ method: "POST" })

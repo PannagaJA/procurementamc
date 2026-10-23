@@ -35,6 +35,9 @@ import {
   listPurchaseOrders,
 } from "@/lib/procurement/po.functions";
 import { dispatchPoEmail } from "@/lib/procurement/email.functions";
+import { createRfq, sendRfq } from "@/lib/procurement/rfq.functions";
+import { emailQuoteInvites } from "@/lib/procurement/quoteInvites";
+import { useNavigate } from "@tanstack/react-router";
 import { listComparativeStatements } from "@/lib/procurement/cs.functions";
 import {
   ShoppingBag,
@@ -50,18 +53,17 @@ import {
   CreditCard,
   Clock,
   FileText,
-  Plus,
-  Trash2,
-  Calendar,
   Printer,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { PoPrintPreviewModal } from "@/components/procurement/PoPrintPreviewModal";
 import { buildPoPdf } from "@/lib/procurement/poPdf";
-import { ITEM_GROUPS } from "@/lib/procurement/itemGroups";
+import { isActiveRateContract } from "@/lib/procurement/rateContracts";
+import { roleLabel } from "@/lib/procurement/labels";
 
 export default function PurchaseOrders() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const auth = useAuth();
   const [orders, setOrders] = useState<any[]>([]);
   const { pagination, setPage, setPageSize, setTotal } = usePagination(10, 1);
@@ -101,6 +103,15 @@ export default function PurchaseOrders() {
   // Direct purchase (small value): stores check is required; quotes are optional.
   const [storesConfirmed, setStoresConfirmed] = useState(false);
   const [quotesNote, setQuotesNote] = useState("");
+  // Direct purchase: buy from one vendor now, or ask several vendors for quotes first
+  const [directMode, setDirectMode] = useState<"single" | "quotes">("single");
+  const [quoteVendorIds, setQuoteVendorIds] = useState<string[]>([]);
+  const [quoteDeadline, setQuoteDeadline] = useState(() =>
+    new Date(Date.now() + 3 * 86_400_000).toISOString().slice(0, 10),
+  );
+  const [quoteNotes, setQuoteNotes] = useState("");
+  // PR id -> RFQ number for requisitions already out for quotes
+  const [openRfqByPr, setOpenRfqByPr] = useState<Record<string, string>>({});
   const [scopeOfSupply, setScopeOfSupply] = useState("");
   const [price, setPrice] = useState<number | "">(0);
   const [taxes, setTaxes] = useState<number | "">(0);
@@ -124,24 +135,6 @@ export default function PurchaseOrders() {
     setSelectedPoForPrint(po);
     setPrintOpen(true);
   };
-
-  // Create Rate Contract Modal
-  const [rcOpen, setRcOpen] = useState(false);
-  const [rcVendorId, setRcVendorId] = useState("");
-  const [rcCategory, setRcCategory] = useState("routine_consumable");
-  const [rcTitle, setRcTitle] = useState("");
-  const [rcContractNumber, setRcContractNumber] = useState("");
-  const [rcValidFrom, setRcValidFrom] = useState(new Date().toISOString().split("T")[0]);
-  const [rcValidTo, setRcValidTo] = useState(() => {
-    const d = new Date();
-    d.setMonth(d.getMonth() + 6);
-    return d.toISOString().split("T")[0];
-  });
-  const [rcRateItems, setRcRateItems] = useState<
-    Array<{ description: string; unit: string; rate: number; group: string }>
-  >([{ description: "", unit: "pcs", rate: 0, group: "" }]);
-  const [savingRc, setSavingRc] = useState(false);
-  const [empanelledVendors, setEmpanelledVendors] = useState<any[]>([]);
 
   // General action state
   const [acting, setActing] = useState(false);
@@ -210,11 +203,20 @@ export default function PurchaseOrders() {
       );
       setApprovedPrs((prData || []).filter((p: any) => !existingPoPrIds.has(p.id)));
 
-      // Fetch empanelled / active vendors
+      const { data: openRfqs } = await supabase
+        .from("rfqs")
+        .select("pr_id, rfq_number")
+        .in("status", ["draft", "sent"]);
+      setOpenRfqByPr(Object.fromEntries((openRfqs || []).map((r: any) => [r.pr_id, r.rfq_number])));
+
+      // Vendors that can be awarded work: empanelled and not past expiry (same rule as assertVendorEmpanelled)
       const { data: vData } = await supabase
         .from("vendors")
-        .select("id, name, gst_number, status")
-        .in("status", ["empanelled", "active"])
+        .select("id, name, gst_number, status, empanelment_expiry")
+        .eq("status", "empanelled")
+        .or(
+          `empanelment_expiry.is.null,empanelment_expiry.gte.${new Date().toISOString().split("T")[0]}`,
+        )
         .order("name");
       setVendorsList(vData || []);
 
@@ -258,6 +260,66 @@ export default function PurchaseOrders() {
       }
     }
   }, [selectedCsId, selectedRcId, poType, approvedCss, rateContracts]);
+
+  const handleRequestQuotes = async () => {
+    if (!selectedPrId || quoteVendorIds.length < 2) {
+      toast({
+        title: "Select vendors",
+        description: "Choose the requisition and at least 2 vendors to compare quotes.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setCreating(true);
+    try {
+      const created = await (createRfq as any)({
+        data: {
+          pr_id: selectedPrId,
+          response_deadline: quoteDeadline || null,
+          notes: quoteNotes.trim() || null,
+        },
+      });
+      if (!created.ok) {
+        toast({
+          title: "Couldn't request quotes",
+          description: created.error,
+          variant: "destructive",
+        });
+        return;
+      }
+      const rfqNumber = created.rfq.rfq_number;
+      const sent = await (sendRfq as any)({
+        data: { rfq_id: created.rfq.id, vendor_ids: quoteVendorIds },
+      });
+      if (!sent.ok) {
+        toast({
+          title: "Quote request saved but not sent",
+          description: `${sent.error} Send ${rfqNumber} from the RFQ page.`,
+          variant: "destructive",
+        });
+        setCreateOpen(false);
+        navigate({ to: "/procurement/rfqs" });
+        return;
+      }
+      const { sent: emailed, notice } = await emailQuoteInvites(sent.rfqId, sent.vendors ?? []);
+      toast({
+        title: "Quote requests sent",
+        description: [
+          `${rfqNumber} sent to ${sent.sentCount} vendors${emailed ? `, ${emailed} by email` : ""}.`,
+          notice || null,
+          "When the quotes are in, award the lowest from the RFQ page.",
+        ]
+          .filter(Boolean)
+          .join(" "),
+      });
+      setCreateOpen(false);
+      navigate({ to: "/procurement/rfqs" });
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const handleCreatePo = async () => {
     if (!selectedPrId || !selectedVendorId || Number(price) <= 0) {
@@ -414,7 +476,7 @@ export default function PurchaseOrders() {
       if (res.requiresReapproval) {
         toast({
           title: "Amendment Requires Re-approval",
-          description: `Value increase exceeded authority limit. Re-routed to ${res.newApproverRole?.toUpperCase()} for approval.`,
+          description: `Sent to the ${roleLabel(res.newApproverRole)} for approval. Re-issue the order once it is approved; if it is rejected, the order goes back to its previous value.`,
           variant: "default",
         });
       } else {
@@ -450,123 +512,12 @@ export default function PurchaseOrders() {
     }
   };
 
-  const openNewRcModal = () => {
-    const y = new Date().getFullYear();
-    const rand = Math.floor(1000 + Math.random() * 9000);
-    setRcContractNumber(`RC-${y}-${rand}`);
-    setRcVendorId(empanelledVendors[0]?.id || "");
-    setRcCategory("routine_consumable");
-    setRcTitle("");
-    const today = new Date().toISOString().split("T")[0];
-    const sixMonthsLater = new Date();
-    sixMonthsLater.setMonth(sixMonthsLater.getMonth() + 6);
-    setRcValidFrom(today);
-    setRcValidTo(sixMonthsLater.toISOString().split("T")[0]);
-    setRcRateItems([{ description: "", unit: "pcs", rate: 0, group: "" }]);
-    setRcOpen(true);
-  };
-
-  const handleAddRcItem = () => {
-    setRcRateItems((prev) => [...prev, { description: "", unit: "pcs", rate: 0, group: "" }]);
-  };
-
-  const handleRemoveRcItem = (index: number) => {
-    if (rcRateItems.length === 1) return;
-    setRcRateItems((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const handleRcItemChange = (index: number, field: string, val: any) => {
-    setRcRateItems((prev) =>
-      prev.map((item, i) => (i === index ? { ...item, [field]: val } : item)),
-    );
-  };
-
-  const handleCreateRateContract = async () => {
-    if (!rcVendorId) {
-      toast({
-        title: "Vendor Required",
-        description: "Please select an empanelled vendor for this rate contract.",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (!rcTitle.trim()) {
-      toast({
-        title: "Title Required",
-        description: "Please enter a descriptive agreement title.",
-        variant: "destructive",
-      });
-      return;
-    }
-    // Rate-contract coverage is decided by item group, so every rate line needs one.
-    if (rcRateItems.some((i) => i.description.trim() && !i.group)) {
-      toast({
-        title: "Item Group Required",
-        description:
-          "Choose the item group for every rate line; it decides which purchases this contract covers.",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (!rcValidFrom || !rcValidTo || rcValidTo <= rcValidFrom) {
-      toast({
-        title: "Invalid Validity Dates",
-        description: "Expiry date (Valid To) must be after Start date (Valid From).",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setSavingRc(true);
-    try {
-      const validItems = rcRateItems
-        .filter((i) => i.description.trim())
-        .map((i) => ({ ...i, rate: Number(i.rate) || 0 }));
-      const { data: newRc, error: rcErr } = await supabase
-        .from("rate_contracts")
-        .insert({
-          contract_number: rcContractNumber.trim() || `RC-${Date.now()}`,
-          vendor_id: rcVendorId,
-          category: rcCategory,
-          title: rcTitle.trim(),
-          approved_rates_json: validItems,
-          valid_from: rcValidFrom,
-          valid_to: rcValidTo,
-          created_by: auth.userId || null,
-        })
-        .select("*, vendors(id, name)")
-        .single();
-
-      if (rcErr) throw rcErr;
-
-      toast({
-        title: "Rate Contract Created Successfully",
-        description: `Agreement ${newRc.contract_number} has been registered.`,
-      });
-      setRcOpen(false);
-
-      // Refresh rate contracts
-      const { data: rcData } = await supabase
-        .from("rate_contracts")
-        .select("*, vendors(id, name)")
-        .order("created_at", { ascending: false });
-      setRateContracts(rcData || []);
-
-      // If Create PO modal was open, auto-select this new contract
-      if (createOpen) {
-        setPoType("rate_contract");
-        setSelectedRcId(newRc.id);
-      }
-    } catch (e: any) {
-      toast({
-        title: "Error creating rate contract",
-        description: e.message,
-        variant: "destructive",
-      });
-    } finally {
-      setSavingRc(false);
-    }
-  };
+  // Only EVP-approved contracts inside their validity window can back a PO (SOP Section VI)
+  const todayIso = new Date().toISOString().split("T")[0];
+  const activeRateContracts = rateContracts.filter((rc) => isActiveRateContract(rc, todayIso));
+  const pendingRateContracts = rateContracts.filter(
+    (rc) => rc.status === "pending_approval",
+  ).length;
 
   const poFilterOptions = statusFilterOptions(orders, (o: any) => o.status, [
     "closed",
@@ -593,13 +544,12 @@ export default function PurchaseOrders() {
           </div>
 
           <div className="flex items-center gap-2">
-            {(auth.hasRole("admin") ||
-              auth.hasRole("procurement_officer") ||
-              auth.hasRole("procurement_executive")) && (
+            {(auth.hasRole("admin") || auth.hasRole("procurement_officer")) && (
               <>
                 <Button
                   variant="outline"
-                  onClick={openNewRcModal}
+                  onClick={() => navigate({ to: "/procurement/rfqs" })}
+                  title="Rate contracts are finalised from at least 3 quotations through a rate contract RFQ, then approved by the EVP"
                   className="gap-2 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
                 >
                   <FileText className="w-4 h-4" /> + New Rate Contract
@@ -753,8 +703,7 @@ export default function PurchaseOrders() {
 
                               {isIssued &&
                                 (auth.hasRole("admin") ||
-                                  auth.hasRole("procurement_officer") ||
-                                  auth.hasRole("procurement_executive")) && (
+                                  auth.hasRole("procurement_officer")) && (
                                   <>
                                     <Button
                                       size="sm"
@@ -849,17 +798,14 @@ export default function PurchaseOrders() {
                                       <div className="flex items-center gap-1.5 shrink-0">
                                         {am.requires_reapproval ? (
                                           <Badge className="bg-amber-500 text-white text-[10px]">
-                                            Escalated to {am.new_approver_role?.toUpperCase()}
+                                            Re-approval: {roleLabel(am.new_approver_role)}
                                           </Badge>
                                         ) : (
                                           <Badge
                                             variant="outline"
                                             className="text-[10px] text-slate-600 dark:text-slate-300"
                                           >
-                                            Within Tier{" "}
-                                            {am.original_approver_role
-                                              ? `(${am.original_approver_role.toUpperCase()})`
-                                              : "Approved"}
+                                            No re-approval needed
                                           </Badge>
                                         )}
                                       </div>
@@ -916,8 +862,8 @@ export default function PurchaseOrders() {
                   </Select>
                   {poType === "direct_purchase" && (
                     <p className="text-[11px] text-muted-foreground">
-                      No quotes needed. To compare vendors first, send an RFQ and award from the RFQ
-                      page.
+                      No minimum number of quotes. Buy from one vendor, or ask several for quotes
+                      and pick the lowest.
                     </p>
                   )}
                 </div>
@@ -947,10 +893,10 @@ export default function PurchaseOrders() {
                       <Label>Active Rate Contract</Label>
                       <button
                         type="button"
-                        onClick={openNewRcModal}
+                        onClick={() => navigate({ to: "/procurement/rfqs" })}
                         className="text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold hover:underline"
                       >
-                        + New Contract
+                        + New Contract (via RFQ)
                       </button>
                     </div>
                     <Select value={selectedRcId} onValueChange={setSelectedRcId}>
@@ -958,19 +904,59 @@ export default function PurchaseOrders() {
                         <SelectValue placeholder="Select Rate Contract..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {rateContracts.map((rc) => (
-                          <SelectItem key={rc.id} value={rc.id}>
-                            {rc.contract_number} — {rc.vendors?.name} ({rc.category})
+                        {activeRateContracts.length === 0 ? (
+                          <SelectItem value="_none" disabled>
+                            No EVP-approved rate contracts in force
                           </SelectItem>
-                        ))}
+                        ) : (
+                          activeRateContracts.map((rc) => (
+                            <SelectItem key={rc.id} value={rc.id}>
+                              {rc.contract_number} — {rc.vendors?.name} ({rc.category})
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
+                    {pendingRateContracts > 0 && (
+                      <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                        {pendingRateContracts} rate contract
+                        {pendingRateContracts === 1 ? " is" : "s are"} waiting for the EVP's
+                        approval and can't be used yet.
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
 
               {poType === "direct_purchase" && (
                 <div className="space-y-3 rounded-lg border p-3">
+                  <div
+                    role="radiogroup"
+                    aria-label="How to choose the vendor"
+                    className="grid grid-cols-2 gap-1 rounded-md bg-muted p-1 text-xs font-medium"
+                  >
+                    {(
+                      [
+                        ["single", "Buy from one vendor"],
+                        ["quotes", "Compare quotes"],
+                      ] as const
+                    ).map(([mode, label]) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        role="radio"
+                        aria-checked={directMode === mode}
+                        onClick={() => setDirectMode(mode)}
+                        className={`rounded px-2 py-1.5 transition-colors ${
+                          directMode === mode
+                            ? "bg-background text-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                   <div className="space-y-1">
                     <Label>Approved Small-Value Requisition *</Label>
                     <Select
@@ -1003,54 +989,122 @@ export default function PurchaseOrders() {
                           approvedPrs
                             .filter((p) => p.category === "small_value")
                             .map((pr) => (
-                              <SelectItem key={pr.id} value={pr.id}>
+                              <SelectItem key={pr.id} value={pr.id} disabled={!!openRfqByPr[pr.id]}>
                                 {pr.pr_number} — {pr.departments?.name || "Dept"} (₹
                                 {Number(pr.estimated_value || 0).toLocaleString("en-IN")})
+                                {openRfqByPr[pr.id]
+                                  ? ` · quotes requested on ${openRfqByPr[pr.id]}`
+                                  : ""}
                               </SelectItem>
                             ))
                         )}
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-1">
-                    <Label>Vendor *</Label>
-                    <Select value={selectedVendorId} onValueChange={setSelectedVendorId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select empanelled vendor..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {vendorsList.map((v: any) => (
-                          <SelectItem key={v.id} value={v.id}>
-                            {v.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <label className="flex items-start gap-2 text-xs cursor-pointer">
-                    <input
-                      type="checkbox"
-                      className="mt-0.5 h-4 w-4 accent-indigo-600"
-                      checked={storesConfirmed}
-                      onChange={(e) => setStoresConfirmed(e.target.checked)}
-                    />
-                    <span>
-                      I confirmed these items are <strong>not available in Central Stores</strong>.
-                    </span>
-                  </label>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Quotes obtained (optional)</Label>
-                    <Input
-                      value={quotesNote}
-                      onChange={(e) => setQuotesNote(e.target.value)}
-                      placeholder="e.g. 2 shop quotes: ₹1,650 (Lenovo), ₹1,720 (Dell)"
-                      className="h-8 text-xs"
-                    />
-                  </div>
-                  <p className="text-[11px] text-muted-foreground">
-                    The requisition's approval authorises this purchase, so the PO is approved on
-                    creation (unless recent orders to the same vendor need a higher approval).
-                  </p>
+                  {directMode === "quotes" ? (
+                    <>
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <Label>Vendors to ask for quotes *</Label>
+                          <span className="text-[11px] text-muted-foreground">
+                            {quoteVendorIds.length} selected
+                          </span>
+                        </div>
+                        <div className="max-h-48 overflow-y-auto rounded-md border divide-y">
+                          {vendorsList
+                            .filter((v: any) => v.status === "empanelled")
+                            .map((v: any) => (
+                              <label
+                                key={v.id}
+                                className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-muted/50"
+                              >
+                                <input
+                                  type="checkbox"
+                                  className="h-4 w-4 accent-indigo-600"
+                                  checked={quoteVendorIds.includes(v.id)}
+                                  onChange={(e) =>
+                                    setQuoteVendorIds((ids) =>
+                                      e.target.checked
+                                        ? [...ids, v.id]
+                                        : ids.filter((id) => id !== v.id),
+                                    )
+                                  }
+                                />
+                                <span className="truncate">{v.name}</span>
+                              </label>
+                            ))}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Quotes due by</Label>
+                          <Input
+                            type="date"
+                            min={new Date().toISOString().slice(0, 10)}
+                            value={quoteDeadline}
+                            onChange={(e) => setQuoteDeadline(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">Note to vendors (optional)</Label>
+                          <Input
+                            value={quoteNotes}
+                            onChange={(e) => setQuoteNotes(e.target.value)}
+                            placeholder="e.g. Include GST and delivery"
+                          />
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        Each vendor gets a private link to quote. No Comparative Statement is
+                        needed: once the quotes are in, award the lowest from the RFQ page (choosing
+                        anyone else needs a reason).
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="space-y-1">
+                        <Label>Vendor *</Label>
+                        <Select value={selectedVendorId} onValueChange={setSelectedVendorId}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select empanelled vendor..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {vendorsList.map((v: any) => (
+                              <SelectItem key={v.id} value={v.id}>
+                                {v.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <label className="flex items-start gap-2 text-xs cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="mt-0.5 h-4 w-4 accent-indigo-600"
+                          checked={storesConfirmed}
+                          onChange={(e) => setStoresConfirmed(e.target.checked)}
+                        />
+                        <span>
+                          I confirmed these items are{" "}
+                          <strong>not available in Central Stores</strong>.
+                        </span>
+                      </label>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Quotes obtained (optional)</Label>
+                        <Input
+                          value={quotesNote}
+                          onChange={(e) => setQuotesNote(e.target.value)}
+                          placeholder="e.g. 2 shop quotes: ₹1,650 (Lenovo), ₹1,720 (Dell)"
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        The requisition's approval authorises this purchase, so the PO is approved
+                        on creation (unless recent orders to the same vendor need a higher
+                        approval).
+                      </p>
+                    </>
+                  )}
                 </div>
               )}
 
@@ -1088,68 +1142,80 @@ export default function PurchaseOrders() {
                 </div>
               )}
 
-              <div className="space-y-1">
-                <Label>Scope of Supply / Order Description</Label>
-                <Textarea
-                  value={scopeOfSupply}
-                  onChange={(e) => setScopeOfSupply(e.target.value)}
-                  placeholder="Detailed specifications, model numbers, deliverables..."
-                  rows={3}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label>Base Price (₹)</Label>
-                  <Input
-                    type="number"
-                    placeholder="0"
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value === "" ? "" : Number(e.target.value))}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label>Taxes & GST (₹)</Label>
-                  <Input
-                    type="number"
-                    placeholder="0"
-                    value={taxes}
-                    onChange={(e) => setTaxes(e.target.value === "" ? "" : Number(e.target.value))}
-                  />
-                </div>
-              </div>
-
-              <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg flex items-center justify-between text-xs">
-                <span className="font-medium text-slate-500">Calculated Total PO Value:</span>
-                <span className="font-mono font-bold whitespace-nowrap text-base text-slate-900 dark:text-white">
-                  ₹{(Number(price) + Number(taxes)).toLocaleString("en-IN")}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label>Delivery Timeline</Label>
-                  <Input
-                    value={deliveryTimeline}
-                    onChange={(e) => setDeliveryTimeline(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label>Payment Terms</Label>
-                  <Input value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} />
-                </div>
-              </div>
-
-              {recentPoForVendor && (
-                <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
-                  <div>
-                    <span className="font-semibold">Recent order to this vendor:</span>{" "}
-                    <strong className="font-mono">{recentPoForVendor.po_number}</strong> was issued
-                    to this vendor in the last 30 days. If this is the same requirement, combine it
-                    into one order. Splitting it to stay under an approval limit isn't allowed.
+              {!(poType === "direct_purchase" && directMode === "quotes") && (
+                <>
+                  <div className="space-y-1">
+                    <Label>Scope of Supply / Order Description</Label>
+                    <Textarea
+                      value={scopeOfSupply}
+                      onChange={(e) => setScopeOfSupply(e.target.value)}
+                      placeholder="Detailed specifications, model numbers, deliverables..."
+                      rows={3}
+                    />
                   </div>
-                </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label>Base Price (₹)</Label>
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        value={price}
+                        onChange={(e) =>
+                          setPrice(e.target.value === "" ? "" : Number(e.target.value))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Taxes & GST (₹)</Label>
+                      <Input
+                        type="number"
+                        placeholder="0"
+                        value={taxes}
+                        onChange={(e) =>
+                          setTaxes(e.target.value === "" ? "" : Number(e.target.value))
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg flex items-center justify-between text-xs">
+                    <span className="font-medium text-slate-500">Calculated Total PO Value:</span>
+                    <span className="font-mono font-bold whitespace-nowrap text-base text-slate-900 dark:text-white">
+                      ₹{(Number(price) + Number(taxes)).toLocaleString("en-IN")}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label>Delivery Timeline</Label>
+                      <Input
+                        value={deliveryTimeline}
+                        onChange={(e) => setDeliveryTimeline(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Payment Terms</Label>
+                      <Input
+                        value={paymentTerms}
+                        onChange={(e) => setPaymentTerms(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {recentPoForVendor && (
+                    <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                      <div>
+                        <span className="font-semibold">Recent order to this vendor:</span>{" "}
+                        <strong className="font-mono">{recentPoForVendor.po_number}</strong> was
+                        issued to this vendor in the last 30 days. If this is the same requirement,
+                        combine it into one order. Splitting it to stay under an approval limit
+                        isn't allowed.
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
@@ -1157,17 +1223,33 @@ export default function PurchaseOrders() {
               <Button variant="outline" onClick={() => setCreateOpen(false)}>
                 Cancel
               </Button>
-              <Button
-                onClick={handleCreatePo}
-                disabled={creating || !selectedPrId || Number(price) <= 0}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white"
-              >
-                {creating
-                  ? "Creating..."
-                  : poType === "direct_purchase"
-                    ? "Create Purchase Order"
-                    : "Create & Route for Approval"}
-              </Button>
+              {poType === "direct_purchase" && directMode === "quotes" ? (
+                <Button
+                  onClick={handleRequestQuotes}
+                  disabled={creating || !selectedPrId || quoteVendorIds.length < 2}
+                  className="gap-1 bg-indigo-600 hover:bg-indigo-700 text-white"
+                >
+                  <Send className="w-4 h-4" />
+                  {creating ? "Sending..." : `Send quote requests (${quoteVendorIds.length})`}
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleCreatePo}
+                  disabled={
+                    creating ||
+                    !selectedPrId ||
+                    Number(price) <= 0 ||
+                    (poType === "direct_purchase" && !storesConfirmed)
+                  }
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                >
+                  {creating
+                    ? "Creating..."
+                    : poType === "direct_purchase"
+                      ? "Create Purchase Order"
+                      : "Create & Route for Approval"}
+                </Button>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -1240,206 +1322,6 @@ export default function PurchaseOrders() {
                 className="bg-amber-600 hover:bg-amber-700 text-white"
               >
                 {amending ? "Amending..." : "Submit Amendment"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Modal: Create Rate Contract */}
-        <Dialog open={rcOpen} onOpenChange={setRcOpen}>
-          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-indigo-600" />
-                Register Master Rate Contract
-              </DialogTitle>
-              <DialogDescription>
-                Establish fixed pre-negotiated unit rates with an empanelled vendor. Orders placed
-                under this agreement bypass RFQ tendering.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-4 py-2">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label>Contract Number *</Label>
-                  <Input
-                    value={rcContractNumber}
-                    onChange={(e) => setRcContractNumber(e.target.value)}
-                    placeholder="e.g. RC-2026-001"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label>Category *</Label>
-                  <Select value={rcCategory} onValueChange={setRcCategory}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="routine_consumable">Routine Consumables</SelectItem>
-                      <SelectItem value="services_amc">Services & AMC</SelectItem>
-                      <SelectItem value="maintenance">Facility Maintenance</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <Label>Empanelled Vendor *</Label>
-                <Select value={rcVendorId} onValueChange={setRcVendorId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select active empanelled vendor..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {empanelledVendors.length === 0 ? (
-                      <SelectItem value="_none" disabled>
-                        No empanelled vendors found
-                      </SelectItem>
-                    ) : (
-                      empanelledVendors.map((v) => (
-                        <SelectItem key={v.id} value={v.id}>
-                          {v.name} {v.gst_number ? `(${v.gst_number})` : ""}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1">
-                <Label>Agreement Title *</Label>
-                <Input
-                  value={rcTitle}
-                  onChange={(e) => setRcTitle(e.target.value)}
-                  placeholder="e.g. Annual Stationery & Lab Supplies Agreement"
-                />
-              </div>
-
-              <div className="p-3 bg-indigo-50/60 dark:bg-indigo-950/20 border border-indigo-200/50 dark:border-indigo-900/30 rounded-lg space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-indigo-900 dark:text-indigo-200 flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5" /> Validity Window (maximum 6 months)
-                  </span>
-                  <Badge
-                    variant="outline"
-                    className="text-[10px] bg-indigo-100/50 text-indigo-700 dark:text-indigo-300"
-                  >
-                    Within 6-month limit
-                  </Badge>
-                </div>
-                <div className="grid grid-cols-2 gap-3 pt-1">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Valid From *</Label>
-                    <Input
-                      type="date"
-                      value={rcValidFrom}
-                      onChange={(e) => setRcValidFrom(e.target.value)}
-                      className="h-8 text-xs bg-white dark:bg-slate-900"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Valid To *</Label>
-                    <Input
-                      type="date"
-                      value={rcValidTo}
-                      onChange={(e) => setRcValidTo(e.target.value)}
-                      className="h-8 text-xs bg-white dark:bg-slate-900"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Rate Items Schedule */}
-              <div className="space-y-2 pt-1">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                    Schedule of Negotiated Rates
-                  </Label>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleAddRcItem}
-                    className="h-7 text-xs text-indigo-600 dark:text-indigo-400 gap-1"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Add Item Line
-                  </Button>
-                </div>
-
-                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                  {rcRateItems.map((item, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800"
-                    >
-                      <Select
-                        value={item.group}
-                        onValueChange={(v) => handleRcItemChange(index, "group", v)}
-                      >
-                        <SelectTrigger className="h-8 text-xs w-40" aria-label="Item group">
-                          <SelectValue placeholder="Item group" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ITEM_GROUPS.filter((g) => g.id !== "not_consumable").map((g) => (
-                            <SelectItem key={g.id} value={g.id}>
-                              {g.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Input
-                        placeholder="Item description / code..."
-                        value={item.description}
-                        onChange={(e) => handleRcItemChange(index, "description", e.target.value)}
-                        className="h-8 text-xs flex-1"
-                      />
-                      <Input
-                        placeholder="Unit (pcs, box...)"
-                        value={item.unit}
-                        onChange={(e) => handleRcItemChange(index, "unit", e.target.value)}
-                        className="h-8 text-xs w-24"
-                      />
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder="Unit Rate (₹)"
-                        value={item.rate === 0 && item.description === "" ? "" : item.rate}
-                        onChange={(e) =>
-                          handleRcItemChange(
-                            index,
-                            "rate",
-                            e.target.value === "" ? "" : parseFloat(e.target.value),
-                          )
-                        }
-                        className="h-8 text-xs w-28"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleRemoveRcItem(index)}
-                        disabled={rcRateItems.length === 1}
-                        className="h-8 w-8 p-0 text-slate-400 hover:text-red-600"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setRcOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                onClick={handleCreateRateContract}
-                disabled={savingRc || !rcVendorId || !rcTitle.trim()}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white"
-              >
-                {savingRc ? "Saving Contract..." : "Register Rate Contract"}
               </Button>
             </DialogFooter>
           </DialogContent>
