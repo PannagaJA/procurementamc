@@ -165,19 +165,10 @@ export const prepareComparativeStatement = createServerFn({ method: "POST" })
     // 6. Authority Matrix routing for CS approval
     const canonicalCat = normalizeCategory(pr.category);
     const { data: rules } = await supabaseAdmin.from("approval_matrix_rules").select("*").eq("active", true);
+    const { fetchMonthlySpendBreakdown } = await import("@/lib/procurement/authorityMatrix");
+    const spendContext = await fetchMonthlySpendBreakdown(supabaseAdmin, canonicalCat, pr.department_id);
 
-    let spend = 0;
-    if (pr.department_id) {
-      const { data: rows } = await supabaseAdmin
-        .from("department_monthly_spend")
-        .select("total_spent")
-        .eq("department_id", pr.department_id)
-        .eq("month", monthKey())
-        .eq("category", canonicalCat);
-      spend = (rows ?? []).reduce((s: number, r: any) => s + Number(r.total_spent ?? 0), 0);
-    }
-
-    const resolved = resolveApprover(canonicalCat, recTotal, spend, rules ?? []);
+    const resolved = resolveApprover(canonicalCat, recTotal, spendContext, rules ?? []);
 
     // The Purchase Committee evaluates comparative statements (SOP §8.4), or a higher authority
     // when the value needs one; and whoever prepared it can't be the one to approve it.

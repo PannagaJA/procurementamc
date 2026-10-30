@@ -1,9 +1,13 @@
 /**
- * Authority Matrix engine (SOP §6) — PURE, table-driven, no DB dependency.
+ * Authority Matrix engine (SOP §6, §13) — PURE, table-driven, no DB dependency.
  *
  * Rules are passed in as arguments (loaded from public.approval_matrix_rules)
  * so this module is fully unit-testable and no monetary threshold is ever
  * hardcoded in TypeScript. See DECISIONS.md Q1/Q2/Q3.
+ *
+ * Supports Level-Aware monthly spend aggregation scopes:
+ * - 'department' for departmental roles (e.g. HOD: ₹5,000/month cap per department)
+ * - 'institution' for central institutional roles (e.g. Principal, Procurement Officer, Purchase Committee)
  */
 
 export type PrCategory =
@@ -23,6 +27,16 @@ export type ApprovalRole =
   | "director_admin_finance"
   | "evp";
 
+export type AggregationScope = "department" | "institution" | "approver";
+
+export type MonthlySpendContext =
+  | number
+  | {
+      departmentSpend?: number;
+      institutionSpend?: number;
+      approverSpend?: number;
+    };
+
 export type MatrixRule = {
   id?: string;
   category: PrCategory | string;
@@ -33,6 +47,7 @@ export type MatrixRule = {
   min_quotations: number | null;
   requires_rate_contract: boolean | null;
   active: boolean | null;
+  aggregation_scope?: AggregationScope | string | null;
 };
 
 export type ResolvedApprover = {
@@ -42,6 +57,9 @@ export type ResolvedApprover = {
   rule: MatrixRule | null;
   minQuotations: number;
   requiresRateContract: boolean;
+  appliedScope?: AggregationScope;
+  appliedSpend?: number;
+  scopeLabel?: string;
 };
 
 export type AuthorityMatrixTier = {
@@ -57,6 +75,8 @@ export type AuthorityMatrixTier = {
   approvalRole: ApprovalRole | string;
   minQuotations: number;
   requiresRateContract: boolean;
+  aggregationScope: AggregationScope;
+  aggregationScopeFormatted: string;
   notes?: string;
 };
 
@@ -75,7 +95,9 @@ export const AUTHORITY_MATRIX_DEFINITIONS: AuthorityMatrixTier[] = [
     approvalRole: "hod",
     minQuotations: 0,
     requiresRateContract: false,
-    notes: "Department Head direct spot purchase.",
+    aggregationScope: "department",
+    aggregationScopeFormatted: "Per Department",
+    notes: "Department Head direct spot purchase scoped to departmental spend.",
   },
   {
     id: "small_value_principal",
@@ -90,7 +112,9 @@ export const AUTHORITY_MATRIX_DEFINITIONS: AuthorityMatrixTier[] = [
     approvalRole: "principal",
     minQuotations: 0,
     requiresRateContract: false,
-    notes: "Institutional Principal direct authorization.",
+    aggregationScope: "institution",
+    aggregationScopeFormatted: "Institution-wide",
+    notes: "Institutional Principal direct authorization across academic departments.",
   },
   {
     id: "small_value_po",
@@ -105,7 +129,9 @@ export const AUTHORITY_MATRIX_DEFINITIONS: AuthorityMatrixTier[] = [
     approvalRole: "procurement_officer",
     minQuotations: 0,
     requiresRateContract: false,
-    notes: "Central Procurement direct spot purchase.",
+    aggregationScope: "institution",
+    aggregationScopeFormatted: "Institution-wide",
+    notes: "Central Procurement direct spot purchase institution-wide.",
   },
   {
     id: "routine_consumables",
@@ -121,7 +147,9 @@ export const AUTHORITY_MATRIX_DEFINITIONS: AuthorityMatrixTier[] = [
     approvalRole: "procurement_officer",
     minQuotations: 3,
     requiresRateContract: true,
-    notes: "Periodic requisitions against empanelled Rate Contracts.",
+    aggregationScope: "institution",
+    aggregationScopeFormatted: "Institution-wide",
+    notes: "Periodic requisitions against empanelled Rate Contracts institution-wide.",
   },
   {
     id: "equipment_assets_services",
@@ -143,7 +171,9 @@ export const AUTHORITY_MATRIX_DEFINITIONS: AuthorityMatrixTier[] = [
     approvalRole: "purchase_committee",
     minQuotations: 3,
     requiresRateContract: false,
-    notes: "Asset procurement, software licenses, AMC agreements, and repairs.",
+    aggregationScope: "institution",
+    aggregationScopeFormatted: "Institution-wide",
+    notes: "Asset procurement, software licenses, AMC agreements, and repairs (central 5-member committee limit).",
   },
   {
     id: "evp_escalation",
@@ -158,6 +188,8 @@ export const AUTHORITY_MATRIX_DEFINITIONS: AuthorityMatrixTier[] = [
     approvalRole: "evp",
     minQuotations: 3,
     requiresRateContract: false,
+    aggregationScope: "institution",
+    aggregationScopeFormatted: "Global Institutional Ledger",
     notes: "Requires formal Executive Vice President & Trustee countersignature.",
   },
 ];
@@ -211,19 +243,97 @@ export function normalizeCategory(category: string): string {
   return norm;
 }
 
+export function getRuleScope(rule: MatrixRule): AggregationScope {
+  if (
+    rule.aggregation_scope === "department" ||
+    rule.aggregation_scope === "institution" ||
+    rule.aggregation_scope === "approver"
+  ) {
+    return rule.aggregation_scope as AggregationScope;
+  }
+  const role = String(rule.approval_role || "").toLowerCase();
+  if (role === "hod") return "department";
+  return "institution";
+}
+
+export function extractSpendForScope(
+  spendContext: MonthlySpendContext,
+  scope: AggregationScope,
+): { spend: number; label: string } {
+  if (typeof spendContext === "number") {
+    return {
+      spend: spendContext,
+      label: scope === "department" ? "department month-to-date" : "institutional month-to-date",
+    };
+  }
+
+  if (scope === "department") {
+    return {
+      spend: Number(spendContext?.departmentSpend ?? 0),
+      label: "department month-to-date",
+    };
+  }
+  if (scope === "approver") {
+    return {
+      spend: Number(spendContext?.approverSpend ?? spendContext?.institutionSpend ?? 0),
+      label: "approver month-to-date",
+    };
+  }
+  return {
+    spend: Number(spendContext?.institutionSpend ?? 0),
+    label: "institutional month-to-date",
+  };
+}
+
+export async function fetchMonthlySpendBreakdown(
+  db: any,
+  category: string,
+  departmentId: string | null,
+  monthDate = new Date(),
+): Promise<{ departmentSpend: number; institutionSpend: number }> {
+  const mKey = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, "0")}-01`;
+  const canonicalCat = normalizeCategory(category);
+
+  try {
+    const { data: rows, error } = await db
+      .from("department_monthly_spend")
+      .select("department_id, total_spent")
+      .eq("month", mKey)
+      .eq("category", canonicalCat);
+
+    if (error || !rows) {
+      return { departmentSpend: 0, institutionSpend: 0 };
+    }
+
+    let departmentSpend = 0;
+    let institutionSpend = 0;
+
+    for (const r of rows) {
+      const amt = Number(r.total_spent ?? 0);
+      institutionSpend += amt;
+      if (departmentId && r.department_id === departmentId) {
+        departmentSpend += amt;
+      }
+    }
+
+    return { departmentSpend, institutionSpend };
+  } catch {
+    return { departmentSpend: 0, institutionSpend: 0 };
+  }
+}
+
 /**
  * Resolve the approving role for a transaction.
  *
  * @param category        SOP procurement category
  * @param txnValue        value of this single transaction
- * @param monthToDateSpend spend already booked this month on the aggregation
- *                        dimension (per DECISIONS.md Q3: the requesting department)
+ * @param monthToDateSpend spend already booked this month (number or level-aware MonthlySpendContext)
  * @param rules           rows from approval_matrix_rules
  */
 export function resolveApprover(
   category: PrCategory | string,
   txnValue: number,
-  monthToDateSpend: number,
+  monthToDateSpend: MonthlySpendContext,
   rules: MatrixRule[],
 ): ResolvedApprover {
   const canonicalCat = normalizeCategory(category);
@@ -246,14 +356,20 @@ export function resolveApprover(
       rule: null,
       minQuotations: 3,
       requiresRateContract: false,
+      appliedScope: "institution",
+      appliedSpend: 0,
+      scopeLabel: "institutional month-to-date",
     };
   }
 
-  const projectedMonth = monthToDateSpend + txnValue;
-
   for (const rule of applicable) {
+    const scope = getRuleScope(rule);
+    const { spend: currentSpend, label: scopeLabel } = extractSpendForScope(monthToDateSpend, scope);
+    const projectedMonth = currentSpend + txnValue;
+
     const txnOk = txnValue <= limit(rule.per_txn_limit);
     const monthOk = projectedMonth <= limit(rule.per_month_limit);
+
     if (txnOk && monthOk) {
       const roleDisplay = formatRoleTitle(rule.approval_role as string);
       const txnLimitStr =
@@ -263,8 +379,8 @@ export function resolveApprover(
 
       const reason =
         rule.per_txn_limit === null
-          ? `${inr(txnValue)} is within the ${roleDisplay} limit (${txnLimitStr}, up to ${inr(limit(rule.per_month_limit))} per month; month-to-date ${inr(monthToDateSpend)}).`
-          : `${inr(txnValue)} is within the ${roleDisplay} limit of ${txnLimitStr} and ${inr(limit(rule.per_month_limit))} per month (month-to-date ${inr(monthToDateSpend)}).`;
+          ? `${inr(txnValue)} is within the ${roleDisplay} limit (${txnLimitStr}, up to ${inr(limit(rule.per_month_limit))} per month; ${scopeLabel} ${inr(currentSpend)}).`
+          : `${inr(txnValue)} is within the ${roleDisplay} limit of ${txnLimitStr} and ${inr(limit(rule.per_month_limit))} per month (${scopeLabel} ${inr(currentSpend)}).`;
 
       return {
         role: rule.approval_role,
@@ -273,19 +389,25 @@ export function resolveApprover(
         rule,
         minQuotations: rule.min_quotations ?? (rule.requires_rate_contract ? 3 : 0),
         requiresRateContract: rule.requires_rate_contract === true,
+        appliedScope: scope,
+        appliedSpend: currentSpend,
+        scopeLabel,
       };
     }
   }
 
   // Nothing in the matrix can authorise this — escalate to EVP.
   const highest = applicable[applicable.length - 1]!;
+  const highestScope = getRuleScope(highest);
+  const { spend: highestSpend, label: highestScopeLabel } = extractSpendForScope(monthToDateSpend, highestScope);
+
   const breachedTxn = highest.per_txn_limit !== null && txnValue > limit(highest.per_txn_limit);
   const roleDisplay = formatRoleTitle(highest.approval_role as string);
 
   const reason = breachedTxn
     ? `${inr(txnValue)} exceeds the highest per-transaction limit for "${category}" ` +
       `(${inr(limit(highest.per_txn_limit))}, ${roleDisplay}). Escalated to Executive Vice President (EVP).`
-    : `Spend of ${inr(txnValue)} (plus month-to-date ${inr(monthToDateSpend)}) exceeds the ` +
+    : `Spend of ${inr(txnValue)} (plus ${highestScopeLabel} ${inr(highestSpend)}) exceeds the ` +
       `monthly cap of ${inr(limit(highest.per_month_limit))} for "${category}" ` +
       `(${roleDisplay}). Escalated to Executive Vice President (EVP).`;
 
@@ -296,6 +418,9 @@ export function resolveApprover(
     rule: highest,
     minQuotations: highest.min_quotations ?? 3,
     requiresRateContract: highest.requires_rate_contract === true,
+    appliedScope: highestScope,
+    appliedSpend: highestSpend,
+    scopeLabel: highestScopeLabel,
   };
 }
 

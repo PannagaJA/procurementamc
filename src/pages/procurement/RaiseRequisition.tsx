@@ -46,6 +46,7 @@ import {
   normalizeCategory,
   AUTHORITY_MATRIX_DEFINITIONS,
   formatRoleTitle,
+  fetchMonthlySpendBreakdown,
 } from "@/lib/procurement/authorityMatrix";
 import { createPr, rateContractCoverage } from "@/lib/procurement/pr.functions";
 import { ITEM_GROUPS, itemGroupLabel } from "@/lib/procurement/itemGroups";
@@ -199,10 +200,25 @@ export default function RaiseRequisition() {
       .catch(() => setEmergencyRemaining(null));
   }, [isEmergency]);
 
+  const [monthlySpendContext, setMonthlySpendContext] = useState<{
+    departmentSpend: number;
+    institutionSpend: number;
+  }>({ departmentSpend: 0, institutionSpend: 0 });
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchMonthlySpendBreakdown(supabase, category, departmentId).then((spend) => {
+      if (!cancelled) setMonthlySpendContext(spend);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [departmentId, category]);
+
   // Real-time Authority Matrix Resolver preview
   const liveRouting = useMemo(() => {
-    return resolveApprover(category, totalEstimatedValue, 0, matrixRules);
-  }, [category, totalEstimatedValue, matrixRules]);
+    return resolveApprover(category, totalEstimatedValue, monthlySpendContext, matrixRules);
+  }, [category, totalEstimatedValue, monthlySpendContext, matrixRules]);
 
   const [matrixModalOpen, setMatrixModalOpen] = useState(false);
 
@@ -469,7 +485,7 @@ export default function RaiseRequisition() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Requisition Form */}
           <div className="lg:col-span-2 space-y-6">
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form noValidate onSubmit={handleSubmit} className="space-y-6">
               {/* Section 1: Classification & Scope */}
               <Card className="shadow-sm border-slate-200 dark:border-slate-800">
                 <CardHeader className="pb-4">
@@ -991,6 +1007,40 @@ export default function RaiseRequisition() {
                   </span>
                 </div>
 
+                {/* Level-Aware Monthly Spend Tracker (SOP §6) */}
+                <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                      <Wallet className="w-3.5 h-3.5 text-indigo-500" />
+                      Up-to-Date Spend ({liveRouting.appliedScope === "department" ? "Departmental" : "Institutional"})
+                    </span>
+                    <Badge
+                      variant="outline"
+                      className={`text-[9px] px-1.5 py-0 font-semibold ${
+                        liveRouting.appliedScope === "department"
+                          ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300"
+                          : "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300"
+                      }`}
+                    >
+                      {liveRouting.appliedScope === "department" ? "Per Department" : "Institution-Wide"}
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-slate-200/60 dark:border-slate-700/60">
+                    <div>
+                      <span className="text-slate-400 text-[10px] block">Dept MTD Spend:</span>
+                      <strong className="text-slate-800 dark:text-slate-200 font-mono">
+                        ₹{monthlySpendContext.departmentSpend.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 text-[10px] block">Inst MTD Spend:</span>
+                      <strong className="text-slate-800 dark:text-slate-200 font-mono">
+                        ₹{monthlySpendContext.institutionSpend.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Resolved Role Display */}
                 <div
                   className={`p-4 rounded-xl text-white shadow-sm space-y-1 ${
@@ -1198,6 +1248,9 @@ export default function RaiseRequisition() {
                       <th className="p-3 border-r border-slate-200 dark:border-slate-800">
                         Limit (Per Month)
                       </th>
+                      <th className="p-3 border-r border-slate-200 dark:border-slate-800">
+                        Spend Scope (SOP §6)
+                      </th>
                       <th className="p-3">Approval Authority</th>
                     </tr>
                   </thead>
@@ -1221,6 +1274,10 @@ export default function RaiseRequisition() {
                       </td>
                       <td className="p-3 border-r border-slate-200 dark:border-slate-800 font-mono">
                         Up to ₹5,000
+                      </td>
+                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">
+                        <span className="font-semibold text-blue-600 dark:text-blue-400 block">Per Department</span>
+                        <span className="text-[10px] text-slate-500 font-mono">Dept MTD: ₹{monthlySpendContext.departmentSpend.toLocaleString("en-IN")}</span>
                       </td>
                       <td className="p-3 font-bold text-slate-900 dark:text-white">
                         HOD
@@ -1251,6 +1308,10 @@ export default function RaiseRequisition() {
                       <td className="p-3 border-r border-slate-200 dark:border-slate-800 font-mono">
                         Up to ₹30,000
                       </td>
+                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">
+                        <span className="font-semibold text-purple-600 dark:text-purple-400 block">Institution-Wide</span>
+                        <span className="text-[10px] text-slate-500 font-mono">Inst MTD: ₹{monthlySpendContext.institutionSpend.toLocaleString("en-IN")}</span>
+                      </td>
                       <td className="p-3 font-bold text-slate-900 dark:text-white">
                         Principals
                         {activeTierId === "small_value_principal" && (
@@ -1279,6 +1340,10 @@ export default function RaiseRequisition() {
                       </td>
                       <td className="p-3 border-r border-slate-200 dark:border-slate-800 font-mono">
                         Up to ₹30,000
+                      </td>
+                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">
+                        <span className="font-semibold text-purple-600 dark:text-purple-400 block">Institution-Wide</span>
+                        <span className="text-[10px] text-slate-500 font-mono">Inst MTD: ₹{monthlySpendContext.institutionSpend.toLocaleString("en-IN")}</span>
                       </td>
                       <td className="p-3 font-bold text-slate-900 dark:text-white">
                         Procurement Officer
@@ -1313,6 +1378,10 @@ export default function RaiseRequisition() {
                       </td>
                       <td className="p-3 border-r border-slate-200 dark:border-slate-800 font-mono">
                         Up to ₹1,00,000
+                      </td>
+                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">
+                        <span className="font-semibold text-purple-600 dark:text-purple-400 block">Institution-Wide</span>
+                        <span className="text-[10px] text-slate-500 font-mono">Inst MTD: ₹{monthlySpendContext.institutionSpend.toLocaleString("en-IN")}</span>
                       </td>
                       <td className="p-3 font-bold text-slate-900 dark:text-white">
                         Procurement Officer
@@ -1349,6 +1418,10 @@ export default function RaiseRequisition() {
                       <td className="p-3 border-r border-slate-200 dark:border-slate-800 font-mono">
                         Up to ₹50,000
                       </td>
+                      <td className="p-3 border-r border-slate-200 dark:border-slate-800">
+                        <span className="font-semibold text-purple-600 dark:text-purple-400 block">Institution-Wide</span>
+                        <span className="text-[10px] text-slate-500 font-mono">Inst MTD: ₹{monthlySpendContext.institutionSpend.toLocaleString("en-IN")}</span>
+                      </td>
                       <td className="p-3 font-bold text-slate-900 dark:text-white">
                         Purchase Committee
                         {activeTierId === "equipment_assets_services" && (
@@ -1377,6 +1450,9 @@ export default function RaiseRequisition() {
                       </td>
                       <td className="p-3 border-r border-slate-200 dark:border-slate-800 font-mono text-amber-900 dark:text-amber-200">
                         Exceeds Monthly Band Caps
+                      </td>
+                      <td className="p-3 border-r border-slate-200 dark:border-slate-800 text-[11px] text-amber-700 dark:text-amber-300 font-semibold">
+                        Global Institutional Ledger
                       </td>
                       <td className="p-3 font-bold text-amber-900 dark:text-amber-200">
                         Executive Vice President (EVP) / Trustees
