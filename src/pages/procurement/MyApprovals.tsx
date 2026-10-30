@@ -261,6 +261,9 @@ export default function MyApprovals() {
 
       setDialogOpen(false);
       loadData();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("approval-updated"));
+      }
     } catch (e: any) {
       toast({ title: "Action Failed", description: e.message, variant: "destructive" });
     } finally {

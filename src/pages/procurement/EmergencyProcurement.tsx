@@ -118,10 +118,9 @@ export default function EmergencyProcurement() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [epRes, deptRes, vendorRes] = await Promise.all([
+      const [epRes, deptRes] = await Promise.all([
         (listEmergencyProcurements as any)(),
         supabase.from("departments").select("id, name"),
-        supabase.from("vendors").select("id, name").eq("status", "empanelled"),
       ]);
 
       if (epRes?.ok) {
@@ -134,7 +133,7 @@ export default function EmergencyProcurement() {
         setAnomalies(detected);
       }
       setDepartments(deptRes.data || []);
-      setVendors(vendorRes.data || []);
+      setVendors(epRes?.vendors || []);
     } catch (e: any) {
       toast({ title: "Error loading data", description: e.message, variant: "destructive" });
     } finally {
