@@ -248,7 +248,7 @@ export const listEmergencyProcurements = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { emergencyCapStatus } = await import("@/server/procurement/guards");
 
-    const [epRes, cap] = await Promise.all([
+    const [epRes, cap, vendorsRes] = await Promise.all([
       db
         .from("emergency_procurements")
         .select(
@@ -261,6 +261,11 @@ export const listEmergencyProcurements = createServerFn({ method: "GET" })
         )
         .order("created_at", { ascending: false }),
       emergencyCapStatus(supabaseAdmin as any, 0, fy),
+      supabaseAdmin
+        .from("vendors")
+        .select("id, name, status, gst_number")
+        .eq("status", "empanelled")
+        .order("name", { ascending: true }),
     ]);
 
     return {
@@ -269,7 +274,20 @@ export const listEmergencyProcurements = createServerFn({ method: "GET" })
       // running_total is the shared counter: register approvals + emergency-flag PRs.
       ledger: { financial_year: fy, running_total: cap.used, cap_limit: cap.capLimit },
       emergencyProcurements: epRes.data || [],
+      vendors: (vendorsRes as any)?.data || [],
     };
+  });
+
+export const getEmpanelledVendors = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin
+      .from("vendors")
+      .select("id, name, status, gst_number")
+      .eq("status", "empanelled")
+      .order("name", { ascending: true });
+    return { ok: !error, vendors: data || [] };
   });
 
 export type EmergencyPoLine = {

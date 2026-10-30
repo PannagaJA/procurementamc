@@ -1,3 +1,4 @@
+import { ApprovalNotificationBell } from "@/components/ApprovalNotificationBell";
 import { ReactNode, useEffect, useState } from "react";
 import { useNavigate, useLocation } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
@@ -477,6 +478,7 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
+            <ApprovalNotificationBell />
             <ThemeToggle />
             <Button
               variant="outline"
