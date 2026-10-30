@@ -221,7 +221,7 @@ export async function spendForPayment(
 /**
  * Month-to-date spend for the authority matrix's monthly caps, per department and category.
  * Recalculated from the purchase orders themselves: every PO first issued in that month counts
- * at its current value (amendments included), and cancelled orders don't count.
+ * at its current value (amendments included); cancelled and emergency orders don't count.
  */
 export async function recomputeMonthlySpend(admin: Db, poId: string) {
   const { data: po } = await admin
@@ -237,13 +237,18 @@ export async function recomputeMonthlySpend(admin: Db, poId: string) {
   const end = new Date(d.getFullYear(), d.getMonth() + 1, 1);
   const { data: orders } = await admin
     .from("purchase_orders")
-    .select("total_value, price, taxes, status, purchase_requisitions (category)")
+    .select("total_value, price, taxes, status, purchase_requisitions (category, is_emergency)")
     .eq("department_id", departmentId)
     .neq("status", "cancelled")
     .gte("issued_at", start.toISOString())
     .lt("issued_at", end.toISOString());
   const total = (orders ?? [])
-    .filter((o: any) => normalizeCategory(o.purchase_requisitions?.category ?? "") === category)
+    // Emergency orders sit outside the matrix's monthly caps (DECISIONS Q16).
+    .filter(
+      (o: any) =>
+        !o.purchase_requisitions?.is_emergency &&
+        normalizeCategory(o.purchase_requisitions?.category ?? "") === category,
+    )
     .reduce(
       (sum: number, o: any) =>
         sum + Number(o.total_value ?? Number(o.price || 0) + Number(o.taxes || 0)),

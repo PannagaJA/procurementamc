@@ -52,6 +52,7 @@ import { createPr, rateContractCoverage } from "@/lib/procurement/pr.functions";
 import { ITEM_GROUPS, itemGroupLabel } from "@/lib/procurement/itemGroups";
 import { listPrBudgetHeads } from "@/lib/procurement/budget.functions";
 import { isOverBudget } from "@/lib/procurement/budgetLedger";
+import { checkAnnualCap } from "@/lib/procurement/emergency.functions";
 import { RateBenchmarkingWidget } from "@/components/procurement/RateBenchmarkingWidget";
 
 type LineItem = {
@@ -92,6 +93,8 @@ export default function RaiseRequisition() {
   const [category, setCategory] = useState<string>("routine_consumable");
   const [scope, setScope] = useState<"academic" | "operational">("operational");
   const [isEmergency, setIsEmergency] = useState<boolean>(false);
+  // Shared emergency counter (register + emergency PRs), shown when Emergency is ticked
+  const [emergencyRemaining, setEmergencyRemaining] = useState<number | null>(null);
   const [isRecurring, setIsRecurring] = useState<boolean>(false);
   const [recurringFrequency, setRecurringFrequency] = useState<string>("");
   const [justification, setJustification] = useState<string>("");
@@ -163,8 +166,10 @@ export default function RaiseRequisition() {
   const selectedBudgetHeadObj = availableBudgetHeads.find(
     (h) => h.category === normalizeCategory(category),
   );
-  // The department budgets this year but not for this category: the PR can't be raised
-  const noHeadForCategory = availableBudgetHeads.length > 0 && !selectedBudgetHeadObj;
+  // The department budgets this year but not for this category: the PR can't be raised.
+  // Emergency PRs are kept out of department budgets (DECISIONS Q16).
+  const noHeadForCategory =
+    !isEmergency && availableBudgetHeads.length > 0 && !selectedBudgetHeadObj;
 
   // Compute item totals and estimated total value
   const computedItems = useMemo(() => {
@@ -184,7 +189,16 @@ export default function RaiseRequisition() {
   }, [computedItems]);
 
   const isBudgetOverdraft =
-    !!selectedBudgetHeadObj && isOverBudget(selectedBudgetHeadObj.balance, totalEstimatedValue);
+    !isEmergency &&
+    !!selectedBudgetHeadObj &&
+    isOverBudget(selectedBudgetHeadObj.balance, totalEstimatedValue);
+
+  useEffect(() => {
+    if (!isEmergency) return;
+    (checkAnnualCap as any)({ data: {} })
+      .then((res: any) => setEmergencyRemaining(Number(res?.remaining ?? 0)))
+      .catch(() => setEmergencyRemaining(null));
+  }, [isEmergency]);
 
   const [monthlySpendContext, setMonthlySpendContext] = useState<{
     departmentSpend: number;
@@ -547,7 +561,12 @@ export default function RaiseRequisition() {
                       <Wallet className="w-3.5 h-3.5 text-emerald-600" /> Budget head (Section B)
                     </Label>
 
-                    {selectedBudgetHeadObj ? (
+                    {isEmergency ? (
+                      <p className="text-xs rounded-lg border p-2.5 bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-900 text-amber-900 dark:text-amber-200">
+                        Emergency purchase: not charged to the department budget. It counts against
+                        the ₹10,00,000 annual emergency limit instead.
+                      </p>
+                    ) : selectedBudgetHeadObj ? (
                       <p className="text-xs rounded-lg border p-2.5 bg-white dark:bg-slate-900">
                         <span className="font-mono font-semibold">
                           {selectedBudgetHeadObj.code}
@@ -567,7 +586,7 @@ export default function RaiseRequisition() {
                       </p>
                     )}
 
-                    {selectedBudgetHeadObj && (
+                    {!isEmergency && selectedBudgetHeadObj && (
                       <div
                         className={`p-2.5 rounded-lg border text-xs space-y-2 ${
                           isBudgetOverdraft
@@ -843,6 +862,12 @@ export default function RaiseRequisition() {
                         </Label>
                         <p className="text-xs text-amber-700 dark:text-amber-400">
                           Subject to ₹10,00,000 annual institutional cap and post-facto audit.
+                          {isEmergency && emergencyRemaining !== null && (
+                            <span className="block mt-1 font-semibold">
+                              ₹{emergencyRemaining.toLocaleString("en-IN")} left this financial year
+                              (emergency register and emergency PRs together).
+                            </span>
+                          )}
                         </p>
                       </div>
                     </div>

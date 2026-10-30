@@ -31,7 +31,6 @@ export type RequestEmergencyInput = {
   quotations_obtained_count?: number;
   price_reasonableness_note?: string | null;
   vendor_id?: string | null;
-  pr_id?: string | null;
 };
 
 export type ApproveEmergencyInput = {
@@ -44,39 +43,19 @@ export const checkAnnualCap = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input?: { financial_year?: string; new_amount?: number }) => input)
   .handler(async ({ data, context }) => {
-    const db = context.supabase as any;
     const fy = data?.financial_year || getCurrentFinancialYear();
-    const newAmt = Number(data?.new_amount) || 0;
-
-    // Fetch or initialize ledger row
-    let { data: ledger } = await db
-      .from("emergency_annual_ledger")
-      .select("*")
-      .eq("financial_year", fy)
-      .maybeSingle();
-
-    if (!ledger) {
-      const { data: newLedger } = await db
-        .from("emergency_annual_ledger")
-        .insert({ financial_year: fy, running_total: 0, cap_limit: EMERGENCY_CAP_LIMIT })
-        .select("*")
-        .single();
-      ledger = newLedger;
-    }
-
-    const runningTotal = Number(ledger?.running_total || 0);
-    const capLimit = Number(ledger?.cap_limit || EMERGENCY_CAP_LIMIT);
-    const projected = runningTotal + newAmt;
-    const remaining = Math.max(0, capLimit - runningTotal);
-    const allowed = projected <= capLimit;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { emergencyCapStatus } = await import("@/server/procurement/guards");
+    // Register approvals and emergency-flag PRs share one counter (DECISIONS Q16).
+    const cap = await emergencyCapStatus(supabaseAdmin as any, Number(data?.new_amount) || 0, fy);
 
     return {
       financialYear: fy,
-      runningTotal,
-      capLimit,
-      remaining,
-      projected,
-      allowed,
+      runningTotal: cap.used,
+      capLimit: cap.capLimit,
+      remaining: cap.remaining,
+      projected: cap.projected,
+      allowed: cap.allowed,
     };
   });
 
@@ -96,28 +75,13 @@ export const requestEmergencyProcurement = createServerFn({ method: "POST" })
       };
     }
 
-    // 1. Guard: Check Annual Hard Cap (₹10,00,000)
-    let { data: ledger } = await db
-      .from("emergency_annual_ledger")
-      .select("*")
-      .eq("financial_year", fy)
-      .maybeSingle();
+    // 1. Guard: Check Annual Hard Cap (₹10,00,000), shared with emergency-flag PRs
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { emergencyCapStatus } = await import("@/server/procurement/guards");
+    const capStatus = await emergencyCapStatus(supabaseAdmin as any, cost, fy);
 
-    if (!ledger) {
-      const { data: insLedger } = await db
-        .from("emergency_annual_ledger")
-        .insert({ financial_year: fy, running_total: 0, cap_limit: EMERGENCY_CAP_LIMIT })
-        .select("*")
-        .single();
-      ledger = insLedger;
-    }
-
-    const currentTotal = Number(ledger?.running_total || 0);
-    const cap = Number(ledger?.cap_limit || EMERGENCY_CAP_LIMIT);
-    const projectedTotal = currentTotal + cost;
-
-    if (projectedTotal > cap) {
-      const remaining = Math.max(0, cap - currentTotal);
+    if (!capStatus.allowed) {
+      const { used: currentTotal, capLimit: cap, remaining, projected: projectedTotal } = capStatus;
       return {
         ok: false as const,
         error:
@@ -135,7 +99,8 @@ export const requestEmergencyProcurement = createServerFn({ method: "POST" })
     const { data: ep, error: epErr } = await db
       .from("emergency_procurements")
       .insert({
-        pr_id: data.pr_id ?? null,
+        // pr_id is set only by createEmergencyPo; a client-sent link would hide a PR from the counter.
+        pr_id: null,
         department_id: data.department_id ?? null,
         requested_by: context.userId,
         description: data.description,
@@ -189,6 +154,13 @@ export const approveEmergency = createServerFn({ method: "POST" })
         error: "You raised this emergency purchase, so another approver must decide it.",
       };
     }
+    // A decided entry stays decided: approving twice would count its cost twice.
+    if (ep.evp_approval_status !== "pending") {
+      return {
+        ok: false as const,
+        error: `${ep.emergency_number ?? "This emergency purchase"} is already ${ep.evp_approval_status}.`,
+      };
+    }
 
     // 2. Post-Facto 2-Day Rule Check (§9.3)
     if (ep.is_post_facto && data.decision === "approved") {
@@ -223,32 +195,28 @@ export const approveEmergency = createServerFn({ method: "POST" })
     const cost = Number(ep.estimated_cost) || 0;
     const fy = ep.financial_year || getCurrentFinancialYear();
 
-    const { data: ledger } = await db
-      .from("emergency_annual_ledger")
-      .select("*")
-      .eq("financial_year", fy)
-      .maybeSingle();
+    const { emergencyCapStatus } = await import("@/server/procurement/guards");
+    const cap = await emergencyCapStatus(supabaseAdmin as any, cost, fy);
 
-    const currentTotal = Number(ledger?.running_total || 0);
-    const newTotal = currentTotal + cost;
-
-    // Hard check again before commit
-    if (newTotal > Number(ledger?.cap_limit || EMERGENCY_CAP_LIMIT)) {
+    // Hard check again before commit, across the register and emergency-flag PRs
+    if (!cap.allowed) {
       return {
         ok: false as const,
-        error: `Cannot approve: Annual ledger for ${fy} would reach ₹${newTotal.toLocaleString("en-IN")}, exceeding ₹${EMERGENCY_CAP_LIMIT.toLocaleString("en-IN")}.`,
+        error: `Cannot approve: Annual ledger for ${fy} would reach ₹${cap.projected.toLocaleString("en-IN")}, exceeding ₹${cap.capLimit.toLocaleString("en-IN")}.`,
         code: "cap_exceeded_on_approval",
       };
     }
 
-    // Update ledger
-    await (supabaseAdmin as any)
-      .from("emergency_annual_ledger")
-      .update({
-        running_total: newTotal,
+    // The ledger holds the register's own total; create the FY row if it's missing.
+    await (supabaseAdmin as any).from("emergency_annual_ledger").upsert(
+      {
+        financial_year: fy,
+        running_total: cap.registerTotal + cost,
+        cap_limit: cap.capLimit,
         updated_at: new Date().toISOString(),
-      })
-      .eq("financial_year", fy);
+      },
+      { onConflict: "financial_year" },
+    );
 
     // Update emergency record
     const { error: upErr } = await (supabaseAdmin as any)
@@ -263,7 +231,12 @@ export const approveEmergency = createServerFn({ method: "POST" })
 
     if (upErr) return { ok: false as const, error: upErr.message };
 
-    return { ok: true as const, status: "approved", runningTotal: newTotal, financialYear: fy };
+    return {
+      ok: true as const,
+      status: "approved",
+      runningTotal: cap.projected,
+      financialYear: fy,
+    };
   });
 
 export const listEmergencyProcurements = createServerFn({ method: "GET" })
@@ -272,29 +245,247 @@ export const listEmergencyProcurements = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const db = context.supabase as any;
     const fy = data?.financial_year || getCurrentFinancialYear();
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { emergencyCapStatus } = await import("@/server/procurement/guards");
 
-    const [epRes, ledgerRes] = await Promise.all([
+    const [epRes, cap] = await Promise.all([
       db
         .from("emergency_procurements")
         .select(
           `
           *,
           departments (id, name),
-          vendors (id, name, gst_number)
+          vendors (id, name, gst_number),
+          purchase_requisitions (pr_number, purchase_orders (id, po_number, status))
         `,
         )
         .order("created_at", { ascending: false }),
-      db.from("emergency_annual_ledger").select("*").eq("financial_year", fy).maybeSingle(),
+      emergencyCapStatus(supabaseAdmin as any, 0, fy),
     ]);
 
     return {
       ok: true as const,
       financialYear: fy,
-      ledger: ledgerRes.data || {
-        financial_year: fy,
-        running_total: 0,
-        cap_limit: EMERGENCY_CAP_LIMIT,
-      },
+      // running_total is the shared counter: register approvals + emergency-flag PRs.
+      ledger: { financial_year: fy, running_total: cap.used, cap_limit: cap.capLimit },
       emergencyProcurements: epRes.data || [],
     };
+  });
+
+export type EmergencyPoLine = {
+  description: string;
+  unit?: string | null;
+  qty: number;
+  unit_price: number;
+  item_group?: string | null;
+};
+
+export type CreateEmergencyPoInput = {
+  emergency_id: string;
+  vendor_id: string;
+  category: string;
+  lines: EmergencyPoLine[];
+  taxes?: number;
+  delivery_timeline?: string | null;
+  payment_terms?: string | null;
+};
+
+/**
+ * Purchase order for an EVP-authorised emergency register entry (SOP §IX: the EVP approves before
+ * any commitment to the vendor). The EVP's authorisation is the approval, so the PO is created
+ * approved, backed by an emergency PR with no budget head: emergency spend is kept out of
+ * department budgets and monthly caps (DECISIONS Q16). One PO per entry.
+ */
+export const createEmergencyPo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: CreateEmergencyPoInput) => input)
+  .handler(async ({ data, context }) => {
+    const db = context.supabase as any;
+    const { getCallerRoles } = await import("@/server/procurement/roles");
+    const held = (await getCallerRoles(db, context.userId)).map((r) => r.role);
+    if (!held.includes("admin") && !held.includes("procurement_officer")) {
+      return {
+        ok: false as const,
+        error: "Only Procurement Officers can create Purchase Orders.",
+        code: "unauthorized",
+      };
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = supabaseAdmin as any;
+    const { data: ep } = await admin
+      .from("emergency_procurements")
+      .select(
+        "id, emergency_number, department_id, requested_by, description, reason_standard_process_failed, estimated_cost, evp_approval_status, evp_approved_by, pr_id",
+      )
+      .eq("id", data.emergency_id)
+      .maybeSingle();
+    if (!ep) return { ok: false as const, error: "Emergency procurement record not found" };
+    const epNo = ep.emergency_number ?? "This emergency purchase";
+    if (ep.evp_approval_status !== "approved")
+      return {
+        ok: false as const,
+        error: `${epNo} is "${ep.evp_approval_status}". A purchase order needs the EVP's authorisation first.`,
+        code: "emergency_not_approved",
+      };
+    if (ep.pr_id)
+      return {
+        ok: false as const,
+        error: `${epNo} already has a purchase order.`,
+        code: "emergency_already_ordered",
+      };
+    if (!ep.department_id)
+      return {
+        ok: false as const,
+        error: `${epNo} has no department, so it can't be ordered.`,
+        code: "emergency_no_department",
+      };
+
+    const { normalizeCategory } = await import("@/lib/procurement/authorityMatrix");
+    const { BUDGET_CATEGORIES } = await import("@/lib/procurement/budgetLedger");
+    const category = normalizeCategory(data.category);
+    if (!BUDGET_CATEGORIES.some((c) => c.value === category))
+      return {
+        ok: false as const,
+        error: "Choose the purchase category.",
+        code: "category_required",
+      };
+
+    const lines = (data.lines ?? [])
+      .filter((l) => l.description?.trim())
+      .map((l) => ({
+        description: l.description.trim(),
+        unit: l.unit?.trim() || null,
+        qty: Number(l.qty) || 0,
+        unit_price: Number(l.unit_price) || 0,
+        item_group: l.item_group || null,
+      }));
+    if (!lines.length || lines.some((l) => !(l.qty > 0) || !(l.unit_price > 0)))
+      return {
+        ok: false as const,
+        error: "Every line needs a description, a quantity and a unit price.",
+        code: "lines_required",
+      };
+    const price = Math.round(lines.reduce((s, l) => s + l.qty * l.unit_price, 0) * 100) / 100;
+    const taxes = Math.max(0, Number(data.taxes) || 0);
+    const { emergencyPoTotalError } = await import("@/lib/procurement/emergencyCap");
+    const totalError = emergencyPoTotalError(Number(ep.estimated_cost) || 0, price + taxes);
+    if (totalError)
+      return { ok: false as const, error: totalError, code: "emergency_total_exceeded" };
+
+    const { assertVendorEmpanelled } = await import("@/server/procurement/guards");
+    const { ProcurementRuleError } = await import("@/server/procurement/errors");
+    try {
+      await assertVendorEmpanelled(admin, data.vendor_id);
+    } catch (e) {
+      if (e instanceof ProcurementRuleError)
+        return { ok: false as const, error: e.message, code: e.code };
+      throw e;
+    }
+
+    const reason = `Emergency purchase — authorised by the EVP on ${epNo}.`;
+    const { data: pr, error: prErr } = await admin
+      .from("purchase_requisitions")
+      .insert({
+        department_id: ep.department_id,
+        requested_by: ep.requested_by,
+        category,
+        scope: "operational",
+        status: "approved",
+        is_emergency: true,
+        budget_head_id: null,
+        budget_status: "none",
+        estimated_value: price + taxes,
+        justification: [ep.description, ep.reason_standard_process_failed]
+          .filter(Boolean)
+          .join(" — "),
+        current_approver_role: "evp",
+        routing_reason: reason,
+        source: "emergency",
+      })
+      .select("id, pr_number")
+      .single();
+    if (prErr || !pr)
+      return {
+        ok: false as const,
+        error: prErr?.message ?? "Couldn't record the order.",
+        code: "insert_pr_failed",
+      };
+
+    // Claim the entry: a second click or a parallel request finds pr_id already set.
+    const { data: claimed } = await admin
+      .from("emergency_procurements")
+      .update({ pr_id: pr.id, updated_at: new Date().toISOString() })
+      .eq("id", ep.id)
+      .is("pr_id", null)
+      .select("id");
+    if (!claimed?.length) {
+      await admin.from("purchase_requisitions").delete().eq("id", pr.id);
+      return {
+        ok: false as const,
+        error: `${epNo} already has a purchase order.`,
+        code: "emergency_already_ordered",
+      };
+    }
+
+    await admin.from("pr_line_items").insert(
+      lines.map((l) => ({
+        pr_id: pr.id,
+        description: l.description,
+        unit: l.unit,
+        qty_required: l.qty,
+        qty_in_stock: 0,
+        net_qty_to_procure: l.qty,
+        est_unit_price: l.unit_price,
+        est_total: Math.round(l.qty * l.unit_price * 100) / 100,
+        item_group: l.item_group,
+      })),
+    );
+    await admin.from("pr_approvals").insert({
+      pr_id: pr.id,
+      stage: "evp",
+      approver_role: "evp",
+      approver_id: ep.evp_approved_by,
+      decision: "approved",
+      remarks: reason,
+    });
+
+    const now = new Date().toISOString();
+    const { data: po, error: poErr } = await admin
+      .from("purchase_orders")
+      .insert({
+        pr_id: pr.id,
+        vendor_id: data.vendor_id,
+        department_id: ep.department_id,
+        type: "regular",
+        scope_of_supply: lines
+          .map((l) => `${l.description} × ${l.qty}${l.unit ? ` ${l.unit}` : ""}`)
+          .join("; "),
+        price,
+        taxes,
+        delivery_timeline: data.delivery_timeline ?? null,
+        payment_terms: data.payment_terms ?? null,
+        status: "approved",
+        original_approver_role: "evp",
+        current_approver_role: "evp",
+        approved_by: ep.evp_approved_by,
+        approved_at: now,
+        routing_reason: reason,
+        budget_status: "none",
+        created_by: context.userId,
+      })
+      .select("*")
+      .single();
+    if (poErr || !po) {
+      // Undo the claim so the officer can try again.
+      await admin.from("emergency_procurements").update({ pr_id: null }).eq("id", ep.id);
+      await admin.from("purchase_requisitions").delete().eq("id", pr.id);
+      return {
+        ok: false as const,
+        error: poErr?.message ?? "Couldn't create the purchase order.",
+        code: "insert_po_failed",
+      };
+    }
+
+    return { ok: true as const, po, prNumber: pr.pr_number };
   });

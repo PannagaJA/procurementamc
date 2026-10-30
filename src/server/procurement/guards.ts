@@ -5,6 +5,8 @@
  * They take the Supabase client as an argument so they can be exercised against
  * a test double without a live database.
  */
+import { financialYear } from "@/lib/procurement/budgetLedger";
+import { emergencyUsed } from "@/lib/procurement/emergencyCap";
 import { ruleError } from "./errors";
 
 /** Minimal structural type so these are testable with a stub client. */
@@ -225,32 +227,65 @@ export async function assertNoPoSplitting(
   return null;
 }
 
-/** Emergency procurement aggregate annual cap of ₹10,00,000 (SOP §9). */
-export async function assertEmergencyCapNotExceeded(db: Db, newValue: number): Promise<void> {
-  const yearStart = new Date(new Date().getFullYear(), 3, 1); // Indian FY starts 1 April
-  const start = yearStart > new Date() ? new Date(yearStart.getFullYear() - 1, 3, 1) : yearStart;
-
-  const { data, error } = await db
-    .from("purchase_requisitions")
-    .select("estimated_value")
-    .eq("is_emergency", true)
-    .neq("status", "rejected")
-    .neq("status", "archived")
-    .gte("created_at", start.toISOString());
-
+/**
+ * The shared emergency counter (SOP §9): register ledger + emergency-flag PRs, one ₹10,00,000 per
+ * Indian FY. Pass the service-role client: RLS would hide other departments' PRs.
+ */
+export async function emergencyCapStatus(admin: Db, newAmount = 0, fy = financialYear()) {
+  const startYear = Number(fy.slice(0, 4));
+  const [ledgerRes, prsRes, linksRes] = await Promise.all([
+    admin
+      .from("emergency_annual_ledger")
+      .select("running_total, cap_limit")
+      .eq("financial_year", fy)
+      .maybeSingle(),
+    admin
+      .from("purchase_requisitions")
+      .select("id, estimated_value, status")
+      .eq("is_emergency", true)
+      .gte("created_at", new Date(startYear, 3, 1).toISOString())
+      .lt("created_at", new Date(startYear + 1, 3, 1).toISOString()),
+    // Only an approved entry's cost is in the ledger, so only its PO's backing PR is skipped.
+    admin
+      .from("emergency_procurements")
+      .select("pr_id")
+      .eq("evp_approval_status", "approved")
+      .not("pr_id", "is", null),
+  ]);
+  const error = ledgerRes.error ?? prsRes.error ?? linksRes.error;
   if (error)
     throw ruleError(
       "emergency_lookup_failed",
       `Could not read the emergency procurement register: ${error.message}`,
     );
 
-  const used = (data ?? []).reduce((s: number, r: any) => s + Number(r.estimated_value ?? 0), 0);
-  const projected = used + Number(newValue);
-  if (projected > EMERGENCY_ANNUAL_CAP) {
+  const registerTotal = Number(ledgerRes.data?.running_total ?? 0);
+  const capLimit = Number(ledgerRes.data?.cap_limit ?? EMERGENCY_ANNUAL_CAP);
+  const used = emergencyUsed({
+    registerTotal,
+    emergencyPrs: prsRes.data ?? [],
+    linkedPrIds: (linksRes.data ?? []).map((l: any) => l.pr_id),
+  });
+  const projected = used + (Number(newAmount) || 0);
+  return {
+    financialYear: fy,
+    registerTotal,
+    used,
+    capLimit,
+    remaining: Math.max(0, capLimit - used),
+    projected,
+    allowed: projected <= capLimit,
+  };
+}
+
+/** Emergency procurement aggregate annual cap of ₹10,00,000 (SOP §9), across both routes. */
+export async function assertEmergencyCapNotExceeded(admin: Db, newValue: number): Promise<void> {
+  const cap = await emergencyCapStatus(admin, newValue);
+  if (!cap.allowed) {
     throw ruleError(
       "emergency_cap_exceeded",
-      `Emergency procurement this financial year would reach ₹${projected.toLocaleString("en-IN")}, ` +
-        `above the annual cap of ₹${EMERGENCY_ANNUAL_CAP.toLocaleString("en-IN")} (already used ₹${used.toLocaleString("en-IN")}).`,
+      `Emergency procurement this financial year would reach ₹${cap.projected.toLocaleString("en-IN")}, ` +
+        `above the annual cap of ₹${cap.capLimit.toLocaleString("en-IN")} (already used ₹${cap.used.toLocaleString("en-IN")}).`,
     );
   }
 }
