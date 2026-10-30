@@ -718,7 +718,7 @@ export default function PurchaseOrders() {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleOpenPrintPreview(po)}
-                                className="gap-1.5 text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50 dark:border-indigo-800 dark:text-indigo-300 dark:hover:bg-indigo-950/40"
+                                className="gap-1.5 text-xs border border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-600 hover:text-white transition-colors"
                                 title="Print Preview & Formal Institutional PDF"
                               >
                                 <Printer className="w-3.5 h-3.5" /> Print / PDF

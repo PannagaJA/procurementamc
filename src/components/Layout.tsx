@@ -4,7 +4,6 @@ import { useNavigate, useLocation } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth, getRoleDashboardPath } from "@/lib/auth";
 import { procurementAccess } from "@/lib/procurementAccess";
 import type { User } from "@supabase/supabase-js";
@@ -479,7 +478,6 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
             <ApprovalNotificationBell />
-            <ThemeToggle />
             <Button
               variant="outline"
               size="sm"

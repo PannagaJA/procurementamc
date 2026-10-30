@@ -105,33 +105,33 @@
 }
 
 .dark {
-  color-scheme: dark;
-  --background: 222 47% 11%;
-  --foreground: 210 40% 98%;
+  color-scheme: light;
+  --background: 210 20% 98%;
+  --foreground: 222 47% 11%;
 
-  --card: 217 33% 17%;
-  --card-foreground: 210 40% 98%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
 
-  --popover: 217 33% 17%;
-  --popover-foreground: 210 40% 98%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
 
   --primary: 217 91% 60%;
   --primary-foreground: 0 0% 100%;
 
-  --secondary: 217 33% 17%;
-  --secondary-foreground: 210 40% 98%;
+  --secondary: 214 32% 91%;
+  --secondary-foreground: 222 47% 11%;
 
-  --muted: 217 33% 17%;
-  --muted-foreground: 215 20% 65%;
+  --muted: 214 32% 91%;
+  --muted-foreground: 215 16% 47%;
 
   --accent: 142 76% 36%;
   --accent-foreground: 0 0% 100%;
 
-  --destructive: 0 63% 31%;
-  --destructive-foreground: 210 40% 98%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
 
-  --border: 217 33% 24%;
-  --input: 217 33% 24%;
+  --border: 214 32% 88%;
+  --input: 214 32% 88%;
   --ring: 217 91% 60%;
 
   --success: 142 76% 36%;
@@ -143,13 +143,13 @@
   --chart-4: 45 93% 47%;
   --chart-5: 340 82% 52%;
 
-  --sidebar-background: 240 5.9% 10%;
-  --sidebar-foreground: 240 4.8% 95.9%;
-  --sidebar-primary: 224.3 76.3% 48%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 240 3.7% 15.9%;
-  --sidebar-accent-foreground: 240 4.8% 95.9%;
-  --sidebar-border: 240 3.7% 15.9%;
+  --sidebar-background: 0 0% 98%;
+  --sidebar-foreground: 240 5.3% 26.1%;
+  --sidebar-primary: 240 5.9% 10%;
+  --sidebar-primary-foreground: 0 0% 98%;
+  --sidebar-accent: 240 4.8% 95.9%;
+  --sidebar-accent-foreground: 240 5.9% 10%;
+  --sidebar-border: 220 13% 91%;
   --sidebar-ring: 217.2 91.2% 59.8%;
 }
 
@@ -161,49 +161,5 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
-  }
-
-  /* ── Native date/time input calendar icon in dark mode ──────────────────
-     Force the native picker indicator to be bright, crisp, and high-contrast
-     across all browsers (Chrome, Edge, Safari, Firefox).
-  ─────────────────────────────────────────────────────────────────────────── */
-  .dark input[type="date"],
-  .dark input[type="datetime-local"],
-  .dark input[type="time"],
-  .dark input[type="month"],
-  .dark input[type="week"],
-  input[type="date"].dark,
-  input[type="datetime-local"].dark,
-  input[type="time"].dark,
-  input[type="month"].dark,
-  input[type="week"].dark {
-    color-scheme: dark;
-  }
-
-  /* Force the native indicator icon to pure crisp white in dark mode */
-  .dark input[type="date"]::-webkit-calendar-picker-indicator,
-  .dark input[type="datetime-local"]::-webkit-calendar-picker-indicator,
-  .dark input[type="time"]::-webkit-calendar-picker-indicator,
-  .dark input[type="month"]::-webkit-calendar-picker-indicator,
-  .dark input[type="week"]::-webkit-calendar-picker-indicator,
-  input[type="date"].dark::-webkit-calendar-picker-indicator,
-  input[type="datetime-local"].dark::-webkit-calendar-picker-indicator,
-  input[type="time"].dark::-webkit-calendar-picker-indicator,
-  input[type="month"].dark::-webkit-calendar-picker-indicator,
-  input[type="week"].dark::-webkit-calendar-picker-indicator {
-    filter: brightness(0) invert(1) !important;
-    opacity: 0.95 !important;
-    cursor: pointer;
-    border-radius: 4px;
-    padding: 2px;
-  }
-
-  .dark input[type="date"]::-webkit-calendar-picker-indicator:hover,
-  .dark input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover,
-  .dark input[type="time"]::-webkit-calendar-picker-indicator:hover,
-  .dark input[type="month"]::-webkit-calendar-picker-indicator:hover,
-  .dark input[type="week"]::-webkit-calendar-picker-indicator:hover {
-    filter: brightness(0) invert(1) drop-shadow(0 0 2px rgba(255, 255, 255, 0.8)) !important;
-    opacity: 1 !important;
   }
 }

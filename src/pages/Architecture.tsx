@@ -5,7 +5,6 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { MermaidViewer } from "@/components/MermaidViewer";
-import { ThemeToggle } from "@/components/theme-toggle";
 import {
   ShieldCheck,
   Building2,
@@ -164,7 +163,6 @@ export default function Architecture() {
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-            <ThemeToggle />
             <Button
               size="sm"
               onClick={() => navigate({ to: "/procurement" })}

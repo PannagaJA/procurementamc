@@ -129,7 +129,7 @@ export function PoPrintPreviewModal({ open, onOpenChange, po }: PoPrintPreviewMo
                 size="sm"
                 variant="outline"
                 onClick={handlePrint}
-                className="gap-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700"
+                className="gap-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border-slate-700 transition-colors"
               >
                 <Printer className="w-3.5 h-3.5" /> Print
               </Button>
@@ -137,7 +137,7 @@ export function PoPrintPreviewModal({ open, onOpenChange, po }: PoPrintPreviewMo
                 size="sm"
                 onClick={handleDownloadPdf}
                 disabled={downloading}
-                className="gap-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                className="gap-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white hover:text-white shadow-sm transition-colors"
               >
                 <Download className="w-3.5 h-3.5" />
                 {downloading ? "Generating..." : "Download Formal PDF"}

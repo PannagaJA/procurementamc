@@ -60,7 +60,9 @@ export default function MyApprovals() {
   const { toast } = useToast();
   const [data, setData] = useState<any>(null);
   const [historyData, setHistoryData] = useState<any>(null);
-  const [historyTypeFilter, setHistoryTypeFilter] = useState<"all" | "prs" | "pos" | "css" | "invoices">("all");
+  const [historyTypeFilter, setHistoryTypeFilter] = useState<
+    "all" | "prs" | "pos" | "css" | "invoices" | "rateContracts"
+  >("all");
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
 
@@ -287,7 +289,8 @@ export default function MyApprovals() {
     (historyData?.prHistory || []).length +
     (historyData?.csHistory || []).length +
     (historyData?.poHistory || []).length +
-    (historyData?.invHistory || []).length;
+    (historyData?.invHistory || []).length +
+    (historyData?.rcHistory || []).length;
 
   const filterOptions = [
     {
@@ -877,6 +880,11 @@ export default function MyApprovals() {
                             ₹{Number(r.rate).toLocaleString("en-IN")}
                           </span>
                           /{r.unit}
+                          {rc.vendors?.name && (
+                            <span className="text-slate-600 dark:text-slate-400 font-normal ml-1">
+                              ({rc.vendors.name})
+                            </span>
+                          )}
                         </span>
                       ))}
                     </div>
@@ -971,6 +979,17 @@ export default function MyApprovals() {
                   {(historyData?.invHistory || []).length}
                 </Badge>
               </Button>
+              <Button
+                variant={historyTypeFilter === "rateContracts" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setHistoryTypeFilter("rateContracts")}
+                className="text-xs h-8 gap-1.5 text-violet-600 dark:text-violet-400"
+              >
+                Rate Contracts
+                <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
+                  {(historyData?.rcHistory || []).length}
+                </Badge>
+              </Button>
             </div>
 
             {/* Content List */}
@@ -991,8 +1010,12 @@ export default function MyApprovals() {
                 historyTypeFilter === "all" || historyTypeFilter === "invoices"
                   ? historyData?.invHistory || []
                   : [];
+              const rcs =
+                historyTypeFilter === "all" || historyTypeFilter === "rateContracts"
+                  ? historyData?.rcHistory || []
+                  : [];
 
-              const totalItems = prs.length + css.length + pos.length + invs.length;
+              const totalItems = prs.length + css.length + pos.length + invs.length + rcs.length;
               if (totalItems === 0) {
                 return (
                   <Card className="p-8 text-center text-slate-500">
@@ -1174,6 +1197,74 @@ export default function MyApprovals() {
                             </p>
                           </div>
                         </CardHeader>
+                      </Card>
+                    );
+                  })}
+
+                  {/* Rate Contracts */}
+                  {rcs.map((rc: any) => {
+                    const isApproved = rc.status === "active";
+                    const isRejected = rc.status === "rejected";
+                    return (
+                      <Card
+                        key={`rc-${rc.id}`}
+                        className="border border-slate-200 dark:border-slate-800"
+                      >
+                        <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Badge className="bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300">
+                                Rate Contract
+                              </Badge>
+                              <span className="font-mono font-bold whitespace-nowrap">
+                                {rc.contract_number}
+                              </span>
+                              {rc.vendors?.name && (
+                                <Badge variant="outline">{rc.vendors.name}</Badge>
+                              )}
+                              <Badge
+                                variant={
+                                  isApproved ? "default" : isRejected ? "destructive" : "secondary"
+                                }
+                                className={isApproved ? "bg-emerald-600 text-white" : ""}
+                              >
+                                {isApproved ? "Approved" : isRejected ? "Rejected" : statusLabel(rc.status)}
+                              </Badge>
+                              {rc.rfqs?.rfq_number && (
+                                <Badge variant="secondary">From {rc.rfqs.rfq_number}</Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-500 mt-1">
+                              {rc.title} • Valid {rc.valid_from} to {rc.valid_to}
+                              {(rc.approved_at || rc.updated_at) &&
+                                ` • Decided: ${new Date(rc.approved_at || rc.updated_at).toLocaleDateString()}`}
+                            </p>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="p-4 pt-1 text-xs space-y-1">
+                          <div className="flex flex-wrap gap-x-4 gap-y-1">
+                            {(rc.approved_rates_json || []).map((r: any, i: number) => (
+                              <span key={i}>
+                                {r.description}:{" "}
+                                <span className="font-mono font-semibold">
+                                  ₹{Number(r.rate).toLocaleString("en-IN")}
+                                </span>
+                                /{r.unit}
+                                {rc.vendors?.name && (
+                                  <span className="text-slate-600 dark:text-slate-400 font-normal ml-1">
+                                    ({rc.vendors.name})
+                                  </span>
+                                )}
+                              </span>
+                            ))}
+                          </div>
+                          {rc.decision_remarks && (
+                            <p className="text-slate-600 dark:text-slate-300">
+                              <span className="font-medium">Remarks: </span>
+                              {rc.decision_remarks}
+                            </p>
+                          )}
+                        </CardContent>
                       </Card>
                     );
                   })}
