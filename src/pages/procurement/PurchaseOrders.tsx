@@ -248,6 +248,20 @@ export default function PurchaseOrders() {
           setPrice(Number(cs.recommended_total || 0));
           setTaxes(0);
           setScopeOfSupply(`Supply as per RFQ ${cs.rfqs?.rfq_number || ""}`);
+          // Split the awarded quote into price and the vendor's GST (DECISIONS Q17).
+          supabase
+            .from("quotation_lines")
+            .select("quantity, unit_price, tax_amount")
+            .eq("rfq_id", cs.rfq_id)
+            .eq("vendor_id", cs.recommended_vendor_id)
+            .then(({ data: lines }) => {
+              if (!lines?.length) return;
+              const round = (n: number) => Math.round(n * 100) / 100;
+              setPrice(
+                round(lines.reduce((s, l) => s + Number(l.quantity) * Number(l.unit_price), 0)),
+              );
+              setTaxes(round(lines.reduce((s, l) => s + Number(l.tax_amount || 0), 0)));
+            });
         }
       }
     } else if (poType === "rate_contract") {

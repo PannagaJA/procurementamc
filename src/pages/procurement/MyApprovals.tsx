@@ -263,6 +263,9 @@ export default function MyApprovals() {
 
       setDialogOpen(false);
       loadData();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("approval-updated"));
+      }
     } catch (e: any) {
       toast({ title: "Action Failed", description: e.message, variant: "destructive" });
     } finally {
@@ -887,7 +890,9 @@ export default function MyApprovals() {
                     </div>
                     {rc.quotes?.length ? (
                       <p className="text-slate-600 dark:text-slate-300">
-                        <span className="font-medium">Quotes (total of unit rates): </span>
+                        <span className="font-medium">
+                          Quotes (sum of unit rates, used only to rank):{" "}
+                        </span>
                         {rc.quotes
                           .map(
                             (q: any, i: number) =>

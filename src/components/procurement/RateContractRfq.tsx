@@ -325,7 +325,7 @@ export function RateQuotesDialog({
                   </tr>
                 ))}
                 <tr className="bg-slate-50 dark:bg-slate-900/60 font-semibold">
-                  <td className="p-2">Total of unit rates</td>
+                  <td className="p-2">Sum of unit rates (used only to rank)</td>
                   {ranked.map((q) => (
                     <td key={q.vendor_id} className="p-2 text-right font-mono">
                       {inr(q.total)}
