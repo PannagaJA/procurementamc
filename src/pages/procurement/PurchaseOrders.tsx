@@ -671,6 +671,14 @@ export default function PurchaseOrders() {
                                 <Badge variant="outline" className="text-xs capitalize">
                                   {po.po_type?.replace("_", " ")}
                                 </Badge>
+                                {pr?.is_emergency && (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-xs text-red-700 border-red-300 bg-red-50 dark:text-red-300 dark:border-red-900 dark:bg-red-950/40"
+                                  >
+                                    Emergency
+                                  </Badge>
+                                )}
                               </div>
                               <div className="text-xs text-slate-500 flex flex-wrap items-center gap-x-4 gap-y-1">
                                 <span>
@@ -748,7 +756,8 @@ export default function PurchaseOrders() {
                                 (auth.hasRole("admin") ||
                                   auth.hasRole("procurement_officer")) && (
                                   <>
-                                    {isIssued && (
+                                    {/* Emergency orders can't be amended (DECISIONS Q16) */}
+                                    {isIssued && !pr?.is_emergency && (
                                     <Button
                                       size="sm"
                                       variant="outline"

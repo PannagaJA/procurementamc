@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,8 +33,11 @@ import {
   requestEmergencyProcurement,
   approveEmergency,
   listEmergencyProcurements,
+  createEmergencyPo,
   EMERGENCY_CAP_LIMIT,
 } from "@/lib/procurement/emergency.functions";
+import { BUDGET_CATEGORIES } from "@/lib/procurement/budgetLedger";
+import { ITEM_GROUPS } from "@/lib/procurement/itemGroups";
 import {
   Zap,
   PlusCircle,
@@ -47,6 +51,8 @@ import {
   Download,
   FileText,
   FileSpreadsheet,
+  ShoppingCart,
+  Trash2,
 } from "lucide-react";
 import {
   detectEmergencyAnomalies,
@@ -60,6 +66,8 @@ export default function EmergencyProcurement() {
   const { toast } = useToast();
   const { hasRole } = useAuth();
   const canAuthorize = hasRole("evp") || hasRole("admin");
+  const canOrder = hasRole("procurement_officer") || hasRole("admin");
+  const navigate = useNavigate();
   const [data, setData] = useState<any>(null);
   const { pagination, setPage, setPageSize, setTotal } = usePagination(10, 1);
   const [departments, setDepartments] = useState<any[]>([]);
@@ -83,6 +91,23 @@ export default function EmergencyProcurement() {
   const [activeEp, setActiveEp] = useState<any>(null);
   const [rejectionRemarks, setRejectionRemarks] = useState("");
   const [acting, setActing] = useState(false);
+
+  // Emergency PO Modal (one order per EVP-authorised entry)
+  type PoLine = {
+    description: string;
+    unit: string;
+    qty: number | "";
+    unit_price: number | "";
+    item_group: string;
+  };
+  const [poEp, setPoEp] = useState<any>(null);
+  const [poVendorId, setPoVendorId] = useState("");
+  const [poCategory, setPoCategory] = useState("");
+  const [poLines, setPoLines] = useState<PoLine[]>([]);
+  const [poTaxes, setPoTaxes] = useState<number | "">(0);
+  const [poDelivery, setPoDelivery] = useState("");
+  const [poPaymentTerms, setPoPaymentTerms] = useState("");
+  const [creatingPo, setCreatingPo] = useState(false);
 
   // Quarterly Audit & Anomaly Detection State
   const [auditModalOpen, setAuditModalOpen] = useState(false);
@@ -148,6 +173,71 @@ export default function EmergencyProcurement() {
   const capLimit = Number(ledger.cap_limit || EMERGENCY_CAP_LIMIT);
   const remaining = Math.max(0, capLimit - runningTotal);
   const usagePercent = Math.min(100, Math.round((runningTotal / capLimit) * 100));
+
+  const openPoDialog = (ep: any) => {
+    setPoEp(ep);
+    setPoVendorId(ep.vendor_id || "");
+    setPoCategory("");
+    setPoLines([
+      {
+        description: ep.description || "",
+        unit: "",
+        qty: 1,
+        unit_price: Number(ep.estimated_cost) || "",
+        item_group: "not_consumable",
+      },
+    ]);
+    setPoTaxes(0);
+    setPoDelivery("");
+    setPoPaymentTerms("");
+  };
+  const updatePoLine = (i: number, patch: Partial<PoLine>) =>
+    setPoLines((lines) => lines.map((l, j) => (j === i ? { ...l, ...patch } : l)));
+  const poSubtotal = poLines.reduce(
+    (s, l) => s + (Number(l.qty) || 0) * (Number(l.unit_price) || 0),
+    0,
+  );
+  const poTotal = poSubtotal + (Number(poTaxes) || 0);
+  const poApproved = Number(poEp?.estimated_cost || 0);
+
+  const handleCreatePo = async () => {
+    setCreatingPo(true);
+    try {
+      const res = await (createEmergencyPo as any)({
+        data: {
+          emergency_id: poEp.id,
+          vendor_id: poVendorId,
+          category: poCategory,
+          lines: poLines.map((l) => ({
+            ...l,
+            qty: Number(l.qty) || 0,
+            unit_price: Number(l.unit_price) || 0,
+          })),
+          taxes: Number(poTaxes) || 0,
+          delivery_timeline: poDelivery.trim() || null,
+          payment_terms: poPaymentTerms.trim() || null,
+        },
+      });
+      if (!res?.ok) {
+        toast({
+          title: "Emergency PO not created",
+          description: res?.error,
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({
+        title: "Purchase Order Created",
+        description: `${res.po.po_number} is approved on the EVP's authorisation of ${poEp.emergency_number}. Issue it from Purchase Orders to send it to the vendor.`,
+      });
+      setPoEp(null);
+      navigate({ to: "/procurement/orders" });
+    } catch (e: any) {
+      toast({ title: "Emergency PO not created", description: e.message, variant: "destructive" });
+    } finally {
+      setCreatingPo(false);
+    }
+  };
 
   const handleRequest = async () => {
     const costNum = Number(estimatedCost || 0);
@@ -474,6 +564,30 @@ export default function EmergencyProcurement() {
                                 >
                                   Awaiting EVP Authorization
                                 </Badge>
+                              ) : isApproved && ep.purchase_requisitions?.purchase_orders?.[0] ? (
+                                <Badge
+                                  variant="outline"
+                                  className="gap-1 text-xs text-emerald-700 border-emerald-300 bg-emerald-50 dark:text-emerald-300 dark:border-emerald-800 dark:bg-emerald-950/40"
+                                >
+                                  <ShoppingCart className="w-3 h-3" />
+                                  {ep.purchase_requisitions.purchase_orders[0].po_number} ·{" "}
+                                  {ep.purchase_requisitions.purchase_orders[0].status}
+                                </Badge>
+                              ) : isApproved && !ep.pr_id && canOrder ? (
+                                <Button
+                                  size="sm"
+                                  onClick={() => openPoDialog(ep)}
+                                  className="gap-1"
+                                >
+                                  <ShoppingCart className="w-3.5 h-3.5" /> Create Emergency PO
+                                </Button>
+                              ) : isApproved && !ep.pr_id ? (
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs text-slate-600 border-slate-300 dark:text-slate-300 dark:border-slate-700"
+                                >
+                                  Awaiting emergency PO
+                                </Badge>
                               ) : null}
                             </div>
                           </div>
@@ -724,6 +838,220 @@ export default function EmergencyProcurement() {
                 disabled={acting || !rejectionRemarks.trim()}
               >
                 {acting ? "Rejecting..." : "Reject Emergency Request"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal: Emergency PO */}
+        <Dialog open={!!poEp} onOpenChange={(open) => !open && setPoEp(null)}>
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ShoppingCart className="w-5 h-5" /> Emergency Purchase Order ·{" "}
+                {poEp?.emergency_number}
+              </DialogTitle>
+              <DialogDescription>
+                Approved on the EVP's authorisation. Not charged to the department budget or the
+                monthly limits. One order per emergency, up to the approved ₹
+                {poApproved.toLocaleString("en-IN")}.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">Vendor (empanelled)</Label>
+                  <Select value={poVendorId} onValueChange={setPoVendorId}>
+                    <SelectTrigger className="text-xs">
+                      <SelectValue placeholder="Choose the vendor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {vendors.map((v) => (
+                        <SelectItem key={v.id} value={v.id}>
+                          {v.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">Category</Label>
+                  <Select value={poCategory} onValueChange={setPoCategory}>
+                    <SelectTrigger className="text-xs">
+                      <SelectValue placeholder="Choose the category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {BUDGET_CATEGORIES.map((c) => (
+                        <SelectItem key={c.value} value={c.value}>
+                          {c.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold">Items</Label>
+                {poLines.map((l, i) => (
+                  <div
+                    key={i}
+                    className="grid grid-cols-12 gap-2 items-center rounded-lg border border-slate-200 dark:border-slate-800 p-2"
+                  >
+                    <Input
+                      className="col-span-12 sm:col-span-5 text-xs"
+                      placeholder="Description"
+                      value={l.description}
+                      onChange={(e) => updatePoLine(i, { description: e.target.value })}
+                    />
+                    <Input
+                      className="col-span-3 sm:col-span-2 text-xs"
+                      placeholder="Unit"
+                      value={l.unit}
+                      onChange={(e) => updatePoLine(i, { unit: e.target.value })}
+                    />
+                    <Input
+                      className="col-span-3 sm:col-span-2 text-xs"
+                      type="number"
+                      min={0}
+                      placeholder="Qty"
+                      value={l.qty}
+                      onChange={(e) =>
+                        updatePoLine(i, {
+                          qty: e.target.value === "" ? "" : Number(e.target.value),
+                        })
+                      }
+                    />
+                    <Input
+                      className="col-span-5 sm:col-span-2 text-xs"
+                      type="number"
+                      min={0}
+                      placeholder="Unit price ₹"
+                      value={l.unit_price}
+                      onChange={(e) =>
+                        updatePoLine(i, {
+                          unit_price: e.target.value === "" ? "" : Number(e.target.value),
+                        })
+                      }
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="col-span-1"
+                      disabled={poLines.length === 1}
+                      onClick={() => setPoLines((lines) => lines.filter((_, j) => j !== i))}
+                      aria-label="Remove item"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                    <div className="col-span-12">
+                      <Select
+                        value={l.item_group}
+                        onValueChange={(v) => updatePoLine(i, { item_group: v })}
+                      >
+                        <SelectTrigger className="text-xs h-8">
+                          <SelectValue placeholder="Item group" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ITEM_GROUPS.map((g) => (
+                            <SelectItem key={g.id} value={g.id}>
+                              {g.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1 text-xs"
+                  onClick={() =>
+                    setPoLines((lines) => [
+                      ...lines,
+                      {
+                        description: "",
+                        unit: "",
+                        qty: 1,
+                        unit_price: "",
+                        item_group: "not_consumable",
+                      },
+                    ])
+                  }
+                >
+                  <PlusCircle className="w-3.5 h-3.5" /> Add item
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">Taxes ₹</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    className="text-xs"
+                    value={poTaxes}
+                    onChange={(e) =>
+                      setPoTaxes(e.target.value === "" ? "" : Number(e.target.value))
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">Delivery</Label>
+                  <Input
+                    className="text-xs"
+                    placeholder="e.g. Within 24 hours"
+                    value={poDelivery}
+                    onChange={(e) => setPoDelivery(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">Payment terms</Label>
+                  <Input
+                    className="text-xs"
+                    placeholder="e.g. 15 days after delivery"
+                    value={poPaymentTerms}
+                    onChange={(e) => setPoPaymentTerms(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div
+                className={`p-3 rounded-lg text-xs flex justify-between ${
+                  poTotal > poApproved + 1
+                    ? "bg-red-50 text-red-800 dark:bg-red-950/30 dark:text-red-300"
+                    : "bg-slate-50 text-slate-700 dark:bg-slate-900 dark:text-slate-300"
+                }`}
+              >
+                <span>
+                  Order total{" "}
+                  <strong className="font-mono">₹{poTotal.toLocaleString("en-IN")}</strong>
+                </span>
+                <span>
+                  {poTotal > poApproved + 1
+                    ? `₹${(poTotal - poApproved).toLocaleString("en-IN")} over the EVP's approval`
+                    : `₹${Math.max(0, poApproved - poTotal).toLocaleString("en-IN")} of the approval unused`}
+                </span>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setPoEp(null)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCreatePo}
+                disabled={
+                  creatingPo ||
+                  !poVendorId ||
+                  !poCategory ||
+                  !(poTotal > 0) ||
+                  poTotal > poApproved + 1
+                }
+              >
+                {creatingPo ? "Creating..." : "Create Purchase Order"}
               </Button>
             </DialogFooter>
           </DialogContent>

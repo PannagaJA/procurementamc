@@ -774,7 +774,7 @@ export const amendPo = createServerFn({ method: "POST" })
       .select(
         `
         *,
-        purchase_requisitions (id, category, department_id, estimated_value)
+        purchase_requisitions (id, category, department_id, estimated_value, is_emergency)
       `,
       )
       .eq("id", data.po_id)
@@ -794,6 +794,15 @@ export const amendPo = createServerFn({ method: "POST" })
       return {
         ok: false as const,
         error: `${po.po_number} is "${po.status}" and can't be amended.`,
+      };
+    }
+    // The EVP authorised a fixed emergency order; re-approval through the matrix and budget
+    // doesn't apply to it (DECISIONS Q16).
+    if ((po as any).purchase_requisitions?.is_emergency) {
+      return {
+        ok: false as const,
+        error: "Emergency orders can't be amended. Cancel it and create a new emergency order.",
+        code: "emergency_po_not_amendable",
       };
     }
     if (!data.reason?.trim())
@@ -1042,6 +1051,7 @@ export const listPurchaseOrders = createServerFn({ method: "GET" })
         *,
         purchase_requisitions (
           id, pr_number, category, scope, estimated_value, justification, requested_by, department_id,
+          is_emergency,
           departments (id, name),
           pr_line_items (id, description, net_qty_to_procure, qty_required, est_unit_price, est_total, unit)
         ),

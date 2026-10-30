@@ -104,8 +104,10 @@ export const createPr = createServerFn({ method: "POST" })
 
     if (data.is_emergency) {
       const { assertEmergencyCapNotExceeded } = await import("@/server/procurement/guards");
+      const { supabaseAdmin: capDb } = await import("@/integrations/supabase/client.server");
       try {
-        await assertEmergencyCapNotExceeded(db, value);
+        // Service role: the shared counter must see every department's emergency PRs.
+        await assertEmergencyCapNotExceeded(capDb as any, value);
       } catch (e) {
         if (e instanceof ProcurementRuleError)
           return { ok: false as const, error: e.message, code: e.code };
@@ -149,11 +151,14 @@ export const createPr = createServerFn({ method: "POST" })
     const { supabaseAdmin: budgetDb } = await import("@/integrations/supabase/client.server");
     const { prBudgetCheck, budgetHeadForCategory } = await import("@/server/procurement/budget");
     // Section B: the department has one head per category, so the category decides it.
-    const budget = await prBudgetCheck(budgetDb, {
-      headId: await budgetHeadForCategory(budgetDb, data.department_id, canonicalCat),
-      departmentId: data.department_id,
-      amount: value,
-    });
+    // Emergency spend is kept out of department budgets (DECISIONS Q16): no head, status none.
+    const budget = data.is_emergency
+      ? ({ ok: true, status: "none", headId: null, balance: null } as const)
+      : await prBudgetCheck(budgetDb, {
+          headId: await budgetHeadForCategory(budgetDb, data.department_id, canonicalCat),
+          departmentId: data.department_id,
+          amount: value,
+        });
     if (!budget.ok) return budget;
     if (
       budget.status === "over" &&
