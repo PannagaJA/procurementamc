@@ -25,6 +25,18 @@ export async function emailQuoteInvites(
   }
 
   // One sentence per problem, each ending in exactly one full stop.
-  const notice = [...problems].map((p) => p.trim().replace(/\.*$/, ".")).join(" ");
+  const notice = [...problems]
+    .map((p) => {
+      if (
+        p.includes("535") ||
+        p.includes("BadCredentials") ||
+        p.includes("Username and Password not accepted")
+      ) {
+        return "Automatic email dispatch failed due to invalid mail server credentials in .env.";
+      }
+      return p.trim().replace(/\.*$/, ".");
+    })
+    .join(" ");
+
   return { sent, notice };
 }
