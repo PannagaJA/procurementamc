@@ -330,12 +330,27 @@ export const getMyApprovalHistory = createServerFn({ method: "GET" })
       .limit(50);
     const { data: invHistory } = await invQuery;
 
+    let rcQuery = queryDb
+      .from("rate_contracts")
+      .select(
+        `
+        *,
+        vendors (id, name),
+        rfqs (id, rfq_number)
+      `,
+      )
+      .in("status", ["active", "rejected"])
+      .order("updated_at", { ascending: false })
+      .limit(50);
+    const { data: rcHistory } = await rcQuery;
+
     return {
       ok: true as const,
       prHistory: prHistory ?? [],
       csHistory: csHistory ?? [],
       poHistory: poHistory ?? [],
       invHistory: invHistory ?? [],
+      rcHistory: rcHistory ?? [],
     };
   });
 

@@ -9,6 +9,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { RateItem } from "@/lib/procurement/rateContracts";
+import { buildQuoteLines, quoteLineError } from "@/lib/procurement/quoteLines";
 
 export type CreateRfqInput = {
   pr_id: string;
@@ -561,7 +562,7 @@ export const awardDirectPurchase = createServerFn({ method: "POST" })
     // Quotes per vendor on this RFQ.
     const { data: lines } = await supabaseAdmin
       .from("quotation_lines")
-      .select("vendor_id, description, total_price, delivery_days, technical_remarks")
+      .select("vendor_id, description, total_price, tax_amount, delivery_days, technical_remarks")
       .eq("rfq_id", rfq.id);
     const totals = new Map<string, number>();
     for (const l of lines ?? [])
@@ -593,6 +594,9 @@ export const awardDirectPurchase = createServerFn({ method: "POST" })
     if (!check.ok) return check;
 
     const days = Math.max(0, ...chosen.map((l: any) => Number(l.delivery_days || 0)));
+    const taxes =
+      Math.round(chosen.reduce((s: number, l: any) => s + Number(l.tax_amount || 0), 0) * 100) /
+      100;
     const terms =
       /Payment Terms:\s*([^\n]+)/.exec(chosen[0].technical_remarks ?? "")?.[1]?.trim() ?? null;
     const scope = [
@@ -612,8 +616,9 @@ export const awardDirectPurchase = createServerFn({ method: "POST" })
         department_id: pr.department_id ?? null,
         type: "regular",
         scope_of_supply: scope,
-        price: total,
-        taxes: 0, // quoted line totals already include tax
+        // The quote's GST is kept apart, as the vendor entered it (DECISIONS Q17).
+        price: Math.round((total - taxes) * 100) / 100,
+        taxes,
         delivery_timeline: days ? `${days} days` : null,
         payment_terms: terms,
         created_by: context.userId,
@@ -655,18 +660,10 @@ export const submitRfqQuotationResponse = createServerFn({ method: "POST" })
       quotation_validity?: string;
       /** Rate finalisation RFQs: the unit rate for each item, in the RFQ's item order. */
       rates?: number[];
-      lines?: Array<{
-        pr_line_item_id?: string | null;
-        description: string;
-        quantity: number;
-        unit?: string | null;
-        unit_price: number;
-        tax_amount?: number;
-        delivery_days?: number;
-        warranty_months?: number;
-        meets_technical_spec?: boolean;
-        technical_remarks?: string | null;
-      }>;
+      /** PR-based RFQs: the unit price (before GST) for each PR line. */
+      prices?: Array<{ pr_line_item_id: string; unit_price: number }>;
+      /** PR-based RFQs: GST / taxes on the whole quote, split over the lines by value. */
+      gst_amount?: number;
     }) => input,
   )
   .handler(async ({ data }) => {
@@ -748,6 +745,26 @@ export const submitRfqQuotationResponse = createServerFn({ method: "POST" })
         ? ((rfqState.rate_items_json ?? []) as unknown as RateItem[])
         : [];
     let totalAmount = Number(data.total_amount);
+    // PR-based RFQ: a unit price per PR line × the PR's quantity, plus GST (DECISIONS Q17).
+    // The quantities come from the PR, never the vendor, and the client's total is ignored.
+    let prQuote: ReturnType<typeof buildQuoteLines> | null = null;
+    if (!rateItems.length) {
+      const { data: rfqRow } = await supabaseAdmin
+        .from("rfqs")
+        .select("pr_id")
+        .eq("id", data.rfq_id)
+        .single();
+      const { data: prItems } = await supabaseAdmin
+        .from("pr_line_items")
+        .select("id, description, net_qty_to_procure, qty_required, unit")
+        .eq("pr_id", rfqRow?.pr_id ?? "");
+      if (prItems?.length) {
+        const priceError = quoteLineError(prItems, data.prices ?? [], data.gst_amount);
+        if (priceError) return invalid(priceError);
+        prQuote = buildQuoteLines(prItems, data.prices ?? [], data.gst_amount);
+        totalAmount = prQuote.total;
+      }
+    }
     if (rateItems.length) {
       const rates = data.rates ?? [];
       if (rates.length !== rateItems.length || !rates.every((r) => Number(r) > 0))
@@ -779,8 +796,20 @@ export const submitRfqQuotationResponse = createServerFn({ method: "POST" })
     ].join("\n\n");
 
     // Prepare quotation lines
-    type LineInput = NonNullable<typeof data.lines>[number] & { rate_item_no?: number };
-    let lineItems: LineInput[] | undefined = data.lines;
+    type LineInput = {
+      pr_line_item_id?: string | null;
+      rate_item_no?: number;
+      description: string;
+      quantity: number;
+      unit?: string | null;
+      unit_price: number;
+      tax_amount?: number;
+      delivery_days?: number;
+      warranty_months?: number;
+      meets_technical_spec?: boolean;
+      technical_remarks?: string | null;
+    };
+    let lineItems: LineInput[];
     if (rateItems.length) {
       lineItems = rateItems.map((it, i) => ({
         rate_item_no: i,
@@ -794,48 +823,35 @@ export const submitRfqQuotationResponse = createServerFn({ method: "POST" })
         meets_technical_spec: true,
         technical_remarks: commercialTerms,
       }));
-    } else if (!lineItems || lineItems.length === 0) {
-      const { data: rfqRow } = await supabaseAdmin
-        .from("rfqs")
-        .select("pr_id")
-        .eq("id", data.rfq_id)
-        .single();
-
-      const { data: prItems } = await supabaseAdmin
-        .from("pr_line_items")
-        .select("id, description, net_qty_to_procure, unit, est_unit_price")
-        .eq("pr_id", rfqRow?.pr_id ?? "");
-
-      if (prItems && prItems.length > 0) {
-        const perItemPrice = data.total_amount / prItems.length;
-        lineItems = prItems.map((pi: any) => ({
-          pr_line_item_id: pi.id,
-          description: pi.description,
-          quantity: Number(pi.net_qty_to_procure) || 1,
-          unit: pi.unit || "pcs",
-          unit_price: perItemPrice / (Number(pi.net_qty_to_procure) || 1),
+    } else if (prQuote) {
+      lineItems = prQuote.rows.map((r) => ({
+        pr_line_item_id: r.pr_line_item_id,
+        description: r.description,
+        quantity: r.quantity,
+        unit: r.unit || "pcs",
+        unit_price: r.unit_price,
+        tax_amount: r.tax_amount,
+        delivery_days: days,
+        warranty_months: 12,
+        meets_technical_spec: true,
+        technical_remarks: commercialTerms,
+      }));
+    } else {
+      // No PR lines to price: one lot line at the entered total.
+      lineItems = [
+        {
+          pr_line_item_id: null,
+          description: "Goods / Services as per RFQ specifications",
+          quantity: 1,
+          unit: "lot",
+          unit_price: totalAmount,
           tax_amount: 0,
           delivery_days: days,
           warranty_months: 12,
           meets_technical_spec: true,
           technical_remarks: commercialTerms,
-        }));
-      } else {
-        lineItems = [
-          {
-            pr_line_item_id: null,
-            description: "Goods / Services as per RFQ specifications",
-            quantity: 1,
-            unit: "lot",
-            unit_price: data.total_amount,
-            tax_amount: 0,
-            delivery_days: days,
-            warranty_months: 12,
-            meets_technical_spec: true,
-            technical_remarks: commercialTerms,
-          },
-        ];
-      }
+        },
+      ];
     }
 
     // Clean up previous lines for this vendor & rfq if re-submitting

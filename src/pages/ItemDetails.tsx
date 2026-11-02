@@ -435,12 +435,17 @@ const ItemDetails = () => {
                         variant="outline"
                         size="sm"
                         onClick={downloadQRCode}
-                        className="text-xs"
+                        className="text-xs hover:bg-slate-100 hover:text-slate-900 transition-colors"
                       >
                         <Download className="w-3 h-3 mr-1" />
                         Download
                       </Button>
-                      <Button variant="outline" size="sm" onClick={printQRCode} className="text-xs">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={printQRCode}
+                        className="text-xs hover:bg-slate-100 hover:text-slate-900 transition-colors"
+                      >
                         <Printer className="w-3 h-3 mr-1" />
                         Print
                       </Button>

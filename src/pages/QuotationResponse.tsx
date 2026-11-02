@@ -43,6 +43,7 @@ import {
 } from "lucide-react";
 import { getQuotationForVendor, submitQuotationResponse } from "@/lib/quotations.functions";
 import { rateCategoryLabel, type RateItem } from "@/lib/procurement/rateContracts";
+import { buildQuoteLines, quoteLineError, prLineQty } from "@/lib/procurement/quoteLines";
 import {
   getRfqForVendor,
   minValidityDate,
@@ -71,13 +72,8 @@ function isQuotationExpired(lastReplyDate?: string | null): boolean {
 
 const responseSchema = z.object({
   description: z.string().min(10, "Description must be at least 10 characters"),
-  totalAmount: z
-    .string()
-    .min(1, "Total amount is required")
-    .refine((val) => {
-      const num = parseFloat(val);
-      return !isNaN(num) && num > 0;
-    }, "Total amount must be a valid number greater than 0"),
+  // Checked in onSubmit: rate quotes have no total and PR quotes compute it from the lines.
+  totalAmount: z.string(),
   deliveryTime: z
     .string()
     .min(1, "Delivery time is required")
@@ -137,6 +133,10 @@ export default function QuotationResponse() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   // Rate contract RFQs: one unit rate per item, in the RFQ's item order
   const [rates, setRates] = useState<string[]>([]);
+  // PR-based RFQs: a unit price (before GST) per PR line, plus one GST amount
+  const [linePrices, setLinePrices] = useState<Record<string, string>>({});
+  const [gst, setGst] = useState("");
+  const [submittedLines, setSubmittedLines] = useState<any[]>([]);
   const [accessDenied, setAccessDenied] = useState(false);
   const [accessDeniedReason, setAccessDeniedReason] = useState("");
   const { toast } = useToast();
@@ -321,6 +321,12 @@ export default function QuotationResponse() {
               .eq("vendor_id", resolvedQuotation.vendorId)
           ).data;
 
+        setSubmittedLines(existingLines ?? []);
+        if (existingLines?.some((l: any) => l.rate_item_no != null)) {
+          const loaded: string[] = [];
+          for (const l of existingLines) loaded[l.rate_item_no] = String(l.unit_price);
+          setRates(loaded);
+        }
         if (existingLines && existingLines.length > 0) {
           const total = existingLines.reduce(
             (acc: number, l: any) => acc + Number(l.total_price || 0),
@@ -376,12 +382,19 @@ export default function QuotationResponse() {
 
   const rateItems: RateItem[] =
     quotation?.rfq?.purpose === "rate_contract" ? (quotation.rfq.rate_items_json ?? []) : [];
-  // The total of a rate quote is the sum of its unit rates.
+  // A rate contract fixes unit rates only: no quantities, so no order total (DECISIONS Q17).
+  // PR-based RFQs: total = Σ unit price × PR quantity + GST, computed like the server does.
+  const prLines: any[] =
+    quotation?.isRfq && !rateItems.length ? (quotation.pr_line_items ?? []) : [];
+  const prices = prLines.map((l) => ({
+    pr_line_item_id: l.id,
+    unit_price: Number(linePrices[l.id]) || 0,
+  }));
+  const quote = prLines.length ? buildQuoteLines(prLines, prices, gst) : null;
   useEffect(() => {
-    if (!rateItems.length) return;
-    const sum = rateItems.reduce((s, _, i) => s + (Number(rates[i]) || 0), 0);
-    form.setValue("totalAmount", sum > 0 ? String(sum) : "", { shouldValidate: sum > 0 });
-  }, [rates, rateItems.length, form]);
+    if (!quote) return;
+    form.setValue("totalAmount", quote.total > 0 ? String(quote.total) : "");
+  }, [quote?.total, form]);
 
   const onSubmit = async (data: ResponseForm) => {
     console.log("onSubmit called with data:", data);
@@ -408,6 +421,14 @@ export default function QuotationResponse() {
       return;
     }
 
+    // A lump-sum total is entered only when there are no rates or PR lines to price.
+    if (!rateItems.length && !prLines.length && !(parseFloat(data.totalAmount) > 0)) {
+      form.setError("totalAmount", {
+        message: "Total amount must be a valid number greater than 0",
+      });
+      return;
+    }
+
     if (quotation.isRfq) {
       if (quotation.status === "closed" || quotation.status === "cancelled") {
         toast({
@@ -426,6 +447,11 @@ export default function QuotationResponse() {
         });
         return;
       }
+      const priceError = prLines.length ? quoteLineError(prLines, prices, gst) : null;
+      if (priceError) {
+        toast({ title: "Unit prices required", description: priceError, variant: "destructive" });
+        return;
+      }
 
       setIsSubmitting(true);
       try {
@@ -434,6 +460,8 @@ export default function QuotationResponse() {
         const res = await submitRfqQuotationResponse({
           data: {
             rates: rateItems.length ? rateItems.map((_, i) => Number(rates[i])) : undefined,
+            prices: prLines.length ? prices : undefined,
+            gst_amount: prLines.length ? Number(gst) || 0 : undefined,
             rfq_id: quotation.id,
             vendor_id: quotation.vendorId || "",
             token,
@@ -683,7 +711,11 @@ export default function QuotationResponse() {
                 <div>
                   <label className="text-sm font-medium">Quantity</label>
                   <p className="text-sm text-muted-foreground">
-                    {quotation.quantity} {quotation.unit || "units"}
+                    {rateItems.length
+                      ? "Rates per unit (quantities come on each purchase order)"
+                      : prLines.length > 1
+                        ? `${prLines.length} items (quantities below)`
+                        : `${quotation.quantity} ${quotation.unit || "units"}`}
                   </p>
                 </div>
               </div>
@@ -750,34 +782,99 @@ export default function QuotationResponse() {
             {quotation.pr_line_items && quotation.pr_line_items.length > 0 && (
               <div className="mt-4 pt-4 border-t">
                 <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block mb-2">
-                  Line Items To Quote
+                  {prLines.length
+                    ? "Line items to quote: a unit price for every item"
+                    : "Line Items To Quote"}
                 </label>
-                <div className="border rounded-md overflow-hidden bg-background">
+                <div className="border rounded-md overflow-x-auto bg-background">
                   <table className="w-full text-xs">
                     <thead className="bg-muted/80 text-muted-foreground">
                       <tr>
                         <th className="p-2 text-left w-12">#</th>
                         <th className="p-2 text-left">Item Description</th>
-                        <th className="p-2 text-right w-24">Qty</th>
-                        <th className="p-2 text-left w-20">Unit</th>
+                        <th className="p-2 text-right w-20">Qty</th>
+                        <th className="p-2 text-left w-16">Unit</th>
+                        <th className="p-2 text-right w-36">Unit price (₹, before GST)</th>
+                        <th className="p-2 text-right w-28">Amount (₹)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">
-                      {quotation.pr_line_items.map((it: any, idx: number) => (
-                        <tr key={it.id || idx}>
-                          <td className="p-2 font-mono text-muted-foreground">{idx + 1}</td>
-                          <td className="p-2 font-medium text-slate-900 dark:text-slate-100">
-                            {it.description}
-                          </td>
-                          <td className="p-2 text-right font-semibold">
-                            {it.net_qty_to_procure || it.qty_required}
-                          </td>
-                          <td className="p-2 text-muted-foreground">{it.unit || "pcs"}</td>
-                        </tr>
-                      ))}
+                      {quotation.pr_line_items.map((it: any, idx: number) => {
+                        const qty = prLineQty(it);
+                        const sent = submittedLines.find((l: any) => l.pr_line_item_id === it.id);
+                        const unitPrice = sent
+                          ? Number(sent.unit_price)
+                          : Number(linePrices[it.id]) || 0;
+                        return (
+                          <tr key={it.id || idx}>
+                            <td className="p-2 font-mono text-muted-foreground">{idx + 1}</td>
+                            <td className="p-2 font-medium text-slate-900 dark:text-slate-100">
+                              {it.description}
+                            </td>
+                            <td className="p-2 text-right font-semibold">{qty}</td>
+                            <td className="p-2 text-muted-foreground">{it.unit || "pcs"}</td>
+                            <td className="p-2">
+                              {existingResponse ? (
+                                <span className="block text-right font-mono">
+                                  {sent ? unitPrice.toLocaleString("en-IN") : "—"}
+                                </span>
+                              ) : (
+                                <Input
+                                  inputMode="decimal"
+                                  className="h-8 text-right"
+                                  placeholder="0.00"
+                                  value={linePrices[it.id] ?? ""}
+                                  onChange={(e) => {
+                                    const v = e.target.value.replace(/[^0-9.]/g, "");
+                                    setLinePrices((prev) => ({ ...prev, [it.id]: v }));
+                                  }}
+                                  aria-label={`Unit price for ${it.description}`}
+                                />
+                              )}
+                            </td>
+                            <td className="p-2 text-right font-mono">
+                              {(qty * unitPrice).toLocaleString("en-IN")}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
+                {prLines.length > 0 && (
+                  <div className="mt-3 flex flex-col sm:flex-row sm:items-end sm:justify-end gap-3 text-xs">
+                    <div className="space-y-1">
+                      <label className="font-medium block" htmlFor="quote-gst">
+                        GST / taxes (₹)
+                      </label>
+                      {existingResponse ? (
+                        <span className="font-mono">
+                          {submittedLines
+                            .reduce((t: number, l: any) => t + Number(l.tax_amount || 0), 0)
+                            .toLocaleString("en-IN")}
+                        </span>
+                      ) : (
+                        <Input
+                          id="quote-gst"
+                          inputMode="decimal"
+                          className="h-8 w-40 text-right"
+                          placeholder="0.00"
+                          value={gst}
+                          onChange={(e) => setGst(e.target.value.replace(/[^0-9.]/g, ""))}
+                        />
+                      )}
+                    </div>
+                    {!existingResponse && quote && (
+                      <div className="rounded border bg-muted/50 px-3 py-2 font-mono space-y-0.5 text-right">
+                        <div>Subtotal ₹{quote.subtotal.toLocaleString("en-IN")}</div>
+                        <div>GST ₹{quote.gst.toLocaleString("en-IN")}</div>
+                        <div className="font-bold">
+                          Total ₹{quote.total.toLocaleString("en-IN")}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
             <div className="mt-4">
@@ -801,11 +898,24 @@ export default function QuotationResponse() {
                   <div>
                     <label className="text-sm font-medium flex items-center gap-2">
                       <DollarSign className="h-4 w-4" />
-                      Total Amount
+                      {rateItems.length ? "Rates per unit" : "Total Amount"}
                     </label>
-                    <p className="text-lg font-semibold text-green-600 dark:text-green-400">
-                      ₹{existingResponse?.total_amount || "N/A"}
-                    </p>
+                    {rateItems.length ? (
+                      <ul className="text-sm space-y-0.5">
+                        {rateItems.map((it, i) => (
+                          <li key={i}>
+                            {it.description}:{" "}
+                            <span className="font-semibold text-green-600 dark:text-green-400">
+                              ₹{Number(rates[i] || 0).toLocaleString("en-IN")} / {it.unit}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-lg font-semibold text-green-600 dark:text-green-400">
+                        ₹{Number(existingResponse?.total_amount || 0).toLocaleString("en-IN")}
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -992,8 +1102,23 @@ export default function QuotationResponse() {
                   <>
                     <div className="space-y-4">
                       <div>
-                        <label className="text-sm font-medium">Total Amount</label>
-                        <p className="text-lg font-semibold">₹{existingResponse.total_amount}</p>
+                        <label className="text-sm font-medium">
+                          {rateItems.length ? "Rates per unit" : "Total Amount"}
+                        </label>
+                        {rateItems.length ? (
+                          <p className="text-sm font-semibold">
+                            {rateItems
+                              .map(
+                                (it, i) =>
+                                  `${it.description}: ₹${Number(rates[i] || 0).toLocaleString("en-IN")} / ${it.unit}`,
+                              )
+                              .join(" · ")}
+                          </p>
+                        ) : (
+                          <p className="text-lg font-semibold">
+                            ₹{Number(existingResponse.total_amount || 0).toLocaleString("en-IN")}
+                          </p>
+                        )}
                       </div>
                       <div>
                         <label className="text-sm font-medium">Submitted</label>
@@ -1056,6 +1181,17 @@ export default function QuotationResponse() {
                   />
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {rateItems.length > 0 ? (
+                      <div className="rounded-lg border bg-muted/50 p-3 text-sm text-muted-foreground">
+                        <p className="flex items-center gap-2 font-medium text-foreground">
+                          <DollarSign className="h-4 w-4" /> Rates are per unit
+                        </p>
+                        <p className="mt-1 text-xs">
+                          A rate contract fixes unit rates only, so there is no order total. Each
+                          purchase order under the contract states its own quantity.
+                        </p>
+                      </div>
+                    ) : (
                     <FormField
                       control={form.control}
                       name="totalAmount"
@@ -1069,7 +1205,7 @@ export default function QuotationResponse() {
                             <Input
                               type="text"
                               placeholder="0.00"
-                              readOnly={rateItems.length > 0}
+                                readOnly={prLines.length > 0}
                               {...field}
                               onChange={(e) => {
                                 // Allow only numbers and decimal point
@@ -1085,14 +1221,15 @@ export default function QuotationResponse() {
                             />
                           </FormControl>
                           <FormDescription>
-                            {rateItems.length > 0
-                              ? "The sum of your unit rates above (filled in for you)"
+                              {prLines.length > 0
+                                ? "Quantity × unit price for every item, plus GST (filled in for you)"
                               : "Enter the total cost including all fees and taxes in Indian Rupees"}
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
+                    )}
 
                     <FormField
                       control={form.control}
