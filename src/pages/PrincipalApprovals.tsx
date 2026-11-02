@@ -1,3 +1,4 @@
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { useState, useEffect, useCallback } from "react";
 import {
   Dialog,
@@ -332,19 +333,14 @@ const PrincipalApprovals = () => {
     return <div className="text-sm">{ticket.issue_description}</div>;
   };
 
-  if (loading)
-    return (
-      <Layout>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-        </div>
-      </Layout>
-    );
+  if (loading) {
+    return <PageSkeleton cards={0} rows={6} />;
+  }
 
   return (
     <>
       <Layout>
-        <div className="container mx-auto py-6 px-4">
+        <div className="w-full space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Principal — Approvals</CardTitle>

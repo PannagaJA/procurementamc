@@ -1,3 +1,4 @@
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { useState, useEffect, useCallback } from "react";
 import { FilterSelect, statusFilterOptions, applyFilter } from "@/components/FilterSelect";
 import { useNavigate } from "@tanstack/react-router";
@@ -358,20 +359,15 @@ const HodDashboard = () => {
     return () => clearInterval(iv);
   }, [departmentName, fetchMetrics, fetchTickets]);
 
-  if (loading || authLoading)
-    return (
-      <Layout>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-        </div>
-      </Layout>
-    );
+  if (loading || authLoading) {
+    return <PageSkeleton cards={4} rows={5} />;
+  }
 
   const prFilterOptions = statusFilterOptions(deptPrs, (p: any) => p.status, ["approved", "rejected", "closed"]);
 
   return (
     <Layout>
-      <div className="container mx-auto py-6 px-4">
+      <div className="w-full space-y-6">
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -521,9 +517,7 @@ const HodDashboard = () => {
             </CardHeader>
             <CardContent>
               {loadingPrs ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white"></div>
-                </div>
+                <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<div key={i} className="h-14 w-full bg-muted/60 animate-pulse rounded-xl" />))}</div>
               ) : (
                 (() => {
                   const filtered = applyFilter(deptPrs, prFilterOptions, prFilter);
@@ -634,9 +628,7 @@ const HodDashboard = () => {
             </CardHeader>
             <CardContent>
               {loadingInventory ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-                </div>
+                <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<div key={i} className="h-14 w-full bg-muted/60 animate-pulse rounded-xl" />))}</div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full table-fixed">

@@ -1,3 +1,4 @@
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { useState, useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "../integrations/supabase/client";
@@ -180,15 +181,11 @@ const UserDashboard = () => {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-      </div>
-    );
+    return <PageSkeleton cards={4} rows={4} />;
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
+    <div className="w-full space-y-6">
       <div className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight">User Dashboard</h1>
         <p className="text-muted-foreground">Manage your tickets and track their status</p>

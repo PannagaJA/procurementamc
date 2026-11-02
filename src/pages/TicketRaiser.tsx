@@ -1,3 +1,4 @@
+import { FormPageSkeleton } from "@/components/ui/page-skeleton";
 import { useState, useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "../integrations/supabase/client";
@@ -244,18 +245,12 @@ const TicketRaiser = () => {
   };
 
   if (loading) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-        </div>
-      </Layout>
-    );
+    return <FormPageSkeleton />;
   }
 
   return (
     <Layout>
-      <div className="container mx-auto py-8 px-4 max-w-2xl">
+      <div className="w-full">
         <Card>
           <CardHeader>
             <CardTitle>Raise New Ticket</CardTitle>

@@ -193,7 +193,7 @@ export default function DepartmentManagement() {
   if (checkingAdmin) {
     return (
       <Layout>
-        <div className="w-full max-w-7xl mx-auto py-6">
+        <div className="w-full max-w-full py-6">
           <div className="text-center text-muted-foreground">Checking permissions...</div>
         </div>
       </Layout>
@@ -203,7 +203,7 @@ export default function DepartmentManagement() {
   if (!isAdmin) {
     return (
       <Layout>
-        <div className="w-full max-w-7xl mx-auto py-6">
+        <div className="w-full max-w-full py-6">
           <Card>
             <CardHeader>
               <CardTitle>Not authorized</CardTitle>
@@ -222,7 +222,7 @@ export default function DepartmentManagement() {
 
   return (
     <Layout>
-      <div className="w-full max-w-7xl mx-auto py-6">
+      <div className="w-full max-w-full py-6">
         <Card>
           <CardHeader>
             <CardTitle>Add Department</CardTitle>

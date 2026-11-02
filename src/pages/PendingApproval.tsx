@@ -63,7 +63,7 @@ const PendingApproval = () => {
         <Card className="w-full max-w-md">
           <CardContent className="pt-6">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+              <div className="h-6 w-32 bg-muted animate-pulse rounded mx-auto mb-4"></div>
               <p>Checking approval status...</p>
             </div>
           </CardContent>

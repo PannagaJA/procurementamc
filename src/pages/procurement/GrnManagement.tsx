@@ -510,7 +510,7 @@ export default function GrnManagement() {
 
   return (
     <Layout>
-      <div className="max-w-6xl mx-auto space-y-6 pb-12">
+      <div className="w-full max-w-full space-y-6 pb-12">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
           <div>

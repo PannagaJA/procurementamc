@@ -1,3 +1,4 @@
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { useState, useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "../integrations/supabase/client";
@@ -274,18 +275,12 @@ const UserTickets = () => {
   };
 
   if (loading) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-foreground"></div>
-        </div>
-      </Layout>
-    );
+    return <PageSkeleton cards={0} rows={5} />;
   }
 
   return (
     <Layout>
-      <div className="container mx-auto py-8 px-4">
+      <div className="w-full space-y-6">
         <Card>
           <CardHeader>
             <div className="flex justify-between items-center">

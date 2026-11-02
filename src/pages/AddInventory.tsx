@@ -358,7 +358,7 @@ const AddInventory = () => {
 
   return (
     <Layout>
-      <div className="w-full max-w-6xl 2xl:max-w-7xl mx-auto animate-in fade-in-0 duration-700">
+      <div className="w-full max-w-full animate-in fade-in-0 duration-700">
         <div className="mb-8 text-center">
           <h2 className="text-4xl font-bold tracking-tight text-foreground mb-2">Add New Item</h2>
           <p className="text-muted-foreground text-lg">Add a new item to the inventory system</p>

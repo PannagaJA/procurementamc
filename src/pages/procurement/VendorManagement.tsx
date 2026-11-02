@@ -447,7 +447,7 @@ export default function VendorManagement() {
 
   return (
     <Layout>
-      <div className="max-w-6xl mx-auto space-y-8 pb-12">
+      <div className="w-full max-w-full space-y-8 pb-12">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-6">
           <div>
