@@ -89,9 +89,9 @@ export default function ProcurementHub() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
           {/* 0. Annual Budget Card */}
           {access.budgets && (
-            <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-emerald-500/50 flex flex-col justify-between">
+            <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-[#0B1437]/30 flex flex-col justify-between">
               <CardHeader className="p-4">
-                <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center text-emerald-600 dark:text-emerald-400 mb-1.5">
+                <div className="w-8 h-8 rounded-lg bg-[#0B1437]/10 flex items-center justify-center text-[#0B1437] mb-1.5">
                   <Wallet className="w-4 h-4" />
                 </div>
                 <CardTitle className="text-base">Annual Budgets</CardTitle>
@@ -125,7 +125,7 @@ export default function ProcurementHub() {
               <CardContent className="p-4 pt-0 space-y-3">
                 <Button
                   onClick={() => navigate({ to: "/procurement/raise-pr" })}
-                  className="w-full gap-1.5 text-xs h-8 rounded-full font-semibold"
+                  className="w-full gap-1.5 text-xs h-8 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
                 >
                   Raise PR <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
@@ -135,9 +135,9 @@ export default function ProcurementHub() {
 
           {/* 2. RFQ Card */}
           {access.rfqs && (
-            <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-sky-500/50 flex flex-col justify-between">
+            <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-[#0B1437]/30 flex flex-col justify-between">
               <CardHeader className="p-4">
-                <div className="w-8 h-8 rounded-lg bg-sky-100 dark:bg-sky-950 flex items-center justify-center text-sky-600 dark:text-sky-400 mb-1.5">
+                <div className="w-8 h-8 rounded-lg bg-[#0B1437]/10 flex items-center justify-center text-[#0B1437] mb-1.5">
                   <FileText className="w-4 h-4" />
                 </div>
                 <CardTitle className="text-base">2. Solicitations (RFQ)</CardTitle>
@@ -148,8 +148,7 @@ export default function ProcurementHub() {
               <CardContent className="p-4 pt-0 space-y-3">
                 <Button
                   onClick={() => navigate({ to: "/procurement/rfqs" })}
-                  variant="outline"
-                  className="w-full gap-1.5 text-xs h-8 rounded-full font-semibold"
+                  className="w-full gap-1.5 text-xs h-8 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
                 >
                   Manage RFQs <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
@@ -159,9 +158,9 @@ export default function ProcurementHub() {
 
           {/* 3. CS Card */}
           {access.cs && (
-            <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-emerald-500/50 flex flex-col justify-between">
+            <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-[#0B1437]/30 flex flex-col justify-between">
               <CardHeader className="p-4">
-                <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center text-emerald-600 dark:text-emerald-400 mb-1.5">
+                <div className="w-8 h-8 rounded-lg bg-[#0B1437]/10 flex items-center justify-center text-[#0B1437] mb-1.5">
                   <Scale className="w-4 h-4" />
                 </div>
                 <CardTitle className="text-base">3. Statements (CS)</CardTitle>
@@ -172,8 +171,7 @@ export default function ProcurementHub() {
               <CardContent className="p-4 pt-0 space-y-3">
                 <Button
                   onClick={() => navigate({ to: "/procurement/cs" })}
-                  variant="outline"
-                  className="w-full gap-1.5 text-xs h-8 rounded-full font-semibold"
+                  className="w-full gap-1.5 text-xs h-8 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
                 >
                   Comparative CS <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
@@ -196,8 +194,7 @@ export default function ProcurementHub() {
               <CardContent className="p-4 pt-0 space-y-3">
                 <Button
                   onClick={() => navigate({ to: "/procurement/orders" })}
-                  variant="outline"
-                  className="w-full gap-1.5 text-xs h-8 rounded-full font-semibold"
+                  className="w-full gap-1.5 text-xs h-8 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
                 >
                   Purchase Orders <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
@@ -207,9 +204,9 @@ export default function ProcurementHub() {
 
           {/* 5. GRN Card */}
           {access.grns && (
-            <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-emerald-500/50 flex flex-col justify-between">
+            <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-[#0B1437]/30 flex flex-col justify-between">
               <CardHeader className="p-4">
-                <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center text-emerald-600 dark:text-emerald-400 mb-1.5">
+                <div className="w-8 h-8 rounded-lg bg-[#0B1437]/10 flex items-center justify-center text-[#0B1437] mb-1.5">
                   <Truck className="w-4 h-4" />
                 </div>
                 <CardTitle className="text-base">5. Goods Receipt (GRN)</CardTitle>
@@ -220,8 +217,7 @@ export default function ProcurementHub() {
               <CardContent className="p-4 pt-0 space-y-3">
                 <Button
                   onClick={() => navigate({ to: "/procurement/grns" })}
-                  variant="outline"
-                  className="w-full gap-1.5 text-xs h-8 rounded-full font-semibold"
+                  className="w-full gap-1.5 text-xs h-8 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
                 >
                   Stores Receipts <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
@@ -231,9 +227,9 @@ export default function ProcurementHub() {
 
           {/* 6. Invoice & 3-Way Match */}
           {access.invoices && (
-            <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-emerald-500/50 flex flex-col justify-between">
+            <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-[#0B1437]/30 flex flex-col justify-between">
               <CardHeader className="p-4">
-                <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center text-emerald-600 dark:text-emerald-400 mb-1.5">
+                <div className="w-8 h-8 rounded-lg bg-[#0B1437]/10 flex items-center justify-center text-[#0B1437] mb-1.5">
                   <Receipt className="w-4 h-4" />
                 </div>
                 <CardTitle className="text-base">6. 3-Way Match & Pay</CardTitle>
@@ -244,8 +240,7 @@ export default function ProcurementHub() {
               <CardContent className="p-4 pt-0 space-y-3">
                 <Button
                   onClick={() => navigate({ to: "/procurement/invoices" })}
-                  variant="outline"
-                  className="w-full gap-1.5 text-xs h-8 rounded-full font-semibold"
+                  className="w-full gap-1.5 text-xs h-8 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
                 >
                   Invoices & Match <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
@@ -255,9 +250,9 @@ export default function ProcurementHub() {
 
           {/* 7. Emergency Procurement */}
           {access.emergency && (
-            <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-amber-500/50 flex flex-col justify-between">
+            <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-[#0B1437]/30 flex flex-col justify-between">
               <CardHeader className="p-4">
-                <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-950 flex items-center justify-center text-amber-600 dark:text-amber-400 mb-1.5">
+                <div className="w-8 h-8 rounded-lg bg-[#0B1437]/10 flex items-center justify-center text-[#0B1437] mb-1.5">
                   <Zap className="w-4 h-4" />
                 </div>
                 <CardTitle className="text-base">7. Emergency Procurement</CardTitle>
@@ -268,8 +263,7 @@ export default function ProcurementHub() {
               <CardContent className="p-4 pt-0 space-y-3">
                 <Button
                   onClick={() => navigate({ to: "/procurement/emergency" })}
-                  variant="outline"
-                  className="w-full gap-1.5 text-xs h-8 rounded-full font-semibold"
+                  className="w-full gap-1.5 text-xs h-8 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
                 >
                   Emergency Register <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
@@ -292,8 +286,7 @@ export default function ProcurementHub() {
               <CardContent className="p-4 pt-0 space-y-3">
                 <Button
                   onClick={() => navigate({ to: "/procurement/vendor-ratings" })}
-                  variant="outline"
-                  className="w-full gap-1.5 text-xs h-8 rounded-full font-semibold"
+                  className="w-full gap-1.5 text-xs h-8 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
                 >
                   Performance Ratings <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
