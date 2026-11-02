@@ -106,6 +106,11 @@ const AddInventory = () => {
     setLocations(data || []);
   };
 
+  const fetchVendors = async () => {
+    const { data } = await supabase.from("vendors").select("id, name, registered_address, contact_number").order("name");
+    setVendorsList((data as any) || []);
+  };
+
   const [departments, setDepartments] = useState<
     Array<{ id: string; name: string; prefix?: string | null }>
   >([]);
