@@ -36,7 +36,6 @@ import {
   inviteReplacementVendor,
   debarVendorForNonResponse,
 } from "@/lib/procurement/rfq.functions";
-import { requestPrAmendment } from "@/lib/procurement/pr.functions";
 import { workingDaysSince } from "@/lib/procurement/turnaround";
 import { emailQuoteInvites } from "@/lib/procurement/quoteInvites";
 import { NewRateRfqDialog, RateQuotesDialog } from "@/components/procurement/RateContractRfq";
@@ -106,11 +105,6 @@ export default function RfqManagement() {
   const [debarVendor, setDebarVendor] = useState<{ id: string; name: string; rfqId: string } | null>(null);
   const [debarReason, setDebarReason] = useState("");
   const [debarring, setDebarring] = useState(false);
-  // Solution 2: PR Overrun Amendment State
-  const [amendOpen, setAmendOpen] = useState(false);
-  const [amendPr, setAmendPr] = useState<{ id: string; number: string; estimate: number; lowestQuote: number; rfqId: string } | null>(null);
-  const [amendMessage, setAmendMessage] = useState("");
-  const [amendSubmitting, setAmendSubmitting] = useState(false);
 
   // Record Quote Modal
 
@@ -371,38 +365,6 @@ export default function RfqManagement() {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
       setDebarring(false);
-    }
-  };
-
-  const handleRequestPrAmendment = async () => {
-    if (!amendPr || !amendMessage.trim()) return;
-    setAmendSubmitting(true);
-    try {
-      const res = await (requestPrAmendment as any)({
-        data: {
-          pr_id: amendPr.id,
-          rfq_id: amendPr.rfqId,
-          lowest_quote: amendPr.lowestQuote,
-          message: amendMessage.trim(),
-        },
-      });
-      if (!res.ok) {
-        toast({ title: "Failed to request amendment", description: res.error, variant: "destructive" });
-        return;
-      }
-      toast({
-        title: "PR Returned for Amendment",
-        description: res.message || "Requisition returned to creator for estimate revision.",
-      });
-      setAmendOpen(false);
-      setAmendPr(null);
-      setAmendMessage("");
-      await loadData();
-      setViewQuotesRfq(null);
-    } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
-    } finally {
-      setAmendSubmitting(false);
     }
   };
 
@@ -1109,37 +1071,18 @@ export default function RfqManagement() {
                   const diff = minQuote - prEst;
                   const diffPct = ((diff / prEst) * 100).toFixed(1);
                   return (
-                    <div className="p-3.5 bg-rose-50 dark:bg-rose-950/40 border-2 border-rose-400 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-rose-800 dark:text-rose-200">
+                    <div className="p-3.5 bg-rose-50 dark:bg-rose-950/40 border-2 border-rose-400 rounded-lg text-xs text-rose-800 dark:text-rose-200">
                       <div>
                         <span className="font-bold flex items-center gap-1.5 text-rose-900 dark:text-rose-100 text-sm">
-                          <AlertTriangle className="w-4 h-4 text-rose-600" /> Cost Overrun Detected: Lowest Quote Exceeds PR Estimate
+                          <AlertTriangle className="w-4 h-4 text-rose-600" /> Quotation Exceeds Approved PR Estimate
                         </span>
                         <p className="mt-1 text-xs text-rose-700 dark:text-rose-300">
                           Lowest quotation (<strong className="font-mono">₹{minQuote.toLocaleString("en-IN")}</strong>) exceeds approved PR estimate (<strong className="font-mono">₹{prEst.toLocaleString("en-IN")}</strong>) by <strong className="font-mono">₹{diff.toLocaleString("en-IN")} (+{diffPct}%)</strong>.
                         </p>
                         <p className="text-[11px] text-rose-600 dark:text-rose-400 mt-0.5">
-                          Under SOP §8.4, return this requisition for an estimate amendment before comparative statements or POs can be issued.
+                          A Comparative Statement and Purchase Order cannot be created. If needed, please raise a new Purchase Requisition with the appropriate estimate.
                         </p>
                       </div>
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          setAmendPr({
-                            id: viewQuotesRfq.purchase_requisitions.id,
-                            number: viewQuotesRfq.purchase_requisitions.pr_number,
-                            estimate: prEst,
-                            lowestQuote: minQuote,
-                            rfqId: viewQuotesRfq.id,
-                          });
-                          setAmendMessage(
-                            `Quotation received (₹${minQuote.toLocaleString("en-IN")}) exceeds the approved estimate (₹${prEst.toLocaleString("en-IN")}, +${diffPct}%). Please submit a PR estimate amendment for re-approval.`
-                          );
-                          setAmendOpen(true);
-                        }}
-                        className="bg-rose-600 hover:bg-rose-700 text-white shrink-0 text-xs font-semibold gap-1.5"
-                      >
-                        <FileEdit className="w-3.5 h-3.5" /> Return for PR Amendment
-                      </Button>
                     </div>
                   );
                 }
@@ -1550,59 +1493,6 @@ export default function RfqManagement() {
           </DialogContent>
         </Dialog>
 
-        {/* Modal: Send Back for PR Estimate Amendment (from RFQ) */}
-        <Dialog open={amendOpen} onOpenChange={setAmendOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-rose-600">
-                <FileEdit className="w-5 h-5" /> Request PR Estimate Amendment
-              </DialogTitle>
-              <DialogDescription>
-                Return {amendPr?.number} to the creator with lowest quotation details so they can revise the estimate and re-route through the Authority Matrix.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-3 py-2 text-xs">
-              <div className="grid grid-cols-2 gap-2 p-3 bg-slate-50 dark:bg-slate-900 rounded border">
-                <div>
-                  <span className="text-slate-500 block">Original Estimate</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200">
-                    ₹{Number(amendPr?.estimate || 0).toLocaleString("en-IN")}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block">Lowest Quote</span>
-                  <span className="font-bold text-rose-600">
-                    ₹{Number(amendPr?.lowestQuote || 0).toLocaleString("en-IN")}
-                  </span>
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs">Reason / Note to Creator</Label>
-                <Textarea
-                  value={amendMessage}
-                  onChange={(e) => setAmendMessage(e.target.value)}
-                  rows={3}
-                  placeholder="Explain the cost variance..."
-                />
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setAmendOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                onClick={handleRequestPrAmendment}
-                disabled={amendSubmitting || !amendMessage.trim()}
-                className="bg-rose-600 hover:bg-rose-700 text-white gap-1"
-              >
-                {amendSubmitting ? "Returning PR..." : "Send Back for Amendment"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
       </div>
     </Layout>
   );

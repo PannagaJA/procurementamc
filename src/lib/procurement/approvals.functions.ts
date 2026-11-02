@@ -216,33 +216,6 @@ export const getMyPendingApprovals = createServerFn({ method: "GET" })
       };
     });
 
-    // PR Amendments requested from the caller (creator action needed)
-    let myPrAmendments: any[] = [];
-    const { data: myPrsWithNotes } = await queryDb
-      .from("purchase_requisitions")
-      .select(
-        `
-        *,
-        departments (id, name),
-        pr_line_items (id, description, net_qty_to_procure, est_unit_price, est_total)
-      `,
-      )
-      .eq("requested_by", context.userId)
-      .eq("status", "under_review")
-      .order("updated_at", { ascending: false });
-
-    if (myPrsWithNotes) {
-      myPrAmendments = myPrsWithNotes.filter((p: any) => {
-        if (!p.market_survey_notes) return false;
-        try {
-          const parsed = typeof p.market_survey_notes === "string" ? JSON.parse(p.market_survey_notes) : p.market_survey_notes;
-          return parsed?.type === "amendment_requested";
-        } catch {
-          return String(p.market_survey_notes).includes("amendment_requested");
-        }
-      });
-    }
-
     const prCount = (prs ?? []).length;
     const csCount = (css ?? []).length;
     const poCount = (pos ?? []).length;
@@ -250,7 +223,6 @@ export const getMyPendingApprovals = createServerFn({ method: "GET" })
     const invCount = (invoices ?? []).length;
     const epCount = (emergencyProcurements ?? []).length;
     const rcCount = rateContracts.length;
-    const prAmendCount = myPrAmendments.length;
 
     return {
       ok: true as const,
@@ -263,8 +235,7 @@ export const getMyPendingApprovals = createServerFn({ method: "GET" })
         invoices: invCount,
         emergency: epCount,
         rateContracts: rcCount,
-        prAmendments: prAmendCount,
-        total: prCount + csCount + poCount + amCount + invCount + epCount + rcCount + prAmendCount,
+        total: prCount + csCount + poCount + amCount + invCount + epCount + rcCount,
       },
       prs: prs ?? [],
       comparativeStatements: css ?? [],
@@ -273,7 +244,6 @@ export const getMyPendingApprovals = createServerFn({ method: "GET" })
       invoices: invoices ?? [],
       emergencyProcurements: emergencyProcurements ?? [],
       rateContracts,
-      myPrAmendments,
     };
   });
 

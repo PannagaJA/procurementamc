@@ -33,7 +33,6 @@ import {
   listComparativeStatements,
 } from "@/lib/procurement/cs.functions";
 import { listRfqs } from "@/lib/procurement/rfq.functions";
-import { requestPrAmendment } from "@/lib/procurement/pr.functions";
 import {
   Scale,
   PlusCircle,
@@ -70,12 +69,6 @@ export default function ComparativeStatements() {
   const [negotiationNotes, setNegotiationNotes] = useState("");
   const [priceReasonableness, setPriceReasonableness] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  // PR Amendment Modal (SOP §8.4 & §6)
-  const [amendDialogOpen, setAmendDialogOpen] = useState(false);
-  const [amendPrId, setAmendPrId] = useState("");
-  const [amendLowestQuote, setAmendLowestQuote] = useState(0);
-  const [amendMessage, setAmendMessage] = useState("");
-  const [amendSubmitting, setAmendSubmitting] = useState(false);
 
   // Approval/Rejection Modals
   const [activeCs, setActiveCs] = useState<any>(null);
@@ -256,36 +249,6 @@ export default function ComparativeStatements() {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
       setActing(false);
-    }
-  };
-
-  const handleSendPrAmendment = async () => {
-    if (!amendPrId || !amendMessage.trim()) return;
-    setAmendSubmitting(true);
-    try {
-      const res = await (requestPrAmendment as any)({
-        data: {
-          pr_id: amendPrId,
-          rfq_id: selectedRfqId,
-          lowest_quote: amendLowestQuote,
-          message: amendMessage,
-        },
-      });
-      if (!res.ok) {
-        toast({ title: "Failed to request amendment", description: res.error, variant: "destructive" });
-        return;
-      }
-      toast({
-        title: "PR Returned for Amendment",
-        description: res.message || "Requisition returned to creator for estimate revision.",
-      });
-      setAmendDialogOpen(false);
-      setPrepOpen(false);
-      loadData();
-    } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
-    } finally {
-      setAmendSubmitting(false);
     }
   };
 
@@ -676,37 +639,20 @@ export default function ComparativeStatements() {
                 if (!hasCostOverrun) return null;
 
                 return (
-                  <div className="p-4 bg-rose-50 dark:bg-rose-950/40 border-2 border-rose-400 rounded-lg space-y-3">
+                  <div className="p-4 bg-rose-50 dark:bg-rose-950/40 border-2 border-rose-400 rounded-lg space-y-2">
                     <div className="flex items-start gap-3">
                       <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
                       <div className="space-y-1">
                         <h4 className="text-sm font-bold text-rose-900 dark:text-rose-100">
-                          Cost Overrun Detected: Lowest Quote Exceeds Approved PR Estimate
+                          Quotation Exceeds Approved PR Estimate
                         </h4>
                         <p className="text-xs text-rose-800 dark:text-rose-200">
                           Lowest quotation received is <strong className="font-mono">₹{lowestVendorQuote.toLocaleString("en-IN")}</strong>, which exceeds the approved requisition estimate of <strong className="font-mono">₹{prEstimate.toLocaleString("en-IN")}</strong> by <strong className="font-mono">₹{overrunAmount.toLocaleString("en-IN")} (+{overrunPct}%)</strong>.
                         </p>
                         <p className="text-[11px] text-rose-700 dark:text-rose-300">
-                          Under institutional SOP §8.4 & §6, this requisition must be amended and re-authorized by the competent authority before a Comparative Statement or PO can be approved.
+                          A Comparative Statement and Purchase Order cannot be created. If needed, please raise a new Purchase Requisition with the appropriate estimate.
                         </p>
                       </div>
-                    </div>
-                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-rose-200 dark:border-rose-900">
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => {
-                          setAmendPrId(selectedRfq?.purchase_requisitions?.id);
-                          setAmendLowestQuote(lowestVendorQuote);
-                          setAmendMessage(
-                            `Quotation received from vendors exceeds the approved estimate of ₹${prEstimate.toLocaleString("en-IN")} (lowest quote: ₹${lowestVendorQuote.toLocaleString("en-IN")}, +${overrunPct}%). Please submit a PR estimate amendment for re-approval.`
-                          );
-                          setAmendDialogOpen(true);
-                        }}
-                        className="bg-rose-600 hover:bg-rose-700 text-white gap-1.5 text-xs font-semibold"
-                      >
-                        <FileEdit className="w-3.5 h-3.5" /> Send Back for PR Amendment
-                      </Button>
                     </div>
                   </div>
                 );
@@ -839,7 +785,7 @@ export default function ComparativeStatements() {
                   <>
                     {hasCostOverrun && (
                       <span className="text-xs text-rose-600 dark:text-rose-400 font-medium mr-auto">
-                        Cost overrun must be resolved via PR Amendment before submitting CS.
+                        Quotation exceeds approved PR estimate. Cannot create Comparative Statement or Purchase Order.
                       </span>
                     )}
                     <Button

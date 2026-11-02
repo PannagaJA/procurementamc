@@ -166,8 +166,8 @@ export const prepareComparativeStatement = createServerFn({ method: "POST" })
     if (prEstValue > 0 && recTotal > prEstValue) {
       return {
         ok: false as const,
-        error: `Recommended quotation (₹${recTotal.toLocaleString("en-IN")}) exceeds approved PR estimate (₹${prEstValue.toLocaleString("en-IN")}). Return the PR for amendment before submitting the Comparative Statement.`,
-        code: "pr_estimate_overrun",
+        error: `Recommended quotation (₹${recTotal.toLocaleString("en-IN")}) exceeds approved PR estimate (₹${prEstValue.toLocaleString("en-IN")}). A Comparative Statement cannot be created. If needed, please raise an appropriate Purchase Requisition next time.`,
+        code: "pr_estimate_exceeded",
       };
     }
 
