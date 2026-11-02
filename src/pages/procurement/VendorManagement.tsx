@@ -906,7 +906,7 @@ export default function VendorManagement() {
                             <Button
                               onClick={() => handleEvpApprove(v.id)}
                               disabled={isLoading}
-                              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 font-semibold text-xs"
+                              className="w-full bg-[#0B1437] hover:bg-[#111f54] text-white gap-1.5 font-semibold text-xs rounded-full"
                             >
                               <CheckCircle className="w-4 h-4" /> Approve Empanelment (1 Year
                               Validity)

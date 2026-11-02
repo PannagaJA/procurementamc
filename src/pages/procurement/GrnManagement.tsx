@@ -532,13 +532,13 @@ export default function GrnManagement() {
                 <Button
                   onClick={() => setDeliveryOpen(true)}
                   variant="outline"
-                  className="gap-2 border-emerald-600 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:border-emerald-500/60 dark:bg-emerald-950/30 dark:text-emerald-300 dark:hover:bg-emerald-900/50 dark:hover:text-emerald-100 shadow-sm"
+                  className="gap-2 border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 rounded-full font-bold shadow-xs transition-all"
                 >
                   <Truck className="w-4 h-4" /> Record Challan
                 </Button>
                 <Button
                   onClick={() => setGrnOpen(true)}
-                  className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                  className="gap-2 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold shadow-xs transition-all"
                 >
                   <PlusCircle className="w-4 h-4" /> Create GRN
                 </Button>
@@ -602,7 +602,7 @@ export default function GrnManagement() {
                     </Button>
                     <Button
                       size="sm"
-                      className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+                      className="text-xs bg-[#0B1437] hover:bg-[#111f54] text-white gap-1.5 rounded-full font-semibold"
                       onClick={() => {
                         setGrnPoId(c.po_id || "");
                         setSelectedChallanId(c.id);
@@ -1003,7 +1003,7 @@ export default function GrnManagement() {
               <Button
                 onClick={handleRecordDelivery}
                 disabled={recordingDelivery || !selectedPoId}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold"
               >
                 {recordingDelivery ? "Logging..." : "Log Delivery Challan"}
               </Button>
@@ -1213,7 +1213,7 @@ export default function GrnManagement() {
               <Button
                 onClick={handleCreateGrn}
                 disabled={creatingGrn || !grnPoId || !selectedChallanId}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold"
               >
                 {creatingGrn ? "Creating..." : "Issue Goods Receipt Note"}
               </Button>

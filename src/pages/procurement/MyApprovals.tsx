@@ -469,7 +469,7 @@ export default function MyApprovals() {
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(pr, "pr_approve")}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                        className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1 rounded-full font-semibold"
                       >
                         <CheckCircle className="w-3.5 h-3.5" /> Approve
                       </Button>
@@ -552,7 +552,7 @@ export default function MyApprovals() {
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(cs, "cs_approve")}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                        className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1 rounded-full font-semibold"
                       >
                         <CheckCircle className="w-3.5 h-3.5" /> Approve CS
                       </Button>
@@ -622,7 +622,7 @@ export default function MyApprovals() {
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(po, "po_approve")}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                        className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1 rounded-full font-semibold"
                       >
                         <CheckCircle className="w-3.5 h-3.5" /> Approve PO
                       </Button>
@@ -688,7 +688,7 @@ export default function MyApprovals() {
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(am, "am_approve")}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                        className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1 rounded-full font-semibold"
                       >
                         <CheckCircle className="w-3.5 h-3.5" /> Approve Amendment
                       </Button>
@@ -762,7 +762,7 @@ export default function MyApprovals() {
                           <Button
                             size="sm"
                             onClick={() => handleOpenAction(inv, "dev_approve")}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                            className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1 rounded-full font-semibold"
                           >
                             <CheckCircle className="w-3.5 h-3.5" /> Accept Difference
                           </Button>
@@ -774,7 +774,7 @@ export default function MyApprovals() {
                         <Button
                           size="sm"
                           onClick={() => handleOpenAction(inv, "inv_approve")}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                          className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1 rounded-full font-semibold"
                         >
                           <CheckCircle className="w-3.5 h-3.5" /> Approve for Payment
                         </Button>
@@ -818,7 +818,7 @@ export default function MyApprovals() {
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(ep, "ep_approve")}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                        className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1 rounded-full font-semibold"
                       >
                         <CheckCircle className="w-3.5 h-3.5" /> Authorize
                       </Button>
@@ -884,7 +884,7 @@ export default function MyApprovals() {
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(rc, "rc_approve")}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                        className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1 rounded-full font-semibold"
                       >
                         <CheckCircle className="w-3.5 h-3.5" /> Approve
                       </Button>
@@ -949,7 +949,7 @@ export default function MyApprovals() {
             {/* Filter by Type */}
             <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-slate-200 dark:border-slate-800">
               <Button
-                variant={historyTypeFilter === "all" ? "default" : "outline"}
+                variant={historyTypeFilter === "all" ? "default" : "outline"} className="rounded-full"
                 size="sm"
                 onClick={() => setHistoryTypeFilter("all")}
                 className="text-xs h-8 gap-1.5"
@@ -963,7 +963,7 @@ export default function MyApprovals() {
                 </Badge>
               </Button>
               <Button
-                variant={historyTypeFilter === "prs" ? "default" : "outline"}
+                variant={historyTypeFilter === "prs" ? "default" : "outline"} className="rounded-full"
                 size="sm"
                 onClick={() => setHistoryTypeFilter("prs")}
                 className="text-xs h-8 gap-1.5 text-blue-600 dark:text-blue-400"
@@ -974,7 +974,7 @@ export default function MyApprovals() {
                 </Badge>
               </Button>
               <Button
-                variant={historyTypeFilter === "css" ? "default" : "outline"}
+                variant={historyTypeFilter === "css" ? "default" : "outline"} className="rounded-full"
                 size="sm"
                 onClick={() => setHistoryTypeFilter("css")}
                 className="text-xs h-8 gap-1.5 text-emerald-600 dark:text-emerald-400"
@@ -985,7 +985,7 @@ export default function MyApprovals() {
                 </Badge>
               </Button>
               <Button
-                variant={historyTypeFilter === "pos" ? "default" : "outline"}
+                variant={historyTypeFilter === "pos" ? "default" : "outline"} className="rounded-full"
                 size="sm"
                 onClick={() => setHistoryTypeFilter("pos")}
                 className="text-xs h-8 gap-1.5 text-indigo-600 dark:text-indigo-400"
@@ -996,7 +996,7 @@ export default function MyApprovals() {
                 </Badge>
               </Button>
               <Button
-                variant={historyTypeFilter === "invoices" ? "default" : "outline"}
+                variant={historyTypeFilter === "invoices" ? "default" : "outline"} className="rounded-full"
                 size="sm"
                 onClick={() => setHistoryTypeFilter("invoices")}
                 className="text-xs h-8 gap-1.5 text-teal-600 dark:text-teal-400"
@@ -1007,7 +1007,7 @@ export default function MyApprovals() {
                 </Badge>
               </Button>
               <Button
-                variant={historyTypeFilter === "rateContracts" ? "default" : "outline"}
+                variant={historyTypeFilter === "rateContracts" ? "default" : "outline"} className="rounded-full"
                 size="sm"
                 onClick={() => setHistoryTypeFilter("rateContracts")}
                 className="text-xs h-8 gap-1.5 text-violet-600 dark:text-violet-400"
@@ -1358,9 +1358,7 @@ export default function MyApprovals() {
                 onClick={handleExecuteAction}
                 disabled={acting || (dialogType.includes("reject") && !remarks.trim())}
                 className={
-                  dialogType.includes("reject")
-                    ? "bg-rose-500 hover:bg-rose-600 text-white disabled:opacity-50"
-                    : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                  dialogType.includes("reject") ? "bg-rose-500 hover:bg-rose-600 text-white rounded-full font-semibold" : "bg-emerald-500 hover:bg-emerald-600 text-white rounded-full font-semibold"
                 }
               >
                 {acting ? "Processing..." : "Confirm"}

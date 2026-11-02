@@ -327,13 +327,13 @@ export default function InvoiceManagement() {
                 <Button
                   variant="outline"
                   onClick={() => setGlModalOpen(true)}
-                  className="gap-2 border-indigo-300 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950 shadow-sm"
+                  className="gap-2 border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 rounded-full font-bold shadow-xs transition-all"
                 >
-                  <Database className="w-4 h-4 text-indigo-600" /> GL Handoff (Tally / SAP)
+                  <Database className="w-4 h-4 text-slate-600" /> GL Handoff (Tally / SAP)
                 </Button>
                 <Button
                   onClick={() => setSubmitOpen(true)}
-                  className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                  className="gap-2 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold shadow-xs transition-all"
                 >
                   <PlusCircle className="w-4 h-4" /> Submit Invoice
                 </Button>
@@ -541,7 +541,7 @@ export default function InvoiceManagement() {
                                       size="sm"
                                       onClick={() => handleApprove(inv)}
                                       disabled={acting}
-                                      className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                      className="gap-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full font-semibold"
                                     >
                                       <CheckCircle2 className="w-3.5 h-3.5" /> Approve Invoice
                                     </Button>
@@ -908,7 +908,7 @@ export default function InvoiceManagement() {
               <Button
                 onClick={handleSubmitInvoice}
                 disabled={submitting || !selectedPoId || !invoiceNumber.trim()}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold"
               >
                 {submitting ? "Verifying..." : "Submit & Run 3-Way Match"}
               </Button>

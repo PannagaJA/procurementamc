@@ -608,7 +608,7 @@ export default function PurchaseOrders() {
                   variant="outline"
                   onClick={() => navigate({ to: "/procurement/rfqs" })}
                   title="Rate contracts are finalised from at least 3 quotations through a rate contract RFQ, then approved by the EVP"
-                  className="gap-2 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+                  className="gap-2 border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 rounded-full font-bold shadow-xs transition-all"
                 >
                   <FileText className="w-4 h-4" /> + New Rate Contract
                 </Button>
@@ -745,7 +745,7 @@ export default function PurchaseOrders() {
                                     size="sm"
                                     onClick={() => handleApprovePo(po)}
                                     disabled={acting}
-                                    className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1 text-xs"
+                                    className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1 text-xs rounded-full font-semibold"
                                   >
                                     <CheckCircle className="w-3.5 h-3.5" /> Approve
                                   </Button>

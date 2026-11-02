@@ -517,7 +517,7 @@ export default function RfqManagement() {
                                     <Button
                                       size="sm"
                                       onClick={() => handleOpenSend(rfq)}
-                                      className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                      className="gap-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full font-semibold"
                                     >
                                       <Send className="w-3.5 h-3.5" /> Invite Vendors
                                     </Button>
@@ -841,7 +841,7 @@ export default function RfqManagement() {
                 disabled={
                   sending || selectedVendorIds.length < (activeRfq?.required_min_quotations || 3)
                 }
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold"
               >
                 {sending ? "Sending..." : `Send to ${selectedVendorIds.length} Vendors`}
               </Button>

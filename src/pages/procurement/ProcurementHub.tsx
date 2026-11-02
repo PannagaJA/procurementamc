@@ -102,7 +102,7 @@ export default function ProcurementHub() {
               <CardContent className="p-4 pt-0 space-y-3">
                 <Button
                   onClick={() => navigate({ to: "/procurement/budgets" })}
-                  className="w-full gap-1.5 text-xs h-8 bg-emerald-600 hover:bg-emerald-700 text-white"
+                  className="w-full gap-1.5 text-xs h-8 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
                 >
                   Manage Budgets <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
@@ -125,7 +125,7 @@ export default function ProcurementHub() {
               <CardContent className="p-4 pt-0 space-y-3">
                 <Button
                   onClick={() => navigate({ to: "/procurement/raise-pr" })}
-                  className="w-full gap-1.5 text-xs h-8"
+                  className="w-full gap-1.5 text-xs h-8 rounded-full font-semibold"
                 >
                   Raise PR <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
@@ -149,7 +149,7 @@ export default function ProcurementHub() {
                 <Button
                   onClick={() => navigate({ to: "/procurement/rfqs" })}
                   variant="outline"
-                  className="w-full gap-1.5 text-xs h-8"
+                  className="w-full gap-1.5 text-xs h-8 rounded-full font-semibold"
                 >
                   Manage RFQs <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
@@ -173,7 +173,7 @@ export default function ProcurementHub() {
                 <Button
                   onClick={() => navigate({ to: "/procurement/cs" })}
                   variant="outline"
-                  className="w-full gap-1.5 text-xs h-8"
+                  className="w-full gap-1.5 text-xs h-8 rounded-full font-semibold"
                 >
                   Comparative CS <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
@@ -197,7 +197,7 @@ export default function ProcurementHub() {
                 <Button
                   onClick={() => navigate({ to: "/procurement/orders" })}
                   variant="outline"
-                  className="w-full gap-1.5 text-xs h-8"
+                  className="w-full gap-1.5 text-xs h-8 rounded-full font-semibold"
                 >
                   Purchase Orders <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
@@ -221,7 +221,7 @@ export default function ProcurementHub() {
                 <Button
                   onClick={() => navigate({ to: "/procurement/grns" })}
                   variant="outline"
-                  className="w-full gap-1.5 text-xs h-8"
+                  className="w-full gap-1.5 text-xs h-8 rounded-full font-semibold"
                 >
                   Stores Receipts <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
@@ -245,7 +245,7 @@ export default function ProcurementHub() {
                 <Button
                   onClick={() => navigate({ to: "/procurement/invoices" })}
                   variant="outline"
-                  className="w-full gap-1.5 text-xs h-8"
+                  className="w-full gap-1.5 text-xs h-8 rounded-full font-semibold"
                 >
                   Invoices & Match <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
@@ -269,7 +269,7 @@ export default function ProcurementHub() {
                 <Button
                   onClick={() => navigate({ to: "/procurement/emergency" })}
                   variant="outline"
-                  className="w-full gap-1.5 text-xs h-8"
+                  className="w-full gap-1.5 text-xs h-8 rounded-full font-semibold"
                 >
                   Emergency Register <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
@@ -293,7 +293,7 @@ export default function ProcurementHub() {
                 <Button
                   onClick={() => navigate({ to: "/procurement/vendor-ratings" })}
                   variant="outline"
-                  className="w-full gap-1.5 text-xs h-8"
+                  className="w-full gap-1.5 text-xs h-8 rounded-full font-semibold"
                 >
                   Performance Ratings <ArrowRight className="w-3.5 h-3.5" />
                 </Button>

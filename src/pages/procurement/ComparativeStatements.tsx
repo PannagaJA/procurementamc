@@ -313,7 +313,7 @@ export default function ComparativeStatements() {
                   setPrepOpen(true);
                   loadData();
                 }}
-                className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                className="gap-2 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold shadow-xs transition-all"
               >
                 <PlusCircle className="w-4 h-4" /> Prepare CS
               </Button>
@@ -426,7 +426,7 @@ export default function ComparativeStatements() {
                                       size="sm"
                                       onClick={() => handleApproveCs(cs)}
                                       disabled={acting}
-                                      className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                      className="gap-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full font-semibold"
                                     >
                                       <CheckCircle className="w-3.5 h-3.5" /> Approve CS
                                     </Button>
@@ -760,7 +760,7 @@ export default function ComparativeStatements() {
                   !recommendedVendorId ||
                   vendorQuotes.length < (selectedRfq?.required_min_quotations || 3)
                 }
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold"
               >
                 {submitting ? "Submitting..." : "Submit CS for Approval"}
               </Button>
