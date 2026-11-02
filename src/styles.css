@@ -166,7 +166,7 @@
 
 
 @layer components {
-  /* Auto-enforce canonical design palette on action and submit buttons */
+  /* Auto-enforce canonical design palette and interactive scale hover effect (matching logout button) */
   button[type="submit"]:not([class*="bg-rose-"]):not([class*="bg-destructive"]):not([class*="bg-transparent"]),
   .btn-primary,
   .btn-action {
@@ -174,12 +174,20 @@
     color: #ffffff !important;
     border-radius: 9999px !important;
     font-weight: 600 !important;
-    transition: all 0.2s ease-in-out;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   }
 
-  button[type="submit"]:not([class*="bg-rose-"]):not([class*="bg-destructive"]):not([class*="bg-transparent"]):hover,
-  .btn-primary:hover,
-  .btn-action:hover {
+  button[type="submit"]:not([class*="bg-rose-"]):not([class*="bg-destructive"]):not([class*="bg-transparent"]):hover:not(:disabled),
+  .btn-primary:hover:not(:disabled),
+  .btn-action:hover:not(:disabled) {
     background-color: #111f54 !important;
+    transform: scale(1.05) !important;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1) !important;
+  }
+
+  button[type="submit"]:active:not(:disabled),
+  .btn-primary:active:not(:disabled),
+  .btn-action:active:not(:disabled) {
+    transform: scale(0.98) !important;
   }
 }
