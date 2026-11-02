@@ -1011,13 +1011,13 @@ const AdminTicketDashboard = () => {
                   />{" "}
                   Show Filters
                 </label>
-                <Button variant="secondary" onClick={() => exportCSV()} className="ml-2">
+                <Button onClick={() => exportCSV()} className="ml-2 bg-[#0B1437] hover:bg-[#111f54] text-white font-bold rounded-full shadow-xs">
                   Export to CSV
                 </Button>
-                <Button variant="secondary" onClick={generateReport}>
+                <Button onClick={generateReport} className="bg-[#0B1437] hover:bg-[#111f54] text-white font-bold rounded-full shadow-xs">
                   Export to PDF
                 </Button>
-                <Button variant="ghost" onClick={() => setShowEmailDialog(true)}>
+                <Button variant="outline" onClick={() => setShowEmailDialog(true)} className="border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 rounded-full font-bold shadow-xs">
                   E-mail PDF
                 </Button>
               </div>

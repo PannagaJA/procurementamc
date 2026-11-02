@@ -552,7 +552,7 @@ export default function RfqManagement() {
                                             ? "Waiting for vendor quotations"
                                             : "Choose a vendor and create the purchase order"
                                         }
-                                        className="gap-1 bg-teal-600 hover:bg-teal-700 text-white"
+                                        className="gap-1 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold"
                                       >
                                         <Award className="w-3.5 h-3.5" /> Award PO
                                       </Button>
@@ -942,7 +942,7 @@ export default function RfqManagement() {
                         !awardStoresChecked ||
                         (notLowest && !awardReason.trim())
                       }
-                      className="bg-teal-600 hover:bg-teal-700 text-white"
+                      className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold"
                     >
                       {awarding ? "Creating…" : "Create Purchase Order"}
                     </Button>

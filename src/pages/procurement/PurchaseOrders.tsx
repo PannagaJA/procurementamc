@@ -1403,7 +1403,7 @@ export default function PurchaseOrders() {
               <Button
                 onClick={handleAmendPo}
                 disabled={amending || !amendReason.trim()}
-                className="bg-amber-600 hover:bg-amber-700 text-white"
+                className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold"
               >
                 {amending ? "Amending..." : "Submit Amendment"}
               </Button>
