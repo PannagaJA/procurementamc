@@ -42,6 +42,7 @@ import {
   ShieldCheck,
   RefreshCw,
   Trophy,
+  FileEdit,
   ArrowRight,
   Clock,
 } from "lucide-react";
@@ -627,6 +628,36 @@ export default function ComparativeStatements() {
                 </div>
               )}
 
+              {/* Cost Overrun Calculation & Alert (SOP §8.4) */}
+              {(() => {
+                const prEstimate = Number(selectedRfq?.purchase_requisitions?.estimated_value || 0);
+                const lowestVendorQuote = vendorQuotes.length > 0 ? vendorQuotes[0].total_quoted : 0;
+                const hasCostOverrun = prEstimate > 0 && lowestVendorQuote > prEstimate;
+                const overrunAmount = lowestVendorQuote - prEstimate;
+                const overrunPct = prEstimate > 0 ? ((overrunAmount / prEstimate) * 100).toFixed(1) : "0";
+
+                if (!hasCostOverrun) return null;
+
+                return (
+                  <div className="p-4 bg-rose-50 dark:bg-rose-950/40 border-2 border-rose-400 rounded-lg space-y-2">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+                      <div className="space-y-1">
+                        <h4 className="text-sm font-bold text-rose-900 dark:text-rose-100">
+                          Quotation Exceeds Approved PR Estimate
+                        </h4>
+                        <p className="text-xs text-rose-800 dark:text-rose-200">
+                          Lowest quotation received is <strong className="font-mono">₹{lowestVendorQuote.toLocaleString("en-IN")}</strong>, which exceeds the approved requisition estimate of <strong className="font-mono">₹{prEstimate.toLocaleString("en-IN")}</strong> by <strong className="font-mono">₹{overrunAmount.toLocaleString("en-IN")} (+{overrunPct}%)</strong>.
+                        </p>
+                        <p className="text-[11px] text-rose-700 dark:text-rose-300">
+                          A Comparative Statement and Purchase Order cannot be created. If needed, please raise a new Purchase Requisition with the appropriate estimate.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Vendor Quotes Overview */}
               {vendorQuotes.length > 0 && (
                 <div className="space-y-3">
@@ -745,18 +776,34 @@ export default function ComparativeStatements() {
               <Button variant="outline" onClick={() => setPrepOpen(false)}>
                 Cancel
               </Button>
-              <Button
-                onClick={handlePrepareCs}
-                disabled={
-                  submitting ||
-                  !selectedRfqId ||
-                  !recommendedVendorId ||
-                  vendorQuotes.length < (selectedRfq?.required_min_quotations || 3)
-                }
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
-              >
-                {submitting ? "Submitting..." : "Submit CS for Approval"}
-              </Button>
+              {(() => {
+                const prEstimate = Number(selectedRfq?.purchase_requisitions?.estimated_value || 0);
+                const lowestVendorQuote = vendorQuotes.length > 0 ? vendorQuotes[0].total_quoted : 0;
+                const hasCostOverrun = prEstimate > 0 && lowestVendorQuote > prEstimate;
+
+                return (
+                  <>
+                    {hasCostOverrun && (
+                      <span className="text-xs text-rose-600 dark:text-rose-400 font-medium mr-auto">
+                        Quotation exceeds approved PR estimate. Cannot create Comparative Statement or Purchase Order.
+                      </span>
+                    )}
+                    <Button
+                      onClick={handlePrepareCs}
+                      disabled={
+                        submitting ||
+                        !selectedRfqId ||
+                        !recommendedVendorId ||
+                        vendorQuotes.length < (selectedRfq?.required_min_quotations || 3) ||
+                        hasCostOverrun
+                      }
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                    >
+                      {submitting ? "Submitting..." : "Submit CS for Approval"}
+                    </Button>
+                  </>
+                );
+              })()}
             </DialogFooter>
           </DialogContent>
         </Dialog>

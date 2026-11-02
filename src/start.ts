@@ -6,9 +6,18 @@ import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
 const errorMiddleware = createMiddleware().server(async ({ next }) => {
   try {
     return await next();
-  } catch (error) {
+  } catch (error: any) {
     if (error != null && typeof error === "object" && "statusCode" in error) {
       throw error;
+    }
+    // Client aborted request (e.g. browser navigation, unmounted query, page reload)
+    if (
+      error?.message === "aborted" ||
+      error?.code === "ECONNRESET" ||
+      error?.code === "ERR_STREAM_PREMATURE_CLOSE" ||
+      error?.name === "AbortError"
+    ) {
+      return new Response(null, { status: 499 });
     }
     console.error(error);
     return new Response(renderErrorPage(), {

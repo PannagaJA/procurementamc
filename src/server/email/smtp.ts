@@ -57,7 +57,12 @@ export async function sendMail(opts: SendMailOptions) {
     console.log(`[SMTP] Email sent successfully to ${opts.to}. MessageId: ${info.messageId}`);
     return { ok: true, messageId: info.messageId };
   } catch (error: any) {
-    console.error("[SMTP] Error sending email:", error);
+    const isBadCreds = error?.message?.includes("535") || error?.message?.includes("BadCredentials");
+    if (isBadCreds) {
+      console.warn("[SMTP] Notice: Email not dispatched because SMTP credentials in .env are not accepted by provider. (Continuing without email notification).");
+    } else {
+      console.error("[SMTP] Error sending email:", error?.message || error);
+    }
     return { ok: false, error: error?.message || "Failed to send email" };
   }
 }

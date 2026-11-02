@@ -37,6 +37,7 @@ import {
   ShieldCheck,
   CheckCircle,
   XCircle,
+  AlertTriangle,
   ArrowUpRight,
   RefreshCw,
   FileSpreadsheet,
@@ -1337,6 +1338,7 @@ export default function MyApprovals() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
       </div>
     </Layout>
   );
