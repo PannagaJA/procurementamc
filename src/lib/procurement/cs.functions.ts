@@ -162,6 +162,15 @@ export const prepareComparativeStatement = createServerFn({ method: "POST" })
     const recVendorData = vendorMap.get(data.recommended_vendor_id);
     const recTotal = recVendorData ? recVendorData.total : Number(pr.estimated_value) || 0;
 
+    const prEstValue = Number(pr.estimated_value) || 0;
+    if (prEstValue > 0 && recTotal > prEstValue) {
+      return {
+        ok: false as const,
+        error: `Recommended quotation (₹${recTotal.toLocaleString("en-IN")}) exceeds approved PR estimate (₹${prEstValue.toLocaleString("en-IN")}). A Comparative Statement cannot be created. If needed, please raise an appropriate Purchase Requisition next time.`,
+        code: "pr_estimate_exceeded",
+      };
+    }
+
     // 6. Authority Matrix routing for CS approval
     const canonicalCat = normalizeCategory(pr.category);
     const { data: rules } = await supabaseAdmin.from("approval_matrix_rules").select("*").eq("active", true);
