@@ -435,7 +435,7 @@ const Dashboard = () => {
               <Button
                 size="sm"
                 onClick={() => navigate({ to: "/admin/tickets" })}
-                className="gap-1.5 bg-[#0D3833] hover:bg-[#082925] text-white rounded-full px-4 shadow-sm font-semibold"
+                className="gap-1.5 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full px-4 shadow-sm font-semibold"
               >
                 <Ticket className="w-4 h-4" />
                 Manage All Tickets

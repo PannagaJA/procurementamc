@@ -47,7 +47,7 @@ export default function ProcurementHub() {
 
         {/* Quick Access to Unified Approvals */}
         {access.approvals && (
-          <Card className="bg-gradient-to-r from-[#0B1437]/5 via-[#0D3833]/5 to-teal-50 border-[#0B1437]/20">
+          <Card className="bg-gradient-to-r from-[#0B1437]/5 via-[#0B1437]/5 to-slate-50 border-[#0B1437]/20">
             <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-[#0B1437] text-white flex items-center justify-center font-bold">
@@ -185,7 +185,7 @@ export default function ProcurementHub() {
           {access.pos && (
             <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-[#0B1437]/30 flex flex-col justify-between">
               <CardHeader className="p-4">
-                <div className="w-8 h-8 rounded-lg bg-[#0D3833]/10 flex items-center justify-center text-[#0D3833] mb-1.5">
+                <div className="w-8 h-8 rounded-lg bg-[#0B1437]/10 flex items-center justify-center text-[#0B1437] mb-1.5">
                   <ShoppingBag className="w-4 h-4" />
                 </div>
                 <CardTitle className="text-base">4. Purchase Orders</CardTitle>

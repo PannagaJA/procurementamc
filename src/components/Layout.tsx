@@ -248,7 +248,7 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
     prefix?: boolean;
     badge?: number;
   };
-  const BASE_ACTIVE = "bg-[#0D3833] text-white font-semibold shadow-xs rounded-xl";
+  const BASE_ACTIVE = "bg-[#0B1437] text-white font-semibold shadow-xs rounded-xl";
   const TINT = {
     blue: "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 font-semibold border border-blue-200/60 dark:border-blue-800/40",
     purple:
@@ -530,7 +530,7 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
             <div className="p-4 pb-2 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
                 <span>Phone View Mode</span>
-                <span className="text-[#0D3833] dark:text-teal-400 font-extrabold">{phoneScale}% Active</span>
+                <span className="text-[#0B1437] dark:text-teal-400 font-extrabold">{phoneScale}% Active</span>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -538,7 +538,7 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
                   onClick={() => handleSetScale("100")}
                   className={`py-1.5 px-3 rounded-full text-xs font-bold transition-all border text-center ${
                     phoneScale === "100"
-                      ? "bg-[#0D3833] text-white border-[#0D3833] shadow-xs"
+                      ? "bg-[#0B1437] text-white border-[#0B1437] shadow-xs"
                       : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
                   }`}
                 >
@@ -549,7 +549,7 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
                   onClick={() => handleSetScale("90")}
                   className={`py-1.5 px-3 rounded-full text-xs font-bold transition-all border text-center ${
                     phoneScale === "90"
-                      ? "bg-[#0D3833] text-white border-[#0D3833] shadow-xs"
+                      ? "bg-[#0B1437] text-white border-[#0B1437] shadow-xs"
                       : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
                   }`}
                 >
