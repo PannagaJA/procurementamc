@@ -391,7 +391,7 @@ export const listRfqs = createServerFn({ method: "GET" })
         `
         *,
         purchase_requisitions (
-          id, pr_number, category, scope, estimated_value, status, justification,
+          id, pr_number, category, scope, estimated_value, status, justification, requested_by, market_survey_notes, routing_reason,
           departments (id, name),
           pr_line_items (id, description, unit, qty_required, net_qty_to_procure, est_unit_price)
         ),
@@ -906,4 +906,130 @@ export const getVendorQuoteLink = createServerFn({ method: "POST" })
     } catch (e: any) {
       return { ok: false as const, error: e.message };
     }
+  });
+
+
+/** Invite a replacement empanelled vendor to maintain the mandatory 3-quote quorum (SOP §8.4). */
+export const inviteReplacementVendor = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: { rfq_id: string; vendor_id: string; origin?: string | null }) => input)
+  .handler(async ({ data, context }) => {
+    const db = context.supabase as any;
+    const { getCallerRoles } = await import("@/server/procurement/roles");
+    const roles = await getCallerRoles(db, context.userId);
+    const held = roles.map((r) => r.role);
+
+    if (!held.includes("admin") && !held.includes("procurement_officer") && !held.includes("procurement_executive")) {
+      return { ok: false as const, error: "Only Procurement Officers can invite replacement vendors." };
+    }
+
+    const { assertVendorEmpanelled } = await import("@/server/procurement/guards");
+    try {
+      await assertVendorEmpanelled(db, data.vendor_id);
+    } catch (e: any) {
+      return { ok: false as const, error: e.message };
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // 1. Check RFQ
+    const { data: rfq, error: rfqErr } = await supabaseAdmin
+      .from("rfqs")
+      .select("id, rfq_number, status, pr_id")
+      .eq("id", data.rfq_id)
+      .single();
+
+    if (rfqErr || !rfq) return { ok: false as const, error: "RFQ not found." };
+    if (rfq.status === "closed" || rfq.status === "cancelled") {
+      return { ok: false as const, error: "Cannot invite vendors to a closed or cancelled RFQ." };
+    }
+
+    // 2. Insert into rfq_vendors
+    const { error: insErr } = await supabaseAdmin
+      .from("rfq_vendors")
+      .upsert(
+        {
+          rfq_id: data.rfq_id,
+          vendor_id: data.vendor_id,
+          sent_at: new Date().toISOString(),
+        },
+        { onConflict: "rfq_id,vendor_id" }
+      );
+
+    if (insErr) return { ok: false as const, error: insErr.message };
+
+    // 3. Get vendor details
+    const { data: vendor } = await supabaseAdmin
+      .from("vendors")
+      .select("id, name, bank_details_json")
+      .eq("id", data.vendor_id)
+      .single();
+
+    // 4. Generate quote link
+    let quoteUrl: string | null = null;
+    try {
+      const { linkOrigin, rfqVendorLink } = await import("@/server/quoteLinks");
+      quoteUrl = rfqVendorLink(linkOrigin(data.origin), data.rfq_id, data.vendor_id);
+    } catch (e) {
+      // ignore link generation failure
+    }
+
+    return {
+      ok: true as const,
+      vendorName: vendor?.name || "Vendor",
+      quoteUrl,
+      message: `Replacement vendor ${vendor?.name || ""} successfully invited to RFQ ${rfq.rfq_number}.`,
+    };
+  });
+
+/** Debar a vendor for failure to submit quotation within deadline (SOP §8.4 & §8.2). */
+export const debarVendorForNonResponse = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: { rfq_id: string; vendor_id: string; reason?: string }) => input)
+  .handler(async ({ data, context }) => {
+    const db = context.supabase as any;
+    const { getCallerRoles } = await import("@/server/procurement/roles");
+    const roles = await getCallerRoles(db, context.userId);
+    const held = roles.map((r) => r.role);
+
+    if (!held.includes("admin") && !held.includes("procurement_officer") && !held.includes("evp")) {
+      return { ok: false as const, error: "Only Procurement Officers or EVP can debar non-responsive vendors." };
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // 1. Fetch RFQ and Vendor
+    const [rfqRes, vendorRes] = await Promise.all([
+      supabaseAdmin.from("rfqs").select("id, rfq_number, response_deadline").eq("id", data.rfq_id).single(),
+      supabaseAdmin.from("vendors").select("id, name, status").eq("id", data.vendor_id).single(),
+    ]);
+
+    if (!vendorRes.data) return { ok: false as const, error: "Vendor not found." };
+    const vendorName = vendorRes.data.name;
+    const rfqNumber = rfqRes.data?.rfq_number || "RFQ";
+
+    const debarReason =
+      data.reason?.trim() ||
+      `Debarred for failure to provide quotation within the deadline under ${rfqNumber} (SOP §8.4 quotation timeline breach & §8.2 debarment register).`;
+
+    // 2. Update vendor status to debarred
+    const { error: upErr } = await supabaseAdmin
+      .from("vendors")
+      .update({ status: "debarred", updated_at: new Date().toISOString() })
+      .eq("id", data.vendor_id);
+
+    if (upErr) return { ok: false as const, error: upErr.message };
+
+    // 3. Insert into vendor_blacklist table
+    await supabaseAdmin.from("vendor_blacklist").insert({
+      vendor_id: data.vendor_id,
+      reason: debarReason,
+      blacklisted_by: context.userId,
+    });
+
+    return {
+      ok: true as const,
+      vendorName,
+      message: `${vendorName} has been debarred from institutional procurement for deadline non-response.`,
+    };
   });

@@ -497,3 +497,229 @@ export const escalateToEvp = createServerFn({ method: "POST" })
   .handler(({ data, context }) =>
     decide(context, data, "evp_escalation", "escalated", "escalated_to_evp"),
   );
+
+
+export type RequestPrAmendmentInput = {
+  pr_id: string;
+  rfq_id?: string | null;
+  lowest_quote: number;
+  message: string;
+};
+
+/** Request an amendment from PR creator when vendor quotes exceed approved estimate (SOP §8.4). */
+export const requestPrAmendment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: RequestPrAmendmentInput) => input)
+  .handler(async ({ data, context }) => {
+    const db = context.supabase as any;
+    const { getCallerRoles } = await import("@/server/procurement/roles");
+    const roles = await getCallerRoles(db, context.userId);
+    const held = roles.map((r) => r.role);
+
+    const allowed = ["admin", "procurement_officer", "procurement_executive", "purchase_committee", "evp", "principal"];
+    if (!held.some((h) => allowed.includes(h))) {
+      return { ok: false as const, error: "Only procurement officers or authorities can request a PR amendment." };
+    }
+
+    if (!data.message || !data.message.trim()) {
+      return { ok: false as const, error: "Please provide a reason/note for requesting PR amendment." };
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: pr, error: prErr } = await supabaseAdmin
+      .from("purchase_requisitions")
+      .select("id, pr_number, estimated_value, requested_by, category, department_id, status")
+      .eq("id", data.pr_id)
+      .single();
+
+    if (prErr || !pr) {
+      return { ok: false as const, error: "Purchase requisition not found." };
+    }
+
+    const amendmentPayload = {
+      type: "amendment_requested",
+      rfq_id: data.rfq_id || null,
+      lowest_quote: Number(data.lowest_quote) || 0,
+      original_estimate: Number(pr.estimated_value) || 0,
+      message: data.message.trim(),
+      requested_at: new Date().toISOString(),
+      requested_by: context.userId,
+    };
+
+    const routingReason = `Amendment requested by Procurement: Lowest quotation (₹${Number(data.lowest_quote || 0).toLocaleString("en-IN")}) exceeds approved PR estimate (₹${Number(pr.estimated_value || 0).toLocaleString("en-IN")}). Note: ${data.message.trim()}`;
+
+    const { error: upErr } = await supabaseAdmin
+      .from("purchase_requisitions")
+      .update({
+        status: "under_review",
+        market_survey_notes: JSON.stringify(amendmentPayload),
+        routing_reason: routingReason,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", pr.id);
+
+    if (upErr) return { ok: false as const, error: upErr.message };
+
+    await supabaseAdmin.from("pr_approvals").insert({
+      pr_id: pr.id,
+      stage: "procurement_review",
+      approver_role: held.find((h) => allowed.includes(h)) || "procurement_officer",
+      approver_id: context.userId,
+      decision: "amendment_requested",
+      remarks: data.message.trim(),
+    });
+
+    try {
+      const { notifyPrRequester } = await import("@/server/email/notificationDispatcher");
+      await notifyPrRequester({
+        requesterId: pr.requested_by,
+        prNumber: pr.pr_number,
+        decision: "amendment_requested",
+        remarks: `Quotation received exceeds approved estimate: ${data.message.trim()}`,
+      });
+    } catch (e) {
+      // ignore email failure
+    }
+
+    return {
+      ok: true as const,
+      message: `PR ${pr.pr_number} returned to creator for estimate amendment.`,
+    };
+  });
+
+export type AmendPrInput = {
+  pr_id: string;
+  revised_estimated_value: number;
+  justification: string;
+};
+
+/** Submit a revised PR estimate by the creator and re-route through Authority Matrix (SOP §6, §8.4). */
+export const amendPr = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: AmendPrInput) => input)
+  .handler(async ({ data, context }) => {
+    const db = context.supabase as any;
+    const { getCallerRoles } = await import("@/server/procurement/roles");
+    const roles = await getCallerRoles(db, context.userId);
+    const held = roles.map((r) => r.role);
+    const isAdmin = held.includes("admin");
+
+    const newValue = Number(data.revised_estimated_value);
+    if (!newValue || newValue <= 0) {
+      return { ok: false as const, error: "Please enter a valid positive revised estimate." };
+    }
+
+    if (!data.justification || !data.justification.trim()) {
+      return { ok: false as const, error: "Please provide a justification for the revised estimate." };
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: pr, error: prErr } = await supabaseAdmin
+      .from("purchase_requisitions")
+      .select("id, pr_number, estimated_value, requested_by, category, department_id, justification, budget_head_id, is_emergency")
+      .eq("id", data.pr_id)
+      .single();
+
+    if (prErr || !pr) {
+      return { ok: false as const, error: "Purchase requisition not found." };
+    }
+
+    if (!isAdmin && pr.requested_by !== context.userId) {
+      return { ok: false as const, error: "Only the PR creator (or admin) can submit an amendment." };
+    }
+
+    const { normalizeCategory } = await import("@/lib/procurement/authorityMatrix");
+    const canonicalCat = normalizeCategory(pr.category);
+
+    const { prBudgetCheck, overBudgetReason } = await import("@/server/procurement/budget");
+    const budget = pr.is_emergency
+      ? ({ ok: true, status: "none", headId: null, balance: null } as const)
+      : await prBudgetCheck(supabaseAdmin as any, {
+          headId: pr.budget_head_id,
+          departmentId: pr.department_id,
+          amount: newValue,
+        });
+
+    const resolved = await resolve(supabaseAdmin, canonicalCat, pr.department_id, newValue);
+    const approverRole = await independentApprover(
+      context.userId,
+      pr.department_id,
+      resolved.role,
+    );
+
+    let nextStatus = "submitted";
+    let nextRole = approverRole;
+    let routingReason = approverRole === resolved.role
+      ? resolved.reason
+      : `${resolved.reason} Routed to the ${roleLabel(approverRole)} because the requester holds the ${roleLabel(resolved.role)} role.`;
+
+    let budgetUpdate = {};
+    if (budget.status === "over") {
+      nextStatus = "escalated_to_evp";
+      nextRole = "evp";
+      routingReason = overBudgetReason(Number(budget.balance), newValue);
+      budgetUpdate = { budget_status: "over" };
+    } else if (resolved.escalate || resolved.role === "evp") {
+      nextStatus = "escalated_to_evp";
+      nextRole = "evp";
+    }
+
+    const updatedJustification = `${pr.justification || ""}${nl}${nl}[Amendment Note - ${new Date().toLocaleDateString("en-IN")}]: Revised from ₹${Number(pr.estimated_value || 0).toLocaleString("en-IN")} to ₹${newValue.toLocaleString("en-IN")}. Justification: ${data.justification.trim()}`;
+
+    const amendmentPayload = {
+      type: "amended",
+      previous_estimate: Number(pr.estimated_value || 0),
+      revised_estimate: newValue,
+      justification: data.justification.trim(),
+      amended_at: new Date().toISOString(),
+      amended_by: context.userId,
+    };
+
+    const { error: upErr } = await supabaseAdmin
+      .from("purchase_requisitions")
+      .update({
+        estimated_value: newValue,
+        justification: updatedJustification,
+        status: nextStatus,
+        current_approver_role: nextRole,
+        routing_reason: routingReason,
+        market_survey_notes: JSON.stringify(amendmentPayload),
+        ...budgetUpdate,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", pr.id);
+
+    if (upErr) return { ok: false as const, error: upErr.message };
+
+    await supabaseAdmin.from("pr_approvals").insert({
+      pr_id: pr.id,
+      stage: "creator_amendment",
+      approver_role: "creator",
+      approver_id: context.userId,
+      decision: "amended",
+      remarks: `Revised from ₹${Number(pr.estimated_value || 0).toLocaleString("en-IN")} to ₹${newValue.toLocaleString("en-IN")}. ${data.justification.trim()}`,
+    });
+
+    try {
+      const { notifyApproversForPr } = await import("@/server/email/notificationDispatcher");
+      await notifyApproversForPr({
+        prNumber: pr.pr_number,
+        role: nextRole,
+        estimatedValue: newValue,
+        category: pr.category,
+        departmentId: pr.department_id,
+      });
+    } catch (e) {
+      // ignore email failure
+    }
+
+    return {
+      ok: true as const,
+      status: nextStatus,
+      nextApprover: nextRole,
+      reason: routingReason,
+      message: `PR ${pr.pr_number} amended to ₹${newValue.toLocaleString("en-IN")} and submitted to ${roleLabel(nextRole)} for approval.`,
+    };
+  });

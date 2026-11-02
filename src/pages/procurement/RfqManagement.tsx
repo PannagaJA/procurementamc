@@ -88,6 +88,21 @@ export default function RfqManagement() {
   const [awardReason, setAwardReason] = useState("");
   const [awardStoresChecked, setAwardStoresChecked] = useState(false);
   const [awarding, setAwarding] = useState(false);
+  // Solution 1: Replacement Vendor & Debarment State (SOP §8.4 & §8.2)
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteRfq, setInviteRfq] = useState<any>(null);
+  const [replacementVendorId, setReplacementVendorId] = useState("");
+  const [inviting, setInviting] = useState(false);
+  const [lastQuoteUrl, setLastQuoteUrl] = useState<string | null>(null);
+  const [debarOpen, setDebarOpen] = useState(false);
+  const [debarVendor, setDebarVendor] = useState<{ id: string; name: string; rfqId: string } | null>(null);
+  const [debarReason, setDebarReason] = useState("");
+  const [debarring, setDebarring] = useState(false);
+  // Solution 2: PR Overrun Amendment State
+  const [amendOpen, setAmendOpen] = useState(false);
+  const [amendPr, setAmendPr] = useState<{ id: string; number: string; estimate: number; lowestQuote: number; rfqId: string } | null>(null);
+  const [amendMessage, setAmendMessage] = useState("");
+  const [amendSubmitting, setAmendSubmitting] = useState(false);
 
   // Record Quote Modal
 
@@ -285,6 +300,101 @@ export default function RfqManagement() {
       });
     } finally {
       setReemailing(null);
+    }
+  };
+
+  const handleInviteReplacement = async () => {
+    if (!inviteRfq || !replacementVendorId) return;
+    setInviting(true);
+    try {
+      const res = await (inviteReplacementVendor as any)({
+        data: {
+          rfq_id: inviteRfq.id,
+          vendor_id: replacementVendorId,
+          origin: publicAppOrigin(),
+        },
+      });
+      if (!res.ok) {
+        toast({ title: "Failed to invite replacement", description: res.error, variant: "destructive" });
+        return;
+      }
+      toast({
+        title: "Replacement Vendor Invited",
+        description: res.message || "Quotation invitation link generated successfully.",
+      });
+      setLastQuoteUrl(res.quoteUrl || null);
+      setReplacementVendorId("");
+      await loadData();
+      const updated = (await (listRfqs as any)())?.rfqs?.find((r: any) => r.id === inviteRfq.id);
+      if (updated) setViewQuotesRfq(updated);
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const handleDebarVendor = async () => {
+    if (!debarVendor) return;
+    setDebarring(true);
+    try {
+      const res = await (debarVendorForNonResponse as any)({
+        data: {
+          rfq_id: debarVendor.rfqId,
+          vendor_id: debarVendor.id,
+          reason: debarReason.trim() || undefined,
+        },
+      });
+      if (!res.ok) {
+        toast({ title: "Debarment Failed", description: res.error, variant: "destructive" });
+        return;
+      }
+      toast({
+        title: "Vendor Debarred",
+        description: res.message || `${debarVendor.name} has been debarred from institutional procurement.`,
+      });
+      setDebarOpen(false);
+      setDebarVendor(null);
+      setDebarReason("");
+      await loadData();
+      const updated = (await (listRfqs as any)())?.rfqs?.find((r: any) => r.id === debarVendor.rfqId);
+      if (updated) setViewQuotesRfq(updated);
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setDebarring(false);
+    }
+  };
+
+  const handleRequestPrAmendment = async () => {
+    if (!amendPr || !amendMessage.trim()) return;
+    setAmendSubmitting(true);
+    try {
+      const res = await (requestPrAmendment as any)({
+        data: {
+          pr_id: amendPr.id,
+          rfq_id: amendPr.rfqId,
+          lowest_quote: amendPr.lowestQuote,
+          message: amendMessage.trim(),
+        },
+      });
+      if (!res.ok) {
+        toast({ title: "Failed to request amendment", description: res.error, variant: "destructive" });
+        return;
+      }
+      toast({
+        title: "PR Returned for Amendment",
+        description: res.message || "Requisition returned to creator for estimate revision.",
+      });
+      setAmendOpen(false);
+      setAmendPr(null);
+      setAmendMessage("");
+      await loadData();
+      setViewQuotesRfq(null);
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setAmendSubmitting(false);
     }
   };
 
@@ -977,6 +1087,57 @@ export default function RfqManagement() {
             </DialogHeader>
 
             <div className="space-y-4 py-2">
+              {/* Cost Overrun Alert Banner (SOP §8.4 & §6) */}
+              {(() => {
+                const prEst = Number(viewQuotesRfq?.purchase_requisitions?.estimated_value || 0);
+                const quotes = viewQuotesRfq?.quotation_lines || [];
+                if (quotes.length === 0 || prEst <= 0) return null;
+                const minQuote = quotes.reduce((min: number, q: any) => {
+                  const tot = Number(q.total_price || 0);
+                  return tot > 0 && tot < min ? tot : min;
+                }, Number.POSITIVE_INFINITY);
+
+                if (minQuote !== Number.POSITIVE_INFINITY && minQuote > prEst) {
+                  const diff = minQuote - prEst;
+                  const diffPct = ((diff / prEst) * 100).toFixed(1);
+                  return (
+                    <div className="p-3.5 bg-rose-50 dark:bg-rose-950/40 border-2 border-rose-400 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-rose-800 dark:text-rose-200">
+                      <div>
+                        <span className="font-bold flex items-center gap-1.5 text-rose-900 dark:text-rose-100 text-sm">
+                          <AlertTriangle className="w-4 h-4 text-rose-600" /> Cost Overrun Detected: Lowest Quote Exceeds PR Estimate
+                        </span>
+                        <p className="mt-1 text-xs text-rose-700 dark:text-rose-300">
+                          Lowest quotation (<strong className="font-mono">₹{minQuote.toLocaleString("en-IN")}</strong>) exceeds approved PR estimate (<strong className="font-mono">₹{prEst.toLocaleString("en-IN")}</strong>) by <strong className="font-mono">₹{diff.toLocaleString("en-IN")} (+{diffPct}%)</strong>.
+                        </p>
+                        <p className="text-[11px] text-rose-600 dark:text-rose-400 mt-0.5">
+                          Under SOP §8.4, return this requisition for an estimate amendment before comparative statements or POs can be issued.
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setAmendPr({
+                            id: viewQuotesRfq.purchase_requisitions.id,
+                            number: viewQuotesRfq.purchase_requisitions.pr_number,
+                            estimate: prEst,
+                            lowestQuote: minQuote,
+                            rfqId: viewQuotesRfq.id,
+                          });
+                          setAmendMessage(
+                            `Quotation received (₹${minQuote.toLocaleString("en-IN")}) exceeds the approved estimate (₹${prEst.toLocaleString("en-IN")}, +${diffPct}%). Please submit a PR estimate amendment for re-approval.`
+                          );
+                          setAmendOpen(true);
+                        }}
+                        className="bg-rose-600 hover:bg-rose-700 text-white shrink-0 text-xs font-semibold gap-1.5"
+                      >
+                        <FileEdit className="w-3.5 h-3.5" /> Return for PR Amendment
+                      </Button>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+
               {(() => {
                 const quotes = viewQuotesRfq?.quotation_lines || [];
                 if (quotes.length === 0) {
@@ -1110,11 +1271,326 @@ export default function RfqManagement() {
                   </div>
                 );
               })()}
+
+              {/* Invited Vendors & Timeline Tracking (Solution 1: Quorum & Debarment) */}
+              {viewQuotesRfq && (
+                <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <h4 className="font-semibold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                        <Building2 className="w-4 h-4 text-blue-600" />
+                        Invited Empanelled Vendors & Response Status
+                      </h4>
+                      <p className="text-xs text-slate-500">
+                        SOP §8.4: Minimum 3 vendor quotes required. Vendors failing to respond within 7 working days / deadline are subject to debarment.
+                      </p>
+                    </div>
+                    {(auth.hasRole("admin") || auth.hasRole("procurement_officer") || auth.hasRole("procurement_executive")) && (
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setInviteRfq(viewQuotesRfq);
+                          setLastQuoteUrl(null);
+                          setInviteOpen(true);
+                        }}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 text-xs font-semibold shrink-0"
+                      >
+                        <UserPlus className="w-3.5 h-3.5" /> + Invite Replacement Vendor
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="border rounded-lg overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                        <tr>
+                          <th className="p-2.5">Vendor Name</th>
+                          <th className="p-2.5">Quotation Status</th>
+                          <th className="p-2.5">Timeline Status</th>
+                          <th className="p-2.5 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                        {((viewQuotesRfq.rfq_vendors || []) as any[]).map((rv: any) => {
+                          const quotes = viewQuotesRfq.quotation_lines || [];
+                          const hasQuoted = quotes.some((q: any) => q.vendor_id === rv.vendor_id);
+                          const isDebarred = rv.vendors?.status === "debarred";
+                          const isOverdue = viewQuotesRfq.response_deadline
+                            ? new Date() > new Date(viewQuotesRfq.response_deadline)
+                            : workingDaysSince(rv.sent_at || viewQuotesRfq.created_at) > 7;
+
+                          return (
+                            <tr key={rv.id || rv.vendor_id} className="hover:bg-slate-50 dark:hover:bg-slate-900/50">
+                              <td className="p-2.5">
+                                <span className="font-semibold text-slate-800 dark:text-slate-200 block">
+                                  {rv.vendors?.name || "Empanelled Vendor"}
+                                </span>
+                                <span className="text-[11px] text-slate-500">
+                                  GST: {rv.vendors?.gst_number || "N/A"}
+                                </span>
+                              </td>
+                              <td className="p-2.5">
+                                {hasQuoted ? (
+                                  <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white text-[10px] gap-1">
+                                    <CheckCircle className="w-3 h-3" /> Quote Submitted
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-slate-600 text-[10px]">
+                                    Awaiting Quote
+                                  </Badge>
+                                )}
+                              </td>
+                              <td className="p-2.5">
+                                {isDebarred ? (
+                                  <Badge className="bg-rose-700 text-white text-[10px]">
+                                    Debarred
+                                  </Badge>
+                                ) : hasQuoted ? (
+                                  <span className="text-slate-500 text-[11px]">Completed</span>
+                                ) : isOverdue ? (
+                                  <Badge variant="outline" className="text-rose-700 border-rose-300 bg-rose-50 dark:bg-rose-950/40 text-[10px] gap-1 font-semibold">
+                                    <AlertTriangle className="w-3 h-3 text-rose-600" /> Non-Responsive (Overdue)
+                                  </Badge>
+                                ) : (
+                                  <span className="text-amber-600 dark:text-amber-400 text-[11px] flex items-center gap-1">
+                                    <Clock className="w-3 h-3" /> Within 7-day timeline
+                                  </span>
+                                )}
+                              </td>
+                              <td className="p-2.5 text-right">
+                                {!hasQuoted && !isDebarred && isOverdue && (
+                                  (auth.hasRole("admin") || auth.hasRole("procurement_officer") || auth.hasRole("evp")) && (
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      onClick={() => {
+                                        setDebarVendor({
+                                          id: rv.vendor_id,
+                                          name: rv.vendors?.name || "Vendor",
+                                          rfqId: viewQuotesRfq.id,
+                                        });
+                                        setDebarReason(
+                                          `Debarred under SOP §8.4 quotation timeline breach & §8.2 debarment register for failure to provide quotation for RFQ ${viewQuotesRfq.rfq_number}.`
+                                        );
+                                        setDebarOpen(true);
+                                      }}
+                                      className="text-xs h-7 px-2 gap-1 font-semibold"
+                                    >
+                                      <UserX className="w-3 h-3" /> Debar Vendor
+                                    </Button>
+                                  )
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              {(auth.hasRole("admin") || auth.hasRole("procurement_officer") || auth.hasRole("procurement_executive")) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setInviteRfq(viewQuotesRfq);
+                    setLastQuoteUrl(null);
+                    setInviteOpen(true);
+                  }}
+                  className="gap-1.5 text-emerald-700 dark:text-emerald-300 border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 mr-auto text-xs"
+                >
+                  <UserPlus className="w-3.5 h-3.5 text-emerald-600" /> Invite Replacement
+                </Button>
+              )}
+              <Button variant="outline" onClick={() => setViewQuotesRfq(null)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal: Invite Replacement Empanelled Vendor (SOP §8.4 Quorum) */}
+        <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
+                <UserPlus className="w-5 h-5 text-emerald-600" />
+                Invite Replacement Empanelled Vendor
+              </DialogTitle>
+              <DialogDescription>
+                Invite an additional active empanelled vendor to RFQ {inviteRfq?.rfq_number} to maintain the mandatory 3-quote quorum (SOP §8.4).
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2 text-xs">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Select Empanelled Vendor *</Label>
+                <Select value={replacementVendorId} onValueChange={setReplacementVendorId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose an empanelled vendor..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {empanelledVendors
+                      .filter(
+                        (v) =>
+                          v.status === "empanelled" &&
+                          !(inviteRfq?.rfq_vendors || []).some((rv: any) => rv.vendor_id === v.id)
+                      )
+                      .map((v) => (
+                        <SelectItem key={v.id} value={v.id}>
+                          {v.name} {v.gst_number ? `(${v.gst_number})` : ""}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-slate-500">
+                  Only active, empanelled vendors not already participating in this RFQ are listed.
+                </p>
+              </div>
+
+              {lastQuoteUrl && (
+                <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 rounded-lg space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-emerald-800 dark:text-emerald-200">
+                      Quotation Submission Link:
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        navigator.clipboard.writeText(lastQuoteUrl);
+                        toast({ title: "Link Copied", description: "Quotation URL copied to clipboard." });
+                      }}
+                      className="h-6 px-2 text-[10px] gap-1"
+                    >
+                      <Copy className="w-3 h-3" /> Copy Link
+                    </Button>
+                  </div>
+                  <p className="font-mono text-[11px] break-all text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-900 p-2 rounded border">
+                    {lastQuoteUrl}
+                  </p>
+                </div>
+              )}
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setViewQuotesRfq(null)}>
-                Close
+              <Button variant="outline" onClick={() => setInviteOpen(false)}>
+                {lastQuoteUrl ? "Done" : "Cancel"}
+              </Button>
+              <Button
+                onClick={handleInviteReplacement}
+                disabled={inviting || !replacementVendorId}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+              >
+                {inviting ? "Inviting..." : "Send RFQ Invitation"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal: Debar Vendor for Non-Response (SOP §8.4 & §8.2) */}
+        <Dialog open={debarOpen} onOpenChange={setDebarOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-rose-600">
+                <UserX className="w-5 h-5 text-rose-600" />
+                Debar Vendor for Non-Response
+              </DialogTitle>
+              <DialogDescription>
+                Debar <strong>{debarVendor?.name}</strong> from institutional procurement for failing to submit quotations within the mandatory 7 working days timeline.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3 py-2 text-xs">
+              <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-300 rounded-lg text-rose-800 dark:text-rose-200">
+                <p className="font-semibold text-xs flex items-center gap-1.5 text-rose-900 dark:text-rose-100">
+                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" /> SOP §8.4 Timeline Breach
+                </p>
+                <p className="text-[11px] mt-1 text-rose-700 dark:text-rose-300">
+                  Debarment updates the vendor status to <code>debarred</code> and registers an entry in the institutional blacklist register. Debarred vendors cannot participate in future solicitations.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs">Reason for Debarment *</Label>
+                <Textarea
+                  value={debarReason}
+                  onChange={(e) => setDebarReason(e.target.value)}
+                  rows={3}
+                  placeholder="State the non-response duration and breach details..."
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDebarOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDebarVendor}
+                disabled={debarring || !debarReason.trim()}
+                className="gap-1 font-semibold"
+              >
+                {debarring ? "Debarring..." : "Confirm Debarment"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Modal: Send Back for PR Estimate Amendment (from RFQ) */}
+        <Dialog open={amendOpen} onOpenChange={setAmendOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-rose-600">
+                <FileEdit className="w-5 h-5" /> Request PR Estimate Amendment
+              </DialogTitle>
+              <DialogDescription>
+                Return {amendPr?.number} to the creator with lowest quotation details so they can revise the estimate and re-route through the Authority Matrix.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3 py-2 text-xs">
+              <div className="grid grid-cols-2 gap-2 p-3 bg-slate-50 dark:bg-slate-900 rounded border">
+                <div>
+                  <span className="text-slate-500 block">Original Estimate</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">
+                    ₹{Number(amendPr?.estimate || 0).toLocaleString("en-IN")}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block">Lowest Quote</span>
+                  <span className="font-bold text-rose-600">
+                    ₹{Number(amendPr?.lowestQuote || 0).toLocaleString("en-IN")}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs">Reason / Note to Creator</Label>
+                <Textarea
+                  value={amendMessage}
+                  onChange={(e) => setAmendMessage(e.target.value)}
+                  rows={3}
+                  placeholder="Explain the cost variance..."
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setAmendOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleRequestPrAmendment}
+                disabled={amendSubmitting || !amendMessage.trim()}
+                className="bg-rose-600 hover:bg-rose-700 text-white gap-1"
+              >
+                {amendSubmitting ? "Returning PR..." : "Send Back for Amendment"}
               </Button>
             </DialogFooter>
           </DialogContent>

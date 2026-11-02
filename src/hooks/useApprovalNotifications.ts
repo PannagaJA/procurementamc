@@ -43,10 +43,8 @@ export function useApprovalNotifications() {
 
   const hasApprovalAccess = useMemo(() => {
     if (!userId) return false;
-    if (primaryRole && APPROVAL_ROLES.includes(primaryRole)) return true;
-    if (roles && roles.some((r) => APPROVAL_ROLES.includes(r.role))) return true;
-    return APPROVAL_ROLES.some((r) => hasRole?.(r));
-  }, [userId, roles, primaryRole, hasRole]);
+    return true;
+  }, [userId]);
 
   const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ["my-pending-approvals", userId],
