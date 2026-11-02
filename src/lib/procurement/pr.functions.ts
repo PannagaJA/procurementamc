@@ -561,23 +561,25 @@ export const requestPrAmendment = createServerFn({ method: "POST" })
 
     if (upErr) return { ok: false as const, error: upErr.message };
 
-    await supabaseAdmin.from("pr_approvals").insert({
+    await (supabaseAdmin as any).from("pr_approvals").insert({
       pr_id: pr.id,
       stage: "procurement_review",
       approver_role: held.find((h) => allowed.includes(h)) || "procurement_officer",
       approver_id: context.userId,
-      decision: "amendment_requested",
+      decision: "returned_for_clarification",
       remarks: data.message.trim(),
     });
 
     try {
-      const { notifyPrRequester } = await import("@/server/email/notificationDispatcher");
-      await notifyPrRequester({
-        requesterId: pr.requested_by,
-        prNumber: pr.pr_number,
-        decision: "amendment_requested",
-        remarks: `Quotation received exceeds approved estimate: ${data.message.trim()}`,
-      });
+      if (pr.requested_by && pr.pr_number) {
+        const { notifyPrRequester } = await import("@/server/email/notificationDispatcher");
+        await notifyPrRequester({
+          requesterId: pr.requested_by,
+          prNumber: pr.pr_number,
+          decision: "returned_for_clarification",
+          remarks: `Quotation received exceeds approved estimate: ${data.message.trim()}`,
+        });
+      }
     } catch (e) {
       // ignore email failure
     }
@@ -641,6 +643,7 @@ export const amendPr = createServerFn({ method: "POST" })
           departmentId: pr.department_id,
           amount: newValue,
         });
+    if (!budget.ok) return budget;
 
     const resolved = await resolve(supabaseAdmin, canonicalCat, pr.department_id, newValue);
     const approverRole = await independentApprover(
@@ -666,7 +669,7 @@ export const amendPr = createServerFn({ method: "POST" })
       nextRole = "evp";
     }
 
-    const updatedJustification = `${pr.justification || ""}${nl}${nl}[Amendment Note - ${new Date().toLocaleDateString("en-IN")}]: Revised from ₹${Number(pr.estimated_value || 0).toLocaleString("en-IN")} to ₹${newValue.toLocaleString("en-IN")}. Justification: ${data.justification.trim()}`;
+    const updatedJustification = `${pr.justification || ""}\n\n[Amendment Note - ${new Date().toLocaleDateString("en-IN")}]: Revised from ₹${Number(pr.estimated_value || 0).toLocaleString("en-IN")} to ₹${newValue.toLocaleString("en-IN")}. Justification: ${data.justification.trim()}`;
 
     const amendmentPayload = {
       type: "amended",
@@ -693,24 +696,26 @@ export const amendPr = createServerFn({ method: "POST" })
 
     if (upErr) return { ok: false as const, error: upErr.message };
 
-    await supabaseAdmin.from("pr_approvals").insert({
+    await (supabaseAdmin as any).from("pr_approvals").insert({
       pr_id: pr.id,
       stage: "creator_amendment",
       approver_role: "creator",
       approver_id: context.userId,
-      decision: "amended",
+      decision: "approved",
       remarks: `Revised from ₹${Number(pr.estimated_value || 0).toLocaleString("en-IN")} to ₹${newValue.toLocaleString("en-IN")}. ${data.justification.trim()}`,
     });
 
     try {
-      const { notifyApproversForPr } = await import("@/server/email/notificationDispatcher");
-      await notifyApproversForPr({
-        prNumber: pr.pr_number,
-        role: nextRole,
-        estimatedValue: newValue,
-        category: pr.category,
-        departmentId: pr.department_id,
-      });
+      if (pr.pr_number) {
+        const { notifyApproversForPr } = await import("@/server/email/notificationDispatcher");
+        await notifyApproversForPr({
+          prNumber: pr.pr_number,
+          role: nextRole,
+          estimatedValue: newValue,
+          category: pr.category,
+          departmentId: pr.department_id,
+        });
+      }
     } catch (e) {
       // ignore email failure
     }

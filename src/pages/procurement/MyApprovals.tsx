@@ -36,7 +36,8 @@ import {
 import {
   ShieldCheck,
   CheckCircle,
-  XCircle,
+  XCircle,
+  AlertTriangle,
   ArrowUpRight,
   RefreshCw,
   FileSpreadsheet,
@@ -136,6 +137,52 @@ export default function MyApprovals() {
     setDialogOpen(true);
   };
 
+  const handleAmendPr = async () => {
+    if (!selectedPrToAmend || !reviseEstimateValue || !reviseJustification.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Please provide a valid revised estimate and justification.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const val = Number(reviseEstimateValue);
+    if (isNaN(val) || val <= 0) {
+      toast({
+        title: "Invalid Amount",
+        description: "Please enter a valid positive estimate.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setAmendingPr(true);
+    try {
+      const res = await (amendPr as any)({
+        data: {
+          pr_id: selectedPrToAmend.id,
+          revised_estimated_value: val,
+          justification: reviseJustification.trim(),
+        },
+      });
+      if (!res.ok) {
+        toast({ title: "Failed to submit amendment", description: res.error, variant: "destructive" });
+        return;
+      }
+      toast({
+        title: "Requisition Amended",
+        description: res.message || "Amended requisition submitted for approval.",
+      });
+      setPrAmendModalOpen(false);
+      setSelectedPrToAmend(null);
+      window.dispatchEvent(new CustomEvent("approval-updated"));
+      loadData();
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setAmendingPr(false);
+    }
+  };
+
   const handleExecuteAction = async () => {
     if (!activeItem) return;
 

@@ -33,7 +33,11 @@ import {
   listRfqs,
   awardDirectPurchase,
   getVendorQuoteLink,
+  inviteReplacementVendor,
+  debarVendorForNonResponse,
 } from "@/lib/procurement/rfq.functions";
+import { requestPrAmendment } from "@/lib/procurement/pr.functions";
+import { workingDaysSince } from "@/lib/procurement/turnaround";
 import { emailQuoteInvites } from "@/lib/procurement/quoteInvites";
 import { NewRateRfqDialog, RateQuotesDialog } from "@/components/procurement/RateContractRfq";
 import { rateCategoryLabel } from "@/lib/procurement/rateContracts";
@@ -50,6 +54,10 @@ import {
   Eye,
   Copy,
   Award,
+  UserPlus,
+  UserX,
+  FileEdit,
+  ExternalLink,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { publicAppOrigin } from "@/lib/quotationAuth";
