@@ -502,7 +502,7 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
 
       {/* Main content wrapper positioned to the right of fixed sidebar */}
       <div className="pt-20 md:pl-64 lg:pl-72 min-h-screen flex flex-col transition-all duration-300">
-        <main className="flex-1 w-full max-w-full px-4 sm:px-6 lg:px-8 xl:px-10 py-6 sm:py-8 animate-in fade-in-0 duration-500">
+        <main className="flex-1 w-full max-w-full px-4 sm:px-6 lg:px-8 xl:px-10 py-6 sm:py-8 animate-in fade-in-0 duration-500 overflow-x-auto">
           {children}
         </main>
       </div>

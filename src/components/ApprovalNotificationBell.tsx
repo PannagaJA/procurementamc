@@ -123,7 +123,7 @@ export function ApprovalNotificationBell() {
       <PopoverContent
         align="end"
         sideOffset={8}
-        className="w-[22rem] sm:w-[26rem] p-0 shadow-2xl rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 z-50 overflow-hidden"
+        className="w-[90vw] max-w-[26rem] max-h-[90vh] p-0 shadow-2xl rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 z-50 overflow-hidden"
       >
         {/* Header */}
         <div className="p-3.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/70 backdrop-blur-sm flex items-center justify-between">
