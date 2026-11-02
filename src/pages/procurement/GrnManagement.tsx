@@ -531,10 +531,9 @@ export default function GrnManagement() {
               <>
                 <Button
                   onClick={() => setDeliveryOpen(true)}
-                  variant="outline"
-                  className="gap-2 border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 rounded-full font-bold shadow-xs transition-all"
+                  className="gap-2 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold shadow-xs transition-all"
                 >
-                  <Truck className="w-4 h-4" /> Record Challan
+                  <Truck className="w-4 h-4 text-white" /> Record Challan
                 </Button>
                 <Button
                   onClick={() => setGrnOpen(true)}

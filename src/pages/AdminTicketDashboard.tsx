@@ -1012,7 +1012,7 @@ const AdminTicketDashboard = () => {
                 <Button onClick={generateReport} className="bg-[#0B1437] hover:bg-[#111f54] text-white font-bold rounded-full shadow-xs">
                   Export to PDF
                 </Button>
-                <Button variant="outline" onClick={() => setShowEmailDialog(true)} className="border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 rounded-full font-bold shadow-xs">
+                <Button onClick={() => setShowEmailDialog(true)} className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold shadow-xs">
                   E-mail PDF
                 </Button>
               </div>

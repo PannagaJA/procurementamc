@@ -605,12 +605,11 @@ export default function PurchaseOrders() {
             {(auth.hasRole("admin") || auth.hasRole("procurement_officer")) && (
               <>
                 <Button
-                  variant="outline"
                   onClick={() => navigate({ to: "/procurement/rfqs" })}
                   title="Rate contracts are finalised from at least 3 quotations through a rate contract RFQ, then approved by the EVP"
-                  className="gap-2 border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 rounded-full font-bold shadow-xs transition-all"
+                  className="gap-2 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold shadow-xs transition-all"
                 >
-                  <FileText className="w-4 h-4" /> + New Rate Contract
+                  <FileText className="w-4 h-4 text-white" /> + New Rate Contract
                 </Button>
                 <Button
                   onClick={() => setCreateOpen(true)}

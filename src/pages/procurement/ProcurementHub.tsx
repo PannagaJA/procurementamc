@@ -69,16 +69,15 @@ export default function ProcurementHub() {
                   Pending Approvals <ArrowRight className="w-4 h-4" />
                 </Button>
                 <Button
-                  variant="outline"
                   onClick={() =>
                     navigate({
                       to: "/procurement/approvals",
                       search: { tab: "history" } as any,
                     })
                   }
-                  className="border-slate-300 text-slate-700 hover:bg-slate-50 gap-2 rounded-full"
+                  className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-2 rounded-full font-semibold shadow-xs"
                 >
-                  <History className="w-4 h-4" /> Approval History
+                  <History className="w-4 h-4 text-white" /> Approval History
                 </Button>
               </div>
             </CardHeader>

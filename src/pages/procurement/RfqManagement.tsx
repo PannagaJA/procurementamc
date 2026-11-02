@@ -374,12 +374,11 @@ export default function RfqManagement() {
             )}
             {(auth.hasRole("admin") || auth.hasRole("procurement_officer")) && (
               <Button
-                variant="outline"
                 onClick={() => setRateRfqOpen(true)}
-                className="gap-2"
+                className="gap-2 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold shadow-xs"
                 title="Collect at least 3 quotations to finalise rate-contract rates"
               >
-                <PlusCircle className="w-4 h-4" /> Rate contract RFQ
+                <PlusCircle className="w-4 h-4 text-white" /> Rate contract RFQ
               </Button>
             )}
           </div>
@@ -499,13 +498,12 @@ export default function RfqManagement() {
                               {rfq.quotation_lines && rfq.quotation_lines.length > 0 && (
                                 <Button
                                   size="sm"
-                                  variant="outline"
                                   onClick={() =>
                                     isRateRfq ? setRateQuotesRfq(rfq) : setViewQuotesRfq(rfq)
                                   }
-                                  className="gap-1.5 border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 shadow-sm"
+                                  className="gap-1.5 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold shadow-xs"
                                 >
-                                  <Eye className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                                  <Eye className="w-3.5 h-3.5 text-white" />
                                   View Quotations ({rfq.quotation_lines.length})
                                 </Button>
                               )}
@@ -529,13 +527,12 @@ export default function RfqManagement() {
                                     ) && (
                                       <Button
                                         size="sm"
-                                        variant="outline"
                                         onClick={() => handleReemail(rfq)}
                                         disabled={reemailing === rfq.id}
-                                        className="gap-1"
+                                        className="gap-1 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold shadow-xs"
                                         title="Email a fresh link to every vendor who hasn't quoted yet"
                                       >
-                                        <Send className="w-3.5 h-3.5" />
+                                        <Send className="w-3.5 h-3.5 text-white" />
                                         {reemailing === rfq.id ? "Emailing..." : "Email vendors again"}
                                       </Button>
                                     )}

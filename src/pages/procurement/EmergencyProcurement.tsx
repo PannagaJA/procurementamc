@@ -371,15 +371,14 @@ export default function EmergencyProcurement() {
 
           <div className="flex items-center gap-2">
             <Button
-              variant="outline"
               onClick={() => setAuditModalOpen(true)}
-              className="gap-2 border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+              className="gap-2 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold shadow-xs transition-all"
             >
-              <Download className="w-4 h-4 text-slate-600 dark:text-slate-400" /> Quarterly Audit Report
+              <Download className="w-4 h-4 text-white" /> Quarterly Audit Report
             </Button>
             <Button
               onClick={() => setRequestOpen(true)}
-              className="gap-2 bg-amber-600 hover:bg-amber-700 text-white shadow-sm"
+              className="gap-2 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold shadow-xs transition-all"
             >
               <PlusCircle className="w-4 h-4" /> Request Emergency Procurement
             </Button>
