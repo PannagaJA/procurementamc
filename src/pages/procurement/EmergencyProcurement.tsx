@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { usePagination } from "@/hooks/use-pagination";
 import { PaginationControls } from "@/components/PaginationControls";
@@ -473,12 +474,14 @@ export default function EmergencyProcurement() {
         {/* Emergency Procurements List */}
         <div className="space-y-4">
           {loading ? (
-            <div className="p-8 text-center text-slate-500">Loading emergency register...</div>
+            <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
           ) : (data?.emergencyProcurements || []).length === 0 ? (
-            <Card className="text-center p-8">
-              <p className="text-slate-500">
-                No emergency procurements registered for this financial year.
-              </p>
+            <Card className="border-slate-100 shadow-none">
+              <div className="flex flex-col items-center justify-center py-14 text-center px-8">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-14 h-14 mb-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5L12 3l9 7.5" /></svg>
+                <p className="text-base font-semibold text-slate-500">No data found</p>
+                <p className="text-sm text-slate-400 mt-1">No emergency procurements registered for this financial year.</p>
+              </div>
             </Card>
           ) : (
             (() => {
@@ -1073,7 +1076,7 @@ export default function EmergencyProcurement() {
                 <Label className="text-xs font-semibold">Audit Quarter</Label>
                 <Select value={selectedQuarter} onValueChange={(v: any) => setSelectedQuarter(v)}>
                   <SelectTrigger className="text-xs">
-                    <SelectValue />
+                    <SelectValue placeholder="Select an option" />
                   </SelectTrigger>
                   <SelectContent>
                     {FISCAL_QUARTERS.map((q) => (
@@ -1087,7 +1090,7 @@ export default function EmergencyProcurement() {
                 <Label className="text-xs font-semibold">Export Document Format</Label>
                 <Select value={auditExportFormat} onValueChange={(v: any) => setAuditExportFormat(v)}>
                   <SelectTrigger className="text-xs">
-                    <SelectValue />
+                    <SelectValue placeholder="Select an option" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="pdf">Official PDF Audit Register (Signed Columns)</SelectItem>

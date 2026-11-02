@@ -321,63 +321,63 @@ const Dashboard = () => {
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/20 dark:to-blue-900/20 shadow-lg border-0 rounded-xl transition-all duration-300 hover:shadow-xl hover:scale-105">
+          <Card className="bg-blue-50 border border-emerald-100/80 shadow-xs rounded-2xl transition-all duration-300 hover:shadow-md hover:scale-[1.02]">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle className="text-base font-semibold text-blue-800 dark:text-blue-200">
+              <CardTitle className="text-base font-semibold text-emerald-950/90">
                 Total Items
               </CardTitle>
-              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+              <div className="w-3 h-3 bg-emerald-500 rounded-full"></div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-blue-900 dark:text-blue-100">
+              <div className="text-3xl font-bold text-emerald-950">
                 {stats?.totalItems || 0}
               </div>
-              <p className="text-sm text-blue-700 dark:text-blue-300">Across all locations</p>
+              <p className="text-sm text-emerald-800/80">Across all locations</p>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950/20 dark:to-green-900/20 shadow-lg border-0 rounded-xl transition-all duration-300 hover:shadow-xl hover:scale-105">
+          <Card className="bg-blue-100 border border-teal-200/80 shadow-xs rounded-2xl transition-all duration-300 hover:shadow-md hover:scale-[1.02]">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle className="text-base font-semibold text-green-800 dark:text-green-200">
+              <CardTitle className="text-base font-semibold text-teal-950/90">
                 Total Value
               </CardTitle>
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+              <div className="w-3 h-3 bg-teal-600 rounded-full"></div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-green-900 dark:text-green-100">
+              <div className="text-3xl font-bold text-teal-950">
                 ₹{(stats?.totalValue || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
               </div>
-              <p className="text-sm text-green-700 dark:text-green-300">Total inventory worth</p>
+              <p className="text-sm text-teal-800/80">Total inventory worth</p>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950/20 dark:to-purple-900/20 shadow-lg border-0 rounded-xl transition-all duration-300 hover:shadow-xl hover:scale-105">
+          <Card className="bg-rose-50 border border-rose-200/80 shadow-xs rounded-2xl transition-all duration-300 hover:shadow-md hover:scale-[1.02]">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle className="text-base font-semibold text-purple-800 dark:text-purple-200">
+              <CardTitle className="text-base font-semibold text-rose-950/90">
                 Categories
               </CardTitle>
-              <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+              <div className="w-3 h-3 bg-rose-500 rounded-full"></div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-purple-900 dark:text-purple-100">
+              <div className="text-3xl font-bold text-rose-950">
                 {stats?.categoriesCount || 0}
               </div>
-              <p className="text-sm text-purple-700 dark:text-purple-300">Item categories</p>
+              <p className="text-sm text-rose-800/80">Item categories</p>
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950/20 dark:to-orange-900/20 shadow-lg border-0 rounded-xl transition-all duration-300 hover:shadow-xl hover:scale-105">
+          <Card className="bg-[#E0E7FF] border border-indigo-200/80 shadow-xs rounded-2xl transition-all duration-300 hover:shadow-md hover:scale-[1.02]">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle className="text-base font-semibold text-orange-800 dark:text-orange-200">
+              <CardTitle className="text-base font-semibold text-indigo-950/90">
                 Locations
               </CardTitle>
-              <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+              <div className="w-3 h-3 bg-indigo-600 rounded-full"></div>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-orange-900 dark:text-orange-100">
+              <div className="text-3xl font-bold text-indigo-950">
                 {stats?.locationsCount || 0}
               </div>
-              <p className="text-sm text-orange-700 dark:text-orange-300">Storage locations</p>
+              <p className="text-sm text-indigo-800/80">Storage locations</p>
             </CardContent>
           </Card>
         </div>
@@ -398,7 +398,7 @@ const Dashboard = () => {
             <div className="text-center">
               <Button
                 onClick={() => setShowQRScanner(true)}
-                className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 text-white px-8 py-4 rounded-lg font-medium transition-all duration-300 hover:scale-105 hover:shadow-lg text-lg"
+                className="bg-[#0B1437] hover:bg-[#111f54] text-white px-8 py-3.5 rounded-full font-bold transition-all duration-300 hover:scale-105 shadow-md text-base"
                 size="lg"
               >
                 <ScanLine className="w-5 h-5 mr-2" />
@@ -427,7 +427,7 @@ const Dashboard = () => {
               <Button
                 size="sm"
                 onClick={() => navigate({ to: "/procurement/raise-pr" })}
-                className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+                className="gap-1.5 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full px-4 shadow-sm font-semibold"
               >
                 <PlusSquare className="w-4 h-4" />
                 Raise PR
@@ -435,7 +435,7 @@ const Dashboard = () => {
               <Button
                 size="sm"
                 onClick={() => navigate({ to: "/admin/tickets" })}
-                className="gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white"
+                className="gap-1.5 bg-[#0D3833] hover:bg-[#082925] text-white rounded-full px-4 shadow-sm font-semibold"
               >
                 <Ticket className="w-4 h-4" />
                 Manage All Tickets
@@ -562,6 +562,13 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="h-80">
+              {(!stats?.locationBreakdown || stats.locationBreakdown.length === 0) ? (
+                <div className="flex flex-col items-center justify-center h-full text-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                  <p className="text-sm font-semibold text-slate-400">No inventory data available</p>
+                  <p className="text-xs text-slate-300 mt-1">Add inventory items to see the chart</p>
+                </div>
+              ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={stats?.locationBreakdown || []}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -586,6 +593,7 @@ const Dashboard = () => {
                   />
                 </BarChart>
               </ResponsiveContainer>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -598,6 +606,13 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="h-80">
+              {(!stats?.locationBreakdown || stats.locationBreakdown.length === 0) ? (
+                <div className="flex flex-col items-center justify-center h-full text-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" /></svg>
+                  <p className="text-sm font-semibold text-slate-400">No distribution data available</p>
+                  <p className="text-xs text-slate-300 mt-1">Add inventory items to see distribution</p>
+                </div>
+              ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -623,6 +638,7 @@ const Dashboard = () => {
                   />
                 </PieChart>
               </ResponsiveContainer>
+              )}
             </div>
           </CardContent>
         </Card>

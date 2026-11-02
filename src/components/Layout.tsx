@@ -230,7 +230,7 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
     prefix?: boolean;
     badge?: number;
   };
-  const BASE_ACTIVE = "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold";
+  const BASE_ACTIVE = "bg-[#0D3833] text-white font-semibold shadow-xs";
   const TINT = {
     blue: "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 font-semibold border border-blue-200/60 dark:border-blue-800/40",
     purple:
@@ -430,10 +430,10 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+    <div className="min-h-screen bg-slate-50/80 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
       {/* Fixed top header */}
       <header className="fixed top-0 left-0 right-0 z-40 border-b bg-white/90 backdrop-blur-sm shadow-sm dark:bg-slate-900/90 dark:border-slate-700 h-20">
-        <div className="container mx-auto px-4 sm:px-6 h-full flex items-center justify-between">
+        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 h-full flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -514,7 +514,7 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
 
       {/* Main content wrapper positioned to the right of fixed sidebar */}
       <div className="pt-20 md:pl-64 lg:pl-72 min-h-screen flex flex-col transition-all duration-300">
-        <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 animate-in fade-in-0 duration-500">
+        <main className="flex-1 w-full max-w-full px-4 sm:px-6 lg:px-8 xl:px-10 py-6 sm:py-8 animate-in fade-in-0 duration-500">
           {children}
         </main>
       </div>

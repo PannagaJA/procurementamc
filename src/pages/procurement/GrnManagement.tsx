@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { usePagination } from "@/hooks/use-pagination";
 import { PaginationControls } from "@/components/PaginationControls";
@@ -631,20 +632,22 @@ export default function GrnManagement() {
           />
 
           {loading ? (
-            <div className="p-8 text-center text-slate-500">Loading Goods Receipt Notes...</div>
+            <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
           ) : (
             (() => {
               // Filter by closed toggle
               const visibleGrns = applyFilter(grns, grnFilterOptions, grnFilter);
               if (visibleGrns.length === 0)
                 return (
-                  <Card className="text-center p-8">
-                    <p className="text-slate-500">
-                      {grns.length === 0
+                  <Card className="border-slate-100 shadow-none">
+              <div className="flex flex-col items-center justify-center py-14 text-center px-8">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-14 h-14 mb-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5L12 3l9 7.5" /></svg>
+                <p className="text-base font-semibold text-slate-500">No data found</p>
+                <p className="text-sm text-slate-400 mt-1">{grns.length === 0
                         ? "No Goods Receipt Notes created yet. Record a Delivery Challan first, then create a GRN."
-                        : "No goods receipts match this filter. Choose History or All to see accepted and rejected GRNs."}
-                    </p>
-                  </Card>
+                        : "No goods receipts match this filter. Choose History or All to see accepted and rejected GRNs."}</p>
+              </div>
+            </Card>
                 );
               const startIndex = (pagination.page - 1) * pagination.pageSize;
               const paginatedGrns = visibleGrns.slice(startIndex, startIndex + pagination.pageSize);
@@ -734,7 +737,7 @@ export default function GrnManagement() {
                                   auth.hasRole("stores")) && (
                                   <Button
                                     size="sm"
-                                    className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5"
+                                    className="text-xs bg-[#0B1437] hover:bg-[#111f54] text-white gap-1.5 rounded-full"
                                     onClick={() => {
                                       setActiveGrn(grn);
                                       setTechOpen(true);
@@ -1260,8 +1263,8 @@ export default function GrnManagement() {
                 disabled={verifying}
                 className={
                   techAccepted
-                    ? "bg-purple-600 hover:bg-purple-700 text-white"
-                    : "bg-red-600 hover:bg-red-700 text-white"
+                    ? "bg-[#0B1437] hover:bg-[#111f54] text-white"
+                    : "bg-rose-500 hover:bg-rose-600 text-white"
                 }
               >
                 {verifying

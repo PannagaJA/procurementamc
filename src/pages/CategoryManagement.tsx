@@ -396,8 +396,12 @@ const CategoryManagement = () => {
                 <TableBody>
                   {categories.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
-                        No categories found.
+                      <TableCell colSpan={3} className="py-14">
+                        <div className="flex flex-col items-center justify-center text-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
+                          <p className="text-base font-semibold text-slate-500">No categories found</p>
+                          <p className="text-sm text-slate-400 mt-1">Add your first category above.</p>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ) : (

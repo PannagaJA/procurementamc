@@ -180,7 +180,7 @@ export function GlAccountingModal({ open, onOpenChange, invoices }: GlAccounting
               <Label className="text-xs font-semibold">Target Accounting / ERP System</Label>
               <Select value={targetFormat} onValueChange={(v: any) => setTargetFormat(v)}>
                 <SelectTrigger className="text-xs">
-                  <SelectValue />
+                  <SelectValue placeholder="Select an option" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="tally_xml">Tally Prime / Tally.ERP 9 (XML Voucher Batch)</SelectItem>
@@ -304,7 +304,7 @@ export function GlAccountingModal({ open, onOpenChange, invoices }: GlAccounting
             <Button
               onClick={handleDownload}
               disabled={activeVouchers.length === 0}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5 text-xs shadow-sm"
+              className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1.5 text-xs shadow-sm"
             >
               <Download className="w-3.5 h-3.5" /> Export Batch File
             </Button>

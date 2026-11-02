@@ -361,7 +361,7 @@ Justification: ${formData.justification}
                   onValueChange={(value) => handleChange({ name: "priority", value })}
                 >
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Select an option" />
                   </SelectTrigger>
                   <SelectContent>
                     {ticketPriorityOptions.map((option) => (

@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { getMyPendingApprovals, getMyApprovalHistory } from "@/lib/procurement/approvals.functions";
 import { approvePr, rejectPr, escalateToEvp } from "@/lib/procurement/pr.functions";
@@ -427,10 +428,14 @@ export default function MyApprovals() {
           {/* Requisitions Tab */}
           <TabsContent value="prs" className="space-y-3">
             {loading ? (
-              <div className="p-8 text-center text-slate-500">Loading pending requisitions...</div>
+              <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
             ) : (data?.prs || []).length === 0 ? (
-              <Card className="p-8 text-center text-slate-500">
-                No purchase requisitions awaiting your approval.
+              <Card className="p-8 text-center border-slate-100">
+                <div className="flex flex-col items-center justify-center py-6">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                  <p className="text-base font-semibold text-slate-500">No data found</p>
+                  <p className="text-sm text-slate-400 mt-1">No purchase requisitions awaiting your approval.</p>
+                </div>
               </Card>
             ) : (
               data?.prs?.map((pr: any) => (
@@ -515,12 +520,14 @@ export default function MyApprovals() {
           {/* Comparative Statements Tab */}
           <TabsContent value="css" className="space-y-3">
             {loading ? (
-              <div className="p-8 text-center text-slate-500">
-                Loading comparative statements...
-              </div>
+              <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
             ) : (data?.comparativeStatements || []).length === 0 ? (
-              <Card className="p-8 text-center text-slate-500">
-                No comparative statements awaiting your review.
+              <Card className="p-8 text-center border-slate-100">
+                <div className="flex flex-col items-center justify-center py-6">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                  <p className="text-base font-semibold text-slate-500">No data found</p>
+                  <p className="text-sm text-slate-400 mt-1">No comparative statements awaiting your review.</p>
+                </div>
               </Card>
             ) : (
               data?.comparativeStatements?.map((cs: any) => (
@@ -581,10 +588,14 @@ export default function MyApprovals() {
           {/* Purchase Orders Tab */}
           <TabsContent value="pos" className="space-y-3">
             {loading ? (
-              <div className="p-8 text-center text-slate-500">Loading purchase orders...</div>
+              <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
             ) : (data?.purchaseOrders || []).length === 0 ? (
-              <Card className="p-8 text-center text-slate-500">
-                No purchase orders awaiting your approval.
+              <Card className="p-8 text-center border-slate-100">
+                <div className="flex flex-col items-center justify-center py-6">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                  <p className="text-base font-semibold text-slate-500">No data found</p>
+                  <p className="text-sm text-slate-400 mt-1">No purchase orders awaiting your approval.</p>
+                </div>
               </Card>
             ) : (
               data?.purchaseOrders?.map((po: any) => (
@@ -645,10 +656,14 @@ export default function MyApprovals() {
           {/* Amendments Tab */}
           <TabsContent value="amendments" className="space-y-3">
             {loading ? (
-              <div className="p-8 text-center text-slate-500">Loading amendments...</div>
+              <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
             ) : (data?.amendments || []).length === 0 ? (
-              <Card className="p-8 text-center text-slate-500">
-                No order amendments requiring re-approval.
+              <Card className="p-8 text-center border-slate-100">
+                <div className="flex flex-col items-center justify-center py-6">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                  <p className="text-base font-semibold text-slate-500">No data found</p>
+                  <p className="text-sm text-slate-400 mt-1">No order amendments requiring re-approval.</p>
+                </div>
               </Card>
             ) : (
               data?.amendments?.map((am: any) => (
@@ -701,10 +716,14 @@ export default function MyApprovals() {
           {/* Invoices Tab */}
           <TabsContent value="invoices" className="space-y-3">
             {loading ? (
-              <div className="p-8 text-center text-slate-500">Loading matched invoices...</div>
+              <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
             ) : (data?.invoices || []).length === 0 ? (
-              <Card className="p-8 text-center text-slate-500">
-                No invoices awaiting approval.
+              <Card className="p-8 text-center border-slate-100">
+                <div className="flex flex-col items-center justify-center py-6">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                  <p className="text-base font-semibold text-slate-500">No data found</p>
+                  <p className="text-sm text-slate-400 mt-1">No invoices awaiting approval.</p>
+                </div>
               </Card>
             ) : (
               data?.invoices?.map((inv: any) => (
@@ -770,10 +789,14 @@ export default function MyApprovals() {
           {/* Emergency Tab */}
           <TabsContent value="emergency" className="space-y-3">
             {loading ? (
-              <div className="p-8 text-center text-slate-500">Loading emergency requests...</div>
+              <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
             ) : (data?.emergencyProcurements || []).length === 0 ? (
-              <Card className="p-8 text-center text-slate-500">
-                No emergency procurements awaiting EVP authorization.
+              <Card className="p-8 text-center border-slate-100">
+                <div className="flex flex-col items-center justify-center py-6">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                  <p className="text-base font-semibold text-slate-500">No data found</p>
+                  <p className="text-sm text-slate-400 mt-1">No emergency procurements awaiting EVP authorization.</p>
+                </div>
               </Card>
             ) : (
               data?.emergencyProcurements?.map((ep: any) => (
@@ -827,10 +850,14 @@ export default function MyApprovals() {
           {/* Rate Contracts Tab (SOP Section VI: approved by the EVP, from 3+ quotations) */}
           <TabsContent value="rateContracts" className="space-y-3">
             {loading ? (
-              <div className="p-8 text-center text-slate-500">Loading rate contracts...</div>
+              <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
             ) : (data?.rateContracts || []).length === 0 ? (
-              <Card className="p-8 text-center text-slate-500">
-                No rate contracts awaiting EVP approval.
+              <Card className="p-8 text-center border-slate-100">
+                <div className="flex flex-col items-center justify-center py-6">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                  <p className="text-base font-semibold text-slate-500">No data found</p>
+                  <p className="text-sm text-slate-400 mt-1">No rate contracts awaiting EVP approval.</p>
+                </div>
               </Card>
             ) : (
               data?.rateContracts?.map((rc: any) => (
@@ -1018,9 +1045,13 @@ export default function MyApprovals() {
               const totalItems = prs.length + css.length + pos.length + invs.length + rcs.length;
               if (totalItems === 0) {
                 return (
-                  <Card className="p-8 text-center text-slate-500">
-                    No approval history found for your role or department yet.
-                  </Card>
+                  <Card className="p-8 text-center border-slate-100">
+                <div className="flex flex-col items-center justify-center py-6">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                  <p className="text-base font-semibold text-slate-500">No data found</p>
+                  <p className="text-sm text-slate-400 mt-1">No approval history found for your role or department yet.</p>
+                </div>
+              </Card>
                 );
               }
 
@@ -1328,7 +1359,7 @@ export default function MyApprovals() {
                 disabled={acting || (dialogType.includes("reject") && !remarks.trim())}
                 className={
                   dialogType.includes("reject")
-                    ? "bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
+                    ? "bg-rose-500 hover:bg-rose-600 text-white disabled:opacity-50"
                     : "bg-emerald-600 hover:bg-emerald-700 text-white"
                 }
               >

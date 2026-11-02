@@ -33,7 +33,7 @@ export default function ProcurementHub() {
     <Layout>
       <div className="max-w-6xl mx-auto space-y-8 pb-12">
         <div className="border-b border-slate-200 dark:border-slate-800 pb-6">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200 mb-2">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-[#0B1437]/10 text-[#0B1437] mb-2">
             <ShieldCheck className="w-3.5 h-3.5" /> Procure-to-Pay (P2P) Platform
           </div>
           <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
@@ -47,10 +47,10 @@ export default function ProcurementHub() {
 
         {/* Quick Access to Unified Approvals */}
         {access.approvals && (
-          <Card className="bg-gradient-to-r from-purple-50 via-indigo-50 to-blue-50 dark:from-purple-950/40 dark:via-indigo-950/40 dark:to-blue-950/40 border-purple-200 dark:border-purple-900">
+          <Card className="bg-gradient-to-r from-[#0B1437]/5 via-[#0D3833]/5 to-teal-50 border-[#0B1437]/20">
             <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center font-bold">
+                <div className="w-10 h-10 rounded-xl bg-[#0B1437] text-white flex items-center justify-center font-bold">
                   <UserCheck className="w-5 h-5" />
                 </div>
                 <div>
@@ -64,7 +64,7 @@ export default function ProcurementHub() {
               <div className="flex flex-wrap items-center gap-2 shrink-0">
                 <Button
                   onClick={() => navigate({ to: "/procurement/approvals" })}
-                  className="bg-purple-600 hover:bg-purple-700 text-white gap-2"
+                  className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-2 rounded-full"
                 >
                   Pending Approvals <ArrowRight className="w-4 h-4" />
                 </Button>
@@ -76,7 +76,7 @@ export default function ProcurementHub() {
                       search: { tab: "history" } as any,
                     })
                   }
-                  className="border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/50 gap-2"
+                  className="border-slate-300 text-slate-700 hover:bg-slate-50 gap-2 rounded-full"
                 >
                   <History className="w-4 h-4" /> Approval History
                 </Button>
@@ -112,9 +112,9 @@ export default function ProcurementHub() {
 
           {/* 1. PR Card */}
           {access.pr && (
-            <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-blue-500/50 flex flex-col justify-between">
+            <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-[#0B1437]/30 flex flex-col justify-between">
               <CardHeader className="p-4">
-                <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-950 flex items-center justify-center text-blue-600 dark:text-blue-400 mb-1.5">
+                <div className="w-8 h-8 rounded-lg bg-[#0B1437]/10 flex items-center justify-center text-[#0B1437] mb-1.5">
                   <FileSpreadsheet className="w-4 h-4" />
                 </div>
                 <CardTitle className="text-base">1. Requisitions (PR)</CardTitle>
@@ -183,9 +183,9 @@ export default function ProcurementHub() {
 
           {/* 4. PO Card */}
           {access.pos && (
-            <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-indigo-500/50 flex flex-col justify-between">
+            <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-[#0B1437]/30 flex flex-col justify-between">
               <CardHeader className="p-4">
-                <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-950 flex items-center justify-center text-indigo-600 dark:text-indigo-400 mb-1.5">
+                <div className="w-8 h-8 rounded-lg bg-[#0D3833]/10 flex items-center justify-center text-[#0D3833] mb-1.5">
                   <ShoppingBag className="w-4 h-4" />
                 </div>
                 <CardTitle className="text-base">4. Purchase Orders</CardTitle>
@@ -279,9 +279,9 @@ export default function ProcurementHub() {
 
           {/* 8. Vendor Ratings */}
           {access.vendorRatings && (
-            <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-purple-500/50 flex flex-col justify-between">
+            <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-[#0B1437]/30 flex flex-col justify-between">
               <CardHeader className="p-4">
-                <div className="w-8 h-8 rounded-lg bg-purple-100 dark:bg-purple-950 flex items-center justify-center text-purple-600 dark:text-purple-400 mb-1.5">
+                <div className="w-8 h-8 rounded-lg bg-[#0B1437]/10 flex items-center justify-center text-[#0B1437] mb-1.5">
                   <Award className="w-4 h-4" />
                 </div>
                 <CardTitle className="text-base">8. Vendor Ratings</CardTitle>

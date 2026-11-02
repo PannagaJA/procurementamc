@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { usePagination } from "@/hooks/use-pagination";
 import { PaginationControls } from "@/components/PaginationControls";
@@ -355,12 +356,14 @@ export default function InvoiceManagement() {
         {/* Invoices List */}
         <div className="space-y-4">
           {loading ? (
-            <div className="p-8 text-center text-slate-500">Loading invoices...</div>
+            <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
           ) : invoices.length === 0 ? (
-            <Card className="text-center p-8">
-              <p className="text-slate-500">
-                No invoices submitted yet. Submit an invoice against an issued Purchase Order.
-              </p>
+            <Card className="border-slate-100 shadow-none">
+              <div className="flex flex-col items-center justify-center py-14 text-center px-8">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-14 h-14 mb-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5L12 3l9 7.5" /></svg>
+                <p className="text-base font-semibold text-slate-500">No data found</p>
+                <p className="text-sm text-slate-400 mt-1">No invoices submitted yet. Submit an invoice against an issued Purchase Order.</p>
+              </div>
             </Card>
           ) : (
             (() => {
@@ -368,11 +371,13 @@ export default function InvoiceManagement() {
 
               if (filteredInvoices.length === 0) {
                 return (
-                  <Card className="text-center p-8">
-                    <p className="text-slate-500">
-                      No invoices found under the selected &quot;{invoiceFilterOptions.find((o) => o.id === statusFilter)?.label}&quot; status filter.
-                    </p>
-                  </Card>
+                  <Card className="border-slate-100 shadow-none">
+              <div className="flex flex-col items-center justify-center py-14 text-center px-8">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-14 h-14 mb-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5L12 3l9 7.5" /></svg>
+                <p className="text-base font-semibold text-slate-500">No data found</p>
+                <p className="text-sm text-slate-400 mt-1">No invoices found under the selected &quot;{invoiceFilterOptions.find((o) => o.id === statusFilter)?.label}&quot; status filter.</p>
+              </div>
+            </Card>
                 );
               }
 
@@ -546,7 +551,7 @@ export default function InvoiceManagement() {
                                       size="sm"
                                       onClick={() => handleOpenPay(inv)}
                                       disabled={acting}
-                                      className="gap-1 bg-indigo-600 hover:bg-indigo-700 text-white"
+                                      className="gap-1 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full"
                                     >
                                       <CreditCard className="w-3.5 h-3.5" /> Record Payment
                                     </Button>
@@ -936,7 +941,7 @@ export default function InvoiceManagement() {
                   <Label>Payment Mode</Label>
                   <Select value={paymentMode} onValueChange={(v: any) => setPaymentMode(v)}>
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="Select an option" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="bank_transfer">Bank Transfer / NEFT</SelectItem>
@@ -988,7 +993,7 @@ export default function InvoiceManagement() {
               <Button
                 onClick={handleRecordPayment}
                 disabled={paying || Number(payAmount) <= 0}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full"
               >
                 {paying ? "Releasing..." : "Confirm Payment Release"}
               </Button>

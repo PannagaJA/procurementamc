@@ -964,8 +964,7 @@ export default function RaiseRequisition() {
                 type="submit"
                 size="lg"
                 disabled={isSubmitting || noHeadForCategory}
-                className="w-full text-base font-semibold shadow-md"
-              >
+                className="w-full text-base font-bold shadow-md bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full">
                 {isSubmitting
                   ? "Validating & Submitting PR..."
                   : `Submit Purchase Requisition (₹${totalEstimatedValue.toLocaleString("en-IN")})`}
@@ -975,8 +974,8 @@ export default function RaiseRequisition() {
 
           {/* Sidebar: Live Authority Matrix Engine Inspector */}
           <div className="space-y-6">
-            <Card className="sticky top-24 border-2 border-indigo-500/40 bg-gradient-to-br from-indigo-50/50 via-white to-slate-50 dark:from-indigo-950/20 dark:via-slate-900 dark:to-slate-900 shadow-md">
-              <CardHeader className="pb-3 border-b border-indigo-100 dark:border-slate-800">
+            <Card className="sticky top-24 border-2 border-[#0B1437]/20 bg-gradient-to-br from-slate-50 via-white to-slate-50 shadow-md">
+              <CardHeader className="pb-3 border-b border-slate-200 dark:border-slate-800">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5">
                     <Shield className="w-3.5 h-3.5" /> Approval Routing
@@ -1019,7 +1018,7 @@ export default function RaiseRequisition() {
                       className={`text-[9px] px-1.5 py-0 font-semibold ${
                         liveRouting.appliedScope === "department"
                           ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300"
-                          : "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300"
+                          : "bg-slate-50 text-slate-700 border-slate-200"
                       }`}
                     >
                       {liveRouting.appliedScope === "department" ? "Per Department" : "Institution-Wide"}

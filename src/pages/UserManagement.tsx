@@ -474,7 +474,7 @@ const UserManagement = () => {
           </div>
           <Button
             onClick={() => setShowAddUserModal(true)}
-            className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+            className="gap-2 bg-[#0B1437] hover:bg-[#111f54] text-white shadow-sm"
           >
             <UserPlus className="w-4 h-4" />
             Add User
@@ -627,7 +627,7 @@ const UserManagement = () => {
                                 }}
                               >
                                 <SelectTrigger className="w-36">
-                                  <SelectValue />
+                                  <SelectValue placeholder="Select an option" />
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="admin">Admin</SelectItem>
@@ -831,7 +831,7 @@ const UserManagement = () => {
                 <Button
                   type="submit"
                   disabled={creatingUser}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5"
+                  className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1.5"
                 >
                   {creatingUser ? "Creating User..." : "Save & Create User"}
                 </Button>

@@ -393,7 +393,7 @@ const InventoryList = () => {
             <div className="text-center">
               <Button
                 onClick={() => setShowQRScanner(true)}
-                className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 text-white px-8 py-4 rounded-lg font-medium transition-all duration-300 hover:scale-105 hover:shadow-lg text-lg"
+                className="bg-[#0B1437] hover:bg-[#111f54] text-white px-8 py-3.5 rounded-full font-bold transition-all duration-300 hover:scale-105 shadow-md text-base"
                 size="lg"
               >
                 <ScanLine className="w-5 h-5 mr-2" />
@@ -423,7 +423,7 @@ const InventoryList = () => {
                 }}
                 className="pl-3 py-2 text-sm rounded-lg h-10 w-64"
               />
-              <Button onClick={() => setSearchTerm(searchInput)} className="h-10">
+              <Button onClick={() => setSearchTerm(searchInput)} className="h-10 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full px-5 font-semibold">
                 Search
               </Button>
             </div>
@@ -540,11 +540,12 @@ const InventoryList = () => {
                 <TableBody>
                   {items.length === 0 ? (
                     <TableRow>
-                      <TableCell
-                        colSpan={11}
-                        className="text-center py-12 text-muted-foreground text-lg"
-                      >
-                        No items found. Try adjusting your search or filters.
+                      <TableCell colSpan={11} className="py-16">
+                        <div className="flex flex-col items-center justify-center text-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-14 h-14 mb-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
+                          <p className="text-base font-semibold text-slate-500">No items found</p>
+                          <p className="text-sm text-slate-400 mt-1">Try adjusting your search or filters</p>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -611,7 +612,7 @@ const InventoryList = () => {
                               }
                             >
                               <SelectTrigger className="w-32 h-10 text-base">
-                                <SelectValue />
+                                <SelectValue placeholder="Select an option" />
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="in-use">In Use</SelectItem>

@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import {
   ShieldCheck,
@@ -697,10 +698,13 @@ export default function VendorManagement() {
               </CardHeader>
               <CardContent className="space-y-6">
                 {appliedVendors.length === 0 ? (
-                  <div className="p-8 text-center text-slate-500 bg-slate-50 dark:bg-slate-900 rounded-lg">
-                    No new vendors currently in 'applied' status. Submit an application in Tab 1
-                    first.
-                  </div>
+                  <div className="py-12 text-center">
+                      <div className="flex flex-col items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5L12 3l9 7.5" /></svg>
+                        <p className="text-base font-semibold text-slate-500">No data found</p>
+                        <p className="text-sm text-slate-400 mt-1">first.</p>
+                      </div>
+                    </div>
                 ) : (
                   <form onSubmit={handleEvaluate} className="space-y-6">
                     <div className="space-y-2">
@@ -712,7 +716,7 @@ export default function VendorManagement() {
                         className="w-full p-2.5 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-medium"
                         required
                       >
-                        <option value="">-- Choose Vendor --</option>
+                        <option value="">Select an option</option>
                         {appliedVendors.map((v) => (
                           <option key={v.id} value={v.id}>
                             {v.name} (GST: {v.gst_number || "N/A"}, Applied:{" "}
@@ -825,7 +829,7 @@ export default function VendorManagement() {
                     </div>
 
                     <div className="flex justify-end">
-                      <Button type="submit" disabled={isLoading} className="font-semibold">
+                      <Button type="submit" disabled={isLoading} className="font-semibold bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full">
                         {isLoading
                           ? "Recording Evaluation..."
                           : "Submit Evaluation (Move to Under Review)"}
@@ -859,10 +863,13 @@ export default function VendorManagement() {
               </CardHeader>
               <CardContent className="space-y-6">
                 {reviewVendors.length === 0 ? (
-                  <div className="p-8 text-center text-slate-500 bg-slate-50 dark:bg-slate-900 rounded-lg">
-                    No vendors currently awaiting EVP review. Evaluate an applied vendor in Tab 2
-                    first.
-                  </div>
+                  <div className="py-12 text-center">
+                      <div className="flex flex-col items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5L12 3l9 7.5" /></svg>
+                        <p className="text-base font-semibold text-slate-500">No data found</p>
+                        <p className="text-sm text-slate-400 mt-1">first.</p>
+                      </div>
+                    </div>
                 ) : (
                   <div className="space-y-4">
                     {reviewVendors.map((v) => (
@@ -947,8 +954,12 @@ export default function VendorManagement() {
               <CardContent>
                 <div className="space-y-4">
                   {vendors.length === 0 ? (
-                    <div className="p-8 text-center text-slate-500 bg-slate-50 dark:bg-slate-900 rounded-lg">
-                      No vendors found in the system.
+                    <div className="py-14 text-center">
+                      <div className="flex flex-col items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-14 h-14 mb-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                        <p className="text-base font-semibold text-slate-500">No vendors found</p>
+                        <p className="text-sm text-slate-400 mt-1">No vendors registered in the system yet.</p>
+                      </div>
                     </div>
                   ) : (
                     <div className="divide-y divide-slate-200 dark:divide-slate-800 border-t border-slate-200 dark:border-slate-800 pt-2">
@@ -995,7 +1006,7 @@ export default function VendorManagement() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  className="h-8 text-xs font-medium text-blue-600 hover:text-blue-700 bg-blue-50/50 hover:bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-900 shadow-sm"
+                                  className="h-8 text-xs font-medium text-[#0B1437] hover:text-white bg-slate-50 hover:bg-[#0B1437] border-slate-200 shadow-sm rounded-full transition-colors"
                                   onClick={() => handleOpenEditContact(v)}
                                 >
                                   <Pencil className="w-3.5 h-3.5 mr-1.5" /> Edit Contact
@@ -1082,7 +1093,7 @@ export default function VendorManagement() {
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-950 font-medium"
+                        className="h-6 px-2 text-xs text-[#0B1437] hover:text-white hover:bg-[#0B1437] font-medium rounded-full transition-colors"
                         onClick={() => handleOpenEditContact(viewDetailsVendor)}
                       >
                         <Pencil className="w-3 h-3 mr-1" /> Edit
@@ -1268,7 +1279,7 @@ export default function VendorManagement() {
               <Button
                 type="submit"
                 size="sm"
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full"
                 disabled={isUpdatingContact}
               >
                 {isUpdatingContact ? "Saving..." : "Save Contact Info"}

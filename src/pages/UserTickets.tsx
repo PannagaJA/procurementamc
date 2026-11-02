@@ -308,6 +308,7 @@ const UserTickets = () => {
                   onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))}
                   className="px-3 py-1 border border-border rounded-md text-sm bg-background text-foreground"
                 >
+                  <option value="">Select an option</option>
                   <option value="all">All Statuses</option>
                   <option value="pending">Pending</option>
                   <option value="in-progress">In Progress</option>
@@ -327,6 +328,7 @@ const UserTickets = () => {
                   onChange={(e) => setFilters((prev) => ({ ...prev, priority: e.target.value }))}
                   className="px-3 py-1 border border-border rounded-md text-sm bg-background text-foreground"
                 >
+                  <option value="">Select an option</option>
                   <option value="all">All Priorities</option>
                   <option value="low">Low</option>
                   <option value="medium">Medium</option>

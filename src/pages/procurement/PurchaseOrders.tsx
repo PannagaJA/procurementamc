@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { usePagination } from "@/hooks/use-pagination";
 import { PaginationControls } from "@/components/PaginationControls";
@@ -613,7 +614,7 @@ export default function PurchaseOrders() {
                 </Button>
                 <Button
                   onClick={() => setCreateOpen(true)}
-                  className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                  className="gap-2 bg-[#0B1437] hover:bg-[#111f54] text-white shadow-sm rounded-full"
                 >
                   <PlusCircle className="w-4 h-4" /> Create PO
                 </Button>
@@ -636,21 +637,27 @@ export default function PurchaseOrders() {
         {/* PO List */}
         <div className="space-y-4">
           {loading ? (
-            <div className="p-8 text-center text-slate-500">Loading Purchase Orders...</div>
+            <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
           ) : orders.length === 0 ? (
-            <Card className="text-center p-8">
-              <p className="text-slate-500">
-                No Purchase Orders created yet. Create one from an approved Comparative Statement.
-              </p>
+            <Card className="border-slate-100 shadow-none">
+              <div className="flex flex-col items-center justify-center py-14 text-center px-8">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-14 h-14 mb-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5L12 3l9 7.5" /></svg>
+                <p className="text-base font-semibold text-slate-500">No data found</p>
+                <p className="text-sm text-slate-400 mt-1">No Purchase Orders created yet. Create one from an approved Comparative Statement.</p>
+              </div>
             </Card>
           ) : (
             (() => {
               const filteredOrders = applyFilter(orders, poFilterOptions, statusFilter);
               if (filteredOrders.length === 0)
                 return (
-                  <Card className="text-center p-8 text-sm text-muted-foreground">
-                    No purchase orders match this filter. Choose History or All to see others.
-                  </Card>
+                  <Card className="border-slate-100 shadow-none">
+                <div className="flex flex-col items-center justify-center py-12 text-center px-8">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
+                  <p className="text-sm font-semibold text-slate-500">No results match this filter</p>
+                  <p className="text-xs text-slate-400 mt-1">No purchase orders match this filter. Choose History or All to see others.</p>
+                </div>
+              </Card>
                 );
               const startIndex = (pagination.page - 1) * pagination.pageSize;
               const paginatedOrders = filteredOrders.slice(
@@ -718,7 +725,7 @@ export default function PurchaseOrders() {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleOpenPrintPreview(po)}
-                                className="gap-1.5 text-xs border border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-600 hover:text-white transition-colors"
+                                className="gap-1.5 text-xs border border-indigo-200 bg-white text-indigo-700 hover:bg-[#0B1437] hover:text-white transition-colors rounded-full"
                                 title="Print Preview & Formal Institutional PDF"
                               >
                                 <Printer className="w-3.5 h-3.5" /> Print / PDF
@@ -760,7 +767,7 @@ export default function PurchaseOrders() {
                                     size="sm"
                                     onClick={() => handleIssuePo(po)}
                                     disabled={acting}
-                                    className="bg-indigo-600 hover:bg-indigo-700 text-white gap-1 text-xs"
+                                    className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 text-xs rounded-full"
                                   >
                                     <Send className="w-3.5 h-3.5" /> Issue to Vendor
                                   </Button>
@@ -920,7 +927,7 @@ export default function PurchaseOrders() {
                   <Label>Order Type</Label>
                   <Select value={poType} onValueChange={(val: any) => setPoType(val)}>
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="Select an option" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="regular">Regular Order (Approved CS)</SelectItem>
@@ -1304,7 +1311,7 @@ export default function PurchaseOrders() {
                 <Button
                   onClick={handleRequestQuotes}
                   disabled={creating || !selectedPrId || quoteVendorIds.length < 2}
-                  className="gap-1 bg-indigo-600 hover:bg-indigo-700 text-white"
+                  className="gap-1 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full"
                 >
                   <Send className="w-4 h-4" />
                   {creating ? "Sending..." : `Send quote requests (${quoteVendorIds.length})`}
@@ -1318,7 +1325,7 @@ export default function PurchaseOrders() {
                     Number(price) <= 0 ||
                     (poType === "direct_purchase" && !storesConfirmed)
                   }
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                  className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full"
                 >
                   {creating
                     ? "Creating..."
