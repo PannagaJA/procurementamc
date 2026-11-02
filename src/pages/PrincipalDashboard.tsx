@@ -562,7 +562,7 @@ const PrincipalDashboard = () => {
       <div className="w-full space-y-6">
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <CardTitle className="text-2xl font-bold flex items-center gap-2">
                   <Activity className="w-6 h-6 text-emerald-600" />
@@ -570,8 +570,9 @@ const PrincipalDashboard = () => {
                 </CardTitle>
                 <p className="text-sm text-muted-foreground">System overview · pending approvals</p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                 <Input
+                  className="flex-1 sm:w-64"
                   placeholder="Search ticket # or requester"
                   value={searchInput}
                   onChange={(e) => setSearchInput((e.target as HTMLInputElement).value)}
@@ -630,12 +631,12 @@ const PrincipalDashboard = () => {
 
             <div className="grid gap-4">
               <div>
-                <div className="mb-3 flex items-center gap-2">
+                <div className="mb-3 flex flex-wrap items-center gap-2">
                   <Select
                     value={filters.department}
                     onValueChange={(v) => setFilters((p) => ({ ...p, department: v }))}
                   >
-                    <SelectTrigger className="w-60">
+                    <SelectTrigger className="w-full sm:w-60">
                       <SelectValue placeholder="All Departments" />
                     </SelectTrigger>
                     <SelectContent>
@@ -651,7 +652,7 @@ const PrincipalDashboard = () => {
                     value={filters.priority}
                     onValueChange={(v) => setFilters((p) => ({ ...p, priority: v }))}
                   >
-                    <SelectTrigger className="w-40">
+                    <SelectTrigger className="w-full sm:w-40">
                       <SelectValue placeholder="Priority" />
                     </SelectTrigger>
                     <SelectContent>
@@ -677,7 +678,7 @@ const PrincipalDashboard = () => {
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="w-full table-fixed">
+                  <table className="w-full min-w-[700px] table-fixed">
                     <colgroup>
                       <col style={{ width: "18%" }} />
                       <col style={{ width: "18%" }} />
@@ -838,7 +839,7 @@ const PrincipalDashboard = () => {
                     ) : (
                       viewTicketUpdates.map((u) => (
                         <div key={u.id} className="p-3 border rounded bg-gray-50">
-                          <div className="flex items-center justify-between">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                             <div className="text-sm font-medium">
                               {String(u.status_from || "").toUpperCase()} →{" "}
                               {String(u.status_to || "").toUpperCase()}

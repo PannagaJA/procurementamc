@@ -989,14 +989,14 @@ const AdminTicketDashboard = () => {
       <div className="w-full space-y-6">
         <Card>
           <CardHeader>
-            <div className="flex items-start justify-between gap-4 w-full">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full">
               <div>
                 <h2 className="text-xl font-semibold">My Open Tickets Report</h2>
                 <p className="text-sm text-muted-foreground">
                   Manage and update all raised tickets
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <label className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
@@ -1006,13 +1006,13 @@ const AdminTicketDashboard = () => {
                   />{" "}
                   Show Filters
                 </label>
-                <Button onClick={() => exportCSV()} className="ml-2 bg-[#0B1437] hover:bg-[#111f54] text-white font-bold rounded-full shadow-xs">
+                <Button size="sm" onClick={() => exportCSV()} className="bg-[#0B1437] hover:bg-[#111f54] text-white font-bold rounded-full shadow-xs text-xs sm:text-sm">
                   Export to CSV
                 </Button>
-                <Button onClick={generateReport} className="bg-[#0B1437] hover:bg-[#111f54] text-white font-bold rounded-full shadow-xs">
+                <Button size="sm" onClick={generateReport} className="bg-[#0B1437] hover:bg-[#111f54] text-white font-bold rounded-full shadow-xs text-xs sm:text-sm">
                   Export to PDF
                 </Button>
-                <Button onClick={() => setShowEmailDialog(true)} className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold shadow-xs">
+                <Button size="sm" onClick={() => setShowEmailDialog(true)} className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold shadow-xs text-xs sm:text-sm">
                   E-mail PDF
                 </Button>
               </div>
@@ -1021,7 +1021,7 @@ const AdminTicketDashboard = () => {
           <CardContent>
             {/* Filters Section (toggleable) */}
             {showFiltersLocal && (
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 mb-6">
                 <div>
                   <Label>Status</Label>
                   <Select
@@ -1082,7 +1082,7 @@ const AdminTicketDashboard = () => {
 
             {/* top table with summary */}
             <div className="mb-4 overflow-x-auto rounded border bg-card">
-              <table className="w-full table-auto">
+              <table className="w-full min-w-[850px] table-auto">
                 <thead className="bg-muted/50">
                   <tr>
                     <th className="px-3 py-2 text-left">Ticket #</th>
@@ -1188,7 +1188,7 @@ const AdminTicketDashboard = () => {
               </table>
             </div>
 
-            <div className="flex items-center gap-4 mb-4">
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4 mb-4 text-xs sm:text-sm">
               <div className="h-3 w-3 bg-green-600 rounded"></div>
               <div className="text-sm">Under SLA Resolution</div>
               <div className="h-3 w-3 bg-yellow-400 rounded ml-4"></div>

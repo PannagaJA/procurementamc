@@ -347,7 +347,7 @@ const PrincipalApprovals = () => {
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
-                <table className="w-full table-auto">
+                <table className="w-full min-w-[650px] table-auto">
                   <thead className="bg-slate-50">
                     <tr>
                       <th className="px-3 py-2 text-left">Ticket #</th>

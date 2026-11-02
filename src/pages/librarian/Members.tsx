@@ -82,21 +82,21 @@ const Members = () => {
 
   return (
     <LibraryLayout>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <h2 className="text-2xl font-bold">Members</h2>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search"
-            className="px-3 py-2 border rounded"
+            className="flex-1 sm:w-64 px-3 py-2 border rounded"
           />
           <Button onClick={openNew}>Add Member</Button>
         </div>
       </div>
 
       <div className="overflow-x-auto bg-card rounded shadow p-2">
-        <table className="w-full text-left">
+        <table className="w-full min-w-[600px] text-left">
           <thead>
             <tr>
               <th>Name</th>

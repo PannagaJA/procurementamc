@@ -253,25 +253,25 @@ const ViewerTickets = () => {
   return (
     <Card className="mt-6">
       <CardHeader>
-        <div className="flex items-start justify-between w-full">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full">
           <div>
             <h2 className="text-xl font-semibold">My Open Tickets Report</h2>
             <p className="text-sm text-muted-foreground">
               Manage and view raised tickets (read-only)
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button onClick={exportCSV} className="bg-[#0B1437] hover:bg-[#111f54] text-white font-bold rounded-full shadow-xs">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" onClick={exportCSV} className="bg-[#0B1437] hover:bg-[#111f54] text-white font-bold rounded-full shadow-xs text-xs sm:text-sm">
               Export to CSV
             </Button>
-            <Button onClick={generateReportPdf} className="bg-[#0B1437] hover:bg-[#111f54] text-white font-bold rounded-full shadow-xs">
+            <Button size="sm" onClick={generateReportPdf} className="bg-[#0B1437] hover:bg-[#111f54] text-white font-bold rounded-full shadow-xs text-xs sm:text-sm">
               Export to PDF
             </Button>
           </div>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           <div>
             <Label>Status</Label>
             <Select
@@ -320,7 +320,7 @@ const ViewerTickets = () => {
         </div>
 
         <div className="mb-4 overflow-x-auto rounded border bg-white">
-          <table className="w-full table-auto">
+          <table className="w-full min-w-[850px] table-auto">
             <thead className="bg-slate-50">
               <tr>
                 <th className="px-3 py-2 text-left">Ticket #</th>
