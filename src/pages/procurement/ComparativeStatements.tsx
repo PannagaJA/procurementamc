@@ -426,7 +426,7 @@ export default function ComparativeStatements() {
                                       size="sm"
                                       onClick={() => handleApproveCs(cs)}
                                       disabled={acting}
-                                      className="gap-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full font-semibold"
+                                      className="gap-1 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
                                     >
                                       <CheckCircle className="w-3.5 h-3.5" /> Approve CS
                                     </Button>

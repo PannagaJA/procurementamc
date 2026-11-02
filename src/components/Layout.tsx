@@ -28,8 +28,7 @@ import {
   X,
   Workflow,
   Wallet,
-  type LucideIcon,
-  Maximize2
+  type LucideIcon
 } from "lucide-react";
 
 interface LayoutProps {
@@ -45,23 +44,6 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
   const [isHod, setIsHod] = useState(false);
   const [isViewer, setIsViewer] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [phoneScale, setPhoneScale] = useState<"100" | "90">(() => {
-    if (typeof window !== "undefined") {
-      return (localStorage.getItem("amc_phone_scale") as "100" | "90") || "100";
-    }
-    return "100";
-  });
-
-  const handleSetScale = (scale: "100" | "90") => {
-    setPhoneScale(scale);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("amc_phone_scale", scale);
-    }
-  };
-
-  const togglePhoneScale = () => {
-    handleSetScale(phoneScale === "90" ? "100" : "90");
-  };
   const [pendingPrincipalCount, setPendingPrincipalCount] = useState<number>(0);
   const navigate = useNavigate();
   const location = useLocation();
@@ -244,7 +226,6 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
     path: string;
     icon: LucideIcon;
     iconClass?: string;
-    activeClass?: string;
     prefix?: boolean;
     badge?: number;
   };
@@ -302,18 +283,16 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
     path: "/architecture",
     icon: Workflow,
     iconClass: "text-indigo-500",
-    activeClass: TINT.blue,
   };
   const procurementNav: NavItem[] = [
     ...show(proc.hub, [
-      { label: "Procurement Hub", path: "/procurement", icon: Home, activeClass: TINT.blue },
+      { label: "Procurement Hub", path: "/procurement", icon: Home },
     ]),
     ...show(proc.approvals, [
       {
         label: "My Approvals",
         path: "/procurement/approvals",
         icon: UserCheck,
-        activeClass: TINT.purple,
       },
     ]),
     ...show(proc.budgets, [
@@ -321,7 +300,6 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
         label: "Annual Budgets",
         path: "/procurement/budgets",
         icon: Wallet,
-        activeClass: TINT.emerald,
       },
     ]),
     ...show(proc.pr, [
@@ -329,18 +307,16 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
         label: "Requisitions (PR)",
         path: "/procurement/raise-pr",
         icon: PlusSquare,
-        activeClass: TINT.blue,
       },
     ]),
     ...show(proc.rfqs, [
-      { label: "RFQs & Quotes", path: "/procurement/rfqs", icon: FileText, activeClass: TINT.sky },
+      { label: "RFQs & Quotes", path: "/procurement/rfqs", icon: FileText },
     ]),
     ...show(proc.cs, [
       {
         label: "Comparative (CS)",
         path: "/procurement/cs",
         icon: Scale,
-        activeClass: TINT.emerald,
       },
     ]),
     ...show(proc.pos, [
@@ -348,7 +324,6 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
         label: "Purchase Orders",
         path: "/procurement/orders",
         icon: ShoppingBag,
-        activeClass: TINT.indigo,
       },
     ]),
     ...show(proc.grns, [
@@ -356,7 +331,6 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
         label: "Goods Receipt (GRN)",
         path: "/procurement/grns",
         icon: Truck,
-        activeClass: TINT.emerald,
       },
     ]),
     ...show(proc.invoices, [
@@ -364,7 +338,6 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
         label: "Invoices & Match",
         path: "/procurement/invoices",
         icon: Receipt,
-        activeClass: TINT.emerald,
       },
     ]),
     ...show(proc.emergency, [
@@ -373,7 +346,6 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
         path: "/procurement/emergency",
         icon: Zap,
         iconClass: "text-amber-500",
-        activeClass: TINT.amber,
       },
     ]),
     ...show(proc.vendorRatings, [
@@ -381,7 +353,6 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
         label: "Vendor Ratings",
         path: "/procurement/vendor-ratings",
         icon: Award,
-        activeClass: TINT.purple,
       },
     ]),
     ...show(proc.vendors, [
@@ -389,7 +360,6 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
         label: "Vendor Master",
         path: "/procurement/vendors",
         icon: Users,
-        activeClass: TINT.slate,
       },
     ]),
     // Never two buttons for one page: the Dashboard already covers its own target.
@@ -495,20 +465,6 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
-            <button
-              type="button"
-              onClick={togglePhoneScale}
-              title={phoneScale === "90" ? "Switch to 100% normal view" : "Switch to 90% compact phone view"}
-              aria-label="Toggle 90% Phone View"
-              className={`md:hidden px-2.5 py-1 rounded-full text-xs font-bold border transition-all flex items-center gap-1 shadow-xs ${
-                phoneScale === "90"
-                  ? "bg-[#0B1437] text-white border-[#0B1437]"
-                  : "bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200"
-              }`}
-            >
-              <Maximize2 className="w-3 h-3" />
-              <span>{phoneScale === "90" ? "90% View" : "100%"}</span>
-            </button>
             <ApprovalNotificationBell />
             <Button
               variant="outline"
@@ -527,37 +483,7 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
       {mobileMenuOpen && (
         <div className="md:hidden fixed inset-0 z-30 pt-20 bg-slate-900/60 backdrop-blur-sm animate-in fade-in-0 duration-200">
           <div className="bg-white dark:bg-slate-900 w-4/5 max-w-sm h-full shadow-2xl border-r border-slate-200 dark:border-slate-800 flex flex-col">
-            <div className="p-4 pb-2 border-b border-slate-200 dark:border-slate-800">
-              <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
-                <span>Phone View Mode</span>
-                <span className="text-[#0B1437] dark:text-teal-400 font-extrabold">{phoneScale}% Active</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleSetScale("100")}
-                  className={`py-1.5 px-3 rounded-full text-xs font-bold transition-all border text-center ${
-                    phoneScale === "100"
-                      ? "bg-[#0B1437] text-white border-[#0B1437] shadow-xs"
-                      : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
-                  }`}
-                >
-                  100% Normal
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSetScale("90")}
-                  className={`py-1.5 px-3 rounded-full text-xs font-bold transition-all border text-center ${
-                    phoneScale === "90"
-                      ? "bg-[#0B1437] text-white border-[#0B1437] shadow-xs"
-                      : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
-                  }`}
-                >
-                  90% View Option
-                </button>
-              </div>
-            </div>
-            <nav className="flex-1 overflow-y-auto p-4 py-3">{renderNav(true)}</nav>
+            <nav className="flex-1 overflow-y-auto p-4 py-6">{renderNav(true)}</nav>
             <div className="shrink-0 border-t border-slate-200 dark:border-slate-800 p-3">
               {renderNav(true, true)}
             </div>
@@ -576,14 +502,7 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
 
       {/* Main content wrapper positioned to the right of fixed sidebar */}
       <div className="pt-20 md:pl-64 lg:pl-72 min-h-screen flex flex-col transition-all duration-300">
-        <main
-          className={`flex-1 w-full max-w-full px-3 sm:px-6 lg:px-8 xl:px-10 py-5 sm:py-8 animate-in fade-in-0 duration-500 transition-all ${
-            phoneScale === "90"
-              ? "max-md:[zoom:0.9] max-md:scale-[0.9] max-md:origin-top max-md:w-[111.11%] max-md:max-w-[111.11%]"
-              : ""
-          }`}
-          style={phoneScale === "90" && typeof window !== "undefined" && window.innerWidth < 768 ? { zoom: "90%" } : undefined}
-        >
+        <main className="flex-1 w-full max-w-full px-4 sm:px-6 lg:px-8 xl:px-10 py-6 sm:py-8 animate-in fade-in-0 duration-500">
           {children}
         </main>
       </div>

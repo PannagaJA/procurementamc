@@ -745,7 +745,7 @@ export default function PurchaseOrders() {
                                     size="sm"
                                     onClick={() => handleApprovePo(po)}
                                     disabled={acting}
-                                    className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1 text-xs rounded-full font-semibold"
+                                    className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 text-xs rounded-full font-semibold"
                                   >
                                     <CheckCircle className="w-3.5 h-3.5" /> Approve
                                   </Button>

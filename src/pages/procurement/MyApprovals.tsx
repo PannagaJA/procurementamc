@@ -469,7 +469,7 @@ export default function MyApprovals() {
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(pr, "pr_approve")}
-                        className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1 rounded-full font-semibold"
+                        className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 rounded-full font-semibold"
                       >
                         <CheckCircle className="w-3.5 h-3.5" /> Approve
                       </Button>
@@ -552,7 +552,7 @@ export default function MyApprovals() {
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(cs, "cs_approve")}
-                        className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1 rounded-full font-semibold"
+                        className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 rounded-full font-semibold"
                       >
                         <CheckCircle className="w-3.5 h-3.5" /> Approve CS
                       </Button>
@@ -622,7 +622,7 @@ export default function MyApprovals() {
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(po, "po_approve")}
-                        className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1 rounded-full font-semibold"
+                        className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 rounded-full font-semibold"
                       >
                         <CheckCircle className="w-3.5 h-3.5" /> Approve PO
                       </Button>
@@ -688,7 +688,7 @@ export default function MyApprovals() {
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(am, "am_approve")}
-                        className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1 rounded-full font-semibold"
+                        className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 rounded-full font-semibold"
                       >
                         <CheckCircle className="w-3.5 h-3.5" /> Approve Amendment
                       </Button>
@@ -762,7 +762,7 @@ export default function MyApprovals() {
                           <Button
                             size="sm"
                             onClick={() => handleOpenAction(inv, "dev_approve")}
-                            className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1 rounded-full font-semibold"
+                            className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 rounded-full font-semibold"
                           >
                             <CheckCircle className="w-3.5 h-3.5" /> Accept Difference
                           </Button>
@@ -774,7 +774,7 @@ export default function MyApprovals() {
                         <Button
                           size="sm"
                           onClick={() => handleOpenAction(inv, "inv_approve")}
-                          className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1 rounded-full font-semibold"
+                          className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 rounded-full font-semibold"
                         >
                           <CheckCircle className="w-3.5 h-3.5" /> Approve for Payment
                         </Button>
@@ -818,7 +818,7 @@ export default function MyApprovals() {
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(ep, "ep_approve")}
-                        className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1 rounded-full font-semibold"
+                        className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 rounded-full font-semibold"
                       >
                         <CheckCircle className="w-3.5 h-3.5" /> Authorize
                       </Button>
@@ -884,7 +884,7 @@ export default function MyApprovals() {
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(rc, "rc_approve")}
-                        className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1 rounded-full font-semibold"
+                        className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 rounded-full font-semibold"
                       >
                         <CheckCircle className="w-3.5 h-3.5" /> Approve
                       </Button>
@@ -1358,7 +1358,7 @@ export default function MyApprovals() {
                 onClick={handleExecuteAction}
                 disabled={acting || (dialogType.includes("reject") && !remarks.trim())}
                 className={
-                  dialogType.includes("reject") ? "bg-rose-500 hover:bg-rose-600 text-white rounded-full font-semibold" : "bg-emerald-500 hover:bg-emerald-600 text-white rounded-full font-semibold"
+                  dialogType.includes("reject") ? "bg-rose-500 hover:bg-rose-600 text-white rounded-full font-semibold" : "bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
                 }
               >
                 {acting ? "Processing..." : "Confirm"}

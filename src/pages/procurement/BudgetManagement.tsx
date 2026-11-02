@@ -764,7 +764,7 @@ function Approvals({
                       <>
                         <Button
                           size="sm"
-                          className="gap-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full font-semibold"
+                          className="gap-1 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
                           onClick={() => {
                             setRemarks("");
                             setDialog({ kind: "approve", proposal: p });

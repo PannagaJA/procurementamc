@@ -375,7 +375,7 @@ const PrincipalApprovals = () => {
                           </Button>
                           {r.status === "pending_principal" ? (
                             <>
-                              <Button size="sm" className="ml-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full font-semibold" onClick={() => openActionDialog("approve", r)}>
+                              <Button size="sm" className="ml-2 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold" onClick={() => openActionDialog("approve", r)}>
                                 Approve
                               </Button>
                               <Button

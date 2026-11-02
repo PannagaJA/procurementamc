@@ -542,7 +542,7 @@ export default function EmergencyProcurement() {
                                     size="sm"
                                     onClick={() => handleApprove(ep)}
                                     disabled={acting}
-                                    className="gap-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full font-semibold"
+                                    className="gap-1 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
                                   >
                                     <CheckCircle2 className="w-3.5 h-3.5" /> EVP Authorize
                                   </Button>
