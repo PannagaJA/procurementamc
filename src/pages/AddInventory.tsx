@@ -48,6 +48,8 @@ const AddInventory = () => {
   );
   const [itemCode, setItemCode] = useState("");
   const [gpsCoords, setGpsCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [vendorsList, setVendorsList] = useState<Array<{ id: string; name: string; registered_address?: string | null; contact_number?: string | null }>>([]);
+  const [selectedVendorId, setSelectedVendorId] = useState<string>("");
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -82,6 +84,7 @@ const AddInventory = () => {
   useEffect(() => {
     fetchCategories();
     fetchLocations();
+    fetchVendors();
     captureGPS();
   }, []);
 
@@ -355,7 +358,7 @@ const AddInventory = () => {
 
   return (
     <Layout>
-      <div className="max-w-5xl mx-auto animate-in fade-in-0 duration-700">
+      <div className="w-full max-w-full animate-in fade-in-0 duration-700">
         <div className="mb-8 text-center">
           <h2 className="text-4xl font-bold tracking-tight text-foreground mb-2">Add New Item</h2>
           <p className="text-muted-foreground text-lg">Add a new item to the inventory system</p>
@@ -391,7 +394,7 @@ const AddInventory = () => {
                       setFormData((prev) => ({ ...prev, category_id: value }));
                       updateItemCode();
                     }}
-                    placeholder="Select category..."
+                    placeholder="Select an option"
                     searchPlaceholder="Search categories..."
                     emptyText="No categories found."
                   />
@@ -409,7 +412,7 @@ const AddInventory = () => {
                     }}
                   >
                     <SelectTrigger className="h-12 text-base">
-                      <SelectValue placeholder="Select location" />
+                      <SelectValue placeholder="Select an option" />
                     </SelectTrigger>
                     <SelectContent>
                       {locations.map((loc) => {
@@ -463,10 +466,10 @@ const AddInventory = () => {
                     }}
                   >
                     <SelectTrigger className="h-12 text-base">
-                      <SelectValue placeholder="Select department" />
+                      <SelectValue placeholder="Select an option" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
+                      <SelectItem value="none">Select an option</SelectItem>
                       {departments.map((d) => (
                         <SelectItem
                           key={d.id}
@@ -487,7 +490,7 @@ const AddInventory = () => {
                     }
                   >
                     <SelectTrigger className="h-12 text-base">
-                      <SelectValue placeholder="Select asset type" />
+                      <SelectValue placeholder="Select an option" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">None</SelectItem>
@@ -509,6 +512,7 @@ const AddInventory = () => {
                   id="item_name"
                   value={formData.item_name}
                   onChange={(e) => setFormData((prev) => ({ ...prev, item_name: e.target.value }))}
+                  placeholder="e.g. Dell Latitude 5420 Laptop"
                   required
                   className="h-12 text-base"
                 />
@@ -525,6 +529,7 @@ const AddInventory = () => {
                     setFormData((prev) => ({ ...prev, specifications: e.target.value }))
                   }
                   rows={4}
+                  placeholder="Enter specifications (e.g. Intel Core i7, 16GB RAM, 512GB SSD, 3-Yr Warranty)"
                   className="text-base resize-none"
                 />
               </div>
@@ -537,6 +542,7 @@ const AddInventory = () => {
                   <Input
                     id="quantity"
                     type="number"
+                    placeholder="e.g. 1"
                     min="1"
                     value={formData.quantity_available}
                     onChange={(e) => {
@@ -562,6 +568,7 @@ const AddInventory = () => {
                   <Input
                     id="cost"
                     type="number"
+                    placeholder="e.g. 45000"
                     min="0"
                     step="0.01"
                     value={formData.cost_per_unit}
@@ -599,6 +606,49 @@ const AddInventory = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6 p-8">
+              <div className="space-y-3">
+                <Label htmlFor="vendor_select" className="text-base font-semibold text-foreground">
+                  Select Vendor (from registered list or enter custom below)
+                </Label>
+                <Select
+                  value={selectedVendorId}
+                  onValueChange={(val) => {
+                    setSelectedVendorId(val);
+                    if (val === "manual") {
+                      // manual entry
+                    } else if (val === "none") {
+                      setFormData((prev) => ({
+                        ...prev,
+                        vendor_name: "",
+                        vendor_address: "",
+                      }));
+                    } else {
+                      const found = vendorsList.find((v) => v.id === val);
+                      if (found) {
+                        setFormData((prev) => ({
+                          ...prev,
+                          vendor_name: found.name,
+                          vendor_address: found.registered_address || prev.vendor_address,
+                        }));
+                      }
+                    }
+                  }}
+                >
+                  <SelectTrigger className="h-12 text-base">
+                    <SelectValue placeholder="Select an option" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Select an option</SelectItem>
+                    {vendorsList.map((v) => (
+                      <SelectItem key={v.id} value={v.id}>
+                        {v.name}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="manual">+ Other / Enter Custom Vendor</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="space-y-3">
                   <Label htmlFor="vendor_name" className="text-base font-semibold text-foreground">
@@ -610,6 +660,7 @@ const AddInventory = () => {
                     onChange={(e) =>
                       setFormData((prev) => ({ ...prev, vendor_name: e.target.value }))
                     }
+                    placeholder="Enter vendor or company name (e.g. Star Infotech Pvt Ltd)"
                     className="h-12 text-base"
                   />
                 </div>
@@ -627,6 +678,7 @@ const AddInventory = () => {
                     onChange={(e) =>
                       setFormData((prev) => ({ ...prev, vendor_contact: e.target.value }))
                     }
+                    placeholder="e.g. +91 98765 43210 or sales@vendor.com"
                     className="h-12 text-base"
                   />
                 </div>
@@ -643,6 +695,7 @@ const AddInventory = () => {
                     setFormData((prev) => ({ ...prev, vendor_address: e.target.value }))
                   }
                   rows={3}
+                  placeholder="Enter vendor office address, street, city, state, pincode"
                   className="text-base resize-none"
                 />
               </div>
@@ -658,6 +711,7 @@ const AddInventory = () => {
                     onChange={(e) =>
                       setFormData((prev) => ({ ...prev, invoice_no: e.target.value }))
                     }
+                    placeholder="e.g. INV-2024-0891"
                     className="h-12 text-base"
                   />
                 </div>
@@ -691,6 +745,7 @@ const AddInventory = () => {
                   </Label>
                   <Input
                     id="approval_ref"
+                    placeholder="e.g. AMC/APPR/2024/042"
                     value={formData.approval_letter_ref}
                     onChange={(e) =>
                       setFormData((prev) => ({ ...prev, approval_letter_ref: e.target.value }))
@@ -746,7 +801,7 @@ const AddInventory = () => {
                   }
                 >
                   <SelectTrigger className="h-12 text-base">
-                    <SelectValue />
+                    <SelectValue placeholder="Select an option" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="in-use">In Use</SelectItem>
@@ -793,6 +848,7 @@ const AddInventory = () => {
                 </Label>
                 <Textarea
                   id="remarks"
+                  placeholder="Any additional remarks, serial numbers or warranty details..."
                   value={formData.remarks}
                   onChange={(e) => setFormData((prev) => ({ ...prev, remarks: e.target.value }))}
                   rows={4}
@@ -806,7 +862,7 @@ const AddInventory = () => {
             <Button
               type="submit"
               disabled={loading}
-              className="flex-1 py-4 text-lg font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 hover:scale-105 hover:shadow-xl rounded-xl"
+              className="flex-1 py-4 text-lg font-bold bg-[#0B1437] hover:bg-[#111f54] text-white transition-all duration-300 hover:scale-[1.02] hover:shadow-xl rounded-full"
             >
               {loading ? "Adding..." : "Add to Inventory"}
             </Button>
@@ -815,7 +871,7 @@ const AddInventory = () => {
               variant="outline"
               onClick={() => navigate({ to: "/inventory" })}
               disabled={loading}
-              className="flex-1 py-4 text-lg font-semibold border-2 border-border hover:bg-accent transition-all duration-300 hover:scale-105 hover:shadow-lg rounded-xl"
+              className="flex-1 py-4 text-lg font-bold border border-slate-300 hover:bg-slate-50 transition-all duration-300 hover:scale-[1.02] rounded-full"
             >
               Cancel
             </Button>

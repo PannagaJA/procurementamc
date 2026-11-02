@@ -193,7 +193,7 @@ export default function DepartmentManagement() {
   if (checkingAdmin) {
     return (
       <Layout>
-        <div className="container mx-auto py-8">
+        <div className="w-full max-w-full py-6">
           <div className="text-center text-muted-foreground">Checking permissions...</div>
         </div>
       </Layout>
@@ -203,7 +203,7 @@ export default function DepartmentManagement() {
   if (!isAdmin) {
     return (
       <Layout>
-        <div className="container mx-auto py-8">
+        <div className="w-full max-w-full py-6">
           <Card>
             <CardHeader>
               <CardTitle>Not authorized</CardTitle>
@@ -222,7 +222,7 @@ export default function DepartmentManagement() {
 
   return (
     <Layout>
-      <div className="container mx-auto py-8">
+      <div className="w-full max-w-full py-6">
         <Card>
           <CardHeader>
             <CardTitle>Add Department</CardTitle>
@@ -239,9 +239,10 @@ export default function DepartmentManagement() {
                   onValueChange={(v) => setForm((p) => ({ ...p, location_id: v }))}
                 >
                   <SelectTrigger className="h-10">
-                    <SelectValue placeholder="Select location" />
+                    <SelectValue placeholder="Select an option" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="__none" disabled>Select an option</SelectItem>
                     {locations.map((l) => (
                       <SelectItem key={l.id} value={l.id}>
                         {l.name}
@@ -256,6 +257,7 @@ export default function DepartmentManagement() {
                 <Input
                   value={form.name}
                   onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                  placeholder="e.g. Computer Science & Engineering"
                   className="h-10"
                 />
               </div>
@@ -265,13 +267,14 @@ export default function DepartmentManagement() {
                 <Input
                   value={form.prefix}
                   onChange={(e) => setForm((p) => ({ ...p, prefix: e.target.value }))}
+                  placeholder="e.g. CSE"
                   className="h-10"
                 />
               </div>
             </div>
 
             <div className="mt-4 flex gap-2">
-              <Button onClick={handleCreate} disabled={loading}>
+              <Button onClick={handleCreate} disabled={loading} className="bg-[#0B1437] hover:bg-[#111f54] text-white font-bold rounded-full px-6 py-2.5 shadow-sm transition-all">
                 {loading ? "Creating..." : "Create Department"}
               </Button>
             </div>
@@ -292,11 +295,13 @@ export default function DepartmentManagement() {
                           <Input
                             value={editForm.name}
                             onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))}
+                            placeholder="Department name"
                             className="h-9"
                           />
                           <Input
                             value={editForm.prefix}
                             onChange={(e) => setEditForm((p) => ({ ...p, prefix: e.target.value }))}
+                            placeholder="e.g. CSE"
                             className="h-9"
                           />
                         </div>

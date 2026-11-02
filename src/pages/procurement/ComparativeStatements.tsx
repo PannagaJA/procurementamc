@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { usePagination } from "@/hooks/use-pagination";
 import { PaginationControls } from "@/components/PaginationControls";
@@ -288,11 +289,11 @@ export default function ComparativeStatements() {
 
   return (
     <Layout>
-      <div className="max-w-6xl mx-auto space-y-6 pb-12">
+      <div className="w-full max-w-full space-y-6 pb-12">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200 mb-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-[#0B1437]/10 text-[#0B1437] mb-2">
               <Scale className="w-3.5 h-3.5" /> Comparative Statement (CS) Evaluation
             </div>
             <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
@@ -313,7 +314,7 @@ export default function ComparativeStatements() {
                   setPrepOpen(true);
                   loadData();
                 }}
-                className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                className="gap-2 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold shadow-xs transition-all"
               >
                 <PlusCircle className="w-4 h-4" /> Prepare CS
               </Button>
@@ -335,22 +336,28 @@ export default function ComparativeStatements() {
         {/* CS List */}
         <div className="space-y-4">
           {loading ? (
-            <div className="p-8 text-center text-slate-500">Loading Comparative Statements...</div>
+            <div className="space-y-3 p-4">{[...Array(3)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
           ) : csList.length === 0 ? (
-            <Card className="text-center p-8">
-              <p className="text-slate-500">
-                No Comparative Statements evaluated yet. Prepare one from an RFQ with quotation
-                responses.
-              </p>
+            <Card className="border-slate-100 shadow-none">
+              <div className="flex flex-col items-center justify-center py-14 text-center px-8">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-14 h-14 mb-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5L12 3l9 7.5" /></svg>
+                <p className="text-base font-semibold text-slate-500">No data found</p>
+                <p className="text-sm text-slate-400 mt-1">No Comparative Statements evaluated yet. Prepare one from an RFQ with quotation
+                responses.</p>
+              </div>
             </Card>
           ) : (
             (() => {
               const filteredCsList = applyFilter(csList, csFilterOptions, csFilter);
               if (filteredCsList.length === 0)
                 return (
-                  <Card className="text-center p-8 text-sm text-muted-foreground">
-                    No comparative statements match this filter. Choose History or All to see others.
-                  </Card>
+                  <Card className="border-slate-100 shadow-none">
+                <div className="flex flex-col items-center justify-center py-12 text-center px-8">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
+                  <p className="text-sm font-semibold text-slate-500">No results match this filter</p>
+                  <p className="text-xs text-slate-400 mt-1">No comparative statements match this filter. Choose History or All to see others.</p>
+                </div>
+              </Card>
                 );
               const startIndex = (pagination.page - 1) * pagination.pageSize;
               const paginatedCsList = filteredCsList.slice(
@@ -420,7 +427,7 @@ export default function ComparativeStatements() {
                                       size="sm"
                                       onClick={() => handleApproveCs(cs)}
                                       disabled={acting}
-                                      className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                      className="gap-1 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
                                     >
                                       <CheckCircle className="w-3.5 h-3.5" /> Approve CS
                                     </Button>
@@ -797,7 +804,11 @@ export default function ComparativeStatements() {
                         vendorQuotes.length < (selectedRfq?.required_min_quotations || 3) ||
                         hasCostOverrun
                       }
+<<<<<<< HEAD
                       className="bg-emerald-600 hover:bg-emerald-700 text-white"
+=======
+                      className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold"
+>>>>>>> main
                     >
                       {submitting ? "Submitting..." : "Submit CS for Approval"}
                     </Button>

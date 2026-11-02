@@ -327,7 +327,7 @@ export function ApprovalNotificationBell() {
           <Button
             size="sm"
             variant="default"
-            className="text-xs h-8 px-3 font-semibold bg-blue-600 hover:bg-blue-700 text-white"
+            className="text-xs h-8 px-3 font-semibold bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full"
             onClick={handleOpenHub}
           >
             Open Approvals Hub

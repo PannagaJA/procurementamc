@@ -1,3 +1,4 @@
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { useState, useEffect, useCallback } from "react";
 import {
   Dialog,
@@ -332,19 +333,14 @@ const PrincipalApprovals = () => {
     return <div className="text-sm">{ticket.issue_description}</div>;
   };
 
-  if (loading)
-    return (
-      <Layout>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-        </div>
-      </Layout>
-    );
+  if (loading) {
+    return <PageSkeleton cards={0} rows={6} />;
+  }
 
   return (
     <>
       <Layout>
-        <div className="container mx-auto py-6 px-4">
+        <div className="w-full space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Principal — Approvals</CardTitle>
@@ -379,11 +375,7 @@ const PrincipalApprovals = () => {
                           </Button>
                           {r.status === "pending_principal" ? (
                             <>
-                              <Button
-                                size="sm"
-                                className="ml-2"
-                                onClick={() => openActionDialog("approve", r)}
-                              >
+                              <Button size="sm" className="ml-2 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold" onClick={() => openActionDialog("approve", r)}>
                                 Approve
                               </Button>
                               <Button
@@ -396,11 +388,11 @@ const PrincipalApprovals = () => {
                               </Button>
                             </>
                           ) : r.status === "procure-approved" || r.status === "service-approved" ? (
-                            <Button size="sm" className="ml-2 bg-green-100 text-green-800 dark:bg-green-950/60 dark:text-green-300" disabled>
+                            <Button size="sm" className="ml-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full font-semibold" disabled>
                               Approved
                             </Button>
                           ) : r.status === "procure-rejected" || r.status === "service-rejected" ? (
-                            <Button size="sm" className="ml-2 bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300" disabled>
+                            <Button size="sm" className="ml-2 bg-rose-50 text-rose-700 border border-rose-200 rounded-full font-semibold" disabled>
                               Rejected
                             </Button>
                           ) : null}

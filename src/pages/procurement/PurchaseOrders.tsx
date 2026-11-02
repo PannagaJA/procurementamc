@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { usePagination } from "@/hooks/use-pagination";
 import { PaginationControls } from "@/components/PaginationControls";
@@ -584,11 +585,11 @@ export default function PurchaseOrders() {
 
   return (
     <Layout>
-      <div className="max-w-6xl mx-auto space-y-6 pb-12">
+      <div className="w-full max-w-full space-y-6 pb-12">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-200 mb-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-[#0B1437]/10 text-[#0B1437] mb-2">
               <ShoppingBag className="w-3.5 h-3.5" /> Purchase Order Governance
             </div>
             <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
@@ -604,16 +605,15 @@ export default function PurchaseOrders() {
             {(auth.hasRole("admin") || auth.hasRole("procurement_officer")) && (
               <>
                 <Button
-                  variant="outline"
                   onClick={() => navigate({ to: "/procurement/rfqs" })}
                   title="Rate contracts are finalised from at least 3 quotations through a rate contract RFQ, then approved by the EVP"
-                  className="gap-2 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+                  className="gap-2 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold shadow-xs transition-all"
                 >
-                  <FileText className="w-4 h-4" /> + New Rate Contract
+                  <FileText className="w-4 h-4 text-white" /> + New Rate Contract
                 </Button>
                 <Button
                   onClick={() => setCreateOpen(true)}
-                  className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                  className="gap-2 bg-[#0B1437] hover:bg-[#111f54] text-white shadow-sm rounded-full"
                 >
                   <PlusCircle className="w-4 h-4" /> Create PO
                 </Button>
@@ -636,21 +636,27 @@ export default function PurchaseOrders() {
         {/* PO List */}
         <div className="space-y-4">
           {loading ? (
-            <div className="p-8 text-center text-slate-500">Loading Purchase Orders...</div>
+            <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
           ) : orders.length === 0 ? (
-            <Card className="text-center p-8">
-              <p className="text-slate-500">
-                No Purchase Orders created yet. Create one from an approved Comparative Statement.
-              </p>
+            <Card className="border-slate-100 shadow-none">
+              <div className="flex flex-col items-center justify-center py-14 text-center px-8">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-14 h-14 mb-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5L12 3l9 7.5" /></svg>
+                <p className="text-base font-semibold text-slate-500">No data found</p>
+                <p className="text-sm text-slate-400 mt-1">No Purchase Orders created yet. Create one from an approved Comparative Statement.</p>
+              </div>
             </Card>
           ) : (
             (() => {
               const filteredOrders = applyFilter(orders, poFilterOptions, statusFilter);
               if (filteredOrders.length === 0)
                 return (
-                  <Card className="text-center p-8 text-sm text-muted-foreground">
-                    No purchase orders match this filter. Choose History or All to see others.
-                  </Card>
+                  <Card className="border-slate-100 shadow-none">
+                <div className="flex flex-col items-center justify-center py-12 text-center px-8">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
+                  <p className="text-sm font-semibold text-slate-500">No results match this filter</p>
+                  <p className="text-xs text-slate-400 mt-1">No purchase orders match this filter. Choose History or All to see others.</p>
+                </div>
+              </Card>
                 );
               const startIndex = (pagination.page - 1) * pagination.pageSize;
               const paginatedOrders = filteredOrders.slice(
@@ -718,7 +724,7 @@ export default function PurchaseOrders() {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => handleOpenPrintPreview(po)}
-                                className="gap-1.5 text-xs border border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-600 hover:text-white transition-colors"
+                                className="gap-1.5 text-xs border border-indigo-200 bg-white text-indigo-700 hover:bg-[#0B1437] hover:text-white transition-colors rounded-full"
                                 title="Print Preview & Formal Institutional PDF"
                               >
                                 <Printer className="w-3.5 h-3.5" /> Print / PDF
@@ -738,7 +744,7 @@ export default function PurchaseOrders() {
                                     size="sm"
                                     onClick={() => handleApprovePo(po)}
                                     disabled={acting}
-                                    className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1 text-xs"
+                                    className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 text-xs rounded-full font-semibold"
                                   >
                                     <CheckCircle className="w-3.5 h-3.5" /> Approve
                                   </Button>
@@ -760,7 +766,7 @@ export default function PurchaseOrders() {
                                     size="sm"
                                     onClick={() => handleIssuePo(po)}
                                     disabled={acting}
-                                    className="bg-indigo-600 hover:bg-indigo-700 text-white gap-1 text-xs"
+                                    className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 text-xs rounded-full"
                                   >
                                     <Send className="w-3.5 h-3.5" /> Issue to Vendor
                                   </Button>
@@ -920,7 +926,7 @@ export default function PurchaseOrders() {
                   <Label>Order Type</Label>
                   <Select value={poType} onValueChange={(val: any) => setPoType(val)}>
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="Select an option" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="regular">Regular Order (Approved CS)</SelectItem>
@@ -1304,7 +1310,7 @@ export default function PurchaseOrders() {
                 <Button
                   onClick={handleRequestQuotes}
                   disabled={creating || !selectedPrId || quoteVendorIds.length < 2}
-                  className="gap-1 bg-indigo-600 hover:bg-indigo-700 text-white"
+                  className="gap-1 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full"
                 >
                   <Send className="w-4 h-4" />
                   {creating ? "Sending..." : `Send quote requests (${quoteVendorIds.length})`}
@@ -1318,7 +1324,7 @@ export default function PurchaseOrders() {
                     Number(price) <= 0 ||
                     (poType === "direct_purchase" && !storesConfirmed)
                   }
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                  className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full"
                 >
                   {creating
                     ? "Creating..."
@@ -1396,7 +1402,7 @@ export default function PurchaseOrders() {
               <Button
                 onClick={handleAmendPo}
                 disabled={amending || !amendReason.trim()}
-                className="bg-amber-600 hover:bg-amber-700 text-white"
+                className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold"
               >
                 {amending ? "Amending..." : "Submit Amendment"}
               </Button>

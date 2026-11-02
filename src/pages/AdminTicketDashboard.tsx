@@ -1,3 +1,4 @@
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "../integrations/supabase/client";
@@ -980,18 +981,12 @@ const AdminTicketDashboard = () => {
   };
 
   if (loading) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-        </div>
-      </Layout>
-    );
+    return <PageSkeleton cards={4} rows={6} />;
   }
 
   return (
     <Layout>
-      <div className="container mx-auto py-6 px-4">
+      <div className="w-full space-y-6">
         <Card>
           <CardHeader>
             <div className="flex items-start justify-between gap-4 w-full">
@@ -1011,13 +1006,13 @@ const AdminTicketDashboard = () => {
                   />{" "}
                   Show Filters
                 </label>
-                <Button variant="secondary" onClick={() => exportCSV()} className="ml-2">
+                <Button onClick={() => exportCSV()} className="ml-2 bg-[#0B1437] hover:bg-[#111f54] text-white font-bold rounded-full shadow-xs">
                   Export to CSV
                 </Button>
-                <Button variant="secondary" onClick={generateReport}>
+                <Button onClick={generateReport} className="bg-[#0B1437] hover:bg-[#111f54] text-white font-bold rounded-full shadow-xs">
                   Export to PDF
                 </Button>
-                <Button variant="ghost" onClick={() => setShowEmailDialog(true)}>
+                <Button onClick={() => setShowEmailDialog(true)} className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold shadow-xs">
                   E-mail PDF
                 </Button>
               </div>

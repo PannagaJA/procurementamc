@@ -151,7 +151,7 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
               onValueChange={(value) => onPageSizeChange(parseInt(value))}
             >
               <SelectTrigger className="w-20 h-8">
-                <SelectValue />
+                <SelectValue placeholder="Select an option" />
               </SelectTrigger>
               <SelectContent>
                 {pageSizeOptions.map((size) => (

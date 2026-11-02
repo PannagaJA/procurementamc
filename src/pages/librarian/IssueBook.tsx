@@ -53,7 +53,7 @@ const IssueBook = () => {
           onChange={(e) => setMemberId(e.target.value)}
           className="w-full p-2 border rounded"
         >
-          <option value="">Select member</option>
+          <option value="">Select an option</option>
           {members.map((m) => (
             <option key={m.id} value={m.id}>
               {m.name} ({m.email})
@@ -65,7 +65,7 @@ const IssueBook = () => {
           onChange={(e) => setBookId(e.target.value)}
           className="w-full p-2 border rounded"
         >
-          <option value="">Select book</option>
+          <option value="">Select an option</option>
           {books.map((b) => (
             <option key={b.id} value={b.id}>
               {b.title} — {b.available} available

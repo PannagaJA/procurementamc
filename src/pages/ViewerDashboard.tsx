@@ -110,7 +110,7 @@ const ViewerDashboard = () => {
   if (loading) {
     return (
       <Layout>
-        <div className="container mx-auto py-12 px-4">
+        <div className="w-full max-w-full py-12">
           <div className="animate-pulse space-y-4">
             <div className="h-8 bg-gray-200 rounded w-1/3" />
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
@@ -127,7 +127,7 @@ const ViewerDashboard = () => {
 
   return (
     <Layout>
-      <div className="container mx-auto py-6 px-4">
+      <div className="w-full max-w-full py-6">
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">

@@ -261,10 +261,10 @@ const ViewerTickets = () => {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="secondary" onClick={exportCSV}>
+            <Button onClick={exportCSV} className="bg-[#0B1437] hover:bg-[#111f54] text-white font-bold rounded-full shadow-xs">
               Export to CSV
             </Button>
-            <Button variant="secondary" onClick={generateReportPdf}>
+            <Button onClick={generateReportPdf} className="bg-[#0B1437] hover:bg-[#111f54] text-white font-bold rounded-full shadow-xs">
               Export to PDF
             </Button>
           </div>

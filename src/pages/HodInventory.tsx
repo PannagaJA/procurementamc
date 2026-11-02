@@ -95,7 +95,7 @@ const HodInventory = () => {
 
   return (
     <Layout>
-      <div className="container mx-auto py-6 px-4">
+      <div className="w-full space-y-6">
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -116,9 +116,7 @@ const HodInventory = () => {
           </CardHeader>
           <CardContent>
             {loading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-              </div>
+              <div className="space-y-3 p-4">{[...Array(5)].map((_, i) => (<div key={i} className="h-12 w-full bg-muted/60 animate-pulse rounded-xl" />))}</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full table-fixed">

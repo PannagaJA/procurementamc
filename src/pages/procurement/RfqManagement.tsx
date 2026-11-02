@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { usePagination } from "@/hooks/use-pagination";
 import { PaginationControls } from "@/components/PaginationControls";
@@ -421,11 +422,11 @@ export default function RfqManagement() {
 
   return (
     <Layout>
-      <div className="max-w-6xl mx-auto space-y-6 pb-12">
+      <div className="w-full max-w-full space-y-6 pb-12">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200 mb-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-[#0B1437]/10 text-[#0B1437] mb-2">
               <FileText className="w-3.5 h-3.5" /> Request For Quotations
             </div>
             <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
@@ -446,19 +447,18 @@ export default function RfqManagement() {
                   setCreateOpen(true);
                   loadData();
                 }}
-                className="gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-sm"
+                className="gap-2 bg-[#0B1437] hover:bg-[#111f54] text-white shadow-sm rounded-full"
               >
                 <PlusCircle className="w-4 h-4" /> Create RFQ
               </Button>
             )}
             {(auth.hasRole("admin") || auth.hasRole("procurement_officer")) && (
               <Button
-                variant="outline"
                 onClick={() => setRateRfqOpen(true)}
-                className="gap-2"
+                className="gap-2 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold shadow-xs"
                 title="Collect at least 3 quotations to finalise rate-contract rates"
               >
-                <PlusCircle className="w-4 h-4" /> Rate contract RFQ
+                <PlusCircle className="w-4 h-4 text-white" /> Rate contract RFQ
               </Button>
             )}
           </div>
@@ -478,21 +478,27 @@ export default function RfqManagement() {
         {/* RFQ List */}
         <div className="space-y-4">
           {loading ? (
-            <div className="p-8 text-center text-slate-500">Loading RFQs...</div>
+            <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
           ) : rfqs.length === 0 ? (
-            <Card className="text-center p-8">
-              <p className="text-slate-500">
-                No RFQs created yet. Create one from an approved Purchase Requisition.
-              </p>
+            <Card className="border-slate-100 shadow-none">
+              <div className="flex flex-col items-center justify-center py-14 text-center px-8">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-14 h-14 mb-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5L12 3l9 7.5" /></svg>
+                <p className="text-base font-semibold text-slate-500">No data found</p>
+                <p className="text-sm text-slate-400 mt-1">No RFQs created yet. Create one from an approved Purchase Requisition.</p>
+              </div>
             </Card>
           ) : (
             (() => {
               const filteredRfqs = applyFilter(rfqs, rfqFilterOptions, rfqFilter);
               if (filteredRfqs.length === 0)
                 return (
-                  <Card className="text-center p-8 text-sm text-muted-foreground">
-                    No RFQs match this filter. Choose History or All to see others.
-                  </Card>
+                  <Card className="border-slate-100 shadow-none">
+                <div className="flex flex-col items-center justify-center py-12 text-center px-8">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
+                  <p className="text-sm font-semibold text-slate-500">No results match this filter</p>
+                  <p className="text-xs text-slate-400 mt-1">No RFQs match this filter. Choose History or All to see others.</p>
+                </div>
+              </Card>
                 );
               const startIndex = (pagination.page - 1) * pagination.pageSize;
               const paginatedRfqs = filteredRfqs.slice(
@@ -572,13 +578,12 @@ export default function RfqManagement() {
                               {rfq.quotation_lines && rfq.quotation_lines.length > 0 && (
                                 <Button
                                   size="sm"
-                                  variant="outline"
                                   onClick={() =>
                                     isRateRfq ? setRateQuotesRfq(rfq) : setViewQuotesRfq(rfq)
                                   }
-                                  className="gap-1.5 border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 shadow-sm"
+                                  className="gap-1.5 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold shadow-xs"
                                 >
-                                  <Eye className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                                  <Eye className="w-3.5 h-3.5 text-white" />
                                   View Quotations ({rfq.quotation_lines.length})
                                 </Button>
                               )}
@@ -590,7 +595,7 @@ export default function RfqManagement() {
                                     <Button
                                       size="sm"
                                       onClick={() => handleOpenSend(rfq)}
-                                      className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                      className="gap-1 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
                                     >
                                       <Send className="w-3.5 h-3.5" /> Invite Vendors
                                     </Button>
@@ -602,13 +607,12 @@ export default function RfqManagement() {
                                     ) && (
                                       <Button
                                         size="sm"
-                                        variant="outline"
                                         onClick={() => handleReemail(rfq)}
                                         disabled={reemailing === rfq.id}
-                                        className="gap-1"
+                                        className="gap-1 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold shadow-xs"
                                         title="Email a fresh link to every vendor who hasn't quoted yet"
                                       >
-                                        <Send className="w-3.5 h-3.5" />
+                                        <Send className="w-3.5 h-3.5 text-white" />
                                         {reemailing === rfq.id ? "Emailing..." : "Email vendors again"}
                                       </Button>
                                     )}
@@ -625,7 +629,7 @@ export default function RfqManagement() {
                                             ? "Waiting for vendor quotations"
                                             : "Choose a vendor and create the purchase order"
                                         }
-                                        className="gap-1 bg-teal-600 hover:bg-teal-700 text-white"
+                                        className="gap-1 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold"
                                       >
                                         <Award className="w-3.5 h-3.5" /> Award PO
                                       </Button>
@@ -914,7 +918,7 @@ export default function RfqManagement() {
                 disabled={
                   sending || selectedVendorIds.length < (activeRfq?.required_min_quotations || 3)
                 }
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold"
               >
                 {sending ? "Sending..." : `Send to ${selectedVendorIds.length} Vendors`}
               </Button>
@@ -1015,7 +1019,7 @@ export default function RfqManagement() {
                         !awardStoresChecked ||
                         (notLowest && !awardReason.trim())
                       }
-                      className="bg-teal-600 hover:bg-teal-700 text-white"
+                      className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold"
                     >
                       {awarding ? "Creating…" : "Create Purchase Order"}
                     </Button>
@@ -1093,8 +1097,12 @@ export default function RfqManagement() {
                 const quotes = viewQuotesRfq?.quotation_lines || [];
                 if (quotes.length === 0) {
                   return (
-                    <div className="p-8 text-center text-slate-500 border rounded-lg">
-                      No quotations submitted by vendors yet.
+                    <div className="py-12 text-center">
+                      <div className="flex flex-col items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5L12 3l9 7.5" /></svg>
+                        <p className="text-base font-semibold text-slate-500">No data found</p>
+                        <p className="text-sm text-slate-400 mt-1">No quotations submitted by vendors yet.</p>
+                      </div>
                     </div>
                   );
                 }
