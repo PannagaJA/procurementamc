@@ -379,11 +379,7 @@ const PrincipalApprovals = () => {
                           </Button>
                           {r.status === "pending_principal" ? (
                             <>
-                              <Button
-                                size="sm"
-                                className="ml-2"
-                                onClick={() => openActionDialog("approve", r)}
-                              >
+                              <Button size="sm" className="ml-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full font-semibold" onClick={() => openActionDialog("approve", r)}>
                                 Approve
                               </Button>
                               <Button
@@ -396,11 +392,11 @@ const PrincipalApprovals = () => {
                               </Button>
                             </>
                           ) : r.status === "procure-approved" || r.status === "service-approved" ? (
-                            <Button size="sm" className="ml-2 bg-green-100 text-green-800 dark:bg-green-950/60 dark:text-green-300" disabled>
+                            <Button size="sm" className="ml-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full font-semibold" disabled>
                               Approved
                             </Button>
                           ) : r.status === "procure-rejected" || r.status === "service-rejected" ? (
-                            <Button size="sm" className="ml-2 bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300" disabled>
+                            <Button size="sm" className="ml-2 bg-rose-50 text-rose-700 border border-rose-200 rounded-full font-semibold" disabled>
                               Rejected
                             </Button>
                           ) : null}

@@ -357,7 +357,7 @@ export default function EmergencyProcurement() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200 mb-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-[#0B1437]/10 text-[#0B1437] mb-2">
               <Zap className="w-3.5 h-3.5 text-amber-600" /> Emergency Procurement Governance
             </div>
             <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
@@ -1112,7 +1112,7 @@ export default function EmergencyProcurement() {
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setAuditModalOpen(false)}>Cancel</Button>
-              <Button onClick={handleExportAudit} className="bg-amber-600 hover:bg-amber-700 text-white gap-1.5">
+              <Button onClick={handleExportAudit} className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1.5 rounded-full font-bold">
                 <Download className="w-3.5 h-3.5" /> Download {auditExportFormat.toUpperCase()} Report
               </Button>
             </DialogFooter>

@@ -309,7 +309,7 @@ export default function InvoiceManagement() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200 mb-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-[#0B1437]/10 text-[#0B1437] mb-2">
               <Receipt className="w-3.5 h-3.5" /> Finance Three-Way Match & Payment Gate
             </div>
             <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">

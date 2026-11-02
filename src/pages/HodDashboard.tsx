@@ -402,7 +402,7 @@ const HodDashboard = () => {
                   size="sm"
                   variant="outline"
                   onClick={() => navigate({ to: "/procurement/approvals" })}
-                  className="bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800"
+                  className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold shadow-xs"
                 >
                   Procurement Approvals
                 </Button>
@@ -512,7 +512,7 @@ const HodDashboard = () => {
                     size="sm"
                     variant="outline"
                     onClick={() => navigate({ to: "/procurement/approvals" })}
-                    className="bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800 text-xs h-8 gap-1.5"
+                    className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold shadow-xs text-xs h-8 gap-1.5"
                   >
                     Open My Approvals <ArrowRight className="w-3.5 h-3.5" />
                   </Button>
