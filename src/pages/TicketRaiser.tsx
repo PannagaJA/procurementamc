@@ -29,7 +29,7 @@ const TicketRaiser = () => {
     email: "",
     contactNumber: "",
     department: "",
-    issueCategory: "inventory",
+    issueCategory: "",
     issueDescription: "",
     priority: "medium",
   });
@@ -164,6 +164,14 @@ const TicketRaiser = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.issueCategory) {
+      toast({
+        title: "Category Required",
+        description: "Please select an option for Issue Category.",
+        variant: "destructive",
+      });
+      return;
+    }
     setSubmitting(true);
 
     try {
@@ -228,7 +236,7 @@ const TicketRaiser = () => {
       setFormData((prev) => ({
         ...prev,
         contactNumber: "",
-        issueCategory: "inventory",
+        issueCategory: "",
         issueDescription: "",
         priority: "medium",
       }));
@@ -315,11 +323,11 @@ const TicketRaiser = () => {
               <div className="space-y-2">
                 <Label htmlFor="issueCategory">Issue Category</Label>
                 <Select
-                  value={formData.issueCategory}
+                  value={categories.some((c) => c.value === formData.issueCategory) ? formData.issueCategory : undefined}
                   onValueChange={(value) => handleChange({ name: "issueCategory", value })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select issue category" />
+                    <SelectValue placeholder="Select an option" />
                   </SelectTrigger>
                   <SelectContent>
                     {categoriesLoading ? (
