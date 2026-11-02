@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { usePagination } from "@/hooks/use-pagination";
 import { PaginationControls } from "@/components/PaginationControls";
@@ -304,11 +305,11 @@ export default function InvoiceManagement() {
 
   return (
     <Layout>
-      <div className="max-w-6xl mx-auto space-y-6 pb-12">
+      <div className="w-full max-w-full space-y-6 pb-12">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200 mb-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-[#0B1437]/10 text-[#0B1437] mb-2">
               <Receipt className="w-3.5 h-3.5" /> Finance Three-Way Match & Payment Gate
             </div>
             <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
@@ -324,15 +325,14 @@ export default function InvoiceManagement() {
             {(auth.hasRole("admin") || auth.hasRole("finance")) && (
               <>
                 <Button
-                  variant="outline"
                   onClick={() => setGlModalOpen(true)}
-                  className="gap-2 border-indigo-300 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950 shadow-sm"
+                  className="gap-2 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold shadow-xs transition-all"
                 >
-                  <Database className="w-4 h-4 text-indigo-600" /> GL Handoff (Tally / SAP)
+                  <Database className="w-4 h-4 text-white" /> GL Handoff (Tally / SAP)
                 </Button>
                 <Button
                   onClick={() => setSubmitOpen(true)}
-                  className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                  className="gap-2 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold shadow-xs transition-all"
                 >
                   <PlusCircle className="w-4 h-4" /> Submit Invoice
                 </Button>
@@ -355,12 +355,14 @@ export default function InvoiceManagement() {
         {/* Invoices List */}
         <div className="space-y-4">
           {loading ? (
-            <div className="p-8 text-center text-slate-500">Loading invoices...</div>
+            <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
           ) : invoices.length === 0 ? (
-            <Card className="text-center p-8">
-              <p className="text-slate-500">
-                No invoices submitted yet. Submit an invoice against an issued Purchase Order.
-              </p>
+            <Card className="border-slate-100 shadow-none">
+              <div className="flex flex-col items-center justify-center py-14 text-center px-8">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-14 h-14 mb-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5L12 3l9 7.5" /></svg>
+                <p className="text-base font-semibold text-slate-500">No data found</p>
+                <p className="text-sm text-slate-400 mt-1">No invoices submitted yet. Submit an invoice against an issued Purchase Order.</p>
+              </div>
             </Card>
           ) : (
             (() => {
@@ -368,11 +370,13 @@ export default function InvoiceManagement() {
 
               if (filteredInvoices.length === 0) {
                 return (
-                  <Card className="text-center p-8">
-                    <p className="text-slate-500">
-                      No invoices found under the selected &quot;{invoiceFilterOptions.find((o) => o.id === statusFilter)?.label}&quot; status filter.
-                    </p>
-                  </Card>
+                  <Card className="border-slate-100 shadow-none">
+              <div className="flex flex-col items-center justify-center py-14 text-center px-8">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-14 h-14 mb-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5L12 3l9 7.5" /></svg>
+                <p className="text-base font-semibold text-slate-500">No data found</p>
+                <p className="text-sm text-slate-400 mt-1">No invoices found under the selected &quot;{invoiceFilterOptions.find((o) => o.id === statusFilter)?.label}&quot; status filter.</p>
+              </div>
+            </Card>
                 );
               }
 
@@ -536,7 +540,7 @@ export default function InvoiceManagement() {
                                       size="sm"
                                       onClick={() => handleApprove(inv)}
                                       disabled={acting}
-                                      className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                      className="gap-1 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
                                     >
                                       <CheckCircle2 className="w-3.5 h-3.5" /> Approve Invoice
                                     </Button>
@@ -546,7 +550,7 @@ export default function InvoiceManagement() {
                                       size="sm"
                                       onClick={() => handleOpenPay(inv)}
                                       disabled={acting}
-                                      className="gap-1 bg-indigo-600 hover:bg-indigo-700 text-white"
+                                      className="gap-1 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full"
                                     >
                                       <CreditCard className="w-3.5 h-3.5" /> Record Payment
                                     </Button>
@@ -903,7 +907,7 @@ export default function InvoiceManagement() {
               <Button
                 onClick={handleSubmitInvoice}
                 disabled={submitting || !selectedPoId || !invoiceNumber.trim()}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold"
               >
                 {submitting ? "Verifying..." : "Submit & Run 3-Way Match"}
               </Button>
@@ -936,7 +940,7 @@ export default function InvoiceManagement() {
                   <Label>Payment Mode</Label>
                   <Select value={paymentMode} onValueChange={(v: any) => setPaymentMode(v)}>
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="Select an option" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="bank_transfer">Bank Transfer / NEFT</SelectItem>
@@ -988,7 +992,7 @@ export default function InvoiceManagement() {
               <Button
                 onClick={handleRecordPayment}
                 disabled={paying || Number(payAmount) <= 0}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full"
               >
                 {paying ? "Releasing..." : "Confirm Payment Release"}
               </Button>

@@ -166,7 +166,7 @@ export default function Architecture() {
             <Button
               size="sm"
               onClick={() => navigate({ to: "/procurement" })}
-              className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5 text-xs font-semibold rounded-lg shadow-sm h-8 sm:h-9 px-2.5 sm:px-3.5"
+              className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1.5 text-xs font-bold rounded-full shadow-xs h-8 sm:h-9 px-3 sm:px-4"
             >
               <Home className="w-3.5 h-3.5 shrink-0" />
               <span className="hidden sm:inline">Enter Platform</span>

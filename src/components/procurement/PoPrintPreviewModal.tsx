@@ -137,7 +137,7 @@ export function PoPrintPreviewModal({ open, onOpenChange, po }: PoPrintPreviewMo
                 size="sm"
                 onClick={handleDownloadPdf}
                 disabled={downloading}
-                className="gap-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white hover:text-white shadow-sm transition-colors"
+                className="gap-1.5 text-xs bg-[#0B1437] hover:bg-[#111f54] text-white hover:text-white shadow-xs rounded-full font-semibold transition-colors"
               >
                 <Download className="w-3.5 h-3.5" />
                 {downloading ? "Generating..." : "Download Formal PDF"}

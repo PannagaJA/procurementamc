@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { usePagination } from "@/hooks/use-pagination";
 import { PaginationControls } from "@/components/PaginationControls";
@@ -352,11 +353,11 @@ export default function EmergencyProcurement() {
 
   return (
     <Layout>
-      <div className="max-w-6xl mx-auto space-y-6 pb-12">
+      <div className="w-full max-w-full space-y-6 pb-12">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200 mb-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-[#0B1437]/10 text-[#0B1437] mb-2">
               <Zap className="w-3.5 h-3.5 text-amber-600" /> Emergency Procurement Governance
             </div>
             <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
@@ -370,15 +371,14 @@ export default function EmergencyProcurement() {
 
           <div className="flex items-center gap-2">
             <Button
-              variant="outline"
               onClick={() => setAuditModalOpen(true)}
-              className="gap-2 border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+              className="gap-2 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold shadow-xs transition-all"
             >
-              <Download className="w-4 h-4 text-slate-600 dark:text-slate-400" /> Quarterly Audit Report
+              <Download className="w-4 h-4 text-white" /> Quarterly Audit Report
             </Button>
             <Button
               onClick={() => setRequestOpen(true)}
-              className="gap-2 bg-amber-600 hover:bg-amber-700 text-white shadow-sm"
+              className="gap-2 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold shadow-xs transition-all"
             >
               <PlusCircle className="w-4 h-4" /> Request Emergency Procurement
             </Button>
@@ -473,12 +473,14 @@ export default function EmergencyProcurement() {
         {/* Emergency Procurements List */}
         <div className="space-y-4">
           {loading ? (
-            <div className="p-8 text-center text-slate-500">Loading emergency register...</div>
+            <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
           ) : (data?.emergencyProcurements || []).length === 0 ? (
-            <Card className="text-center p-8">
-              <p className="text-slate-500">
-                No emergency procurements registered for this financial year.
-              </p>
+            <Card className="border-slate-100 shadow-none">
+              <div className="flex flex-col items-center justify-center py-14 text-center px-8">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-14 h-14 mb-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5L12 3l9 7.5" /></svg>
+                <p className="text-base font-semibold text-slate-500">No data found</p>
+                <p className="text-sm text-slate-400 mt-1">No emergency procurements registered for this financial year.</p>
+              </div>
             </Card>
           ) : (
             (() => {
@@ -539,7 +541,7 @@ export default function EmergencyProcurement() {
                                     size="sm"
                                     onClick={() => handleApprove(ep)}
                                     disabled={acting}
-                                    className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                    className="gap-1 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
                                   >
                                     <CheckCircle2 className="w-3.5 h-3.5" /> EVP Authorize
                                   </Button>
@@ -1073,7 +1075,7 @@ export default function EmergencyProcurement() {
                 <Label className="text-xs font-semibold">Audit Quarter</Label>
                 <Select value={selectedQuarter} onValueChange={(v: any) => setSelectedQuarter(v)}>
                   <SelectTrigger className="text-xs">
-                    <SelectValue />
+                    <SelectValue placeholder="Select an option" />
                   </SelectTrigger>
                   <SelectContent>
                     {FISCAL_QUARTERS.map((q) => (
@@ -1087,7 +1089,7 @@ export default function EmergencyProcurement() {
                 <Label className="text-xs font-semibold">Export Document Format</Label>
                 <Select value={auditExportFormat} onValueChange={(v: any) => setAuditExportFormat(v)}>
                   <SelectTrigger className="text-xs">
-                    <SelectValue />
+                    <SelectValue placeholder="Select an option" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="pdf">Official PDF Audit Register (Signed Columns)</SelectItem>
@@ -1109,7 +1111,7 @@ export default function EmergencyProcurement() {
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setAuditModalOpen(false)}>Cancel</Button>
-              <Button onClick={handleExportAudit} className="bg-amber-600 hover:bg-amber-700 text-white gap-1.5">
+              <Button onClick={handleExportAudit} className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1.5 rounded-full font-bold">
                 <Download className="w-3.5 h-3.5" /> Download {auditExportFormat.toUpperCase()} Report
               </Button>
             </DialogFooter>

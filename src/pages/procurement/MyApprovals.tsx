@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { getMyPendingApprovals, getMyApprovalHistory } from "@/lib/procurement/approvals.functions";
 import { approvePr, rejectPr, escalateToEvp } from "@/lib/procurement/pr.functions";
@@ -362,11 +363,11 @@ export default function MyApprovals() {
 
   return (
     <Layout>
-      <div className="max-w-6xl mx-auto space-y-6 pb-12">
+      <div className="w-full max-w-full space-y-6 pb-12">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-200 mb-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-[#0B1437]/10 text-[#0B1437] mb-2">
               <UserCheck className="w-3.5 h-3.5" /> Approvals
             </div>
             <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
@@ -428,10 +429,14 @@ export default function MyApprovals() {
           {/* Requisitions Tab */}
           <TabsContent value="prs" className="space-y-3">
             {loading ? (
-              <div className="p-8 text-center text-slate-500">Loading pending requisitions...</div>
+              <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
             ) : (data?.prs || []).length === 0 ? (
-              <Card className="p-8 text-center text-slate-500">
-                No purchase requisitions awaiting your approval.
+              <Card className="p-8 text-center border-slate-100">
+                <div className="flex flex-col items-center justify-center py-6">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                  <p className="text-base font-semibold text-slate-500">No data found</p>
+                  <p className="text-sm text-slate-400 mt-1">No purchase requisitions awaiting your approval.</p>
+                </div>
               </Card>
             ) : (
               data?.prs?.map((pr: any) => (
@@ -465,7 +470,7 @@ export default function MyApprovals() {
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(pr, "pr_approve")}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                        className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 rounded-full font-semibold"
                       >
                         <CheckCircle className="w-3.5 h-3.5" /> Approve
                       </Button>
@@ -516,12 +521,14 @@ export default function MyApprovals() {
           {/* Comparative Statements Tab */}
           <TabsContent value="css" className="space-y-3">
             {loading ? (
-              <div className="p-8 text-center text-slate-500">
-                Loading comparative statements...
-              </div>
+              <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
             ) : (data?.comparativeStatements || []).length === 0 ? (
-              <Card className="p-8 text-center text-slate-500">
-                No comparative statements awaiting your review.
+              <Card className="p-8 text-center border-slate-100">
+                <div className="flex flex-col items-center justify-center py-6">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                  <p className="text-base font-semibold text-slate-500">No data found</p>
+                  <p className="text-sm text-slate-400 mt-1">No comparative statements awaiting your review.</p>
+                </div>
               </Card>
             ) : (
               data?.comparativeStatements?.map((cs: any) => (
@@ -546,7 +553,7 @@ export default function MyApprovals() {
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(cs, "cs_approve")}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                        className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 rounded-full font-semibold"
                       >
                         <CheckCircle className="w-3.5 h-3.5" /> Approve CS
                       </Button>
@@ -582,10 +589,14 @@ export default function MyApprovals() {
           {/* Purchase Orders Tab */}
           <TabsContent value="pos" className="space-y-3">
             {loading ? (
-              <div className="p-8 text-center text-slate-500">Loading purchase orders...</div>
+              <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
             ) : (data?.purchaseOrders || []).length === 0 ? (
-              <Card className="p-8 text-center text-slate-500">
-                No purchase orders awaiting your approval.
+              <Card className="p-8 text-center border-slate-100">
+                <div className="flex flex-col items-center justify-center py-6">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                  <p className="text-base font-semibold text-slate-500">No data found</p>
+                  <p className="text-sm text-slate-400 mt-1">No purchase orders awaiting your approval.</p>
+                </div>
               </Card>
             ) : (
               data?.purchaseOrders?.map((po: any) => (
@@ -612,7 +623,7 @@ export default function MyApprovals() {
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(po, "po_approve")}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                        className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 rounded-full font-semibold"
                       >
                         <CheckCircle className="w-3.5 h-3.5" /> Approve PO
                       </Button>
@@ -646,10 +657,14 @@ export default function MyApprovals() {
           {/* Amendments Tab */}
           <TabsContent value="amendments" className="space-y-3">
             {loading ? (
-              <div className="p-8 text-center text-slate-500">Loading amendments...</div>
+              <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
             ) : (data?.amendments || []).length === 0 ? (
-              <Card className="p-8 text-center text-slate-500">
-                No order amendments requiring re-approval.
+              <Card className="p-8 text-center border-slate-100">
+                <div className="flex flex-col items-center justify-center py-6">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                  <p className="text-base font-semibold text-slate-500">No data found</p>
+                  <p className="text-sm text-slate-400 mt-1">No order amendments requiring re-approval.</p>
+                </div>
               </Card>
             ) : (
               data?.amendments?.map((am: any) => (
@@ -674,7 +689,7 @@ export default function MyApprovals() {
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(am, "am_approve")}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                        className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 rounded-full font-semibold"
                       >
                         <CheckCircle className="w-3.5 h-3.5" /> Approve Amendment
                       </Button>
@@ -702,10 +717,14 @@ export default function MyApprovals() {
           {/* Invoices Tab */}
           <TabsContent value="invoices" className="space-y-3">
             {loading ? (
-              <div className="p-8 text-center text-slate-500">Loading matched invoices...</div>
+              <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
             ) : (data?.invoices || []).length === 0 ? (
-              <Card className="p-8 text-center text-slate-500">
-                No invoices awaiting approval.
+              <Card className="p-8 text-center border-slate-100">
+                <div className="flex flex-col items-center justify-center py-6">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                  <p className="text-base font-semibold text-slate-500">No data found</p>
+                  <p className="text-sm text-slate-400 mt-1">No invoices awaiting approval.</p>
+                </div>
               </Card>
             ) : (
               data?.invoices?.map((inv: any) => (
@@ -744,7 +763,7 @@ export default function MyApprovals() {
                           <Button
                             size="sm"
                             onClick={() => handleOpenAction(inv, "dev_approve")}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                            className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 rounded-full font-semibold"
                           >
                             <CheckCircle className="w-3.5 h-3.5" /> Accept Difference
                           </Button>
@@ -756,7 +775,7 @@ export default function MyApprovals() {
                         <Button
                           size="sm"
                           onClick={() => handleOpenAction(inv, "inv_approve")}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                          className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 rounded-full font-semibold"
                         >
                           <CheckCircle className="w-3.5 h-3.5" /> Approve for Payment
                         </Button>
@@ -771,10 +790,14 @@ export default function MyApprovals() {
           {/* Emergency Tab */}
           <TabsContent value="emergency" className="space-y-3">
             {loading ? (
-              <div className="p-8 text-center text-slate-500">Loading emergency requests...</div>
+              <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
             ) : (data?.emergencyProcurements || []).length === 0 ? (
-              <Card className="p-8 text-center text-slate-500">
-                No emergency procurements awaiting EVP authorization.
+              <Card className="p-8 text-center border-slate-100">
+                <div className="flex flex-col items-center justify-center py-6">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                  <p className="text-base font-semibold text-slate-500">No data found</p>
+                  <p className="text-sm text-slate-400 mt-1">No emergency procurements awaiting EVP authorization.</p>
+                </div>
               </Card>
             ) : (
               data?.emergencyProcurements?.map((ep: any) => (
@@ -796,7 +819,7 @@ export default function MyApprovals() {
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(ep, "ep_approve")}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                        className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 rounded-full font-semibold"
                       >
                         <CheckCircle className="w-3.5 h-3.5" /> Authorize
                       </Button>
@@ -828,10 +851,14 @@ export default function MyApprovals() {
           {/* Rate Contracts Tab (SOP Section VI: approved by the EVP, from 3+ quotations) */}
           <TabsContent value="rateContracts" className="space-y-3">
             {loading ? (
-              <div className="p-8 text-center text-slate-500">Loading rate contracts...</div>
+              <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
             ) : (data?.rateContracts || []).length === 0 ? (
-              <Card className="p-8 text-center text-slate-500">
-                No rate contracts awaiting EVP approval.
+              <Card className="p-8 text-center border-slate-100">
+                <div className="flex flex-col items-center justify-center py-6">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                  <p className="text-base font-semibold text-slate-500">No data found</p>
+                  <p className="text-sm text-slate-400 mt-1">No rate contracts awaiting EVP approval.</p>
+                </div>
               </Card>
             ) : (
               data?.rateContracts?.map((rc: any) => (
@@ -858,7 +885,7 @@ export default function MyApprovals() {
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(rc, "rc_approve")}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                        className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 rounded-full font-semibold"
                       >
                         <CheckCircle className="w-3.5 h-3.5" /> Approve
                       </Button>
@@ -923,7 +950,7 @@ export default function MyApprovals() {
             {/* Filter by Type */}
             <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-slate-200 dark:border-slate-800">
               <Button
-                variant={historyTypeFilter === "all" ? "default" : "outline"}
+                variant={historyTypeFilter === "all" ? "default" : "outline"} className="rounded-full"
                 size="sm"
                 onClick={() => setHistoryTypeFilter("all")}
                 className="text-xs h-8 gap-1.5"
@@ -937,7 +964,7 @@ export default function MyApprovals() {
                 </Badge>
               </Button>
               <Button
-                variant={historyTypeFilter === "prs" ? "default" : "outline"}
+                variant={historyTypeFilter === "prs" ? "default" : "outline"} className="rounded-full"
                 size="sm"
                 onClick={() => setHistoryTypeFilter("prs")}
                 className="text-xs h-8 gap-1.5 text-blue-600 dark:text-blue-400"
@@ -948,7 +975,7 @@ export default function MyApprovals() {
                 </Badge>
               </Button>
               <Button
-                variant={historyTypeFilter === "css" ? "default" : "outline"}
+                variant={historyTypeFilter === "css" ? "default" : "outline"} className="rounded-full"
                 size="sm"
                 onClick={() => setHistoryTypeFilter("css")}
                 className="text-xs h-8 gap-1.5 text-emerald-600 dark:text-emerald-400"
@@ -959,7 +986,7 @@ export default function MyApprovals() {
                 </Badge>
               </Button>
               <Button
-                variant={historyTypeFilter === "pos" ? "default" : "outline"}
+                variant={historyTypeFilter === "pos" ? "default" : "outline"} className="rounded-full"
                 size="sm"
                 onClick={() => setHistoryTypeFilter("pos")}
                 className="text-xs h-8 gap-1.5 text-indigo-600 dark:text-indigo-400"
@@ -970,7 +997,7 @@ export default function MyApprovals() {
                 </Badge>
               </Button>
               <Button
-                variant={historyTypeFilter === "invoices" ? "default" : "outline"}
+                variant={historyTypeFilter === "invoices" ? "default" : "outline"} className="rounded-full"
                 size="sm"
                 onClick={() => setHistoryTypeFilter("invoices")}
                 className="text-xs h-8 gap-1.5 text-teal-600 dark:text-teal-400"
@@ -981,7 +1008,7 @@ export default function MyApprovals() {
                 </Badge>
               </Button>
               <Button
-                variant={historyTypeFilter === "rateContracts" ? "default" : "outline"}
+                variant={historyTypeFilter === "rateContracts" ? "default" : "outline"} className="rounded-full"
                 size="sm"
                 onClick={() => setHistoryTypeFilter("rateContracts")}
                 className="text-xs h-8 gap-1.5 text-violet-600 dark:text-violet-400"
@@ -1019,9 +1046,13 @@ export default function MyApprovals() {
               const totalItems = prs.length + css.length + pos.length + invs.length + rcs.length;
               if (totalItems === 0) {
                 return (
-                  <Card className="p-8 text-center text-slate-500">
-                    No approval history found for your role or department yet.
-                  </Card>
+                  <Card className="p-8 text-center border-slate-100">
+                <div className="flex flex-col items-center justify-center py-6">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                  <p className="text-base font-semibold text-slate-500">No data found</p>
+                  <p className="text-sm text-slate-400 mt-1">No approval history found for your role or department yet.</p>
+                </div>
+              </Card>
                 );
               }
 
@@ -1328,9 +1359,7 @@ export default function MyApprovals() {
                 onClick={handleExecuteAction}
                 disabled={acting || (dialogType.includes("reject") && !remarks.trim())}
                 className={
-                  dialogType.includes("reject")
-                    ? "bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
-                    : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                  dialogType.includes("reject") ? "bg-rose-500 hover:bg-rose-600 text-white rounded-full font-semibold" : "bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
                 }
               >
                 {acting ? "Processing..." : "Confirm"}

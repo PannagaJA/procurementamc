@@ -113,7 +113,7 @@ export function NewRateRfqDialog({
               <Label>Category *</Label>
               <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select an option" />
                 </SelectTrigger>
                 <SelectContent>
                   {RATE_CONTRACT_CATEGORIES.map((c) => (
@@ -356,7 +356,7 @@ export function RateQuotesDialog({
                     <Label>Vendor</Label>
                     <Select value={chosen} onValueChange={setVendorId}>
                       <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue placeholder="Select an option" />
                       </SelectTrigger>
                       <SelectContent>
                         {ranked.map((q, i) => (

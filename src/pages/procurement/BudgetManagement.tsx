@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import {
   getBudgetOverview,
@@ -120,10 +121,10 @@ export default function BudgetManagement() {
 
   return (
     <Layout>
-      <div className="max-w-6xl mx-auto space-y-6 pb-12">
+      <div className="w-full max-w-full space-y-6 pb-12">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b pb-5">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 mb-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-[#0B1437]/10 text-[#0B1437] mb-2">
               <Wallet className="w-3.5 h-3.5" /> Annual budget
             </div>
             <h1 className="text-3xl font-extrabold tracking-tight">Budgets</h1>
@@ -136,7 +137,7 @@ export default function BudgetManagement() {
             <Label className="text-xs">Financial year</Label>
             <Select value={fy} onValueChange={setFy}>
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue placeholder="Select an option" />
               </SelectTrigger>
               <SelectContent>
                 {fyOptions().map((o) => (
@@ -172,7 +173,7 @@ export default function BudgetManagement() {
         </div>
 
         {loading && !data ? (
-          <p className="text-center text-muted-foreground py-10">Loading budgets...</p>
+          <div className="space-y-3 p-4">{[...Array(3)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
         ) : (
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList className="flex flex-wrap h-auto">
@@ -236,10 +237,13 @@ function HeadsTable({
 }) {
   if (!heads.length)
     return (
-      <Card className="p-8 text-center text-muted-foreground text-sm">
-        No budget heads for FY {fy} yet. They appear when the EVP approves a department's budget, or
-        when Finance enters an opening budget.
-      </Card>
+      <Card className="border-slate-100 shadow-none">
+      <div className="flex flex-col items-center justify-center py-14 text-center px-8">
+        <svg xmlns="http://www.w3.org/2000/svg" className="w-14 h-14 mb-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        <p className="text-base font-semibold text-slate-500">No budget heads for FY {fy}</p>
+        <p className="text-sm text-slate-400 mt-1">They appear when the EVP approves a department's budget, or when Finance enters an opening budget.</p>
+      </div>
+    </Card>
     );
   const byDept = heads.reduce((m: Record<string, any[]>, h) => {
     (m[h.department_name] ??= []).push(h);
@@ -350,7 +354,7 @@ function LedgerDialog({ head, onClose }: { head: any; onClose: () => void }) {
           </DialogDescription>
         </DialogHeader>
         {entries === null ? (
-          <p className="text-sm text-muted-foreground">Loading...</p>
+          <div className="space-y-3 p-4">{[...Array(2)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
         ) : entries.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             Nothing has been charged to this head yet.
@@ -474,7 +478,7 @@ function ProposalEditor({
             {departments.length > 1 && (
               <Select value={deptId} onValueChange={setDeptId}>
                 <SelectTrigger className="w-56">
-                  <SelectValue />
+                  <SelectValue placeholder="Select an option" />
                 </SelectTrigger>
                 <SelectContent>
                   {departments.map((d) => (
@@ -552,7 +556,7 @@ function ProposalEditor({
                     disabled={!editable}
                   >
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="Select an option" />
                     </SelectTrigger>
                     <SelectContent>
                       {BUDGET_CATEGORIES.map((c) => (
@@ -760,7 +764,7 @@ function Approvals({
                       <>
                         <Button
                           size="sm"
-                          className="gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                          className="gap-1 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
                           onClick={() => {
                             setRemarks("");
                             setDialog({ kind: "approve", proposal: p });

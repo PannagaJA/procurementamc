@@ -1,3 +1,4 @@
+import { FormPageSkeleton } from "@/components/ui/page-skeleton";
 import { useState, useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "../integrations/supabase/client";
@@ -28,7 +29,7 @@ const TicketRaiser = () => {
     email: "",
     contactNumber: "",
     department: "",
-    issueCategory: "inventory",
+    issueCategory: "",
     issueDescription: "",
     priority: "medium",
   });
@@ -163,6 +164,14 @@ const TicketRaiser = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.issueCategory) {
+      toast({
+        title: "Category Required",
+        description: "Please select an option for Issue Category.",
+        variant: "destructive",
+      });
+      return;
+    }
     setSubmitting(true);
 
     try {
@@ -227,7 +236,7 @@ const TicketRaiser = () => {
       setFormData((prev) => ({
         ...prev,
         contactNumber: "",
-        issueCategory: "inventory",
+        issueCategory: "",
         issueDescription: "",
         priority: "medium",
       }));
@@ -244,18 +253,12 @@ const TicketRaiser = () => {
   };
 
   if (loading) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
-        </div>
-      </Layout>
-    );
+    return <FormPageSkeleton />;
   }
 
   return (
     <Layout>
-      <div className="container mx-auto py-8 px-4 max-w-2xl">
+      <div className="w-full">
         <Card>
           <CardHeader>
             <CardTitle>Raise New Ticket</CardTitle>
@@ -320,11 +323,11 @@ const TicketRaiser = () => {
               <div className="space-y-2">
                 <Label htmlFor="issueCategory">Issue Category</Label>
                 <Select
-                  value={formData.issueCategory}
+                  value={categories.some((c) => c.value === formData.issueCategory) ? formData.issueCategory : undefined}
                   onValueChange={(value) => handleChange({ name: "issueCategory", value })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select issue category" />
+                    <SelectValue placeholder="Select an option" />
                   </SelectTrigger>
                   <SelectContent>
                     {categoriesLoading ? (
