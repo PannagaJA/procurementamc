@@ -804,11 +804,7 @@ export default function ComparativeStatements() {
                         vendorQuotes.length < (selectedRfq?.required_min_quotations || 3) ||
                         hasCostOverrun
                       }
-<<<<<<< HEAD
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white"
-=======
                       className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold"
->>>>>>> main
                     >
                       {submitting ? "Submitting..." : "Submit CS for Approval"}
                     </Button>
