@@ -64,8 +64,9 @@ export default function MyApprovals() {
   const [historyTypeFilter, setHistoryTypeFilter] = useState<"all" | "prs" | "pos" | "css" | "invoices">("all");
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
-  // PR Amendment State (SOP §8.4 & §6)
-const [dialogOpen, setDialogOpen] = useState(false);
+
+  // Decision Modal
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogType, setDialogType] = useState<
     | "pr_approve"
     | "pr_reject"
