@@ -195,14 +195,16 @@ html {
   scrollbar-color: rgba(100, 116, 139, 0.25) transparent;
 }
 
-/* Phone View Popup Rules (90% width and 90% max height) */
+/* Phone View Popup Rules (90% width and 90% max height for modals) */
 @media (max-width: 639px) {
   body {
     overflow-x: hidden;
     max-width: 100vw;
   }
 
-  [role="dialog"],
+  /* Only modal dialogs with backdrop overlays — exclude anchored poppers (popovers, dropdowns, tooltips) */
+  div[role="dialog"]:not([data-radix-popper-side]):not([data-radix-popper-content-wrapper] *):not([data-side]),
+  div[role="alertdialog"],
   [data-radix-dialog-content],
   [data-radix-alert-dialog-content] {
     width: 90vw !important;
@@ -210,18 +212,18 @@ html {
     max-height: 90vh !important;
     overflow-y: auto !important;
     border-radius: 1.25rem !important;
-    margin: auto !important;
-    left: 50% !important;
-    top: 50% !important;
-    transform: translate(-50%, -50%) !important;
-    padding: 1.25rem !important;
   }
+}
 
-  [data-radix-popover-content] {
-    width: 90vw !important;
-    max-width: 90vw !important;
-    max-height: 90vh !important;
-    overflow-y: auto !important;
-    border-radius: 1.25rem !important;
-  }
+/* Ensure Radix Popper elements (popovers, dropdowns, tooltips) preserve their anchor positioning */
+[data-radix-popper-content-wrapper] {
+  z-index: 50 !important;
+}
+
+[data-radix-popper-content-wrapper] [role="dialog"],
+[data-radix-popper-side] {
+  left: auto !important;
+  top: auto !important;
+  transform: none !important;
+  margin: 0 !important;
 }
