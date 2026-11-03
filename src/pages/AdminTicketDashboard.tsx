@@ -989,32 +989,34 @@ const AdminTicketDashboard = () => {
       <div className="w-full space-y-6">
         <Card>
           <CardHeader>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full">
-              <div>
-                <h2 className="text-xl font-semibold">My Open Tickets Report</h2>
-                <p className="text-sm text-muted-foreground">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 w-full">
+              <div className="min-w-0">
+                <h2 className="text-xl font-semibold break-words">My Open Tickets Report</h2>
+                <p className="text-sm text-muted-foreground break-words mt-0.5">
                   Manage and update all raised tickets
                 </p>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <label className="flex items-center gap-2 text-sm">
+              <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+                <label className="flex items-center gap-2 text-sm cursor-pointer select-none py-1">
                   <input
                     type="checkbox"
-                    className="form-checkbox"
+                    className="form-checkbox h-4 w-4 rounded border-gray-300 text-[#0B1437] focus:ring-[#0B1437]"
                     checked={showFiltersLocal}
                     onChange={(e) => setShowFiltersLocal(e.target.checked)}
                   />{" "}
                   Show Filters
                 </label>
-                <Button size="sm" onClick={() => exportCSV()} className="bg-[#0B1437] hover:bg-[#111f54] text-white font-bold rounded-full shadow-xs text-xs sm:text-sm">
-                  Export to CSV
-                </Button>
-                <Button size="sm" onClick={generateReport} className="bg-[#0B1437] hover:bg-[#111f54] text-white font-bold rounded-full shadow-xs text-xs sm:text-sm">
-                  Export to PDF
-                </Button>
-                <Button size="sm" onClick={() => setShowEmailDialog(true)} className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold shadow-xs text-xs sm:text-sm">
-                  E-mail PDF
-                </Button>
+                <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+                  <Button size="sm" onClick={() => exportCSV()} className="bg-[#0B1437] hover:bg-[#111f54] text-white font-semibold rounded-full shadow-xs text-xs sm:text-sm px-3.5 py-1.5">
+                    Export to CSV
+                  </Button>
+                  <Button size="sm" onClick={generateReport} className="bg-[#0B1437] hover:bg-[#111f54] text-white font-semibold rounded-full shadow-xs text-xs sm:text-sm px-3.5 py-1.5">
+                    Export to PDF
+                  </Button>
+                  <Button size="sm" onClick={() => setShowEmailDialog(true)} className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold shadow-xs text-xs sm:text-sm px-3.5 py-1.5">
+                    E-mail PDF
+                  </Button>
+                </div>
               </div>
             </div>
           </CardHeader>

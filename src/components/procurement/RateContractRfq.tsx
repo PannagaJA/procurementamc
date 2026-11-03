@@ -5,6 +5,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -182,7 +183,7 @@ export function NewRateRfqDialog({
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label>Quotation deadline</Label>
-              <Input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+              <DatePicker value={deadline} onChange={setDeadline} placeholder="Select deadline date" />
             </div>
             <div className="space-y-1.5">
               <Label>Notes for vendors</Label>
@@ -378,22 +379,21 @@ export function RateQuotesDialog({
                   </div>
                   <div className="space-y-1.5">
                     <Label>Valid from</Label>
-                    <Input
-                      type="date"
+                    <DatePicker
                       value={validFrom}
-                      onChange={(e) => {
-                        setValidFrom(e.target.value);
-                        setValidTo(sixMonthsFrom(e.target.value));
+                      onChange={(val) => {
+                        setValidFrom(val);
+                        if (val) setValidTo(sixMonthsFrom(val));
                       }}
+                      placeholder="Start date"
                     />
                   </div>
                   <div className="space-y-1.5">
                     <Label>Valid to (at most 6 months)</Label>
-                    <Input
-                      type="date"
+                    <DatePicker
                       value={validTo}
-                      max={sixMonthsFrom(validFrom)}
-                      onChange={(e) => setValidTo(e.target.value)}
+                      onChange={setValidTo}
+                      placeholder="End date"
                     />
                   </div>
                 </div>

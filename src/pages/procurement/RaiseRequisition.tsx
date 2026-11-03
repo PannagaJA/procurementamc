@@ -407,9 +407,6 @@ export default function RaiseRequisition() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-6">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-[#0B1437]/10 text-[#0B1437] mb-2">
-              <ShieldCheck className="w-3.5 h-3.5" /> Procurement Compliance
-            </div>
             <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
               Raise Purchase Requisition (PR)
             </h1>
@@ -1145,60 +1142,60 @@ export default function RaiseRequisition() {
                     </Button>
                   </div>
 
-                  <div className="space-y-1.5 text-[11px]">
+                  <div className="space-y-2 text-xs sm:text-sm">
                     {AUTHORITY_MATRIX_DEFINITIONS.map((tier) => {
                       const isActive = activeTierId === tier.id;
                       return (
                         <div
                           key={tier.id}
-                          className={`p-2 rounded-lg border transition-all ${
+                          className={`p-2.5 sm:p-3 rounded-lg border transition-all ${
                             isActive
                               ? "bg-indigo-50/90 dark:bg-indigo-950/50 border-indigo-400 dark:border-indigo-600 ring-1 ring-indigo-400 shadow-sm"
-                              : "bg-white/60 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-75 hover:opacity-100"
+                              : "bg-white/60 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800 opacity-80 hover:opacity-100"
                           }`}
                         >
-                          <div className="flex items-center justify-between gap-1 mb-0.5">
-                            <span className="font-bold text-slate-800 dark:text-slate-100 truncate">
+                          <div className="flex items-center justify-between gap-1 mb-1">
+                            <span className="font-bold text-xs sm:text-sm text-slate-800 dark:text-slate-100">
                               {tier.procurementType}
                             </span>
                             {isActive ? (
-                              <Badge className="bg-indigo-600 text-white text-[9px] px-1.5 py-0 h-4 font-bold shrink-0">
+                              <Badge className="bg-indigo-600 text-white text-[10px] sm:text-xs px-2 py-0.5 font-bold shrink-0">
                                 ACTIVE
                               </Badge>
                             ) : (
                               <Badge
                                 variant="outline"
-                                className="text-[9px] px-1 py-0 h-4 text-slate-500 shrink-0"
+                                className="text-[10px] sm:text-xs px-1.5 py-0.5 text-slate-600 shrink-0 font-medium"
                               >
                                 {tier.approvalAuthority}
                               </Badge>
                             )}
                           </div>
 
-                          <div className="grid grid-cols-2 gap-1 text-[10px] text-slate-600 dark:text-slate-400 pt-0.5">
+                          <div className="grid grid-cols-2 gap-1.5 text-xs text-slate-600 dark:text-slate-400 pt-0.5">
                             <div>
-                              <span className="text-slate-400 block text-[9px] uppercase font-semibold">
+                              <span className="text-slate-500 block text-[10px] sm:text-xs uppercase font-semibold">
                                 Limit / Txn
                               </span>
-                              <span className="font-semibold text-slate-700 dark:text-slate-200">
+                              <span className="font-bold text-slate-800 dark:text-slate-100 text-xs sm:text-sm">
                                 {tier.txnLimitFormatted}
                               </span>
                             </div>
                             <div>
-                              <span className="text-slate-400 block text-[9px] uppercase font-semibold">
+                              <span className="text-slate-500 block text-[10px] sm:text-xs uppercase font-semibold">
                                 Limit / Month
                               </span>
-                              <span className="font-semibold text-slate-700 dark:text-slate-200">
+                              <span className="font-bold text-slate-800 dark:text-slate-100 text-xs sm:text-sm">
                                 {tier.monthLimitFormatted}
                               </span>
                             </div>
                           </div>
 
-                          <div className="mt-1 pt-1 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10px]">
-                            <span className="text-slate-500 truncate">
+                          <div className="mt-1.5 pt-1.5 border-t border-slate-200/70 dark:border-slate-800/80 flex items-center justify-between text-xs sm:text-sm">
+                            <span className="text-slate-600 dark:text-slate-300">
                               {tier.procurementMethod}
                             </span>
-                            <span className="font-bold text-slate-700 dark:text-slate-300 shrink-0 ml-1">
+                            <span className="font-bold text-indigo-700 dark:text-indigo-400 shrink-0 ml-1">
                               &rarr; {tier.approvalAuthority}
                             </span>
                           </div>
@@ -1232,25 +1229,25 @@ export default function RaiseRequisition() {
 
             <div className="py-2">
               <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm">
-                <table className="w-full text-xs text-left border-collapse">
-                  <thead className="bg-slate-100 dark:bg-slate-800/90 text-slate-800 dark:text-slate-200 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+                <table className="w-full text-xs sm:text-sm text-left border-collapse">
+                  <thead className="bg-slate-100 dark:bg-slate-800/90 text-slate-800 dark:text-slate-200 font-bold uppercase tracking-wider text-xs sm:text-sm border-b border-slate-200 dark:border-slate-800">
                     <tr>
-                      <th className="p-3 border-r border-slate-200 dark:border-slate-800">
+                      <th className="p-3.5 sm:p-4 border-r border-slate-200 dark:border-slate-800">
                         Procurement Type
                       </th>
-                      <th className="p-3 border-r border-slate-200 dark:border-slate-800">
+                      <th className="p-3.5 sm:p-4 border-r border-slate-200 dark:border-slate-800">
                         Procurement Method
                       </th>
-                      <th className="p-3 border-r border-slate-200 dark:border-slate-800">
+                      <th className="p-3.5 sm:p-4 border-r border-slate-200 dark:border-slate-800">
                         Limit (Per Transaction)
                       </th>
-                      <th className="p-3 border-r border-slate-200 dark:border-slate-800">
+                      <th className="p-3.5 sm:p-4 border-r border-slate-200 dark:border-slate-800">
                         Limit (Per Month)
                       </th>
-                      <th className="p-3 border-r border-slate-200 dark:border-slate-800">
+                      <th className="p-3.5 sm:p-4 border-r border-slate-200 dark:border-slate-800">
                         Spend Scope (SOP §6)
                       </th>
-                      <th className="p-3">Approval Authority</th>
+                      <th className="p-3.5 sm:p-4">Approval Authority</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 dark:divide-slate-800">

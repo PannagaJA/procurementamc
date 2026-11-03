@@ -4,6 +4,7 @@ import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -426,9 +427,6 @@ export default function RfqManagement() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-[#0B1437]/10 text-[#0B1437] mb-2">
-              <FileText className="w-3.5 h-3.5" /> Request For Quotations
-            </div>
             <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
               RFQ & Vendor Solicitations
             </h1>
@@ -786,14 +784,23 @@ export default function RfqManagement() {
                     <SelectValue placeholder="Select approved PR..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {approvedPrs
-                      .filter(
+                    {(() => {
+                      const eligiblePrs = approvedPrs.filter(
                         (pr) =>
                           pr.status === "approved" &&
                           !existingRfqPrIds.includes(pr.id) &&
                           !rfqs.some((r: any) => r.pr_id === pr.id),
-                      )
-                      .map((pr) => {
+                      );
+
+                      if (eligiblePrs.length === 0) {
+                        return (
+                          <SelectItem value="_no_pr" disabled className="text-muted-foreground text-xs italic py-2">
+                            No approved Requisitions (PR) found
+                          </SelectItem>
+                        );
+                      }
+
+                      return eligiblePrs.map((pr) => {
                         const lineItems = pr.pr_line_items || [];
                         const itemDesc = lineItems
                           .map((i: any) => i.description)
@@ -805,7 +812,8 @@ export default function RfqManagement() {
                             {Number(pr.estimated_value).toLocaleString("en-IN")})
                           </SelectItem>
                         );
-                      })}
+                      });
+                    })()}
                   </SelectContent>
                 </Select>
                 {approvedPrs.filter(
@@ -822,7 +830,11 @@ export default function RfqManagement() {
 
               <div className="space-y-2">
                 <Label>Response Deadline</Label>
-                <Input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+                <DatePicker
+                  value={deadline}
+                  onChange={setDeadline}
+                  placeholder="Select response deadline"
+                />
               </div>
 
               <div className="space-y-2">
@@ -1393,17 +1405,27 @@ export default function RfqManagement() {
                     <SelectValue placeholder="Choose an empanelled vendor..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {empanelledVendors
-                      .filter(
+                    {(() => {
+                      const eligibleVendors = empanelledVendors.filter(
                         (v) =>
                           v.status === "empanelled" &&
                           !(inviteRfq?.rfq_vendors || []).some((rv: any) => rv.vendor_id === v.id)
-                      )
-                      .map((v) => (
+                      );
+
+                      if (eligibleVendors.length === 0) {
+                        return (
+                          <SelectItem value="_no_vendor" disabled className="text-muted-foreground text-xs italic py-2">
+                            No eligible empanelled vendors found
+                          </SelectItem>
+                        );
+                      }
+
+                      return eligibleVendors.map((v) => (
                         <SelectItem key={v.id} value={v.id}>
                           {v.name} {v.gst_number ? `(${v.gst_number})` : ""}
                         </SelectItem>
-                      ))}
+                      ));
+                    })()}
                   </SelectContent>
                 </Select>
                 <p className="text-[11px] text-slate-500">

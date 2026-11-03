@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -1270,10 +1271,15 @@ export default function QuotationResponse() {
                             Quotation Validity Date *
                           </FormLabel>
                           <FormControl>
-                            <Input
-                              type="date"
-                              min={minValidityDate(quotation?.last_reply_date)}
-                              {...field}
+                            <DatePicker
+                              value={field.value}
+                              onChange={field.onChange}
+                              placeholder="Select validity date"
+                              minDate={
+                                quotation?.last_reply_date
+                                  ? new Date(minValidityDate(quotation?.last_reply_date))
+                                  : undefined
+                              }
                             />
                           </FormControl>
                           <FormDescription>

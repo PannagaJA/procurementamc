@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { uploadImage, generateItemCode, generateQRCode } from "@/lib/inventoryApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -725,13 +726,13 @@ const AddInventory = () => {
                   <Label htmlFor="invoice_date" className="text-base font-semibold text-foreground">
                     Invoice Date
                   </Label>
-                  <Input
+                  <DatePicker
                     id="invoice_date"
-                    type="date"
                     value={formData.invoice_date}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, invoice_date: e.target.value }))
+                    onChange={(val) =>
+                      setFormData((prev) => ({ ...prev, invoice_date: val }))
                     }
+                    placeholder="Select invoice date"
                     className="h-12 text-base"
                   />
                 </div>
@@ -766,13 +767,13 @@ const AddInventory = () => {
                   >
                     Approval Date
                   </Label>
-                  <Input
+                  <DatePicker
                     id="approval_date"
-                    type="date"
                     value={formData.approval_letter_date}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, approval_letter_date: e.target.value }))
+                    onChange={(val) =>
+                      setFormData((prev) => ({ ...prev, approval_letter_date: val }))
                     }
+                    placeholder="Select approval date"
                     className="h-12 text-base"
                   />
                 </div>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import LibraryLayout from "@/components/library/LibraryLayout";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import libraryApi from "@/lib/libraryApi";
 
 const IssueBook = () => {
@@ -72,11 +73,11 @@ const IssueBook = () => {
             </option>
           ))}
         </select>
-        <input
-          type="date"
+        <DatePicker
           value={dueDate}
-          onChange={(e) => setDueDate(e.target.value)}
-          className="w-full p-2 border rounded"
+          onChange={setDueDate}
+          placeholder="Select due date"
+          className="w-full"
         />
         <Button onClick={issue}>Issue</Button>
       </div>

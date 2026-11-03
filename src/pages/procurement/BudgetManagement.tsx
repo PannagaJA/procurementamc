@@ -124,9 +124,6 @@ export default function BudgetManagement() {
       <div className="w-full max-w-full space-y-6 pb-12">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b pb-5">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-[#0B1437]/10 text-[#0B1437] mb-2">
-              <Wallet className="w-3.5 h-3.5" /> Annual budget
-            </div>
             <h1 className="text-3xl font-extrabold tracking-tight">Budgets</h1>
             <p className="text-muted-foreground mt-1 text-sm">
               HODs propose in March, Finance consolidates in April, the EVP approves before June.
