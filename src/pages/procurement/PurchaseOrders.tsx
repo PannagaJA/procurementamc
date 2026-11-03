@@ -688,9 +688,11 @@ export default function PurchaseOrders() {
                                 <Badge className={getStatusBadge(po.status)}>
                                   {po.status?.toUpperCase()}
                                 </Badge>
-                                <Badge variant="outline" className="text-xs capitalize">
-                                  {po.po_type?.replace("_", " ")}
-                                </Badge>
+                                {Boolean((po.po_type && po.po_type !== "regular") || (po.type && po.type !== "regular")) && (
+                                  <Badge variant="outline" className="text-xs capitalize">
+                                    {((po.po_type && po.po_type !== "regular" ? po.po_type : po.type) as string).replace("_", " ")}
+                                  </Badge>
+                                )}
                                 {pr?.is_emergency && (
                                   <Badge
                                     variant="outline"
