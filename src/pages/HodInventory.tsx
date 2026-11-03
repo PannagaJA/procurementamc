@@ -171,11 +171,16 @@ const HodInventory = () => {
                     ))}
                     {items.length === 0 && (
                       <tr>
-                        <td
-                          colSpan={6}
-                          className="px-2 py-6 text-center text-sm text-muted-foreground"
-                        >
-                          No inventory items found for your department.
+                        <td colSpan={6} className="px-4 py-12 text-center">
+                          <div className="flex flex-col items-center justify-center text-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5L12 3l9 7.5" />
+                            </svg>
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 mb-1">
+                              No data found
+                            </span>
+                            <p className="text-sm text-slate-400 mt-1">No inventory items found for your department.</p>
+                          </div>
                         </td>
                       </tr>
                     )}

@@ -1252,7 +1252,7 @@ export default function RfqManagement() {
                           setLastQuoteUrl(null);
                           setInviteOpen(true);
                         }}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 text-xs font-semibold shrink-0"
+                        className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold shadow-xs gap-1.5 text-xs shrink-0"
                       >
                         <UserPlus className="w-3.5 h-3.5" /> + Invite Replacement Vendor
                       </Button>
@@ -1360,9 +1360,9 @@ export default function RfqManagement() {
                     setLastQuoteUrl(null);
                     setInviteOpen(true);
                   }}
-                  className="gap-1.5 text-emerald-700 dark:text-emerald-300 border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 mr-auto text-xs"
+                  className="gap-1.5 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold shadow-xs mr-auto text-xs"
                 >
-                  <UserPlus className="w-3.5 h-3.5 text-emerald-600" /> Invite Replacement
+                  <UserPlus className="w-3.5 h-3.5 text-white" /> Invite Replacement
                 </Button>
               )}
               <Button variant="outline" onClick={() => setViewQuotesRfq(null)}>
@@ -1376,8 +1376,8 @@ export default function RfqManagement() {
         <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
-                <UserPlus className="w-5 h-5 text-emerald-600" />
+              <DialogTitle className="flex items-center gap-2 text-[#0B1437] dark:text-white">
+                <UserPlus className="w-5 h-5 text-[#0B1437] dark:text-white" />
                 Invite Replacement Empanelled Vendor
               </DialogTitle>
               <DialogDescription>
@@ -1443,7 +1443,7 @@ export default function RfqManagement() {
               <Button
                 onClick={handleInviteReplacement}
                 disabled={inviting || !replacementVendorId}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold shadow-xs gap-1"
               >
                 {inviting ? "Inviting..." : "Send RFQ Invitation"}
               </Button>
