@@ -1,3 +1,4 @@
+import { DatePicker } from "@/components/ui/date-picker";
 import { useState, useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
@@ -736,14 +737,13 @@ try {
                   <Label htmlFor="invoice_date" className="text-base font-semibold text-foreground">
                     Invoice Date
                   </Label>
-                  <Input
+                  <DatePicker
                     id="invoice_date"
-                    type="date"
                     value={formData.invoice_date}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, invoice_date: e.target.value }))
+                    onChange={(date) =>
+                      setFormData((prev) => ({ ...prev, invoice_date: date }))
                     }
-                    className="h-12 text-base"
+                    placeholder="Select invoice date"
                   />
                 </div>
               </div>
@@ -777,14 +777,13 @@ try {
                   >
                     Approval Date
                   </Label>
-                  <Input
+                  <DatePicker
                     id="approval_date"
-                    type="date"
                     value={formData.approval_letter_date}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, approval_letter_date: e.target.value }))
+                    onChange={(date) =>
+                      setFormData((prev) => ({ ...prev, approval_letter_date: date }))
                     }
-                    className="h-12 text-base"
+                    placeholder="Select approval date"
                   />
                 </div>
               </div>
