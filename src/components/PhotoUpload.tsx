@@ -1,3 +1,4 @@
+import { Upload, Camera } from "lucide-react";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -154,9 +155,10 @@ export const PhotoUpload = ({ value, onChange, label, accept = "image/*" }: Phot
           type="button"
           variant="outline"
           onClick={() => fileInputRef.current?.click()}
-          className="flex-1 py-3 px-4 bg-background border-2 border-dashed border-border hover:border-primary hover:bg-primary/5 transition-all duration-300 hover:scale-105 hover:shadow-lg rounded-lg font-medium"
+          className="flex-1 py-3 px-4 bg-white dark:bg-slate-900 border-2 border-dashed border-slate-300 dark:border-slate-700 text-[#0B1437] dark:text-white hover:bg-[#0B1437] hover:text-white hover:border-[#0B1437] transition-all duration-300 hover:scale-105 hover:shadow-md rounded-xl font-semibold"
         >
-          Upload File
+          <Upload className="w-4 h-4 mr-2 shrink-0" />
+          <span>Upload File</span>
         </Button>
 
         <Dialog open={isCameraOpen} onOpenChange={setIsCameraOpen}>
@@ -165,9 +167,10 @@ export const PhotoUpload = ({ value, onChange, label, accept = "image/*" }: Phot
               type="button"
               variant="outline"
               onClick={handleCameraOpen}
-              className="flex-1 py-3 px-4 bg-background border-2 border-dashed border-border hover:border-green-400 hover:bg-green-50 dark:hover:bg-green-950/20 transition-all duration-300 hover:scale-105 hover:shadow-lg rounded-lg font-medium"
+              className="flex-1 py-3 px-4 bg-white dark:bg-slate-900 border-2 border-dashed border-slate-300 dark:border-slate-700 text-[#0B1437] dark:text-white hover:bg-[#0B1437] hover:text-white hover:border-[#0B1437] transition-all duration-300 hover:scale-105 hover:shadow-md rounded-xl font-semibold"
             >
-              Camera
+              <Camera className="w-4 h-4 mr-2 shrink-0" />
+              <span>Camera</span>
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-md bg-background rounded-xl shadow-xl">
