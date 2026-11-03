@@ -1,4 +1,5 @@
 import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { computeTicketSLA } from "@/lib/ticketUtils";
 import { useState, useEffect, useCallback } from "react";
 import {
   Dialog,
@@ -35,7 +36,12 @@ const PrincipalApprovals = () => {
     if (authLoading) return;
     setLoading(true);
     try {
-      if (!hasRole("principal") && primaryRole !== "principle" && primaryRole !== "principal" && !hasRole("admin")) {
+      if (
+        !hasRole("principal") &&
+        primaryRole !== "principle" &&
+        primaryRole !== "principal" &&
+        !hasRole("admin")
+      ) {
         navigate({ to: "/" });
         return;
       }
@@ -73,7 +79,16 @@ const PrincipalApprovals = () => {
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.pageSize, setTotal, toast, navigate, primaryRole, authLoading, hasRole]);
+  }, [
+    pagination.page,
+    pagination.pageSize,
+    setTotal,
+    toast,
+    navigate,
+    primaryRole,
+    authLoading,
+    hasRole,
+  ]);
 
   useEffect(() => {
     fetchPending();
@@ -85,19 +100,9 @@ const PrincipalApprovals = () => {
     const openId = state?.openTicketId;
     if (openId && requests.length > 0) {
       const found = requests.find((r) => r.id === openId);
-      if (found) setViewRequest(computeSLAForTicket(found));
+      if (found) setViewRequest(computeTicketSLA(found));
     }
   }, [location, requests]);
-
-  const approve = async (t: any) => {
-    // legacy: kept for direct calls; prefer using the confirm dialog
-    return await performAction("approve", t, null);
-  };
-
-  const reject = async (t: any) => {
-    // legacy: kept for direct calls; prefer using the confirm dialog
-    return await performAction("reject", t, null);
-  };
 
   // Inline confirm dialog state and handler
   const [actionDialogOpen, setActionDialogOpen] = useState(false);
@@ -121,24 +126,34 @@ const PrincipalApprovals = () => {
             ? "Approved by Principal"
             : "Rejected by Principal";
 
-      if (type === "approve") {
-        const newStatus = t.issue_category === "procure" ? "procure-approved" : "service-approved";
-        const { error: updErr } = await supabase
+      // Guarded on pending_principal so a stale screen can't decide twice; the DB trigger
+      // also rejects anyone but the Principal (and never the requester).
+      const decide = async (newStatus: string, notes: string) => {
+        const { data, error } = await supabase
           .from("tickets")
           .update({ status: newStatus })
-          .eq("id", t.id);
-        if (updErr) throw updErr;
-        await supabase
-          .from("ticket_updates")
-          .insert([
-            {
-              ticket_id: t.id,
-              status_from: t.status,
-              status_to: newStatus,
-              admin_notes: adminNote,
-              updated_by: userId,
-            },
-          ]);
+          .eq("id", t.id)
+          .eq("status", "pending_principal")
+          .select("id");
+        if (error) throw error;
+        if (!data?.length) throw new Error("This request was already decided.");
+        const { error: histErr } = await supabase.from("ticket_updates").insert([
+          {
+            ticket_id: t.id,
+            status_from: "pending_principal",
+            status_to: newStatus,
+            admin_notes: notes,
+            updated_by: userId,
+          },
+        ]);
+        if (histErr) throw histErr;
+      };
+
+      if (type === "approve") {
+        await decide(
+          t.issue_category === "procure" ? "procure-approved" : "service-approved",
+          adminNote,
+        );
         await logAudit("principal_approve", userId, {
           ticket_id: t.id,
           ticket_number: t.ticket_number,
@@ -149,7 +164,10 @@ const PrincipalApprovals = () => {
             .from("user_roles")
             .select("user_id")
             .eq("role", "admin");
-          const adminIds = (admins || []).map((a: any) => a.user_id).filter(Boolean);
+          // Admins pick the approved request up; the requesting HOD is told too.
+          const adminIds = [...(admins || []).map((a: any) => a.user_id), t.created_by].filter(
+            Boolean,
+          );
           if (adminIds.length) {
             const { default: sendNotification } = await import("@/lib/notify");
             await Promise.all(
@@ -167,23 +185,10 @@ const PrincipalApprovals = () => {
         toast({ title: "Approved", description: `Request ${t.ticket_number} approved` });
       } else {
         const reason = note || "Rejected by Principal";
-        const newStatus = t.issue_category === "procure" ? "procure-rejected" : "service-rejected";
-        const { error: updErr } = await supabase
-          .from("tickets")
-          .update({ status: newStatus })
-          .eq("id", t.id);
-        if (updErr) throw updErr;
-        await supabase
-          .from("ticket_updates")
-          .insert([
-            {
-              ticket_id: t.id,
-              status_from: t.status,
-              status_to: newStatus,
-              admin_notes: reason,
-              updated_by: userId,
-            },
-          ]);
+        await decide(
+          t.issue_category === "procure" ? "procure-rejected" : "service-rejected",
+          reason,
+        );
         await logAudit("principal_reject", userId, {
           ticket_id: t.id,
           ticket_number: t.ticket_number,
@@ -206,7 +211,11 @@ const PrincipalApprovals = () => {
       return true;
     } catch (err) {
       console.error("action failed", err);
-      toast({ title: "Error", description: "Action failed", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Action failed",
+        variant: "destructive",
+      });
       return false;
     }
   };
@@ -226,72 +235,6 @@ const PrincipalApprovals = () => {
       }
     });
     return data;
-  };
-
-  const fmtDuration = (msDiff: number) => {
-    const abs = Math.abs(msDiff);
-    const days = Math.floor(abs / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((abs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    if (days > 0) return `${days}d ${hours}h`;
-    if (hours > 0) return `${hours}h`;
-    const mins = Math.floor((abs % (1000 * 60 * 60)) / (1000 * 60));
-    if (mins > 0) return `${mins}m`;
-    return "0m";
-  };
-
-  const SLA_RULES: Record<string, { respondHours: number; resolveHours: number }> = {
-    high: { respondHours: 1, resolveHours: 8 },
-    medium: { respondHours: 4, resolveHours: 48 },
-    low: { respondHours: 24, resolveHours: 168 },
-  };
-
-  const computeSLAForTicket = (ticket: any) => {
-    try {
-      const now = new Date();
-      if ((ticket as any).respond_by || (ticket as any).resolve_by) {
-        const respondBy = (ticket as any).respond_by
-          ? new Date((ticket as any).respond_by)
-          : undefined;
-        const resolveBy = (ticket as any).resolve_by
-          ? new Date((ticket as any).resolve_by)
-          : undefined;
-        ticket.sla = {
-          respondByISO: respondBy ? respondBy.toISOString() : undefined,
-          respondByDisplay: respondBy ? format(respondBy, "PP p") : undefined,
-          respondDaysOver:
-            (ticket as any).respond_days_over ??
-            (respondBy && now > respondBy
-              ? Math.floor((now.getTime() - respondBy.getTime()) / (1000 * 60 * 60 * 24))
-              : 0),
-          resolveByISO: resolveBy ? resolveBy.toISOString() : undefined,
-          resolveByDisplay: resolveBy ? format(resolveBy, "PP p") : undefined,
-          resolveDaysOver:
-            (ticket as any).resolve_days_over ??
-            (resolveBy && now > resolveBy
-              ? Math.floor((now.getTime() - resolveBy.getTime()) / (1000 * 60 * 60 * 24))
-              : 0),
-        };
-        return ticket;
-      }
-      const rule = SLA_RULES[ticket.priority] || SLA_RULES["low"];
-      const created = new Date(ticket.created_at);
-      if (isNaN(created.getTime())) return ticket;
-      const respondBy = new Date(created.getTime() + rule.respondHours * 60 * 60 * 1000);
-      const resolveBy = new Date(created.getTime() + rule.resolveHours * 60 * 60 * 1000);
-      const respondDiff = now.getTime() - respondBy.getTime();
-      const resolveDiff = now.getTime() - resolveBy.getTime();
-      ticket.sla = {
-        respondByISO: respondBy.toISOString(),
-        respondByDisplay: format(respondBy, "PP p"),
-        respondDaysOver: respondDiff > 0 ? Math.floor(respondDiff / (1000 * 60 * 60 * 24)) : 0,
-        resolveByISO: resolveBy.toISOString(),
-        resolveByDisplay: format(resolveBy, "PP p"),
-        resolveDaysOver: resolveDiff > 0 ? Math.floor(resolveDiff / (1000 * 60 * 60 * 24)) : 0,
-      };
-    } catch (err) {
-      console.warn("computeSLAForTicket failed", err);
-    }
-    return ticket;
   };
 
   const renderTicketDescription = (ticket: any) => {
@@ -361,58 +304,87 @@ const PrincipalApprovals = () => {
                       <tr>
                         <td colSpan={5} className="px-4 py-12 text-center">
                           <div className="flex flex-col items-center justify-center text-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5L12 3l9 7.5" />
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="w-12 h-12 mb-3 text-slate-300 dark:text-slate-600"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={1.5}
+                                d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5L12 3l9 7.5"
+                              />
                             </svg>
                             <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 mb-1">
                               No data found
                             </span>
-                            <p className="text-sm text-slate-400 mt-1">No approval requests pending your review.</p>
+                            <p className="text-sm text-slate-400 mt-1">
+                              No approval requests pending your review.
+                            </p>
                           </div>
                         </td>
                       </tr>
                     ) : (
                       requests.map((r) => (
-                      <tr key={r.id} className="border-t">
-                        <td className="px-3 py-2">{r.ticket_number}</td>
-                        <td className="px-3 py-2">{r.department}</td>
-                        <td className="px-3 py-2">{r.issue_category}</td>
-                        <td className="px-3 py-2">{r.status}</td>
-                        <td className="px-3 py-2">
-                          <Button
-                            size="sm"
-                            onClick={() => {
-                              setViewRequest(computeSLAForTicket(r));
-                            }}
-                          >
-                            View
-                          </Button>
-                          {r.status === "pending_principal" ? (
-                            <>
-                              <Button size="sm" className="ml-2 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold" onClick={() => openActionDialog("approve", r)}>
-                                Approve
-                              </Button>
+                        <tr key={r.id} className="border-t">
+                          <td className="px-3 py-2">{r.ticket_number}</td>
+                          <td className="px-3 py-2">{r.department}</td>
+                          <td className="px-3 py-2">{r.issue_category}</td>
+                          <td className="px-3 py-2">{r.status}</td>
+                          <td className="px-3 py-2">
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setViewRequest(computeTicketSLA(r));
+                              }}
+                            >
+                              View
+                            </Button>
+                            {r.status === "pending_principal" &&
+                            hasRole("principal") &&
+                            r.created_by !== userId ? (
+                              <>
+                                <Button
+                                  size="sm"
+                                  className="ml-2 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
+                                  onClick={() => openActionDialog("approve", r)}
+                                >
+                                  Approve
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  className="ml-2"
+                                  onClick={() => openActionDialog("reject", r)}
+                                >
+                                  Reject
+                                </Button>
+                              </>
+                            ) : r.status === "procure-approved" ||
+                              r.status === "service-approved" ? (
                               <Button
                                 size="sm"
-                                variant="destructive"
-                                className="ml-2"
-                                onClick={() => openActionDialog("reject", r)}
+                                className="ml-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full font-semibold"
+                                disabled
                               >
-                                Reject
+                                Approved
                               </Button>
-                            </>
-                          ) : r.status === "procure-approved" || r.status === "service-approved" ? (
-                            <Button size="sm" className="ml-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full font-semibold" disabled>
-                              Approved
-                            </Button>
-                          ) : r.status === "procure-rejected" || r.status === "service-rejected" ? (
-                            <Button size="sm" className="ml-2 bg-rose-50 text-rose-700 border border-rose-200 rounded-full font-semibold" disabled>
-                              Rejected
-                            </Button>
-                          ) : null}
-                        </td>
-                      </tr>
-                    ))
+                            ) : r.status === "procure-rejected" ||
+                              r.status === "service-rejected" ? (
+                              <Button
+                                size="sm"
+                                className="ml-2 bg-rose-50 text-rose-700 border border-rose-200 rounded-full font-semibold"
+                                disabled
+                              >
+                                Rejected
+                              </Button>
+                            ) : null}
+                          </td>
+                        </tr>
+                      ))
                     )}
                   </tbody>
                 </table>

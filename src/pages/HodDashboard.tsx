@@ -1,4 +1,5 @@
 import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { computeTicketSLA } from "@/lib/ticketUtils";
 import { useState, useEffect, useCallback } from "react";
 import { FilterSelect, statusFilterOptions, applyFilter } from "@/components/FilterSelect";
 import { useNavigate } from "@tanstack/react-router";
@@ -128,7 +129,7 @@ const HodDashboard = () => {
       query = createPaginatedQuery(query, pagination.page, pagination.pageSize);
       const { data, error, count } = await query;
       if (error) throw error;
-      const enriched = (data || []).map((t: any) => computeSLAForTicket(t));
+      const enriched = (data || []).map((t: any) => computeTicketSLA(t));
       setTickets(enriched);
       setTotal(count || 0);
     } catch (err) {
@@ -161,12 +162,12 @@ const HodDashboard = () => {
           .from("tickets")
           .select("id", { head: true, count: "exact" })
           .eq("department", departmentName)
-          .eq("status", "procure-approved"),
+          .in("status", ["procure-approved", "service-approved"]),
         supabase
           .from("tickets")
           .select("id", { head: true, count: "exact" })
           .eq("department", departmentName)
-          .eq("status", "procure-rejected"),
+          .in("status", ["procure-rejected", "service-rejected"]),
       ]);
       setMetrics({
         pending: pendingRes.count || 0,
@@ -208,27 +209,6 @@ const HodDashboard = () => {
       setLoadingInventory(false);
     }
   }, [departmentName, invPagination.page, invPagination.pageSize, setInvTotal, toast]);
-
-  const computeSLAForTicket = (ticket: any) => {
-    try {
-      const now = new Date();
-      const rule = {
-        high: { respondHours: 1, resolveHours: 8 },
-        medium: { respondHours: 4, resolveHours: 48 },
-        low: { respondHours: 24, resolveHours: 168 },
-      }[ticket.priority as "high" | "medium" | "low"] || { respondHours: 24, resolveHours: 168 };
-      const created = new Date(ticket.created_at);
-      const respondBy = new Date(created.getTime() + rule.respondHours * 60 * 60 * 1000);
-      const respondDiff = now.getTime() - respondBy.getTime();
-      ticket.sla = {
-        respondByDisplay: respondBy.toISOString(),
-        respondDaysOver: respondDiff > 0 ? Math.floor(respondDiff / (1000 * 60 * 60 * 24)) : 0,
-      };
-    } catch (e) {
-      console.warn(e);
-    }
-    return ticket;
-  };
 
   const formatProcureDescription = (description: string) => {
     const lines = String(description || "")
@@ -363,7 +343,11 @@ const HodDashboard = () => {
     return <PageSkeleton cards={4} rows={5} />;
   }
 
-  const prFilterOptions = statusFilterOptions(deptPrs, (p: any) => p.status, ["approved", "rejected", "closed"]);
+  const prFilterOptions = statusFilterOptions(deptPrs, (p: any) => p.status, [
+    "approved",
+    "rejected",
+    "closed",
+  ]);
 
   return (
     <Layout>
@@ -432,55 +416,70 @@ const HodDashboard = () => {
                     <tr>
                       <td colSpan={6} className="px-4 py-12 text-center">
                         <div className="flex flex-col items-center justify-center text-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5L12 3l9 7.5" />
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="w-12 h-12 mb-3 text-slate-300 dark:text-slate-600"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={1.5}
+                              d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5L12 3l9 7.5"
+                            />
                           </svg>
                           <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 mb-1">
                             No data found
                           </span>
-                          <p className="text-sm text-slate-400 mt-1">No tickets recorded in your department yet.</p>
+                          <p className="text-sm text-slate-400 mt-1">
+                            No tickets recorded in your department yet.
+                          </p>
                         </div>
                       </td>
                     </tr>
                   ) : (
                     tickets.map((t) => (
-                    <tr key={t.id} className="border-t">
-                      <td className="px-3 py-2 align-middle">
-                        <div className="font-mono whitespace-nowrap">{t.ticket_number}</div>
-                      </td>
-                      <td className="px-3 py-2 align-middle">
-                        <div className="whitespace-normal break-words min-w-[120px]">{t.issue_category}</div>
-                      </td>
-                      <td className="px-3 py-2 align-middle">
-                        <Badge className={getStatusColor(t.status)}>
-                          {String(t.status || "")
-                            .replace("-", " ")
-                            .toUpperCase()}
-                        </Badge>
-                      </td>
-                      <td className="px-3 py-2 align-middle">
-                        <Badge className={getPriorityColor(t.priority)}>
-                          {String(t.priority || "")
-                            .charAt(0)
-                            .toUpperCase() + String(t.priority || "").slice(1)}
-                        </Badge>
-                      </td>
-                      <td className="px-3 py-2 align-middle">
-                        {t.sla?.respondDaysOver ? (
-                          <Badge className="bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300">{`${t.sla.respondDaysOver}d overdue`}</Badge>
-                        ) : (
-                          <span className="text-sm text-muted-foreground">
-                            {t.sla?.respondByDisplay}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2 align-middle text-right">
-                        <Button size="sm" onClick={() => openView(t)}>
-                          View
-                        </Button>
-                      </td>
-                    </tr>
-                  ))
+                      <tr key={t.id} className="border-t">
+                        <td className="px-3 py-2 align-middle">
+                          <div className="font-mono whitespace-nowrap">{t.ticket_number}</div>
+                        </td>
+                        <td className="px-3 py-2 align-middle">
+                          <div className="whitespace-normal break-words min-w-[120px]">
+                            {t.issue_category}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 align-middle">
+                          <Badge className={getStatusColor(t.status)}>
+                            {String(t.status || "")
+                              .replace("-", " ")
+                              .toUpperCase()}
+                          </Badge>
+                        </td>
+                        <td className="px-3 py-2 align-middle">
+                          <Badge className={getPriorityColor(t.priority)}>
+                            {String(t.priority || "")
+                              .charAt(0)
+                              .toUpperCase() + String(t.priority || "").slice(1)}
+                          </Badge>
+                        </td>
+                        <td className="px-3 py-2 align-middle">
+                          {t.sla?.respondDaysOver ? (
+                            <Badge className="bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300">{`${t.sla.respondDaysOver}d overdue`}</Badge>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">
+                              {t.sla?.respondByDisplay}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 align-middle text-right">
+                          <Button size="sm" onClick={() => openView(t)}>
+                            View
+                          </Button>
+                        </td>
+                      </tr>
+                    ))
                   )}
                 </tbody>
               </table>
@@ -532,7 +531,11 @@ const HodDashboard = () => {
             </CardHeader>
             <CardContent className="p-0">
               {loadingPrs ? (
-                <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<div key={i} className="h-14 w-full bg-muted/60 animate-pulse rounded-xl" />))}</div>
+                <div className="space-y-3 p-4">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={i} className="h-14 w-full bg-muted/60 animate-pulse rounded-xl" />
+                  ))}
+                </div>
               ) : (
                 (() => {
                   const filtered = applyFilter(deptPrs, prFilterOptions, prFilter);
@@ -643,7 +646,11 @@ const HodDashboard = () => {
             </CardHeader>
             <CardContent className="p-0">
               {loadingInventory ? (
-                <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<div key={i} className="h-14 w-full bg-muted/60 animate-pulse rounded-xl" />))}</div>
+                <div className="space-y-3 p-4">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={i} className="h-14 w-full bg-muted/60 animate-pulse rounded-xl" />
+                  ))}
+                </div>
               ) : (
                 <div className="overflow-x-auto rounded-xl border border-border/60 bg-card">
                   <table className="w-full min-w-[700px] table-fixed">
@@ -680,7 +687,9 @@ const HodDashboard = () => {
                             </div>
                           </td>
                           <td className="px-2 py-2 align-middle">
-                            <div className="whitespace-normal break-words">{it.department || "-"}</div>
+                            <div className="whitespace-normal break-words">
+                              {it.department || "-"}
+                            </div>
                           </td>
                           <td className="px-2 py-2 align-middle">
                             <div className="whitespace-normal break-words">

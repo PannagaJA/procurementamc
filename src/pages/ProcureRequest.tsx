@@ -38,7 +38,7 @@ const ProcureRequest = () => {
   const [departments, setDepartments] = useState<any[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
-  const { primaryRole } = useAuth();
+  const { hasRole } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -138,16 +138,8 @@ Estimated Cost: ${formData.estimatedCost}
 Justification: ${formData.justification}
       `.trim();
 
-      // Generate ticket number first
-      const { data: ticketData, error: ticketError } = await supabase.rpc("generate_ticket_number");
-
-      if (ticketError) throw ticketError;
-
-      const ticketNumber = ticketData;
-
-      // Insert ticket into database with explicit ticket number
+      // Ticket number and status (HOD -> pending_principal) are set by the DB trigger.
       const insertPayload: any = {
-        ticket_number: ticketNumber,
         name: formData.name,
         email: formData.email,
         contact_number: formData.contactNumber,
@@ -158,27 +150,20 @@ Justification: ${formData.justification}
         created_by: user.id,
       };
 
-      // If HOD, send to Principal for approval
-      if (primaryRole === "hod") {
-        insertPayload.status = "pending_principal";
-      } else {
-        insertPayload.status = "pending";
-      }
-
       const { data, error } = await supabase
         .from("tickets")
         .insert([insertPayload])
-        .select("ticket_number")
+        .select("ticket_number, status")
         .single();
 
       if (error) throw error;
 
+      const sentToPrincipal = data.status === "pending_principal";
       toast({
-        title: primaryRole === "hod" ? "Request Sent" : "Procure request submitted",
-        description:
-          primaryRole === "hod"
-            ? `Your request ${data.ticket_number} was sent to Principal for approval`
-            : `Your request has been submitted with ticket number ${data.ticket_number}`,
+        title: sentToPrincipal ? "Request Sent" : "Procure request submitted",
+        description: sentToPrincipal
+          ? `Your request ${data.ticket_number} was sent to Principal for approval`
+          : `Your request has been submitted with ticket number ${data.ticket_number}`,
       });
 
       // Reset form
@@ -370,7 +355,7 @@ Justification: ${formData.justification}
               <Button type="submit" disabled={submitting} className="w-full">
                 {submitting
                   ? "Submitting..."
-                  : primaryRole === "hod"
+                  : hasRole("hod")
                     ? "Request Principal Approval"
                     : "Submit Procure Request"}
               </Button>

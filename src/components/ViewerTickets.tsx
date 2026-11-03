@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { computeTicketSLA } from "@/lib/ticketUtils";
 import { usePagination } from "@/hooks/use-pagination";
 import { createPaginatedQuery } from "@/lib/utils";
 import { PaginationControls } from "@/components/PaginationControls";
@@ -40,47 +41,6 @@ interface Ticket {
     resolveDaysOver?: number;
   };
 }
-
-const SLA_RULES: Record<string, { respondHours: number; resolveHours: number }> = {
-  high: { respondHours: 1, resolveHours: 8 },
-  medium: { respondHours: 4, resolveHours: 48 },
-  low: { respondHours: 24, resolveHours: 168 },
-};
-
-const fmtDuration = (msDiff: number) => {
-  const abs = Math.abs(msDiff);
-  const days = Math.floor(abs / (1000 * 60 * 60 * 24));
-  const hours = Math.floor((abs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-  if (days > 0) return `${days}d ${hours}h`;
-  if (hours > 0) return `${hours}h`;
-  const mins = Math.floor((abs % (1000 * 60 * 60)) / (1000 * 60));
-  if (mins > 0) return `${mins}m`;
-  return "0m";
-};
-
-const computeSLAForTicket = (ticket: Ticket) => {
-  try {
-    const now = new Date();
-    const rule = SLA_RULES[ticket.priority] || SLA_RULES["low"];
-    const created = new Date(ticket.created_at);
-    if (isNaN(created.getTime())) return ticket;
-
-    const respondBy = new Date(created.getTime() + rule.respondHours * 60 * 60 * 1000);
-    const resolveBy = new Date(created.getTime() + rule.resolveHours * 60 * 60 * 1000);
-    const respondDiff = now.getTime() - respondBy.getTime();
-    const resolveDiff = now.getTime() - resolveBy.getTime();
-
-    ticket.sla = {
-      respondByDisplay: respondBy ? format(respondBy, "PP p") : undefined,
-      respondDaysOver: respondDiff > 0 ? Math.floor(respondDiff / (1000 * 60 * 60 * 24)) : 0,
-      resolveByDisplay: resolveBy ? format(resolveBy, "PP p") : undefined,
-      resolveDaysOver: resolveDiff > 0 ? Math.floor(resolveDiff / (1000 * 60 * 60 * 24)) : 0,
-    };
-  } catch (err) {
-    // ignore
-  }
-  return ticket;
-};
 
 const getPriorityColor = (priority: string) => {
   switch (priority) {
@@ -164,7 +124,7 @@ const ViewerTickets = () => {
 
       const { data, error, count } = await query;
       if (error) throw error;
-      const withSLA = (data || []).map((t: any) => computeSLAForTicket(t));
+      const withSLA = (data || []).map((t: any) => computeTicketSLA(t));
       setTickets(withSLA as Ticket[]);
       setTotal(count || 0);
     } catch (err) {
@@ -261,10 +221,18 @@ const ViewerTickets = () => {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button size="sm" onClick={exportCSV} className="bg-[#0B1437] hover:bg-[#111f54] text-white font-bold rounded-full shadow-xs text-xs sm:text-sm">
+            <Button
+              size="sm"
+              onClick={exportCSV}
+              className="bg-[#0B1437] hover:bg-[#111f54] text-white font-bold rounded-full shadow-xs text-xs sm:text-sm"
+            >
               Export to CSV
             </Button>
-            <Button size="sm" onClick={generateReportPdf} className="bg-[#0B1437] hover:bg-[#111f54] text-white font-bold rounded-full shadow-xs text-xs sm:text-sm">
+            <Button
+              size="sm"
+              onClick={generateReportPdf}
+              className="bg-[#0B1437] hover:bg-[#111f54] text-white font-bold rounded-full shadow-xs text-xs sm:text-sm"
+            >
               Export to PDF
             </Button>
           </div>
@@ -340,66 +308,79 @@ const ViewerTickets = () => {
                 <tr>
                   <td colSpan={10} className="px-4 py-12 text-center">
                     <div className="flex flex-col items-center justify-center text-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5L12 3l9 7.5" />
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="w-12 h-12 mb-3 text-slate-300 dark:text-slate-600"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5L12 3l9 7.5"
+                        />
                       </svg>
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 mb-1">
                         No data found
                       </span>
-                      <p className="text-sm text-slate-400 mt-1">No tickets matching the selected filters.</p>
+                      <p className="text-sm text-slate-400 mt-1">
+                        No tickets matching the selected filters.
+                      </p>
                     </div>
                   </td>
                 </tr>
               ) : (
                 tickets.slice(0, 10).map((ticket) => (
-                <tr key={ticket.id} className="border-t">
-                  <td className="px-3 py-2">
-                    <div className="font-semibold">{ticket.ticket_number}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {new Date(ticket.created_at).toLocaleString()}
-                    </div>
-                  </td>
-                  <td className="px-3 py-2">
-                    <span
-                      className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${getPriorityColor(ticket.priority)}`}
+                  <tr key={ticket.id} className="border-t">
+                    <td className="px-3 py-2">
+                      <div className="font-semibold">{ticket.ticket_number}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {new Date(ticket.created_at).toLocaleString()}
+                      </div>
+                    </td>
+                    <td className="px-3 py-2">
+                      <span
+                        className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${getPriorityColor(ticket.priority)}`}
+                      >
+                        {ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1)}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2">{ticket.name}</td>
+                    <td className="px-3 py-2 text-sm text-muted-foreground">
+                      <Button variant="ghost" size="sm" onClick={() => setViewTicket(ticket)}>
+                        View
+                      </Button>
+                    </td>
+                    <td className="px-3 py-2">{ticket.sla?.respondByDisplay || "--"}</td>
+                    <td
+                      className={`px-3 py-2 ${ticket.sla?.respondDaysOver && ticket.sla.respondDaysOver > 0 ? "text-red-600 font-semibold" : "text-muted-foreground"}`}
                     >
-                      {ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1)}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2">{ticket.name}</td>
-                  <td className="px-3 py-2 text-sm text-muted-foreground">
-                    <Button variant="ghost" size="sm" onClick={() => setViewTicket(ticket)}>
-                      View
-                    </Button>
-                  </td>
-                  <td className="px-3 py-2">{ticket.sla?.respondByDisplay || "--"}</td>
-                  <td
-                    className={`px-3 py-2 ${ticket.sla?.respondDaysOver && ticket.sla.respondDaysOver > 0 ? "text-red-600 font-semibold" : "text-muted-foreground"}`}
-                  >
-                    {ticket.sla
-                      ? ticket.sla.respondDaysOver && ticket.sla.respondDaysOver > 0
-                        ? `${ticket.sla.respondDaysOver}d overdue`
-                        : "On time"
-                      : "--"}
-                  </td>
-                  <td className="px-3 py-2">{ticket.sla?.resolveByDisplay || "--"}</td>
-                  <td
-                    className={`px-3 py-2 ${ticket.sla?.resolveDaysOver && ticket.sla.resolveDaysOver > 0 ? "text-red-600 font-semibold" : "text-muted-foreground"}`}
-                  >
-                    {ticket.sla
-                      ? ticket.sla.resolveDaysOver && ticket.sla.resolveDaysOver > 0
-                        ? `${ticket.sla.resolveDaysOver}d overdue`
-                        : "On time"
-                      : "--"}
-                  </td>
-                  <td className="px-3 py-2">{ticket.issue_category}</td>
-                  <td className="px-3 py-2">
-                    <Button variant="outline" size="sm" onClick={() => setViewTicket(ticket)}>
-                      View
-                    </Button>
-                  </td>
-                </tr>
-              ))
+                      {ticket.sla
+                        ? ticket.sla.respondDaysOver && ticket.sla.respondDaysOver > 0
+                          ? `${ticket.sla.respondDaysOver}d overdue`
+                          : "On time"
+                        : "--"}
+                    </td>
+                    <td className="px-3 py-2">{ticket.sla?.resolveByDisplay || "--"}</td>
+                    <td
+                      className={`px-3 py-2 ${ticket.sla?.resolveDaysOver && ticket.sla.resolveDaysOver > 0 ? "text-red-600 font-semibold" : "text-muted-foreground"}`}
+                    >
+                      {ticket.sla
+                        ? ticket.sla.resolveDaysOver && ticket.sla.resolveDaysOver > 0
+                          ? `${ticket.sla.resolveDaysOver}d overdue`
+                          : "On time"
+                        : "--"}
+                    </td>
+                    <td className="px-3 py-2">{ticket.issue_category}</td>
+                    <td className="px-3 py-2">
+                      <Button variant="outline" size="sm" onClick={() => setViewTicket(ticket)}>
+                        View
+                      </Button>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>

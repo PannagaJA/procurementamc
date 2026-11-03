@@ -37,7 +37,8 @@ const TicketRaiser = () => {
   const [categories, setCategories] = useState<{ value: string; label: string }[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
   const { toast } = useToast();
-  const { departmentId, primaryRole } = useAuth();
+  const { departmentId, hasRole } = useAuth();
+  const isHod = hasRole("hod");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -180,28 +181,8 @@ const TicketRaiser = () => {
         throw new Error("User not authenticated");
       }
 
-      // Try to get a server-generated ticket number (preferred).
-      let ticketNumber: string | null = null;
-      try {
-        const { data: ticketData, error: ticketError } =
-          await supabase.rpc("generate_ticket_number");
-        if (ticketError) throw ticketError;
-        ticketNumber = ticketData as unknown as string;
-      } catch (rpcErr) {
-        // RPC may be forbidden due to permissions; fall back to a safe client-side ticket number
-        console.warn(
-          "generate_ticket_number RPC failed, falling back to client-side generation",
-          rpcErr,
-        );
-        const year = new Date().getFullYear();
-        const rand = Math.floor(Math.random() * 9000) + 1000;
-        ticketNumber = `TKT-${year}-${String(rand).padStart(4, "0")}`;
-      }
-
-      // Insert ticket into database (include ticket_number to avoid NOT NULL violation)
-      // If the current user is a HOD, send the request to Principal for approval
-      const insertPayload: any = {
-        ticket_number: ticketNumber,
+      // Ticket number and status (HOD -> pending_principal) are set by the DB trigger.
+      const insertPayload = {
         name: formData.name,
         email: formData.email,
         contact_number: formData.contactNumber,
@@ -212,24 +193,20 @@ const TicketRaiser = () => {
         created_by: user.id,
       };
 
-      if (primaryRole === "hod") {
-        insertPayload.status = "pending_principal";
-      }
-
       const { data, error } = await supabase
         .from("tickets")
         .insert([insertPayload])
-        .select("ticket_number")
+        .select("ticket_number, status")
         .single();
 
       if (error) throw error;
 
+      const sentToPrincipal = data.status === "pending_principal";
       toast({
-        title: primaryRole === "hod" ? "Request Sent" : "Ticket Raised Successfully!",
-        description:
-          primaryRole === "hod"
-            ? `Your request ${data.ticket_number} was sent to Principal for approval`
-            : `Your ticket has been raised with number: ${data.ticket_number}`,
+        title: sentToPrincipal ? "Request Sent" : "Ticket Raised Successfully!",
+        description: sentToPrincipal
+          ? `Your request ${data.ticket_number} was sent to Principal for approval`
+          : `Your ticket has been raised with number: ${data.ticket_number}`,
       });
 
       // Reset form
@@ -313,17 +290,19 @@ const TicketRaiser = () => {
                   value={formData.department}
                   onChange={handleChange}
                   placeholder="Your department"
-                  readOnly={primaryRole === "hod"}
-                  title={
-                    primaryRole === "hod" ? "Department is set from your HOD assignment" : undefined
-                  }
+                  readOnly={isHod}
+                  title={isHod ? "Department is set from your HOD assignment" : undefined}
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="issueCategory">Issue Category</Label>
                 <Select
-                  value={categories.some((c) => c.value === formData.issueCategory) ? formData.issueCategory : undefined}
+                  value={
+                    categories.some((c) => c.value === formData.issueCategory)
+                      ? formData.issueCategory
+                      : undefined
+                  }
                   onValueChange={(value) => handleChange({ name: "issueCategory", value })}
                 >
                   <SelectTrigger>
@@ -331,7 +310,9 @@ const TicketRaiser = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {categoriesLoading ? (
-                      <SelectItem value="loading">Loading...</SelectItem>
+                      <SelectItem value="loading" disabled>
+                        Loading...
+                      </SelectItem>
                     ) : (
                       (categories.length
                         ? categories
@@ -381,7 +362,7 @@ const TicketRaiser = () => {
               <Button type="submit" disabled={submitting} className="w-full">
                 {submitting
                   ? "Submitting..."
-                  : primaryRole === "hod"
+                  : isHod
                     ? "Request Principal Approval"
                     : "Raise Ticket"}
               </Button>
