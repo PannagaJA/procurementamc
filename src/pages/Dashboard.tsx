@@ -370,29 +370,37 @@ const Dashboard = () => {
 
         {/* Search UI removed per request */}
 
-        <Card className="w-full bg-card border border-border/60 rounded-xl transition-all duration-300">
-          <CardHeader className="bg-slate-50/80 dark:bg-slate-900/40 rounded-t-xl border-b border-border/40 text-center py-3 px-6">
-            <CardTitle className="text-lg font-bold text-card-foreground flex items-center justify-center gap-2">
-              <ScanLine className="w-5 h-5 text-[#0B1437] dark:text-slate-200 shrink-0" />
-              <span>Scan to Get Info</span>
-            </CardTitle>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-              Scan QR codes to quickly access item details
-            </p>
-          </CardHeader>
-          <CardContent className="py-6 px-6 flex flex-col items-center justify-center text-center">
-            <Button
-              onClick={() => setShowQRScanner(true)}
-              className="inline-flex items-center justify-center gap-2.5 bg-[#0B1437] hover:bg-[#111f54] text-white px-8 h-11 rounded-full font-semibold transition-all duration-300 hover:scale-105 text-sm sm:text-base mx-auto"
-            >
-              <ScanLine className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
-              <span>Scan QR Code</span>
-            </Button>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-2.5">
-              Use your camera to scan QR codes on inventory items
-            </p>
-          </CardContent>
-        </Card>
+        {/* QR Scan Section: Above box (smaller) and Below box (larger) with button in middle */}
+        <div className="space-y-4 w-full">
+          {/* Above box - smaller with aligned text */}
+          <Card className="w-full bg-card border border-border/60 rounded-xl transition-all duration-300">
+            <CardContent className="py-3 px-6 flex flex-col items-center justify-center text-center">
+              <div className="flex items-center justify-center gap-2 text-lg font-bold text-card-foreground">
+                <ScanLine className="w-5 h-5 text-[#0B1437] dark:text-slate-200 shrink-0" />
+                <span>Scan to Get Info</span>
+              </div>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                Scan QR codes to quickly access item details
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Below box - larger with button in middle */}
+          <Card className="w-full bg-card border border-border/60 rounded-xl transition-all duration-300">
+            <CardContent className="py-8 sm:py-10 px-6 flex flex-col items-center justify-center text-center">
+              <Button
+                onClick={() => setShowQRScanner(true)}
+                className="inline-flex items-center justify-center gap-2.5 bg-[#0B1437] hover:bg-[#111f54] text-white px-8 h-12 rounded-full font-semibold transition-all duration-300 hover:scale-105 text-sm sm:text-base mx-auto"
+              >
+                <ScanLine className="w-5 h-5 shrink-0" />
+                <span>Scan QR Code</span>
+              </Button>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-3 text-center">
+                Use your camera to scan QR codes on inventory items
+              </p>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Campus Tickets & Maintenance Overview */}
         <Card className="bg-card/90 backdrop-blur-sm border border-border/60 rounded-xl transition-all duration-300">
