@@ -256,6 +256,13 @@ export default function RaiseRequisition() {
     );
   }, [activeTierId, liveRouting.escalate]);
 
+  const selectedCategoryDisplay = useMemo(() => {
+    const matched = CATEGORIES.find((c) => c.value === category);
+    return matched
+      ? matched.label
+      : category.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  }, [category]);
+
   const handleAddItem = () => {
     setLineItems((prev) => [
       ...prev,
@@ -1144,21 +1151,11 @@ export default function RaiseRequisition() {
 
                 {/* VI. AUTHORITY MATRIX - ACTIVE ROUTED TIER */}
                 <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center">
                     <span className="font-bold text-xs uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
                       <TableProperties className="w-3.5 h-3.5 text-indigo-600" />
                       Active Routing Tier
                     </span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setMatrixModalOpen(true)}
-                      className="h-7 px-2 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950 flex items-center gap-1"
-                    >
-                      <span>Full Matrix</span>
-                      <ExternalLink className="w-3 h-3" />
-                    </Button>
                   </div>
 
                   {activeTier && (
@@ -1175,7 +1172,7 @@ export default function RaiseRequisition() {
                             Routing Upon Submit
                           </span>
                           <span className="font-bold text-sm sm:text-base text-slate-900 dark:text-white leading-snug">
-                            {activeTier.procurementType}
+                            {selectedCategoryDisplay}
                           </span>
                         </div>
                         <Badge
