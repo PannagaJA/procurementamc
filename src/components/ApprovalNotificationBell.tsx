@@ -7,7 +7,6 @@ import {
   ShoppingCart,
   Scale,
   Receipt,
-  Zap,
   ScrollText,
   FileEdit,
   CheckCircle2,
@@ -76,7 +75,7 @@ export function ApprovalNotificationBell() {
       case "invoice":
         return <Receipt className="w-4 h-4 text-amber-600 dark:text-amber-400" />;
       case "emergency":
-        return <Zap className="w-4 h-4 text-rose-600 dark:text-rose-400" />;
+        return <ShieldAlert className="w-4 h-4 text-rose-600 dark:text-rose-400" />;
       case "rateContract":
         return <ScrollText className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />;
       case "amendment":

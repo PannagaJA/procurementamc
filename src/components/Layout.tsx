@@ -22,7 +22,7 @@ import {
   UserCheck,
   Truck,
   Receipt,
-  Zap,
+  ShieldAlert,
   Award,
   Menu,
   X,
@@ -344,7 +344,7 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
       {
         label: "Emergency Procurement",
         path: "/procurement/emergency",
-        icon: Zap,
+        icon: ShieldAlert,
         iconClass: "text-amber-500",
       },
     ]),

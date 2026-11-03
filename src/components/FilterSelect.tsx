@@ -82,19 +82,19 @@ export function FilterSelect<T>({
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
-          className="h-10 w-full sm:w-auto sm:min-w-[260px] justify-between gap-3 rounded-xl bg-background px-3.5 text-sm shadow-sm"
+          className="group h-10 w-full sm:w-auto sm:min-w-[260px] justify-between gap-3 rounded-xl bg-background px-3.5 text-sm shadow-sm transition-all"
           aria-label={`${title}: ${selected?.label}`}
         >
           <span className="flex min-w-0 items-center gap-2">
-            <SelectedIcon className={`h-4 w-4 shrink-0 ${selected?.color ?? "text-primary"}`} />
-            <span className="text-muted-foreground font-normal">Show:</span>
-            <span className="truncate font-semibold">{selected?.label}</span>
+            <SelectedIcon className={`h-4 w-4 shrink-0 transition-colors group-hover:text-white ${selected?.color ?? "text-primary"}`} />
+            <span className="text-muted-foreground group-hover:text-white/80 font-normal transition-colors">Show:</span>
+            <span className="truncate font-semibold text-foreground group-hover:text-white transition-colors">{selected?.label}</span>
           </span>
           <span className="flex items-center gap-2">
-            <Badge variant="secondary" className="px-2 py-0 text-xs tabular-nums">
+            <Badge variant="secondary" className="px-2 py-0 text-xs tabular-nums group-hover:bg-white/20 group-hover:text-white transition-colors border-transparent">
               {selected?.count ?? 0}
             </Badge>
-            <ChevronDown className="h-4 w-4 opacity-60" />
+            <ChevronDown className="h-4 w-4 opacity-60 group-hover:opacity-100 group-hover:text-white transition-all" />
           </span>
         </Button>
       </DropdownMenuTrigger>

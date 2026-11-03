@@ -17,7 +17,6 @@ import {
   UserCheck,
   Truck,
   Receipt,
-  Zap,
   Award,
   History,
   Wallet,
@@ -252,7 +251,7 @@ export default function ProcurementHub() {
             <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-[#0B1437]/30 flex flex-col justify-between">
               <CardHeader className="p-4">
                 <div className="w-8 h-8 rounded-lg bg-[#0B1437]/10 flex items-center justify-center text-[#0B1437] mb-1.5">
-                  <Zap className="w-4 h-4" />
+                  <ShieldAlert className="w-4 h-4" />
                 </div>
                 <CardTitle className="text-base">7. Emergency Procurement</CardTitle>
                 <CardDescription className="text-xs">
