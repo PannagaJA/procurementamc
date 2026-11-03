@@ -124,10 +124,11 @@ export function ApprovalNotificationBell() {
       <PopoverContent
         align="end"
         sideOffset={8}
-        className="w-[22rem] sm:w-[26rem] p-0 shadow-2xl rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 z-50 overflow-hidden"
+        collisionPadding={12}
+        className="w-[calc(100vw-24px)] sm:w-[26rem] max-w-[26rem] max-h-[85vh] p-0 shadow-2xl rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 z-50 overflow-hidden flex flex-col"
       >
         {/* Header */}
-        <div className="p-3.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/70 backdrop-blur-sm flex items-center justify-between">
+        <div className="p-3.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/70 backdrop-blur-sm flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
               <Bell className="w-4 h-4" />
@@ -162,7 +163,7 @@ export function ApprovalNotificationBell() {
 
         {/* Filter Pills */}
         {totalCount > 0 && (
-          <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-1 overflow-x-auto text-[11px]">
+          <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-1 overflow-x-auto text-[11px] shrink-0">
             <button
               onClick={() => setFilterType("all")}
               className={cn(
@@ -269,7 +270,7 @@ export function ApprovalNotificationBell() {
         )}
 
         {/* Scrollable Items */}
-        <div className="max-h-[22rem] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
+        <div className="flex-1 max-h-[55vh] sm:max-h-[22rem] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
           {filteredItems.length === 0 ? (
             <div className="py-10 px-4 text-center">
               <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-2 opacity-80" />
@@ -321,7 +322,7 @@ export function ApprovalNotificationBell() {
         </div>
 
         {/* Footer */}
-        <div className="p-2.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
+        <div className="p-2.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between shrink-0">
           <span className="text-[11px] text-slate-500 dark:text-slate-400 pl-1">
             Auto-synced with Live Matrix
           </span>

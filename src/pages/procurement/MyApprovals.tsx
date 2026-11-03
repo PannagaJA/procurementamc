@@ -954,6 +954,7 @@ export default function MyApprovals() {
                 size="sm"
                 onClick={() => setHistoryTypeFilter("all")}
                 className="rounded-full text-xs h-8 gap-1.5"
+
               >
                 All History
                 <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
@@ -968,6 +969,7 @@ export default function MyApprovals() {
                 size="sm"
                 onClick={() => setHistoryTypeFilter("prs")}
                 className="rounded-full text-xs h-8 gap-1.5 text-blue-600 dark:text-blue-400"
+
               >
                 Requisitions (PR)
                 <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
@@ -979,6 +981,7 @@ export default function MyApprovals() {
                 size="sm"
                 onClick={() => setHistoryTypeFilter("css")}
                 className="rounded-full text-xs h-8 gap-1.5 text-emerald-600 dark:text-emerald-400"
+
               >
                 Comparative Statements
                 <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
@@ -990,6 +993,7 @@ export default function MyApprovals() {
                 size="sm"
                 onClick={() => setHistoryTypeFilter("pos")}
                 className="rounded-full text-xs h-8 gap-1.5 text-indigo-600 dark:text-indigo-400"
+
               >
                 Purchase Orders
                 <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
@@ -1001,6 +1005,7 @@ export default function MyApprovals() {
                 size="sm"
                 onClick={() => setHistoryTypeFilter("invoices")}
                 className="rounded-full text-xs h-8 gap-1.5 text-teal-600 dark:text-teal-400"
+
               >
                 Invoices
                 <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
@@ -1012,6 +1017,7 @@ export default function MyApprovals() {
                 size="sm"
                 onClick={() => setHistoryTypeFilter("rateContracts")}
                 className="rounded-full text-xs h-8 gap-1.5 text-violet-600 dark:text-violet-400"
+
               >
                 Rate Contracts
                 <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">

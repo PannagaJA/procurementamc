@@ -255,7 +255,7 @@ const CategoryManagement = () => {
     return (
       <Layout>
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h2 className="text-3xl font-bold tracking-tight">Category Management</h2>
               <p className="text-muted-foreground">Manage inventory categories</p>
@@ -281,7 +281,7 @@ const CategoryManagement = () => {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 className="text-3xl font-bold tracking-tight">Category Management</h2>
             <p className="text-muted-foreground">Manage inventory categories</p>
@@ -293,7 +293,7 @@ const CategoryManagement = () => {
             <CardTitle>Add New Category</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex gap-4 items-end">
+            <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
               <div className="flex-1">
                 <Label htmlFor="category-name">Category Name</Label>
                 <Input
@@ -311,7 +311,7 @@ const CategoryManagement = () => {
                 />
               </div>
 
-              <div className="w-48">
+              <div className="w-full sm:w-48">
                 <Label htmlFor="category-prefix">Prefix</Label>
                 <Input
                   id="category-prefix"
@@ -323,7 +323,7 @@ const CategoryManagement = () => {
                 />
               </div>
 
-              <div className="flex items-end">
+              <div className="flex sm:items-end w-full sm:w-auto">
                 <Button
                   disabled={addingCategory || !newCategoryName.trim()}
                   onClick={() => {
@@ -384,7 +384,7 @@ const CategoryManagement = () => {
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <Table>
+              <Table className="min-w-[500px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Category Name</TableHead>

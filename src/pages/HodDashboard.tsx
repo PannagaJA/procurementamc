@@ -370,7 +370,7 @@ const HodDashboard = () => {
       <div className="w-full space-y-6">
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <CardTitle className="flex items-center gap-2">
                   <Activity className="w-5 h-5 text-emerald-600" /> HOD Dashboard
@@ -379,8 +379,9 @@ const HodDashboard = () => {
                   Tickets and stats for {departmentName || "your department"}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                 <Input
+                  className="flex-1 sm:w-64"
                   placeholder="Search ticket # or requester"
                   value={searchInput}
                   onChange={(e) => setSearchInput((e.target as HTMLInputElement).value)}
@@ -407,7 +408,7 @@ const HodDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
-              <table className="w-full table-fixed">
+              <table className="w-full min-w-[700px] table-fixed">
                 <colgroup>
                   <col style={{ width: "14%" }} />
                   <col style={{ width: "30%" }} />
@@ -550,7 +551,7 @@ const HodDashboard = () => {
 
                   return (
                     <div className="overflow-x-auto">
-                      <table className="w-full table-fixed">
+                      <table className="w-full min-w-[700px] table-fixed">
                         <colgroup>
                           <col style={{ width: "16%" }} />
                           <col style={{ width: "20%" }} />
@@ -631,7 +632,7 @@ const HodDashboard = () => {
         <div className="mt-6">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <CardTitle className="flex items-center gap-2">
                     <Activity className="w-5 h-5 text-emerald-600" /> Inventory
@@ -647,7 +648,7 @@ const HodDashboard = () => {
                 <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<div key={i} className="h-14 w-full bg-muted/60 animate-pulse rounded-xl" />))}</div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full table-fixed">
+                  <table className="w-full min-w-[700px] table-fixed">
                     <colgroup>
                       <col style={{ width: "14%" }} />
                       <col style={{ width: "30%" }} />

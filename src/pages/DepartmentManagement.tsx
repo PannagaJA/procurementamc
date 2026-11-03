@@ -281,7 +281,7 @@ export default function DepartmentManagement() {
             </div>
 
             <div className="mt-4 flex gap-2">
-              <Button onClick={handleCreate} disabled={loading} className="bg-[#0B1437] hover:bg-[#111f54] text-white font-bold rounded-full px-6 py-2.5 shadow-sm transition-all">
+              <Button onClick={handleCreate} disabled={loading} className="bg-[#0B1437] hover:bg-[#111f54] text-white font-bold rounded-full px-6 py-2.5 shadow-sm transition-all w-full sm:w-auto">
                 {loading ? "Creating..." : "Create Department"}
               </Button>
             </div>
@@ -295,7 +295,7 @@ export default function DepartmentManagement() {
                   </div>
                 )}
                 {departments.map((d) => (
-                  <div key={d.id} className="p-2 border rounded flex justify-between items-center">
+                  <div key={d.id} className="p-3 border rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex-1">
                       {editingId === d.id ? (
                         <div className="grid grid-cols-2 gap-2">
@@ -321,7 +321,7 @@ export default function DepartmentManagement() {
                         </>
                       )}
                     </div>
-                    <div className="ml-4 flex items-center gap-2">
+                    <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
                       {editingId === d.id ? (
                         <>
                           <Button size="sm" onClick={() => handleUpdate(d.id)} disabled={loading}>

@@ -421,11 +421,11 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
     <div className="min-h-screen bg-slate-50/80 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
       {/* Fixed top header */}
       <header className="fixed top-0 left-0 right-0 z-40 border-b bg-white/90 backdrop-blur-sm shadow-sm dark:bg-slate-900/90 dark:border-slate-700 h-20">
-        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-10 h-full flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="w-full px-3 sm:px-6 lg:px-8 xl:px-10 h-full flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              className="md:hidden p-2 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors shrink-0"
               aria-label="Toggle Navigation Menu"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -433,13 +433,13 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
             <img
               src="/amc.jpeg"
               alt="AMC Logo"
-              className="h-10 w-14 sm:h-12 sm:w-16 rounded-lg object-contain shadow-md"
+              className="h-9 w-12 sm:h-12 sm:w-16 rounded-lg object-contain shadow-md shrink-0"
             />
-            <div>
-              <h1 className="text-base sm:text-lg font-bold text-gray-800 dark:text-gray-100">
+<div className="min-w-0">
+              <h1 className="text-sm sm:text-lg font-bold text-gray-800 dark:text-gray-100 truncate">
                 AMC Procurement Software
               </h1>
-              <p className="text-[11px] sm:text-xs text-gray-600 dark:text-gray-400 font-medium">
+              <p className="text-[10px] sm:text-xs text-gray-600 dark:text-gray-400 font-medium truncate">
                 {authCtx?.loading && !authCtx?.primaryRole ? (
                   <span className="inline-block w-24 h-3 bg-muted/60 animate-pulse rounded" />
                 ) : (
@@ -464,7 +464,7 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <ApprovalNotificationBell />
             <Button
               variant="outline"
@@ -502,7 +502,7 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
 
       {/* Main content wrapper positioned to the right of fixed sidebar */}
       <div className="pt-20 md:pl-64 lg:pl-72 min-h-screen flex flex-col transition-all duration-300">
-        <main className="flex-1 w-full max-w-full px-4 sm:px-6 lg:px-8 xl:px-10 py-6 sm:py-8 animate-in fade-in-0 duration-500">
+        <main className="flex-1 w-full max-w-full px-3 sm:px-6 lg:px-8 xl:px-10 py-5 sm:py-8 animate-in fade-in-0 duration-500 overflow-x-hidden">
           {children}
         </main>
       </div>

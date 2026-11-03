@@ -389,7 +389,7 @@ const InventoryList = () => {
               Scan QR codes to quickly access item details
             </p>
           </CardHeader>
-          <CardContent className="p-8">
+          <CardContent className="p-4 sm:p-8">
             <div className="text-center">
               <Button
                 onClick={() => setShowQRScanner(true)}
@@ -412,7 +412,7 @@ const InventoryList = () => {
               Search & Filters
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6 p-8">
+<CardContent className="space-y-6 p-4 sm:p-8">
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <Input
                 placeholder="Search by item code, name, department, category, or location..."
@@ -421,9 +421,9 @@ const InventoryList = () => {
                 onKeyDown={(e) => {
                   if (e.key === "Enter") setSearchTerm(searchInput);
                 }}
-                className="flex-1 min-w-[200px] max-w-xl pl-4 py-2 text-sm rounded-full h-10 border border-slate-300 dark:border-slate-700 bg-background"
+className="flex-1 min-w-[200px] max-w-xl pl-4 py-2 text-sm rounded-full h-10 border border-slate-300 dark:border-slate-700 bg-background w-full sm:w-auto"
               />
-              <Button onClick={() => setSearchTerm(searchInput)} className="h-10 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full px-6 font-semibold shrink-0">
+              <Button onClick={() => setSearchTerm(searchInput)} className="h-10 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full px-6 font-semibold w-full sm:w-auto shrink-0">
                 Search
               </Button>
             </div>

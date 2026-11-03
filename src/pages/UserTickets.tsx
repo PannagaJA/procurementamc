@@ -290,14 +290,14 @@ const UserTickets = () => {
       <div className="w-full space-y-6">
         <Card>
           <CardHeader>
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <CardTitle>My Tickets</CardTitle>
                 <p className="text-sm text-muted-foreground mt-1">
                   View and track the status of your raised tickets
                 </p>
               </div>
-              <Button onClick={() => navigate({ to: "/raise-ticket" })}>Raise New Ticket</Button>
+              <Button size="sm" onClick={() => navigate({ to: "/raise-ticket" })} className="w-full sm:w-auto shrink-0">Raise New Ticket</Button>
             </div>
           </CardHeader>
           <CardContent>
@@ -361,7 +361,7 @@ const UserTickets = () => {
                           <h3 className="font-semibold">Ticket #{ticket.ticket_number}</h3>
                           <p className="text-sm text-muted-foreground">{ticket.issue_category}</p>
                         </div>
-                        <div className="flex justify-end space-x-2">
+                        <div className="flex flex-wrap items-center md:justify-end gap-2">
                           <Badge className={getPriorityColor(ticket.priority)}>
                             {ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1)}
                           </Badge>
@@ -385,7 +385,7 @@ const UserTickets = () => {
                       {/* Show admin updates (toggle per-ticket) */}
                       {ticket.ticket_updates && ticket.ticket_updates.length > 0 && (
                         <div>
-                          <div className="flex justify-end mb-2 space-x-2">
+                          <div className="flex flex-wrap justify-end gap-2 mb-2">
                             <Button
                               variant="ghost"
                               size="sm"
