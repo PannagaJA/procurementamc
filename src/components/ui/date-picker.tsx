@@ -1,7 +1,6 @@
 import * as React from "react";
 import { format, parse, isValid } from "date-fns";
 import { Calendar as CalendarIcon, X } from "lucide-react";
-
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -83,15 +82,15 @@ export function DatePicker({
           variant="outline"
           disabled={disabled}
           className={cn(
-            "w-full justify-between text-left font-normal h-10 px-3 rounded-md border-input bg-background text-sm shadow-xs hover:bg-accent/40 hover:text-foreground",
+            "w-full justify-between text-left font-normal h-12 text-base rounded-md border border-input bg-background px-3 py-2 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-foreground active:scale-100 hover:scale-100",
             !parsedDate && "text-muted-foreground",
             className,
           )}
         >
           <div className="flex items-center gap-2 truncate">
-            <CalendarIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <CalendarIcon className="h-4 w-4 shrink-0 text-slate-500" />
             <span className="truncate">
-              {parsedDate ? format(parsedDate, "PPP") : placeholder}
+              {parsedDate ? format(parsedDate, "dd-MM-yyyy") : placeholder}
             </span>
           </div>
           {parsedDate && !disabled && (
@@ -99,7 +98,12 @@ export function DatePicker({
               role="button"
               tabIndex={0}
               onClick={handleClear}
-              className="ml-2 rounded-sm opacity-60 hover:opacity-100 hover:text-foreground p-0.5"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  handleClear(e as any);
+                }
+              }}
+              className="p-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
               title="Clear date"
             >
               <X className="h-3.5 w-3.5 shrink-0" />
@@ -107,7 +111,7 @@ export function DatePicker({
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0 z-50 shadow-lg" align="start">
+      <PopoverContent className="w-auto p-0 z-50 rounded-xl shadow-xl border bg-white dark:bg-slate-900" align="start">
         <Calendar
           mode="single"
           selected={parsedDate}

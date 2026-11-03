@@ -414,7 +414,7 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
               alt="AMC Logo"
               className="h-9 w-12 sm:h-12 sm:w-16 rounded-lg object-contain shadow-md shrink-0"
             />
-            <div className="min-w-0">
+<div className="min-w-0">
               <h1 className="text-sm sm:text-lg font-bold text-gray-800 dark:text-gray-100 truncate">
                 AMC Procurement Software
               </h1>
