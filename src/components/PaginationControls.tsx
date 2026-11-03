@@ -111,7 +111,7 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
             className={
               currentPage === 1
                 ? "min-w-8 h-8 px-2.5 text-xs sm:text-sm font-bold pointer-events-none bg-[#0B1437] text-white rounded-full"
-                : "min-w-8 h-8 px-2.5 text-xs sm:text-sm cursor-pointer hover:bg-accent rounded-full"
+                : "min-w-8 h-8 px-2.5 text-xs sm:text-sm cursor-pointer hover:bg-[#0B1437] hover:text-white transition-colors rounded-full"
             }
           >
             1
@@ -137,7 +137,7 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
             className={
               currentPage === i
                 ? "min-w-8 h-8 px-2.5 text-xs sm:text-sm font-bold pointer-events-none bg-[#0B1437] text-white rounded-full"
-                : "min-w-8 h-8 px-2.5 text-xs sm:text-sm cursor-pointer hover:bg-accent rounded-full"
+                : "min-w-8 h-8 px-2.5 text-xs sm:text-sm cursor-pointer hover:bg-[#0B1437] hover:text-white transition-colors rounded-full"
             }
           >
             {i}
@@ -163,7 +163,7 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
             className={
               currentPage === totalPages
                 ? "min-w-8 h-8 px-2.5 text-xs sm:text-sm font-bold pointer-events-none bg-[#0B1437] text-white rounded-full"
-                : "min-w-8 h-8 px-2.5 text-xs sm:text-sm cursor-pointer hover:bg-accent rounded-full"
+                : "min-w-8 h-8 px-2.5 text-xs sm:text-sm cursor-pointer hover:bg-[#0B1437] hover:text-white transition-colors rounded-full"
             }
           >
             {totalPages}
@@ -207,7 +207,7 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
                   onClick={() => hasPrev && onPageChange(currentPage - 1)}
                   className={
                     hasPrev
-                      ? "cursor-pointer hover:bg-accent rounded-full px-3 text-xs sm:text-sm font-medium"
+                      ? "cursor-pointer hover:bg-[#0B1437] hover:text-white transition-colors rounded-full px-3 text-xs sm:text-sm font-medium"
                       : "pointer-events-none opacity-40 rounded-full px-3 text-xs sm:text-sm font-medium"
                   }
                 />
@@ -220,7 +220,7 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
                   onClick={() => hasNext && onPageChange(currentPage + 1)}
                   className={
                     hasNext
-                      ? "cursor-pointer hover:bg-accent rounded-full px-3 text-xs sm:text-sm font-medium"
+                      ? "cursor-pointer hover:bg-[#0B1437] hover:text-white transition-colors rounded-full px-3 text-xs sm:text-sm font-medium"
                       : "pointer-events-none opacity-40 rounded-full px-3 text-xs sm:text-sm font-medium"
                   }
                 />
