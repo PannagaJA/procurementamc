@@ -23,6 +23,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import {
   Plus,
@@ -80,6 +90,8 @@ export default function RaiseRequisition() {
 
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
   const [matrixRules, setMatrixRules] = useState<any[]>([]);
+  const [loadingRules, setLoadingRules] = useState(true);
+  const [confirmPrOpen, setConfirmPrOpen] = useState(false);
   // Section B: the department's budget heads for this financial year, with live balances
   const [availableBudgetHeads, setAvailableBudgetHeads] = useState<any[]>([]);
   const [budgetJustification, setBudgetJustification] = useState("");
@@ -135,6 +147,7 @@ export default function RaiseRequisition() {
       if (rules) {
         setMatrixRules(rules);
       }
+      setLoadingRules(false);
     }
     loadData();
   }, [userDeptId]);
@@ -301,7 +314,7 @@ export default function RaiseRequisition() {
     setLineItems((prev) => prev.map((i) => (i.id === id ? { ...i, [field]: val } : i)));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!departmentId) {
       toast({ title: "Please select a department", variant: "destructive" });
@@ -347,6 +360,12 @@ export default function RaiseRequisition() {
       return;
     }
 
+    setConfirmPrOpen(true);
+  };
+
+  const executeSubmitPr = async () => {
+    setConfirmPrOpen(false);
+    const validItems = lineItems.filter((i) => i.description.trim().length > 0);
     try {
       setIsSubmitting(true);
       const res = await createPr({
@@ -419,9 +438,9 @@ export default function RaiseRequisition() {
               type="button"
               variant="outline"
               onClick={() => setMatrixModalOpen(true)}
-              className="flex items-center gap-1.5 font-semibold text-slate-700 dark:text-slate-200 hover:text-indigo-600 hover:border-indigo-300"
+              className="flex items-center gap-1.5 font-semibold text-[#0B1437] dark:text-white border-slate-300 dark:border-slate-700 hover:bg-[#0B1437] hover:text-white transition-colors group"
             >
-              <TableProperties className="w-4 h-4 text-indigo-600" />
+              <TableProperties className="w-4 h-4 text-indigo-600 group-hover:text-white transition-colors" />
               View Authority Matrix
             </Button>
             <Button variant="outline" onClick={() => navigate({ to: "/procurement/vendors" })}>
@@ -686,13 +705,15 @@ export default function RaiseRequisition() {
                             Item #{idx + 1}
                           </span>
                           {lineItems.length > 1 && (
-                            <button
+                            <Button
+                              size="sm"
+                              variant="destructive"
                               type="button"
                               onClick={() => handleRemoveItem(item.id)}
-                              className="text-red-500 hover:text-red-700 text-xs flex items-center gap-1"
+                              className="h-7 px-2.5 text-xs gap-1"
                             >
                               <Trash2 className="w-3.5 h-3.5" /> Remove
-                            </button>
+                            </Button>
                           )}
                         </div>
 
@@ -1012,125 +1033,129 @@ export default function RaiseRequisition() {
                 </div>
 
                 {/* Level-Aware Monthly Spend Tracker (SOP §6) */}
-                <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                      <Wallet className="w-3.5 h-3.5 text-indigo-500" />
-                      Up-to-Date Spend ({liveRouting.appliedScope === "department" ? "Departmental" : "Institutional"})
-                    </span>
-                    <Badge
-                      variant="outline"
-                      className={`text-[9px] px-1.5 py-0 font-semibold ${
-                        liveRouting.appliedScope === "department"
-                          ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300"
-                          : "bg-slate-50 text-slate-700 border-slate-200"
+                {!(loadingRules || matrixRules.length === 0) && (
+                  <>
+                    <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                          <Wallet className="w-3.5 h-3.5 text-indigo-500" />
+                          Up-to-Date Spend ({liveRouting.appliedScope === "department" ? "Departmental" : "Institutional"})
+                        </span>
+                        <Badge
+                          variant="outline"
+                          className={`text-[9px] px-1.5 py-0 font-semibold ${
+                            liveRouting.appliedScope === "department"
+                              ? "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300"
+                              : "bg-slate-50 text-slate-700 border-slate-200"
+                          }`}
+                        >
+                          {liveRouting.appliedScope === "department" ? "Per Department" : "Institution-Wide"}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-slate-200/60 dark:border-slate-700/60">
+                        <div>
+                          <span className="text-slate-400 text-[10px] block">Dept MTD Spend:</span>
+                          <strong className="text-slate-800 dark:text-slate-200 font-mono">
+                            ₹{monthlySpendContext.departmentSpend.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                          </strong>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 text-[10px] block">Inst MTD Spend:</span>
+                          <strong className="text-slate-800 dark:text-slate-200 font-mono">
+                            ₹{monthlySpendContext.institutionSpend.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                          </strong>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Resolved Role Display */}
+                    <div
+                      className={`p-4 rounded-xl text-white shadow-sm space-y-1 ${
+                        liveRouting.escalate
+                          ? "bg-gradient-to-br from-amber-600 to-rose-700"
+                          : "bg-gradient-to-br from-indigo-600 to-blue-700"
                       }`}
                     >
-                      {liveRouting.appliedScope === "department" ? "Per Department" : "Institution-Wide"}
-                    </Badge>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-slate-200/60 dark:border-slate-700/60">
-                    <div>
-                      <span className="text-slate-400 text-[10px] block">Dept MTD Spend:</span>
-                      <strong className="text-slate-800 dark:text-slate-200 font-mono">
-                        ₹{monthlySpendContext.departmentSpend.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
-                      </strong>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 text-[10px] block">Inst MTD Spend:</span>
-                      <strong className="text-slate-800 dark:text-slate-200 font-mono">
-                        ₹{monthlySpendContext.institutionSpend.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
-                      </strong>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Resolved Role Display */}
-                <div
-                  className={`p-4 rounded-xl text-white shadow-sm space-y-1 ${
-                    liveRouting.escalate
-                      ? "bg-gradient-to-br from-amber-600 to-rose-700"
-                      : "bg-gradient-to-br from-indigo-600 to-blue-700"
-                  }`}
-                >
-                  <span className="text-xs uppercase text-indigo-100 font-semibold tracking-wider">
-                    Target Approval Authority
-                  </span>
-                  <div className="text-2xl font-black tracking-tight">
-                    {liveRouting.role === "hod"
-                      ? `${departments.find((d) => d.id === departmentId)?.name || "Department"} HOD`
-                      : formatRoleTitle(liveRouting.role)}
-                  </div>
-                  <div className="text-xs text-white/90">
-                    {liveRouting.escalate ? (
-                      <span className="inline-flex items-center gap-1 font-bold text-amber-200">
-                        <AlertTriangle className="w-3.5 h-3.5 text-amber-300" /> Escalated to EVP /
-                        Trustees (Exceeds Delegated Band)
+                      <span className="text-xs uppercase text-indigo-100 font-semibold tracking-wider">
+                        Target Approval Authority
                       </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 font-semibold text-emerald-200">
-                        <Check className="w-3.5 h-3.5" /> Within standard delegated approval band
-                      </span>
-                    )}
-                  </div>
-                </div>
+                      <div className="text-2xl font-black tracking-tight">
+                        {liveRouting.role === "hod"
+                          ? `${departments.find((d) => d.id === departmentId)?.name || "Department"} HOD`
+                          : formatRoleTitle(liveRouting.role)}
+                      </div>
+                      <div className="text-xs text-white/90">
+                        {liveRouting.escalate ? (
+                          <span className="inline-flex items-center gap-1 font-bold text-amber-200">
+                            <AlertTriangle className="w-3.5 h-3.5 text-amber-300" /> Escalated to EVP /
+                            Trustees (Exceeds Delegated Band)
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 font-semibold text-emerald-200">
+                            <Check className="w-3.5 h-3.5" /> Within standard delegated approval band
+                          </span>
+                        )}
+                      </div>
+                    </div>
 
-                {/* Quotations & Procurement Method */}
-                <div className="p-3 rounded-lg bg-slate-100 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 space-y-2 text-xs">
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-600 dark:text-slate-400 font-medium">
-                      Procurement Method:
-                    </span>
-                    <strong
-                      className="text-slate-900 dark:text-slate-100 text-right max-w-[200px] truncate"
-                      title={
-                        normalizeCategory(category) === "routine_consumable"
-                          ? "Rate Contract with Vendors approved by EVP/Trustees (Min 3 quotes, 6 mo validity)"
-                          : normalizeCategory(category) === "small_value"
-                            ? "Direct Purchase"
-                            : "Comparative Quotations with Approved Vendors (Minimum 3)"
-                      }
-                    >
-                      {normalizeCategory(category) === "routine_consumable"
-                        ? "Rate Contract (6-mo validity)"
-                        : normalizeCategory(category) === "small_value"
-                          ? "Direct Purchase"
-                          : "Comparative Quotations (Min 3)"}
-                    </strong>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-600 dark:text-slate-400 font-medium">
-                      Min. Quotations:
-                    </span>
-                    <strong className="text-slate-900 dark:text-slate-100 font-bold">
-                      {liveRouting.minQuotations > 0
-                        ? `${liveRouting.minQuotations} Quotes`
-                        : "0 (Direct Purchase)"}
-                    </strong>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-600 dark:text-slate-400 font-medium">
-                      Rate Contract Required:
-                    </span>
-                    <Badge
-                      variant={liveRouting.requiresRateContract ? "default" : "outline"}
-                      className="text-[10px] h-5"
-                    >
-                      {liveRouting.requiresRateContract ? "Yes (6 Mo Validity)" : "No"}
-                    </Badge>
-                  </div>
-                </div>
+                    {/* Quotations & Procurement Method */}
+                    <div className="p-3 rounded-lg bg-slate-100 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 space-y-2 text-xs">
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-600 dark:text-slate-400 font-medium">
+                          Procurement Method:
+                        </span>
+                        <strong
+                          className="text-slate-900 dark:text-slate-100 text-right max-w-[200px] truncate"
+                          title={
+                            normalizeCategory(category) === "routine_consumable"
+                              ? "Rate Contract with Vendors approved by EVP/Trustees (Min 3 quotes, 6 mo validity)"
+                              : normalizeCategory(category) === "small_value"
+                                ? "Direct Purchase"
+                                : "Comparative Quotations with Approved Vendors (Minimum 3)"
+                          }
+                        >
+                          {normalizeCategory(category) === "routine_consumable"
+                            ? "Rate Contract (6-mo validity)"
+                            : normalizeCategory(category) === "small_value"
+                              ? "Direct Purchase"
+                              : "Comparative Quotations (Min 3)"}
+                        </strong>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-600 dark:text-slate-400 font-medium">
+                          Min. Quotations:
+                        </span>
+                        <strong className="text-slate-900 dark:text-slate-100 font-bold">
+                          {liveRouting.minQuotations > 0
+                            ? `${liveRouting.minQuotations} Quotes`
+                            : "0 (Direct Purchase)"}
+                        </strong>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-600 dark:text-slate-400 font-medium">
+                          Rate Contract Required:
+                        </span>
+                        <Badge
+                          variant={liveRouting.requiresRateContract ? "default" : "outline"}
+                          className="text-[10px] h-5"
+                        >
+                          {liveRouting.requiresRateContract ? "Yes (6 Mo Validity)" : "No"}
+                        </Badge>
+                      </div>
+                    </div>
 
-                {/* Authority Rule Explanation */}
-                <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 space-y-1">
-                  <div className="font-bold flex items-center gap-1.5 text-amber-950 dark:text-amber-100">
-                    <FileCheck2 className="w-3.5 h-3.5 text-amber-600" />
-                    <span>Authority Rule Engine:</span>
-                  </div>
-                  <p className="text-[11px] leading-relaxed text-amber-800 dark:text-amber-300">
-                    {liveRouting.reason}
-                  </p>
-                </div>
+                    {/* Authority Rule Explanation */}
+                    <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 space-y-1">
+                      <div className="font-bold flex items-center gap-1.5 text-amber-950 dark:text-amber-100">
+                        <FileCheck2 className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Authority Rule Engine:</span>
+                      </div>
+                      <p className="text-[11px] leading-relaxed text-amber-800 dark:text-amber-300">
+                        {liveRouting.reason}
+                      </p>
+                    </div>
+                  </>
+                )}
 
                 {/* Authority Matrix Modal Trigger */}
                 <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
@@ -1138,9 +1163,9 @@ export default function RaiseRequisition() {
                     type="button"
                     variant="outline"
                     onClick={() => setMatrixModalOpen(true)}
-                    className="w-full font-semibold text-xs text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950 flex items-center justify-center gap-2 py-2.5 shadow-sm"
+                    className="w-full font-semibold text-xs text-[#0B1437] dark:text-white border-slate-300 dark:border-slate-700 hover:bg-[#0B1437] hover:text-white dark:hover:bg-slate-800 flex items-center justify-center gap-2 py-2.5 transition-colors group"
                   >
-                    <TableProperties className="w-4 h-4 text-indigo-600" />
+                    <TableProperties className="w-4 h-4 text-indigo-600 group-hover:text-white transition-colors" />
                     View Full Authority Matrix
                   </Button>
                 </div>
@@ -1417,6 +1442,46 @@ export default function RaiseRequisition() {
             </div>
           </DialogContent>
         </Dialog>
+        {/* Confirmation Modal to prevent accidental PR submission */}
+        <AlertDialog open={confirmPrOpen} onOpenChange={setConfirmPrOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirm Purchase Requisition Submission</AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-3 text-sm text-slate-600 dark:text-slate-300 pt-2">
+                  <p>Are you sure you want to submit this Purchase Requisition? It will be automatically routed according to the Institutional Authority Matrix.</p>
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg space-y-1.5 text-xs font-medium">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Department:</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-100">{departments.find((d) => d.id === departmentId)?.name || "Department"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Category:</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-100 capitalize">{category.replace(/_/g, " ")}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Items Count:</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-100">{lineItems.filter((i) => i.description.trim().length > 0).length} item(s)</span>
+                    </div>
+                    <div className="flex justify-between border-t border-slate-200 dark:border-slate-700 pt-1.5 text-sm font-bold">
+                      <span className="text-slate-700 dark:text-slate-200">Total Value:</span>
+                      <span className="text-slate-900 dark:text-white font-mono">₹{totalEstimatedValue.toLocaleString("en-IN")}</span>
+                    </div>
+                  </div>
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={executeSubmitPr}
+                className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
+              >
+                Confirm & Submit PR
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </Layout>
   );

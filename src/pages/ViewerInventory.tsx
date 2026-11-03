@@ -57,7 +57,7 @@ const ViewerInventory = () => {
               </div>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[650px] table-fixed">
                 <colgroup>

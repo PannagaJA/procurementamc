@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import libraryApi from "@/lib/libraryApi";
 import { z } from "zod";
+import { Trash2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface Member {
   id: string;
@@ -24,6 +26,7 @@ const memberSchema = z.object({
 });
 
 const Members = () => {
+  const { toast } = useToast();
   const [members, setMembers] = useState<Member[]>([]);
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
@@ -63,14 +66,15 @@ const Members = () => {
       }
       await load();
       setOpen(false);
+      toast({ title: "Saved", description: "Member record saved successfully." });
     } catch (err: any) {
-      alert(err.message || "Invalid input");
+      toast({ title: "Invalid Input", description: err.message || "Please check member details.", variant: "destructive" });
     }
   };
 
   const remove = async (id: string) => {
-    if (!confirm("Delete member?")) return;
     await libraryApi.deleteMember(id);
+    toast({ title: "Member Deleted", description: "Member removed successfully." });
     await load();
   };
 
@@ -116,7 +120,8 @@ const Members = () => {
                 <td className="text-right">
                   <div className="inline-flex gap-2">
                     <Button onClick={() => openEdit(m)}>Edit</Button>
-                    <Button variant="ghost" onClick={() => remove(m.id)}>
+                    <Button size="sm" variant="destructive" className="gap-1.5" onClick={() => remove(m.id)}>
+                      <Trash2 className="h-4 w-4" />
                       Delete
                     </Button>
                   </div>

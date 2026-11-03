@@ -791,7 +791,7 @@ export default function InvoiceManagement() {
 
                       if (eligiblePos.length === 0) {
                         return (
-                          <SelectItem value="_no_po" disabled className="text-muted-foreground text-xs italic py-2">
+                          <SelectItem value="_no_po" disabled className="text-slate-700 dark:text-slate-300 font-medium text-xs py-2 text-center">
                             No Purchase Orders found
                           </SelectItem>
                         );

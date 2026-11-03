@@ -169,12 +169,13 @@ export function NewRateRfqDialog({
                 <Button
                   type="button"
                   size="icon"
-                  variant="ghost"
+                  variant="destructive"
+                  className="h-9 w-9 shrink-0"
                   disabled={items.length === 1}
                   onClick={() => setItems((prev) => prev.filter((_, j) => j !== i))}
                   aria-label="Remove item"
                 >
-                  <Trash2 className="w-4 h-4 text-slate-500" />
+                  <Trash2 className="w-4 h-4" />
                 </Button>
               </div>
             ))}

@@ -295,9 +295,9 @@ export function GlAccountingModal({ open, onOpenChange, invoices }: GlAccounting
               variant="outline"
               onClick={handleWebhookHandoff}
               disabled={transmitting || activeVouchers.length === 0}
-              className="gap-1.5 text-xs text-indigo-600 dark:text-indigo-400 border-indigo-300 hover:bg-indigo-50"
+              className="gap-1.5 text-xs text-[#0B1437] dark:text-white border-slate-300 dark:border-slate-700 hover:bg-[#0B1437] hover:text-white transition-colors group"
             >
-              <Send className="w-3.5 h-3.5" />
+              <Send className="w-3.5 h-3.5 text-indigo-600 group-hover:text-white transition-colors" />
               {transmitting ? "Posting to ERP..." : "Transmit to ERP Webhook"}
             </Button>
 

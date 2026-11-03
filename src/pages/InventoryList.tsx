@@ -38,7 +38,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { Download } from "lucide-react";
+import { Download, Trash2 } from "lucide-react";
 import QRScanner from "@/components/QRScanner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScanLine } from "lucide-react";
@@ -641,10 +641,11 @@ className="flex-1 min-w-[200px] max-w-xl pl-4 py-2 text-sm rounded-full h-10 bor
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <Button
-                                  variant="ghost"
+                                  variant="destructive"
                                   size="sm"
-                                  className="text-destructive hover:text-destructive hover:bg-destructive/10 transition-all duration-300 hover:scale-105 rounded-lg px-3 py-2"
+                                  className="gap-1.5"
                                 >
+                                  <Trash2 className="h-4 w-4" />
                                   Delete
                                 </Button>
                               </AlertDialogTrigger>
