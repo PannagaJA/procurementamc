@@ -389,7 +389,7 @@ const InventoryList = () => {
               Scan QR codes to quickly access item details
             </p>
           </CardHeader>
-          <CardContent className="p-8">
+          <CardContent className="p-4 sm:p-8">
             <div className="text-center">
               <Button
                 onClick={() => setShowQRScanner(true)}
@@ -412,8 +412,8 @@ const InventoryList = () => {
               Search & Filters
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6 p-8">
-            <div className="flex items-center gap-3">
+          <CardContent className="space-y-6 p-4 sm:p-8">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <Input
                 placeholder="Search by item code, name, department, category, or location..."
                 value={searchInput}
@@ -421,9 +421,9 @@ const InventoryList = () => {
                 onKeyDown={(e) => {
                   if (e.key === "Enter") setSearchTerm(searchInput);
                 }}
-                className="pl-3 py-2 text-sm rounded-lg h-10 w-64"
+                className="pl-3 py-2 text-sm rounded-lg h-10 w-full sm:w-80"
               />
-              <Button onClick={() => setSearchTerm(searchInput)} className="h-10 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full px-5 font-semibold">
+              <Button onClick={() => setSearchTerm(searchInput)} className="h-10 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full px-5 font-semibold w-full sm:w-auto">
                 Search
               </Button>
             </div>

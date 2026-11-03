@@ -59,7 +59,7 @@ const ViewerInventory = () => {
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto">
-              <table className="w-full table-fixed">
+              <table className="w-full min-w-[650px] table-fixed">
                 <colgroup>
                   <col style={{ width: "14%" }} />
                   <col style={{ width: "30%" }} />

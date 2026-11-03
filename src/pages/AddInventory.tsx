@@ -106,6 +106,11 @@ const AddInventory = () => {
     setLocations(data || []);
   };
 
+  const fetchVendors = async () => {
+    const { data } = await supabase.from("vendors").select("id, name, registered_address, contact_number").order("name");
+    setVendorsList((data as any) || []);
+  };
+
   const [departments, setDepartments] = useState<
     Array<{ id: string; name: string; prefix?: string | null }>
   >([]);
@@ -378,7 +383,7 @@ const AddInventory = () => {
                 )}
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6 p-8">
+            <CardContent className="space-y-6 p-4 sm:p-8">
               <div className="grid md:grid-cols-3 gap-6">
                 <div className="space-y-3">
                   <Label htmlFor="category" className="text-base font-semibold text-foreground">
@@ -605,7 +610,7 @@ const AddInventory = () => {
                 Vendor & Invoice Details
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6 p-8">
+            <CardContent className="space-y-6 p-4 sm:p-8">
               <div className="space-y-3">
                 <Label htmlFor="vendor_select" className="text-base font-semibold text-foreground">
                   Select Vendor (from registered list or enter custom below)
@@ -787,7 +792,7 @@ const AddInventory = () => {
                 Location & Status
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6 p-8">
+            <CardContent className="space-y-6 p-4 sm:p-8">
               <div />
 
               <div className="space-y-3">

@@ -119,7 +119,7 @@ const HodInventory = () => {
               <div className="space-y-3 p-4">{[...Array(5)].map((_, i) => (<div key={i} className="h-12 w-full bg-muted/60 animate-pulse rounded-xl" />))}</div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full table-fixed">
+                <table className="w-full min-w-[650px] table-fixed">
                   <colgroup>
                     <col style={{ width: "14%" }} />
                     <col style={{ width: "30%" }} />
