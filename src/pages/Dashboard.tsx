@@ -300,7 +300,6 @@ const Dashboard = () => {
               >
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                   <Skeleton className="h-5 w-28" />
-                  <Skeleton className="h-5 w-5 rounded-full" />
                 </CardHeader>
                 <CardContent>
                   <Skeleton className="h-9 w-24 mb-2" />
@@ -330,7 +329,6 @@ const Dashboard = () => {
               <CardTitle className="text-base font-semibold text-emerald-950/90">
                 Total Items
               </CardTitle>
-              <div className="w-3 h-3 bg-emerald-500 rounded-full"></div>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-emerald-950">
@@ -345,7 +343,6 @@ const Dashboard = () => {
               <CardTitle className="text-base font-semibold text-teal-950/90">
                 Total Value
               </CardTitle>
-              <div className="w-3 h-3 bg-teal-600 rounded-full"></div>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-teal-950">
@@ -360,7 +357,6 @@ const Dashboard = () => {
               <CardTitle className="text-base font-semibold text-rose-950/90">
                 Categories
               </CardTitle>
-              <div className="w-3 h-3 bg-rose-500 rounded-full"></div>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-rose-950">
@@ -375,7 +371,6 @@ const Dashboard = () => {
               <CardTitle className="text-base font-semibold text-indigo-950/90">
                 Locations
               </CardTitle>
-              <div className="w-3 h-3 bg-indigo-600 rounded-full"></div>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-indigo-950">
