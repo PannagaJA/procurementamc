@@ -370,20 +370,20 @@ const Dashboard = () => {
 
         {/* Search UI removed per request */}
 
-        <Card className="w-full max-w-xl mx-auto bg-card/90 backdrop-blur-sm border border-border/60 rounded-xl transition-all duration-300">
-          <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100/60 dark:from-slate-900/40 dark:to-slate-800/40 rounded-t-xl border-b border-border/40 text-center py-3.5 px-4">
+        <Card className="w-full bg-card border border-border/60 rounded-xl transition-all duration-300">
+          <CardHeader className="bg-slate-50/80 dark:bg-slate-900/40 rounded-t-xl border-b border-border/40 text-center py-3 px-6">
             <CardTitle className="text-lg font-bold text-card-foreground flex items-center justify-center gap-2">
               <ScanLine className="w-5 h-5 text-[#0B1437] dark:text-slate-200 shrink-0" />
               <span>Scan to Get Info</span>
             </CardTitle>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
               Scan QR codes to quickly access item details
             </p>
           </CardHeader>
           <CardContent className="py-6 px-6 flex flex-col items-center justify-center text-center">
             <Button
               onClick={() => setShowQRScanner(true)}
-              className="inline-flex items-center justify-center gap-2 bg-[#0B1437] hover:bg-[#111f54] text-white px-7 h-11 rounded-full font-semibold transition-all duration-300 hover:scale-105 text-sm sm:text-base mx-auto"
+              className="inline-flex items-center justify-center gap-2.5 bg-[#0B1437] hover:bg-[#111f54] text-white px-8 h-11 rounded-full font-semibold transition-all duration-300 hover:scale-105 text-sm sm:text-base mx-auto"
             >
               <ScanLine className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
               <span>Scan QR Code</span>
