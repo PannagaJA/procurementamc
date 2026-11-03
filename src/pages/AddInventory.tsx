@@ -422,7 +422,13 @@ const AddInventory = () => {
                   <Select
                     value={formData.location_id}
                     onValueChange={(value) => {
-                      setFormData((prev) => ({ ...prev, location_id: value }));
+                      setFormData((prev) => ({
+                        ...prev,
+                        location_id: value,
+                        department_id: "",
+                        department: "",
+                        department_prefix: "",
+                      }));
                       updateItemCode();
                     }}
                   >
@@ -481,16 +487,31 @@ const AddInventory = () => {
                     }}
                   >
                     <SelectTrigger className="h-12 text-base">
-                      <SelectValue placeholder="Select an option" />
+                      <SelectValue
+                        placeholder={
+                          formData.location_id
+                            ? "Select an option"
+                            : "Please select location first"
+                        }
+                      />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">Select an option</SelectItem>
-                      {departments.map((d) => (
-                        <SelectItem
-                          key={d.id}
-                          value={d.id}
-                        >{`${d.name}${d.prefix ? ` (${d.prefix})` : ""}`}</SelectItem>
-                      ))}
+                      {!formData.location_id ? (
+                        <div className="py-3 px-3 text-sm text-center text-muted-foreground font-medium">
+                          Please select location first
+                        </div>
+                      ) : departments.length === 0 ? (
+                        <div className="py-3 px-3 text-sm text-center text-muted-foreground font-medium">
+                          No departments found for this location
+                        </div>
+                      ) : (
+                        departments.map((d) => (
+                          <SelectItem
+                            key={d.id}
+                            value={d.id}
+                          >{`${d.name}${d.prefix ? ` (${d.prefix})` : ""}`}</SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>

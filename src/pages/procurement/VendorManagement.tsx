@@ -706,7 +706,6 @@ export default function VendorManagement() {
                       <div className="flex flex-col items-center justify-center">
                         <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5L12 3l9 7.5" /></svg>
                         <p className="text-base font-semibold text-slate-500">No data found</p>
-                        <p className="text-sm text-slate-400 mt-1">first.</p>
                       </div>
                     </div>
                 ) : (
@@ -873,7 +872,6 @@ export default function VendorManagement() {
                       <div className="flex flex-col items-center justify-center">
                         <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5L12 3l9 7.5" /></svg>
                         <p className="text-base font-semibold text-slate-500">No data found</p>
-                        <p className="text-sm text-slate-400 mt-1">first.</p>
                       </div>
                     </div>
                 ) : (
