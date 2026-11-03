@@ -49,25 +49,25 @@ export function TurnaroundWidget() {
 
   return (
     <>
-      <Card>
-        <CardContent className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div>
-            <div className="font-semibold text-sm flex items-center gap-1.5">
-              <Clock className="w-4 h-4 text-muted-foreground" /> Turnaround times
+      <Card className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/70 shadow-xs">
+        <CardContent className="p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <div className="font-semibold text-sm flex items-center gap-1.5 text-slate-900 dark:text-slate-100">
+              <Clock className="w-4 h-4 text-slate-500" /> Turnaround times
             </div>
-            <p className="text-xs text-muted-foreground mt-0.5">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
               Open items against their target: requisitions 2 days, quotations 7 (or the RFQ
               deadline), orders 1, goods inspection 2, invoices 5 (3 when on hold). Working days.
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
             {(Object.keys(STATUS) as (keyof typeof STATUS)[]).map((s) => (
-              <span key={s} className={`text-xs font-semibold px-2 py-1 rounded ${STATUS[s].cls}`}>
+              <span key={s} className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS[s].cls}`}>
                 {count(s)} {STATUS[s].label}
               </span>
             ))}
             {late.length > 0 && (
-              <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+              <Button size="sm" variant="outline" className="rounded-full text-xs font-semibold h-8" onClick={() => setOpen(true)}>
                 View late items
               </Button>
             )}

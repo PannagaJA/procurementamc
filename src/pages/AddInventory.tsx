@@ -48,7 +48,7 @@ const AddInventory = () => {
   );
   const [itemCode, setItemCode] = useState("");
   const [gpsCoords, setGpsCoords] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [vendorsList, setVendorsList] = useState<Array<{ id: string; name: string; registered_address?: string | null }>>([]);
+  const [vendorsList, setVendorsList] = useState<Array<{ id: string; name: string; registered_address?: string | null; contact_number?: string | null }>>([]);
   const [selectedVendorId, setSelectedVendorId] = useState<string>("");
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -375,7 +375,7 @@ const AddInventory = () => {
       <div className="w-full max-w-full animate-in fade-in-0 duration-700">
         <div className="mb-8 text-center">
           <h2 className="text-4xl font-bold tracking-tight text-foreground mb-2">Add New Item</h2>
-          <p className="text-muted-foreground text-lg">Add a new item to the inventory system</p>
+          <p className="text-muted-foreground text-lg">Add a new item to the AMC procurement software</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">

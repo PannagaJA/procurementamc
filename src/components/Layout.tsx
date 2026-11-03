@@ -437,7 +437,7 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
             />
             <div>
               <h1 className="text-base sm:text-lg font-bold text-gray-800 dark:text-gray-100">
-                AMC Inventory System
+                AMC Procurement Software
               </h1>
               <p className="text-[11px] sm:text-xs text-gray-600 dark:text-gray-400 font-medium">
                 {authCtx?.loading && !authCtx?.primaryRole ? (

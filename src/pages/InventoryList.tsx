@@ -380,9 +380,9 @@ const InventoryList = () => {
     <Layout>
       <div className="space-y-8 animate-in fade-in-0 duration-700">
         <Card className="bg-card/90 backdrop-blur-sm shadow-xl border-0 rounded-xl transition-all duration-300 hover:shadow-2xl">
-          <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 rounded-t-xl">
-            <CardTitle className="text-2xl font-bold text-card-foreground flex items-center gap-2">
-              <ScanLine className="w-6 h-6 text-green-600 dark:text-green-400" />
+          <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-900/40 dark:to-slate-800/40 rounded-t-xl border-b border-slate-100 dark:border-slate-800">
+            <CardTitle className="text-2xl font-bold text-[#0B1437] dark:text-white flex items-center gap-2">
+              <ScanLine className="w-6 h-6 text-[#0B1437] dark:text-slate-200" />
               Scan to Get Info
             </CardTitle>
             <p className="text-sm text-muted-foreground">
@@ -413,7 +413,7 @@ const InventoryList = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6 p-8">
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <Input
                 placeholder="Search by item code, name, department, category, or location..."
                 value={searchInput}
@@ -421,14 +421,14 @@ const InventoryList = () => {
                 onKeyDown={(e) => {
                   if (e.key === "Enter") setSearchTerm(searchInput);
                 }}
-                className="pl-3 py-2 text-sm rounded-lg h-10 w-64"
+                className="flex-1 min-w-[200px] max-w-xl pl-4 py-2 text-sm rounded-full h-10 border border-slate-300 dark:border-slate-700 bg-background"
               />
-              <Button onClick={() => setSearchTerm(searchInput)} className="h-10 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full px-5 font-semibold">
+              <Button onClick={() => setSearchTerm(searchInput)} className="h-10 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full px-6 font-semibold shrink-0">
                 Search
               </Button>
             </div>
 
-            <div className="grid md:grid-cols-5 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="h-12 text-base">
                   <SelectValue placeholder="Status" />
@@ -488,7 +488,7 @@ const InventoryList = () => {
               <Button
                 variant="outline"
                 onClick={clearFilters}
-                className="h-12 text-base font-medium border-2 border-border hover:bg-accent transition-all duration-300 hover:scale-105 hover:shadow-md rounded-lg"
+                className="h-12 text-base font-semibold border border-slate-300 hover:bg-slate-50 transition-all duration-300 hover:scale-105 rounded-full"
               >
                 Clear
               </Button>
@@ -499,7 +499,7 @@ const InventoryList = () => {
         <Card className="bg-card/90 backdrop-blur-sm shadow-xl border-0 rounded-xl transition-all duration-300 hover:shadow-2xl">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <Table className="w-max">
+              <Table className="w-full min-w-full">
                 <TableHeader className="bg-muted">
                   <TableRow>
                     <TableHead className="text-base font-semibold text-muted-foreground">
