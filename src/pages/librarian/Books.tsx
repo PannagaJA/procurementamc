@@ -144,7 +144,7 @@ const Books = () => {
         </div>
       </div>
 
-      <div className="overflow-x-auto bg-card rounded shadow p-2">
+      <div className="overflow-x-auto rounded-xl border border-border/60 bg-card p-2">
         <table className="w-full min-w-[600px] text-left">
           <thead>
             <tr>

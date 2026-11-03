@@ -74,7 +74,7 @@ const Reports = ({ type }: { type?: "issued" | "overdue" }) => {
         </h2>
         <Button onClick={exportCsv}>Export CSV</Button>
       </div>
-      <div className="overflow-x-auto bg-card rounded shadow p-2">
+      <div className="overflow-x-auto rounded-xl border border-border/60 bg-card p-2">
         <table className="w-full text-left">
           <thead>
             <tr>
