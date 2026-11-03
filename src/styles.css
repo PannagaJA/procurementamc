@@ -164,7 +164,6 @@
   }
 }
 
-<<<<<<< HEAD
 /* Web Scrolling & Modern Scrollbar Support */
 html {
   scroll-behavior: smooth;
@@ -228,9 +227,6 @@ html {
   transform: none !important;
   margin: 0 !important;
 }
-
-=======
->>>>>>> origin/chiranth
 
 @layer components {
   /* Auto-enforce canonical design palette and interactive scale hover effect (matching logout button) */
