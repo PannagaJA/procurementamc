@@ -48,7 +48,7 @@ const AddInventory = () => {
   );
   const [itemCode, setItemCode] = useState("");
   const [gpsCoords, setGpsCoords] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [vendorsList, setVendorsList] = useState<Array<{ id: string; name: string; registered_address?: string | null; contact_number?: string | null }>>([]);
+  const [vendorsList, setVendorsList] = useState<Array<{ id: string; name: string; registered_address?: string | null }>>([]);
   const [selectedVendorId, setSelectedVendorId] = useState<string>("");
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -104,6 +104,20 @@ const AddInventory = () => {
   const fetchLocations = async () => {
     const { data } = await supabase.from("locations").select("*").order("name");
     setLocations(data || []);
+  };
+
+  const fetchVendors = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("vendors")
+        .select("id, name, registered_address")
+        .order("name");
+      if (!error && data) {
+        setVendorsList(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch vendors", err);
+    }
   };
 
   const [departments, setDepartments] = useState<
