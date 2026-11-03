@@ -674,7 +674,7 @@ const PrincipalDashboard = () => {
                   </label>
                 </div>
 
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto rounded-xl border border-border/60 bg-card">
                   <table className="w-full min-w-[700px] table-fixed">
                     <colgroup>
                       <col style={{ width: "18%" }} />
@@ -775,16 +775,14 @@ const PrincipalDashboard = () => {
                   </table>
                 </div>
 
-                <div className="mt-4">
-                  <PaginationControls
-                    currentPage={pagination.page}
-                    totalPages={Math.ceil(pagination.total / pagination.pageSize)}
-                    pageSize={pagination.pageSize}
-                    totalItems={pagination.total}
-                    onPageChange={setPage}
-                    onPageSizeChange={setPageSize}
-                  />
-                </div>
+                <PaginationControls
+                  currentPage={pagination.page}
+                  totalPages={Math.ceil(pagination.total / pagination.pageSize)}
+                  pageSize={pagination.pageSize}
+                  totalItems={pagination.total}
+                  onPageChange={setPage}
+                  onPageSizeChange={setPageSize}
+                />
               </div>
 
               {/* Recent Activity removed per request */}

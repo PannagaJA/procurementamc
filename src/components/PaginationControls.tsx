@@ -15,19 +15,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-interface PaginationControlsProps {
+export interface PaginationControlsProps {
   currentPage: number;
   totalPages: number;
   pageSize: number;
   totalItems: number;
   currentItemsCount?: number;
   onPageChange: (page: number) => void;
-  onPageSizeChange: (pageSize: number) => void;
+  onPageSizeChange?: (pageSize: number) => void;
   showPageSizeSelector?: boolean;
   pageSizeOptions?: number[];
+  className?: string;
+  asFooterBox?: boolean;
 }
 
 export const PaginationControls: React.FC<PaginationControlsProps> = ({
@@ -40,11 +41,16 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
   onPageSizeChange,
   showPageSizeSelector = true,
   pageSizeOptions = [5, 10, 20, 50, 100],
+  className,
+  asFooterBox = true,
 }) => {
   // Compute start/end/total for display. When server `totalItems` is 0 but
   // we have `currentItemsCount` (page items), derive a sensible display so
   // we don't show "Showing 11 to 0 of 0" on later pages.
-  const startItem = (currentPage - 1) * pageSize + 1;
+  const startItem =
+    totalItems === 0 && (!currentItemsCount || currentItemsCount === 0)
+      ? 0
+      : (currentPage - 1) * pageSize + 1;
   let endItem: number;
   let displayTotal: number;
 
@@ -59,7 +65,33 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
     displayTotal = 0;
   }
 
+  // Derive whether Prev/Next should be enabled. When server reports totalPages,
+  // use that; otherwise infer from currentItemsCount (if page is full there may
+  // be more). Always show controls when we're past the first page so Prev is
+  // available on the last page even if the final page has fewer items.
+  const hasPrev = currentPage > 1;
+  const hasNext =
+    totalPages && totalPages > 0
+      ? currentPage < totalPages
+      : !!(currentItemsCount && currentItemsCount >= pageSize);
+
+  const shouldRender = displayTotal > 0 || totalPages > 1 || hasPrev || hasNext;
+  if (!shouldRender) return null;
+
   const renderPageNumbers = () => {
+    if (totalPages <= 1) {
+      return (
+        <PaginationItem>
+          <PaginationLink
+            isActive
+            className="min-w-8 h-8 px-2.5 text-xs sm:text-sm font-bold pointer-events-none bg-[#0B1437] text-white rounded-full"
+          >
+            {currentPage || 1}
+          </PaginationLink>
+        </PaginationItem>
+      );
+    }
+
     const pages = [];
     const maxVisiblePages = 5;
     let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
@@ -73,7 +105,15 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
     if (startPage > 1) {
       pages.push(
         <PaginationItem key={1}>
-          <PaginationLink onClick={() => onPageChange(1)} isActive={currentPage === 1}>
+          <PaginationLink
+            onClick={() => onPageChange(1)}
+            isActive={currentPage === 1}
+            className={
+              currentPage === 1
+                ? "min-w-8 h-8 px-2.5 text-xs sm:text-sm font-bold pointer-events-none bg-[#0B1437] text-white rounded-full"
+                : "min-w-8 h-8 px-2.5 text-xs sm:text-sm cursor-pointer hover:bg-accent rounded-full"
+            }
+          >
             1
           </PaginationLink>
         </PaginationItem>,
@@ -91,7 +131,15 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
     for (let i = startPage; i <= endPage; i++) {
       pages.push(
         <PaginationItem key={i}>
-          <PaginationLink onClick={() => onPageChange(i)} isActive={currentPage === i}>
+          <PaginationLink
+            onClick={() => onPageChange(i)}
+            isActive={currentPage === i}
+            className={
+              currentPage === i
+                ? "min-w-8 h-8 px-2.5 text-xs sm:text-sm font-bold pointer-events-none bg-[#0B1437] text-white rounded-full"
+                : "min-w-8 h-8 px-2.5 text-xs sm:text-sm cursor-pointer hover:bg-accent rounded-full"
+            }
+          >
             {i}
           </PaginationLink>
         </PaginationItem>,
@@ -112,6 +160,11 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
           <PaginationLink
             onClick={() => onPageChange(totalPages)}
             isActive={currentPage === totalPages}
+            className={
+              currentPage === totalPages
+                ? "min-w-8 h-8 px-2.5 text-xs sm:text-sm font-bold pointer-events-none bg-[#0B1437] text-white rounded-full"
+                : "min-w-8 h-8 px-2.5 text-xs sm:text-sm cursor-pointer hover:bg-accent rounded-full"
+            }
           >
             {totalPages}
           </PaginationLink>
@@ -122,36 +175,72 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
     return pages;
   };
 
-  // Derive whether Prev/Next should be enabled. When server reports totalPages,
-  // use that; otherwise infer from currentItemsCount (if page is full there may
-  // be more). Always show controls when we're past the first page so Prev is
-  // available on the last page even if the final page has fewer items.
-  const hasPrev = currentPage > 1;
-  const hasNext =
-    totalPages && totalPages > 0
-      ? currentPage < totalPages
-      : !!(currentItemsCount && currentItemsCount >= pageSize);
-
-  const shouldRender = totalPages > 1 || hasPrev || hasNext;
-  if (!shouldRender) return null;
+  const containerClasses = asFooterBox
+    ? cn(
+        "rounded-xl border border-border/60 bg-card p-3 sm:px-4 sm:py-3 mt-4",
+        className,
+      )
+    : cn("w-full mt-4", className);
 
   return (
-    <div className="flex flex-col items-center gap-4 mt-6">
-      {/* Top row: Items info and page size selector */}
-      <div className="flex flex-col sm:flex-row items-center justify-between w-full gap-4">
-        <div className="text-sm text-muted-foreground order-2 sm:order-1">
-          Showing {startItem} to {endItem} of {displayTotal} items
+    <div className={containerClasses}>
+      <div className="flex flex-col md:flex-row items-center justify-between gap-4 w-full">
+        {/* Left: Items info */}
+        <div className="text-sm text-muted-foreground order-2 md:order-1 whitespace-nowrap">
+          {displayTotal > 0 ? (
+            <>
+              Showing <span className="font-semibold text-foreground">{startItem}</span> to{" "}
+              <span className="font-semibold text-foreground">{endItem}</span> of{" "}
+              <span className="font-semibold text-foreground">{displayTotal}</span> items
+            </>
+          ) : (
+            <span>No items</span>
+          )}
         </div>
 
-        {showPageSizeSelector && (
-          <div className="flex items-center gap-2 order-1 sm:order-2">
-            <span className="text-sm text-muted-foreground">Items per page:</span>
+        {/* Center: Dynamic Prev [pages] Next controls */}
+        <div className="flex items-center justify-center order-1 md:order-2">
+          <Pagination>
+            <PaginationContent className="gap-1 sm:gap-2">
+              <PaginationItem>
+                <PaginationPrevious
+                  onClick={() => hasPrev && onPageChange(currentPage - 1)}
+                  className={
+                    hasPrev
+                      ? "cursor-pointer hover:bg-accent rounded-full px-3 text-xs sm:text-sm font-medium"
+                      : "pointer-events-none opacity-40 rounded-full px-3 text-xs sm:text-sm font-medium"
+                  }
+                />
+              </PaginationItem>
+
+              {renderPageNumbers()}
+
+              <PaginationItem>
+                <PaginationNext
+                  onClick={() => hasNext && onPageChange(currentPage + 1)}
+                  className={
+                    hasNext
+                      ? "cursor-pointer hover:bg-accent rounded-full px-3 text-xs sm:text-sm font-medium"
+                      : "pointer-events-none opacity-40 rounded-full px-3 text-xs sm:text-sm font-medium"
+                  }
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+
+        {/* Right: Items per page selector */}
+        {showPageSizeSelector && onPageSizeChange ? (
+          <div className="flex items-center gap-2 order-3 md:order-3">
+            <span className="text-sm text-muted-foreground whitespace-nowrap">
+              Items per page:
+            </span>
             <Select
               value={pageSize.toString()}
               onValueChange={(value) => onPageSizeChange(parseInt(value))}
             >
               <SelectTrigger className="w-20 h-8">
-                <SelectValue placeholder="Select an option" />
+                <SelectValue placeholder="Select" />
               </SelectTrigger>
               <SelectContent>
                 {pageSizeOptions.map((size) => (
@@ -162,37 +251,9 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
               </SelectContent>
             </Select>
           </div>
+        ) : (
+          <div className="hidden md:block w-24 order-3" />
         )}
-      </div>
-
-      {/* Bottom row: Dynamic Prev [currentPage] Next controls */}
-      <div className="flex items-center justify-center gap-2">
-        <Pagination>
-          <PaginationContent className="gap-2">
-            <PaginationItem>
-              <PaginationPrevious
-                onClick={() => hasPrev && onPageChange(currentPage - 1)}
-                className={hasPrev ? "cursor-pointer hover:bg-accent rounded-full px-3" : "pointer-events-none opacity-40 rounded-full px-3"}
-              />
-            </PaginationItem>
-
-            <PaginationItem>
-              <PaginationLink
-                isActive
-                className="min-w-9 h-9 px-3.5 text-sm font-bold pointer-events-none bg-[#0B1437] text-white rounded-full shadow-xs"
-              >
-                {currentPage}
-              </PaginationLink>
-            </PaginationItem>
-
-            <PaginationItem>
-              <PaginationNext
-                onClick={() => hasNext && onPageChange(currentPage + 1)}
-                className={hasNext ? "cursor-pointer hover:bg-accent rounded-full px-3" : "pointer-events-none opacity-40 rounded-full px-3"}
-              />
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
       </div>
     </div>
   );

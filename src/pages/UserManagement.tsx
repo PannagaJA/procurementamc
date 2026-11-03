@@ -529,10 +529,8 @@ const UserManagement = () => {
           </Card>
         </div>
 
-        <Card>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table>
+        <div className="overflow-x-auto rounded-xl border border-border/60 bg-card">
+          <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
@@ -691,16 +689,14 @@ const UserManagement = () => {
               </Table>
             </div>
 
-            <PaginationControls
-              currentPage={pagination.page}
-              totalPages={Math.ceil(pagination.total / pagination.pageSize)}
-              pageSize={pagination.pageSize}
-              totalItems={pagination.total}
-              onPageChange={setPage}
-              onPageSizeChange={setPageSize}
-            />
-          </CardContent>
-        </Card>
+        <PaginationControls
+          currentPage={pagination.page}
+          totalPages={Math.ceil(pagination.total / pagination.pageSize)}
+          pageSize={pagination.pageSize}
+          totalItems={pagination.total}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
 
         {/* Add User Modal */}
         <Dialog open={showAddUserModal} onOpenChange={setShowAddUserModal}>

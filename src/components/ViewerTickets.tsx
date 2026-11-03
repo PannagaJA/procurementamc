@@ -319,7 +319,7 @@ const ViewerTickets = () => {
           </div>
         </div>
 
-        <div className="mb-4 overflow-x-auto rounded border bg-white">
+        <div className="mb-4 overflow-x-auto rounded-xl border border-border/60 bg-card">
           <table className="w-full min-w-[850px] table-auto">
             <thead className="bg-slate-50">
               <tr>

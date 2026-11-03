@@ -378,13 +378,15 @@ const CategoryManagement = () => {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Existing Categories ({pagination.total})</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table className="min-w-[500px]">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold tracking-tight">
+              Existing Categories ({pagination.total})
+            </h2>
+          </div>
+
+          <div className="overflow-x-auto rounded-xl border border-border/60 bg-card">
+            <Table className="min-w-[500px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Category Name</TableHead>
@@ -460,16 +462,15 @@ const CategoryManagement = () => {
               </Table>
             </div>
 
-            <PaginationControls
-              currentPage={pagination.page}
-              totalPages={Math.ceil(pagination.total / pagination.pageSize)}
-              pageSize={pagination.pageSize}
-              totalItems={pagination.total}
-              onPageChange={setPage}
-              onPageSizeChange={setPageSize}
-            />
-          </CardContent>
-        </Card>
+          <PaginationControls
+            currentPage={pagination.page}
+            totalPages={Math.ceil(pagination.total / pagination.pageSize)}
+            pageSize={pagination.pageSize}
+            totalItems={pagination.total}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
+        </div>
       </div>
 
       <Dialog open={!!editingCategory} onOpenChange={(open) => !open && setEditingCategory(null)}>
