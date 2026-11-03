@@ -92,9 +92,9 @@ export function FilterSelect<T>({
             <span className="truncate font-semibold text-foreground group-hover:text-white transition-colors">{selected?.label}</span>
           </span>
           <span className="flex items-center gap-2">
-            <Badge variant="secondary" className="px-2 py-0 text-xs tabular-nums group-hover:bg-white/20 group-hover:text-white transition-colors border-transparent">
+            <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 text-xs font-bold rounded-full tabular-nums transition-colors bg-slate-100 text-[#0B1437] group-hover:bg-white group-hover:text-[#0B1437] shadow-xs">
               {selected?.count ?? 0}
-            </Badge>
+            </span>
             <ChevronDown className="h-4 w-4 opacity-60 group-hover:opacity-100 group-hover:text-white transition-all" />
           </span>
         </Button>
@@ -151,17 +151,16 @@ export function FilterSelect<T>({
                 >
                   {opt.label}
                 </span>
-                <Badge
-                  variant="secondary"
+                <span
                   className={cn(
-                    "px-2 py-0 text-xs tabular-nums font-semibold transition-colors border-transparent",
+                    "inline-flex items-center justify-center min-w-6 h-6 px-2 text-xs font-bold rounded-full tabular-nums transition-colors shadow-xs",
                     isSelected
                       ? "bg-white text-[#0B1437]"
-                      : "bg-slate-100 text-slate-800 group-data-[highlighted]:bg-white/20 group-data-[highlighted]:text-white group-focus:bg-white/20 group-focus:text-white"
+                      : "bg-slate-100 text-slate-800 group-hover:bg-white group-hover:text-[#0B1437] group-data-[highlighted]:bg-white group-data-[highlighted]:text-[#0B1437]"
                   )}
                 >
                   {opt.count}
-                </Badge>
+                </span>
               </DropdownMenuItem>
             </div>
           );
