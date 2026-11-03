@@ -114,7 +114,7 @@ const HodInventory = () => {
               </div>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-0">
             {loading ? (
               <div className="space-y-3 p-4">{[...Array(5)].map((_, i) => (<div key={i} className="h-12 w-full bg-muted/60 animate-pulse rounded-xl" />))}</div>
             ) : (

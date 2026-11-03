@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { Trash2 } from "lucide-react";
 
 export default function DepartmentManagement() {
   const [locations, setLocations] = useState<any[]>([]);
@@ -191,13 +193,7 @@ export default function DepartmentManagement() {
   };
 
   if (checkingAdmin) {
-    return (
-      <Layout>
-        <div className="w-full max-w-full py-6">
-          <div className="text-center text-muted-foreground">Checking permissions...</div>
-        </div>
-      </Layout>
-    );
+    return <PageSkeleton cards={2} rows={6} />;
   }
 
   if (!isAdmin) {
@@ -338,7 +334,8 @@ export default function DepartmentManagement() {
                           </Button>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button size="sm" variant="destructive">
+                              <Button size="sm" variant="destructive" className="gap-1.5">
+                                <Trash2 className="h-4 w-4" />
                                 Delete
                               </Button>
                             </AlertDialogTrigger>

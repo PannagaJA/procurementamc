@@ -10,8 +10,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import libraryApi from "@/lib/libraryApi";
+import { useToast } from "@/hooks/use-toast";
 
 const IssueBook = () => {
+  const { toast } = useToast();
   const [members, setMembers] = useState<any[]>([]);
   const [books, setBooks] = useState<any[]>([]);
   const [memberId, setMemberId] = useState("");
@@ -31,9 +33,15 @@ const IssueBook = () => {
   }, []);
 
   const issue = async () => {
-    if (!memberId || !bookId) return alert("Select member and book");
+    if (!memberId || !bookId) {
+      toast({ title: "Incomplete selection", description: "Select member and book.", variant: "destructive" });
+      return;
+    }
     const book = books.find((b) => b.id === bookId);
-    if (!book || (book.available || 0) <= 0) return alert("No copies available");
+    if (!book || (book.available || 0) <= 0) {
+      toast({ title: "Unavailable", description: "No copies available for this book.", variant: "destructive" });
+      return;
+    }
 
     try {
       const payload = {
@@ -45,10 +53,10 @@ const IssueBook = () => {
       };
       await libraryApi.issueBook(payload);
       await load();
-      alert("Book issued");
+      toast({ title: "Success", description: "Book issued successfully." });
     } catch (err: any) {
       console.error("Issue failed", err);
-      alert(err?.message || "Failed to issue book");
+      toast({ title: "Error", description: err?.message || "Failed to issue book", variant: "destructive" });
     }
   };
 

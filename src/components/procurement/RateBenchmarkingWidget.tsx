@@ -113,7 +113,7 @@ export function RateBenchmarkingWidget({
             size="sm"
             variant="ghost"
             onClick={() => onApplyJustification(benchmark.complianceNote)}
-            className="h-6 text-[11px] gap-1 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100/50 dark:hover:bg-indigo-900/40 p-1"
+            className="h-6 text-[11px] gap-1 text-indigo-700 dark:text-indigo-300 hover:text-indigo-900 dark:hover:text-indigo-100 hover:bg-indigo-100/70 dark:hover:bg-indigo-900/60 p-1 font-semibold"
           >
             <Sparkles className="w-3 h-3" /> Insert Justification Text
           </Button>

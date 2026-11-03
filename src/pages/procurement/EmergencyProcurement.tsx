@@ -933,9 +933,9 @@ export default function EmergencyProcurement() {
                       }
                     />
                     <Button
-                      variant="ghost"
+                      variant="destructive"
                       size="icon"
-                      className="col-span-1"
+                      className="col-span-1 h-8 w-8"
                       disabled={poLines.length === 1}
                       onClick={() => setPoLines((lines) => lines.filter((_, j) => j !== i))}
                       aria-label="Remove item"

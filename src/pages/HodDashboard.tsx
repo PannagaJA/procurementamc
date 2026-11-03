@@ -406,7 +406,7 @@ const HodDashboard = () => {
               </div>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[700px] table-fixed">
                 <colgroup>
@@ -532,7 +532,7 @@ const HodDashboard = () => {
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               {loadingPrs ? (
                 <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<div key={i} className="h-14 w-full bg-muted/60 animate-pulse rounded-xl" />))}</div>
               ) : (
@@ -643,7 +643,7 @@ const HodDashboard = () => {
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               {loadingInventory ? (
                 <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<div key={i} className="h-14 w-full bg-muted/60 animate-pulse rounded-xl" />))}</div>
               ) : (

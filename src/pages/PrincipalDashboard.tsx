@@ -280,10 +280,9 @@ const PrincipalDashboard = () => {
     }
   };
 
-  const approveTicket = async (ticket: any) => {
+  const approveTicket = async (ticket: any, note?: string) => {
     try {
-      // ask for an optional principal note
-      const principalNotes = window.prompt("Optional note to attach with approval:", "") || null;
+      const principalNotes = note || null;
 
       // mark as approved
       const { error: updErr } = await supabase
@@ -352,11 +351,9 @@ const PrincipalDashboard = () => {
     }
   };
 
-  const rejectTicket = async (ticket: any) => {
+  const rejectTicket = async (ticket: any, reasonNote?: string) => {
     try {
-      const reason =
-        window.prompt("Reason for rejection (visible to requester):", "") ||
-        "Rejected by Principal";
+      const reason = reasonNote || "Rejected by Principal";
       const { error: updErr } = await supabase
         .from("tickets")
         .update({ status: "procure-rejected" })

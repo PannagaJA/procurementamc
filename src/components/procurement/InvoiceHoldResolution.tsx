@@ -229,10 +229,10 @@ export function InvoiceHoldResolution({
                 )}
               <Button
                 size="sm"
-                variant="outline"
+                variant="destructive"
                 disabled={busy}
                 onClick={() => open("return")}
-                className="gap-1 text-rose-600 border border-rose-200 hover:bg-rose-50 rounded-full font-semibold"
+                className="gap-1 font-semibold"
               >
                 <Undo2 className="w-3.5 h-3.5" /> Return to vendor
               </Button>
@@ -365,7 +365,8 @@ export function InvoiceHoldResolution({
                     />
                     <Button
                       size="icon"
-                      variant="ghost"
+                      variant="destructive"
+                      className="h-8 w-8 shrink-0"
                       aria-label="Remove deduction"
                       disabled={deductions.length === 1}
                       onClick={() => setDeductions(deductions.filter((_, j) => j !== i))}

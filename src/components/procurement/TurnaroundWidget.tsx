@@ -49,31 +49,38 @@ export function TurnaroundWidget() {
 
   return (
     <>
-      <Card className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/70 shadow-xs">
-        <CardContent className="p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex-1 min-w-0">
-            <div className="font-semibold text-sm flex items-center gap-1.5 text-slate-900 dark:text-slate-100">
-              <Clock className="w-4 h-4 text-slate-500" /> Turnaround times
-            </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-              Open items against their target: requisitions 2 days, quotations 7 (or the RFQ
-              deadline), orders 1, goods inspection 2, invoices 5 (3 when on hold). Working days.
-            </p>
+      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80 p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <div className="font-semibold text-sm flex items-center gap-2 text-slate-900 dark:text-slate-100">
+            <Clock className="w-4 h-4 text-slate-500 shrink-0" />
+            <span>Turnaround Times</span>
           </div>
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
-            {(Object.keys(STATUS) as (keyof typeof STATUS)[]).map((s) => (
-              <span key={s} className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS[s].cls}`}>
-                {count(s)} {STATUS[s].label}
-              </span>
-            ))}
-            {late.length > 0 && (
-              <Button size="sm" variant="outline" className="rounded-full text-xs font-semibold h-8" onClick={() => setOpen(true)}>
-                View late items
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
+            Open items against their target: requisitions 2 days, quotations 7 (or the RFQ
+            deadline), orders 1, goods inspection 2, invoices 5 (3 when on hold). Working days.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 shrink-0 lg:self-center">
+          {(Object.keys(STATUS) as (keyof typeof STATUS)[]).map((s) => (
+            <span
+              key={s}
+              className={`text-xs font-semibold px-3 py-1.5 rounded-full inline-flex items-center justify-center leading-none ${STATUS[s].cls}`}
+            >
+              {count(s)} {STATUS[s].label}
+            </span>
+          ))}
+          {late.length > 0 && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="rounded-full text-xs font-semibold h-8 px-3.5"
+              onClick={() => setOpen(true)}
+            >
+              View late items
+            </Button>
+          )}
+        </div>
+      </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">

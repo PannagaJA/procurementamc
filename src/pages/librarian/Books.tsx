@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import libraryApi from "@/lib/libraryApi";
 import { z } from "zod";
 import { PaginationControls } from "@/components/PaginationControls";
+import { Trash2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface Book {
   id: string;
@@ -41,6 +43,7 @@ const Books = () => {
 
   const books = booksData?.data || [];
   const totalCount = booksData?.count || 0;
+  const { toast } = useToast();
   const totalPages = Math.ceil(totalCount / limit);
 
   const addMutation = useMutation({
@@ -48,9 +51,10 @@ const Books = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["books"] });
       setOpen(false);
+      toast({ title: "Book Added", description: "Book successfully added to library." });
     },
     onError: (error: any) => {
-      alert(`Error adding book: ${error?.message || "Unknown error"}`);
+      toast({ title: "Error", description: error?.message || "Failed to add book", variant: "destructive" });
     },
   });
 
@@ -59,17 +63,21 @@ const Books = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["books"] });
       setOpen(false);
+      toast({ title: "Book Updated", description: "Book successfully updated." });
     },
     onError: (error: any) => {
-      alert(`Error updating book: ${error?.message || "Unknown error"}`);
+      toast({ title: "Error", description: error?.message || "Failed to update book", variant: "destructive" });
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: libraryApi.deleteBook,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["books"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["books"] });
+      toast({ title: "Book Deleted", description: "Book removed from library." });
+    },
     onError: (error: any) => {
-      alert(`Error deleting book: ${error?.message || "Unknown error"}`);
+      toast({ title: "Error", description: error?.message || "Failed to delete book", variant: "destructive" });
     },
   });
   const [open, setOpen] = useState(false);
@@ -113,14 +121,12 @@ const Books = () => {
         addMutation.mutate({ ...parsed, available: Number(parsed.quantity) });
       }
     } catch (err: any) {
-      alert(err?.message || "Invalid input");
+      toast({ title: "Invalid Input", description: err?.message || "Please check the entered values.", variant: "destructive" });
     }
   };
 
   const remove = async (id: string) => {
-    if (confirm("Delete book?")) {
-      deleteMutation.mutate(id);
-    }
+    deleteMutation.mutate(id);
   };
 
   return (
@@ -176,7 +182,8 @@ const Books = () => {
                   <td className="text-right">
                     <div className="inline-flex gap-2">
                       <Button onClick={() => openEdit(b)}>Edit</Button>
-                      <Button variant="ghost" onClick={() => remove(b.id)}>
+                      <Button size="sm" variant="destructive" className="gap-1.5" onClick={() => remove(b.id)}>
+                        <Trash2 className="h-4 w-4" />
                         Delete
                       </Button>
                     </div>
