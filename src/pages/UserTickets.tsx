@@ -345,11 +345,8 @@ const UserTickets = () => {
             </div>
 
             {filteredTickets.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">No tickets match your filters.</p>
-                <Button className="mt-4" onClick={() => navigate({ to: "/raise-ticket" })}>
-                  Raise New Ticket
-                </Button>
+              <div className="text-center py-12">
+                <p className="text-muted-foreground text-sm">No tickets match your filters.</p>
               </div>
             ) : (
               <div className="space-y-6">
