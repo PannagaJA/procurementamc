@@ -5,6 +5,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -706,21 +713,23 @@ export default function VendorManagement() {
                   <form onSubmit={handleEvaluate} className="space-y-6">
                     <div className="space-y-2">
                       <Label htmlFor="selectVendor">Select Vendor to Evaluate *</Label>
-                      <select
-                        id="selectVendor"
+                      <Select
                         value={evaluatingVendorId}
-                        onChange={(e) => setEvaluatingVendorId(e.target.value)}
-                        className="w-full p-2.5 rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-medium"
-                        required
+                        onValueChange={(val) => setEvaluatingVendorId(val)}
                       >
-                        <option value="">Select an option</option>
-                        {appliedVendors.map((v) => (
-                          <option key={v.id} value={v.id}>
-                            {v.name} (GST: {v.gst_number || "N/A"}, Applied:{" "}
-                            {v.created_at?.slice(0, 10)})
-                          </option>
-                        ))}
-                      </select>
+                        <SelectTrigger className="w-full h-10 text-sm">
+                          <SelectValue placeholder="Select an option" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none" disabled>Select an option</SelectItem>
+                          {appliedVendors.map((v) => (
+                            <SelectItem key={v.id} value={v.id}>
+                              {v.name} (GST: {v.gst_number || "N/A"}, Applied:{" "}
+                              {v.created_at?.slice(0, 10)})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">

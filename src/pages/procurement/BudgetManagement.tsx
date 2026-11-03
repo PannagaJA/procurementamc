@@ -122,18 +122,18 @@ export default function BudgetManagement() {
   return (
     <Layout>
       <div className="w-full max-w-full space-y-6 pb-12">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b pb-5">
-          <div>
-            <h1 className="text-3xl font-extrabold tracking-tight">Budgets</h1>
-            <p className="text-muted-foreground mt-1 text-sm">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
+          <div className="space-y-1 flex-1 min-w-0">
+            <h1 className="text-3xl font-extrabold tracking-tight text-[#0B1437] dark:text-white">Budgets</h1>
+            <p className="text-muted-foreground mt-1 text-sm max-w-3xl leading-relaxed">
               HODs propose in March, Finance consolidates in April, the EVP approves before June.
               Issued orders commit against a head; payments count as spent.
             </p>
           </div>
-          <div className="w-40">
-            <Label className="text-xs">Financial year</Label>
+          <div className="w-48 shrink-0 space-y-1">
+            <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400">Financial year</Label>
             <Select value={fy} onValueChange={setFy}>
-              <SelectTrigger>
+              <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700">
                 <SelectValue placeholder="Select an option" />
               </SelectTrigger>
               <SelectContent>
@@ -147,19 +147,19 @@ export default function BudgetManagement() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            ["Approved", totals.allocated],
-            ["Committed", totals.committed],
-            ["Spent", totals.spent],
-            ["Balance", totals.balance],
-          ].map(([label, value]) => (
-            <Card key={label as string}>
-              <CardContent className="p-4">
-                <div className="text-xs text-muted-foreground">{label}</div>
+            ["Approved", totals.allocated, "border-l-4 border-l-blue-500"],
+            ["Committed", totals.committed, "border-l-4 border-l-amber-500"],
+            ["Spent", totals.spent, "border-l-4 border-l-purple-500"],
+            ["Balance", totals.balance, totals.balance < 0 ? "border-l-4 border-l-red-500" : "border-l-4 border-l-emerald-500"],
+          ].map(([label, value, accentBorder]) => (
+            <Card key={label as string} className={`rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs hover:shadow-md transition-all overflow-hidden ${accentBorder}`}>
+              <CardContent className="p-5 flex flex-col justify-between">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</span>
                 <div
-                  className={`text-xl font-bold font-mono ${
-                    label === "Balance" && Number(value) < 0 ? "text-red-600 dark:text-red-400" : ""
+                  className={`text-2xl font-bold font-mono tracking-tight mt-1.5 ${
+                    label === "Balance" && Number(value) < 0 ? "text-red-600 dark:text-red-400" : "text-[#0B1437] dark:text-white"
                   }`}
                 >
                   {inr(value as number)}

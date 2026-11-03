@@ -40,7 +40,6 @@ import {
 import { BUDGET_CATEGORIES } from "@/lib/procurement/budgetLedger";
 import { ITEM_GROUPS } from "@/lib/procurement/itemGroups";
 import {
-  Zap,
   PlusCircle,
   CheckCircle2,
   XCircle,

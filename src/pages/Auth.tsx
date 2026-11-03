@@ -272,7 +272,7 @@ const Auth = () => {
             />
             <div className="text-center">
               <h1 className="text-2xl font-bold">AMC</h1>
-              <p className="text-sm text-muted-foreground">Inventory System</p>
+              <p className="text-sm text-muted-foreground">AMC Procurement Software</p>
             </div>
           </div>
           <CardTitle className="text-2xl text-center">
@@ -280,7 +280,7 @@ const Auth = () => {
           </CardTitle>
           <CardDescription className="text-center">
             {isLogin
-              ? "Enter your credentials to access the inventory system"
+              ? "Enter your credentials to access the AMC procurement software"
               : "Enter your details to create a new account"}
           </CardDescription>
         </CardHeader>

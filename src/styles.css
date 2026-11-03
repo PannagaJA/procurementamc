@@ -75,7 +75,7 @@
   --muted: 214 32% 91%;
   --muted-foreground: 215 16% 47%;
 
-  --accent: 142 76% 36%;
+  --accent: 228 67% 13%;
   --accent-foreground: 0 0% 100%;
 
   --destructive: 0 84% 60%;
@@ -124,7 +124,7 @@
   --muted: 214 32% 91%;
   --muted-foreground: 215 16% 47%;
 
-  --accent: 142 76% 36%;
+  --accent: 228 67% 13%;
   --accent-foreground: 0 0% 100%;
 
   --destructive: 0 84% 60%;
@@ -229,6 +229,16 @@ html {
 }
 
 @layer components {
+  /* Dropdown options auto-palette: replace green with Dark Navy (#0B1437) and white text */
+  [role="option"]:hover,
+  [role="option"][data-highlighted],
+  [data-radix-collection-item]:hover,
+  [data-radix-collection-item][data-highlighted],
+  [cmdk-item][data-selected="true"] {
+    background-color: #0B1437 !important;
+    color: #ffffff !important;
+  }
+
   /* Auto-enforce canonical design palette and interactive scale hover effect (matching logout button) */
   button[type="submit"]:not([class*="bg-rose-"]):not([class*="bg-destructive"]):not([class*="bg-transparent"]),
   .btn-primary,

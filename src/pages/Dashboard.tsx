@@ -288,7 +288,7 @@ const Dashboard = () => {
         <div className="space-y-8 animate-in fade-in-0 duration-500">
           <div className="text-center">
             <h2 className="text-4xl font-bold tracking-tight text-foreground mb-2">Dashboard</h2>
-            <p className="text-muted-foreground text-lg">Overview of your inventory system</p>
+            <p className="text-muted-foreground text-lg">Overview of your AMC procurement software</p>
           </div>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             {[...Array(4)].map((_, i) => (
@@ -317,7 +317,7 @@ const Dashboard = () => {
       <div className="space-y-8 animate-in slide-in-from-bottom duration-700">
         <div className="text-center">
           <h2 className="text-4xl font-bold tracking-tight text-foreground mb-2">Dashboard</h2>
-          <p className="text-muted-foreground text-lg">Overview of your inventory system</p>
+          <p className="text-muted-foreground text-lg">Overview of your AMC procurement software</p>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
