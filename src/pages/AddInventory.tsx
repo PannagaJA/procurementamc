@@ -377,7 +377,6 @@ const AddInventory = () => {
 <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-3xl font-bold tracking-tight text-[#0B1437] dark:text-white">Add New Item</h2>
-            <p className="text-muted-foreground text-sm sm:text-base">Add a new item to the AMC procurement software</p>
           </div>
         </div>
 
