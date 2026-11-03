@@ -61,9 +61,10 @@ export function useApprovalNotifications() {
       }
     },
     enabled: Boolean(userId && hasApprovalAccess),
-    refetchInterval: 10000, // 10s auto-refresh for total sync
+    refetchInterval: 60000, // 60s background safety sync (realtime listeners provide instant updates)
+    refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
-    staleTime: 4000,
+    staleTime: 30000,
   });
 
   // Real-time synchronization using Supabase postgres_changes

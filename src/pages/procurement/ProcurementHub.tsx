@@ -32,9 +32,6 @@ export default function ProcurementHub() {
     <Layout>
       <div className="w-full max-w-full space-y-8 pb-12">
         <div className="border-b border-slate-200 dark:border-slate-800 pb-6">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-[#0B1437]/10 text-[#0B1437] mb-2">
-            <ShieldCheck className="w-3.5 h-3.5" /> Procure-to-Pay (P2P) Platform
-          </div>
           <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
             Procurement Lifecycle & Governance
           </h1>

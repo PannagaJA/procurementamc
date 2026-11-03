@@ -82,10 +82,10 @@ const ViewerInventory = () => {
                   {items.map((it) => (
                     <tr key={it.id} className="border-t">
                       <td className="px-2 py-2 align-middle">
-                        <div className="truncate max-w-full">{it.item_code}</div>
+                        <div className="whitespace-normal break-words">{it.item_code}</div>
                       </td>
                       <td className="px-2 py-2 align-middle">
-                        <div className="truncate max-w-full">{it.item_name}</div>
+                        <div className="whitespace-normal break-words">{it.item_name}</div>
                       </td>
                       <td className="px-2 py-2 align-middle">
                         {(it.categories && it.categories.name) || it.category_name || "-"}

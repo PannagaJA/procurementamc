@@ -293,9 +293,6 @@ export default function ComparativeStatements() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-[#0B1437]/10 text-[#0B1437] mb-2">
-              <Scale className="w-3.5 h-3.5" /> Comparative Statement (CS) Evaluation
-            </div>
             <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
               Comparative Statements & Evaluation
             </h1>
@@ -595,14 +592,23 @@ export default function ComparativeStatements() {
                     <SelectValue placeholder="Select RFQ with responses..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {rfqList
-                      .filter(
+                    {(() => {
+                      const eligibleRfqs = rfqList.filter(
                         (r) =>
                           r.status === "sent" &&
                           r.purpose !== "rate_contract" && // rate RFQs become a rate contract, not a CS
                           !csList.some((c: any) => c.rfq_id === r.id && c.status !== "rejected"),
-                      )
-                      .map((r) => {
+                      );
+
+                      if (eligibleRfqs.length === 0) {
+                        return (
+                          <SelectItem value="_no_rfq" disabled className="text-muted-foreground text-xs italic py-2">
+                            No RFQs with responses found
+                          </SelectItem>
+                        );
+                      }
+
+                      return eligibleRfqs.map((r) => {
                         const pr = r.purchase_requisitions;
                         const items =
                           pr?.pr_line_items?.map((it: any) => it.description).filter(Boolean).join(", ") ||
@@ -619,7 +625,8 @@ export default function ComparativeStatements() {
                             {ready ? " · Ready" : ` · Min ${minReq} needed`})
                           </SelectItem>
                         );
-                      })}
+                      });
+                    })()}
                   </SelectContent>
                 </Select>
               </div>
@@ -714,11 +721,17 @@ export default function ComparativeStatements() {
                         <SelectValue placeholder="Select recommended vendor..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {vendorQuotes.map((vq) => (
-                          <SelectItem key={vq.vendor_id} value={vq.vendor_id}>
-                            {vq.vendor_name} — ₹{vq.total_quoted.toLocaleString("en-IN")}
+                        {vendorQuotes.length === 0 ? (
+                          <SelectItem value="_no_vendor" disabled className="text-muted-foreground text-xs italic py-2">
+                            No vendor quotes available
                           </SelectItem>
-                        ))}
+                        ) : (
+                          vendorQuotes.map((vq) => (
+                            <SelectItem key={vq.vendor_id} value={vq.vendor_id}>
+                              {vq.vendor_name} — ₹{vq.total_quoted.toLocaleString("en-IN")}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                   </div>

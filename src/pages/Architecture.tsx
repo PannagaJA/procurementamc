@@ -332,18 +332,18 @@ export default function Architecture() {
 
                 {/* Desktop Table View */}
                 <div className="hidden sm:block overflow-x-auto">
-                  <table className="w-full text-left text-xs border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
-                    <thead className="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-bold uppercase border-b border-slate-200 dark:border-slate-800">
+                  <table className="w-full text-left text-xs sm:text-sm border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+                    <thead className="bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-bold uppercase text-xs sm:text-sm border-b border-slate-200 dark:border-slate-800">
                       <tr>
-                        <th className="p-3">Category</th>
-                        <th className="p-3">Method</th>
-                        <th className="p-3">Single Txn Limit</th>
-                        <th className="p-3">Monthly Cap</th>
-                        <th className="p-3">Approving Role</th>
-                        <th className="p-3">Min Quotes</th>
+                        <th className="p-3.5">Category</th>
+                        <th className="p-3.5">Method</th>
+                        <th className="p-3.5">Single Txn Limit</th>
+                        <th className="p-3.5">Monthly Cap</th>
+                        <th className="p-3.5">Approving Role</th>
+                        <th className="p-3.5">Min Quotes</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-200 dark:divide-slate-800 font-mono text-[11px]">
+                    <tbody className="divide-y divide-slate-200 dark:divide-slate-800 font-mono text-xs sm:text-sm">
                       <tr>
                         <td className="p-3 font-sans font-medium">small_value</td>
                         <td className="p-3">petty_cash</td>

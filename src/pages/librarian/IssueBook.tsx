@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import LibraryLayout from "@/components/library/LibraryLayout";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Select,
   SelectContent,
@@ -60,11 +61,15 @@ const IssueBook = () => {
             <SelectValue placeholder="Select member" />
           </SelectTrigger>
           <SelectContent>
-            {members.map((m) => (
-              <SelectItem key={m.id} value={m.id}>
-                {m.name} ({m.email})
-              </SelectItem>
-            ))}
+            {members.length === 0 ? (
+              <div className="py-2 px-3 text-sm text-muted-foreground text-center">No members found</div>
+            ) : (
+              members.map((m) => (
+                <SelectItem key={m.id} value={m.id}>
+                  {m.name} ({m.email})
+                </SelectItem>
+              ))
+            )}
           </SelectContent>
         </Select>
         <Select value={bookId} onValueChange={setBookId}>
@@ -72,18 +77,22 @@ const IssueBook = () => {
             <SelectValue placeholder="Select book" />
           </SelectTrigger>
           <SelectContent>
-            {books.map((b) => (
-              <SelectItem key={b.id} value={b.id}>
-                {b.title} — {b.available} available
-              </SelectItem>
-            ))}
+            {books.length === 0 ? (
+              <div className="py-2 px-3 text-sm text-muted-foreground text-center">No books found</div>
+            ) : (
+              books.map((b) => (
+                <SelectItem key={b.id} value={b.id}>
+                  {b.title} — {b.available} available
+                </SelectItem>
+              ))
+            )}
           </SelectContent>
         </Select>
-        <input
-          type="date"
+        <DatePicker
           value={dueDate}
-          onChange={(e) => setDueDate(e.target.value)}
-          className="w-full p-2 border rounded"
+          onChange={setDueDate}
+          placeholder="Select due date"
+          className="w-full"
         />
         <Button onClick={issue}>Issue</Button>
       </div>

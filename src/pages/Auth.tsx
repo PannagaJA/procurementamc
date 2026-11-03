@@ -97,8 +97,9 @@ const Auth = () => {
 
   const redirectUser = async (userId: string) => {
     try {
+      const cachedUserId = localStorage.getItem("amc_user_id");
       const cached = localStorage.getItem("amc_roles");
-      if (cached) {
+      if (cached && cachedUserId === userId) {
         const roles: RoleEntry[] = JSON.parse(cached);
         const role = computePrimaryRole(roles);
         if (role) {
@@ -164,7 +165,7 @@ const Auth = () => {
       }
 
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data: authData, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
@@ -188,6 +189,9 @@ const Auth = () => {
             title: "Welcome back!",
             description: "Successfully logged in.",
           });
+          if (authData?.user) {
+            redirectUser(authData.user.id);
+          }
         }
       } else {
         const redirectUrl = `${window.location.origin}/`;

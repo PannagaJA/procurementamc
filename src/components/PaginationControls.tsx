@@ -165,23 +165,30 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
         )}
       </div>
 
-      {/* Bottom row: Centered pagination buttons */}
-      <div className="flex justify-center">
+      {/* Bottom row: Dynamic Prev [currentPage] Next controls */}
+      <div className="flex items-center justify-center gap-2">
         <Pagination>
-          <PaginationContent>
+          <PaginationContent className="gap-2">
             <PaginationItem>
               <PaginationPrevious
                 onClick={() => hasPrev && onPageChange(currentPage - 1)}
-                className={hasPrev ? "cursor-pointer" : "pointer-events-none opacity-50"}
+                className={hasPrev ? "cursor-pointer hover:bg-accent rounded-full px-3" : "pointer-events-none opacity-40 rounded-full px-3"}
               />
             </PaginationItem>
 
-            {renderPageNumbers()}
+            <PaginationItem>
+              <PaginationLink
+                isActive
+                className="min-w-9 h-9 px-3.5 text-sm font-bold pointer-events-none bg-[#0B1437] text-white rounded-full shadow-xs"
+              >
+                {currentPage}
+              </PaginationLink>
+            </PaginationItem>
 
             <PaginationItem>
               <PaginationNext
                 onClick={() => hasNext && onPageChange(currentPage + 1)}
-                className={hasNext ? "cursor-pointer" : "pointer-events-none opacity-50"}
+                className={hasNext ? "cursor-pointer hover:bg-accent rounded-full px-3" : "pointer-events-none opacity-40 rounded-full px-3"}
               />
             </PaginationItem>
           </PaginationContent>

@@ -38,6 +38,7 @@ import { format } from "date-fns";
 import { usePagination } from "@/hooks/use-pagination";
 import { PaginationControls } from "@/components/PaginationControls";
 import { createPaginatedQuery } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
 
 interface Ticket {
   id: string;
@@ -78,10 +79,27 @@ interface TicketUpdate {
 }
 
 const AdminTicketDashboard = () => {
+  let authCtx: any = null;
+  try {
+    authCtx = useAuth();
+  } catch {
+    authCtx = null;
+  }
+
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isPrinciple, setIsPrinciple] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(() => Boolean(authCtx?.hasRole?.("admin")));
+  const [isPrinciple, setIsPrinciple] = useState(() =>
+    Boolean(authCtx?.hasRole?.("principal") || authCtx?.hasRole?.("principle")),
+  );
+
+  // Sync instantaneously whenever auth roles are ready
+  useEffect(() => {
+    if (authCtx?.roles && authCtx.roles.length > 0) {
+      setIsAdmin(authCtx.hasRole("admin"));
+      setIsPrinciple(authCtx.hasRole("principal") || authCtx.hasRole("principle"));
+    }
+  }, [authCtx?.roles]);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
   const [viewTicket, setViewTicket] = useState<Ticket | null>(null);
@@ -204,19 +222,20 @@ const AdminTicketDashboard = () => {
 
   const fetchAllTickets = useCallback(async () => {
     try {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError || !user) {
-        toast({
-          title: "Error",
-          description: "Please log in to access this page",
-          variant: "destructive",
-        });
-        navigate({ to: "/auth" });
-        return;
+      const currentUserId = authCtx?.userId;
+      if (!currentUserId) {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (!session?.user) {
+          toast({
+            title: "Error",
+            description: "Please log in to access this page",
+            variant: "destructive",
+          });
+          navigate({ to: "/auth" });
+          return;
+        }
       }
 
       // Role checking is already done in checkUserRoles function
@@ -713,38 +732,48 @@ const AdminTicketDashboard = () => {
   };
 
   const checkUserRoles = async () => {
+    // Fast path: if roles are already in AuthContext (0ms), use them directly
+    if (authCtx?.roles && authCtx.roles.length > 0) {
+      const adminOk = authCtx.hasRole("admin");
+      const principalOk = authCtx.hasRole("principal") || authCtx.hasRole("principle");
+      setIsAdmin(adminOk);
+      setIsPrinciple(principalOk);
+      if (!adminOk && !principalOk) {
+        navigate({ to: "/" });
+      }
+      return;
+    }
+
     try {
       const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-      if (userError || !user) {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const user = session?.user;
+      if (!user) {
         navigate({ to: "/auth" });
         return;
       }
 
-      // Check admin role
-      const { data: adminData } = await supabase
+      // Single query for all user roles instead of multiple roundtrips
+      const { data: roleRows, error: roleError } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .maybeSingle();
+        .eq("user_id", user.id);
 
-      setIsAdmin(!!adminData);
+      if (roleError) {
+        console.error("Error checking user roles:", roleError);
+        navigate({ to: "/" });
+        return;
+      }
 
-      // Check principal role (supports both 'principal' and 'principle')
-      const { data: principleData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .in("role", ["principal", "principle"])
-        .maybeSingle();
+      const roles = (roleRows || []).map((r: any) => r.role);
+      const adminOk = roles.includes("admin");
+      const principalOk = roles.includes("principal") || roles.includes("principle");
 
-      setIsPrinciple(!!principleData);
+      setIsAdmin(adminOk);
+      setIsPrinciple(principalOk);
 
-      // If neither admin nor principal, redirect
-      if (!adminData && !principleData) {
+      if (!adminOk && !principalOk) {
         navigate({ to: "/" });
         return;
       }
@@ -989,32 +1018,34 @@ const AdminTicketDashboard = () => {
       <div className="w-full space-y-6">
         <Card>
           <CardHeader>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full">
-              <div>
-                <h2 className="text-xl font-semibold">My Open Tickets Report</h2>
-                <p className="text-sm text-muted-foreground">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 w-full">
+              <div className="min-w-0">
+                <h2 className="text-xl font-semibold break-words">My Open Tickets Report</h2>
+                <p className="text-sm text-muted-foreground break-words mt-0.5">
                   Manage and update all raised tickets
                 </p>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <label className="flex items-center gap-2 text-sm">
+              <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+                <label className="flex items-center gap-2 text-sm cursor-pointer select-none py-1">
                   <input
                     type="checkbox"
-                    className="form-checkbox"
+                    className="form-checkbox h-4 w-4 rounded border-gray-300 text-[#0B1437] focus:ring-[#0B1437]"
                     checked={showFiltersLocal}
                     onChange={(e) => setShowFiltersLocal(e.target.checked)}
                   />{" "}
                   Show Filters
                 </label>
-                <Button size="sm" onClick={() => exportCSV()} className="bg-[#0B1437] hover:bg-[#111f54] text-white font-bold rounded-full shadow-xs text-xs sm:text-sm">
-                  Export to CSV
-                </Button>
-                <Button size="sm" onClick={generateReport} className="bg-[#0B1437] hover:bg-[#111f54] text-white font-bold rounded-full shadow-xs text-xs sm:text-sm">
-                  Export to PDF
-                </Button>
-                <Button size="sm" onClick={() => setShowEmailDialog(true)} className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold shadow-xs text-xs sm:text-sm">
-                  E-mail PDF
-                </Button>
+                <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+                  <Button size="sm" onClick={() => exportCSV()} className="bg-[#0B1437] hover:bg-[#111f54] text-white font-semibold rounded-full shadow-xs text-xs sm:text-sm px-3.5 py-1.5">
+                    Export to CSV
+                  </Button>
+                  <Button size="sm" onClick={generateReport} className="bg-[#0B1437] hover:bg-[#111f54] text-white font-semibold rounded-full shadow-xs text-xs sm:text-sm px-3.5 py-1.5">
+                    Export to PDF
+                  </Button>
+                  <Button size="sm" onClick={() => setShowEmailDialog(true)} className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold shadow-xs text-xs sm:text-sm px-3.5 py-1.5">
+                    E-mail PDF
+                  </Button>
+                </div>
               </div>
             </div>
           </CardHeader>

@@ -514,9 +514,6 @@ export default function GrnManagement() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-[#0B1437]/10 text-[#0B1437] mb-2">
-              <Truck className="w-3.5 h-3.5" /> Stores Fulfilment & Goods Receipt
-            </div>
             <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
               Delivery Challans & Goods Receipt Notes (GRN)
             </h1>
@@ -882,8 +879,8 @@ export default function GrnManagement() {
                     <SelectValue placeholder="Select PO..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {issuedPos
-                      .filter((po) => {
+                    {(() => {
+                      const eligiblePos = issuedPos.filter((po) => {
                         if (po.status === "closed" || po.status === "cancelled" || po.status === "rejected") return false;
                         // Exclude POs that already have an unlinked delivery challan awaiting GRN
                         const hasPendingChallan = unlinkedChallans.some((c: any) => c.po_id === po.id);
@@ -908,13 +905,23 @@ export default function GrnManagement() {
                           }, 0);
                         if (orderedQty > 0 && priorDelivered >= orderedQty) return false;
                         return true;
-                      })
-                      .map((po) => (
+                      });
+
+                      if (eligiblePos.length === 0) {
+                        return (
+                          <SelectItem value="_no_po" disabled className="text-muted-foreground text-xs italic py-2">
+                            No issued Purchase Orders found
+                          </SelectItem>
+                        );
+                      }
+
+                      return eligiblePos.map((po) => (
                         <SelectItem key={po.id} value={po.id}>
                           {po.po_number} — {po.vendors?.name} (₹
                           {Number(po.total_value).toLocaleString("en-IN")})
                         </SelectItem>
-                      ))}
+                      ));
+                    })()}
                   </SelectContent>
                 </Select>
               </div>
