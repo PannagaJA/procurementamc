@@ -17,6 +17,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -128,6 +138,8 @@ export default function PurchaseOrders() {
   const [newTaxes, setNewTaxes] = useState<number | "">(0);
   const [amendReason, setAmendReason] = useState("");
   const [amending, setAmending] = useState(false);
+  const [poToApprove, setPoToApprove] = useState<any | null>(null);
+  const [poToClose, setPoToClose] = useState<any | null>(null);
 
   // Print Preview Modal
   const [printOpen, setPrintOpen] = useState(false);
@@ -429,7 +441,14 @@ export default function PurchaseOrders() {
     }
   };
 
-  const handleApprovePo = async (po: any) => {
+  const handleApprovePo = (po: any) => {
+    setPoToApprove(po);
+  };
+
+  const executeApprovePo = async () => {
+    if (!poToApprove) return;
+    const po = poToApprove;
+    setPoToApprove(null);
     setActing(true);
     try {
       const res = await (approvePo as any)({
@@ -542,8 +561,14 @@ export default function PurchaseOrders() {
     }
   };
 
-  const handleClosePo = async (po: any) => {
-    if (!confirm(`Are you sure you want to close Purchase Order ${po.po_number}?`)) return;
+  const handleClosePo = (po: any) => {
+    setPoToClose(po);
+  };
+
+  const executeClosePo = async () => {
+    if (!poToClose) return;
+    const po = poToClose;
+    setPoToClose(null);
     setActing(true);
     try {
       const res = await (closePo as any)({
@@ -947,7 +972,7 @@ export default function PurchaseOrders() {
                       </SelectTrigger>
                       <SelectContent>
                         {approvedCss.length === 0 ? (
-                          <SelectItem value="_no_cs" disabled className="text-muted-foreground text-xs italic py-2">
+                          <SelectItem value="_no_cs" disabled className="text-slate-700 dark:text-slate-300 font-medium text-xs py-2 text-center">
                             No approved Comparative Statements found
                           </SelectItem>
                         ) : (
@@ -990,7 +1015,7 @@ export default function PurchaseOrders() {
                       </SelectTrigger>
                       <SelectContent>
                         {activeRateContracts.length === 0 ? (
-                          <SelectItem value="_none" disabled>
+                          <SelectItem value="_none" disabled className="text-slate-700 dark:text-slate-300 font-medium text-xs py-2 text-center">
                             No EVP-approved rate contracts in force
                           </SelectItem>
                         ) : (
@@ -1067,7 +1092,7 @@ export default function PurchaseOrders() {
                       </SelectTrigger>
                       <SelectContent>
                         {approvedPrs.filter((p) => p.category === "small_value").length === 0 ? (
-                          <SelectItem value="_none" disabled>
+                          <SelectItem value="_none" disabled className="text-slate-700 dark:text-slate-300 font-medium text-xs py-2 text-center">
                             No approved small-value requisitions without a PO
                           </SelectItem>
                         ) : (
@@ -1155,7 +1180,7 @@ export default function PurchaseOrders() {
                           </SelectTrigger>
                           <SelectContent>
                             {vendorsList.length === 0 ? (
-                              <SelectItem value="_no_vendor" disabled className="text-muted-foreground text-xs italic py-2">
+                              <SelectItem value="_no_vendor" disabled className="text-slate-700 dark:text-slate-300 font-medium text-xs py-2 text-center">
                                 No empanelled vendors found
                               </SelectItem>
                             ) : (
@@ -1420,6 +1445,78 @@ export default function PurchaseOrders() {
 
         {/* Formal Institutional Print Preview & PDF Modal */}
         <PoPrintPreviewModal open={printOpen} onOpenChange={setPrintOpen} po={selectedPoForPrint} />
+
+        {/* Confirmation Modal to prevent accidental PO approval */}
+        <AlertDialog open={!!poToApprove} onOpenChange={(open) => !open && setPoToApprove(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirm Purchase Order Approval</AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-3 text-sm text-slate-600 dark:text-slate-300 pt-2">
+                  <p>
+                    Are you sure you want to approve Purchase Order{" "}
+                    <span className="font-mono font-bold text-slate-900 dark:text-white">
+                      {poToApprove?.po_number}
+                    </span>
+                    ? Once approved, it can be formally issued to the vendor.
+                  </p>
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg space-y-1.5 text-xs font-medium">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Vendor:</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-100">
+                        {poToApprove?.vendors?.name || "Vendor"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between border-t border-slate-200 dark:border-slate-700 pt-1.5 text-sm font-bold">
+                      <span className="text-slate-700 dark:text-slate-200">Total Value:</span>
+                      <span className="text-slate-900 dark:text-white font-mono">
+                        ₹{Number(poToApprove?.total_value || 0).toLocaleString("en-IN")}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={executeApprovePo}
+                className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
+              >
+                Confirm Approval
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Confirmation Modal to close PO without local browser prompt */}
+        <AlertDialog open={!!poToClose} onOpenChange={(open) => !open && setPoToClose(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Close Purchase Order</AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-3 text-sm text-slate-600 dark:text-slate-300 pt-2">
+                  <p>
+                    Are you sure you want to close Purchase Order{" "}
+                    <span className="font-mono font-bold text-slate-900 dark:text-white">
+                      {poToClose?.po_number}
+                    </span>
+                    ? Any unfulfilled lines or unused budget commitments will be automatically released back to the department.
+                  </p>
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={executeClosePo}
+                className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
+              >
+                Confirm Close PO
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </Layout>
   );

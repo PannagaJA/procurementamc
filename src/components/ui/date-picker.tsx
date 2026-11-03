@@ -1,6 +1,7 @@
 import * as React from "react";
 import { format, parse, isValid } from "date-fns";
 import { Calendar as CalendarIcon, X } from "lucide-react";
+
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -82,7 +83,7 @@ export function DatePicker({
           variant="outline"
           disabled={disabled}
           className={cn(
-            "w-full justify-between text-left font-normal h-12 text-base rounded-md border border-input bg-background px-3 py-2 transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-foreground active:scale-100 hover:scale-100",
+            "w-full justify-between text-left font-normal h-10 px-3 rounded-md border-input bg-background text-sm hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-foreground active:scale-100 hover:scale-100",
             !parsedDate && "text-muted-foreground",
             className,
           )}
@@ -111,7 +112,7 @@ export function DatePicker({
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0 z-50 rounded-xl shadow-xl border bg-white dark:bg-slate-900" align="start">
+      <PopoverContent className="w-auto p-0 z-50 rounded-xl border bg-white dark:bg-slate-900" align="start">
         <Calendar
           mode="single"
           selected={parsedDate}

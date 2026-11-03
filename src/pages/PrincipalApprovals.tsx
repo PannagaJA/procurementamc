@@ -345,7 +345,7 @@ const PrincipalApprovals = () => {
             <CardHeader>
               <CardTitle>Principal — Approvals</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[650px] table-auto">
                   <thead className="bg-slate-50">

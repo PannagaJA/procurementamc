@@ -374,11 +374,9 @@ const AddInventory = () => {
   return (
     <Layout>
       <div className="w-full max-w-full animate-in fade-in-0 duration-700">
-<div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-3xl font-bold tracking-tight text-[#0B1437] dark:text-white">Add New Item</h2>
-            <p className="text-muted-foreground text-sm sm:text-base">Add a new item to the AMC procurement software</p>
-          </div>
+        <div className="mb-8 text-center">
+          <h2 className="text-4xl font-bold tracking-tight text-foreground mb-2">Add New Item</h2>
+          <p className="text-muted-foreground text-lg">Add a new item to the AMC procurement software</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
@@ -761,7 +759,7 @@ const AddInventory = () => {
                   <DatePicker
                     id="invoice_date"
                     value={formData.invoice_date}
-onChange={(val) =>
+                    onChange={(val) =>
                       setFormData((prev) => ({ ...prev, invoice_date: val }))
                     }
                     placeholder="Select invoice date"
@@ -802,7 +800,7 @@ onChange={(val) =>
                   <DatePicker
                     id="approval_date"
                     value={formData.approval_letter_date}
-onChange={(val) =>
+                    onChange={(val) =>
                       setFormData((prev) => ({ ...prev, approval_letter_date: val }))
                     }
                     placeholder="Select approval date"

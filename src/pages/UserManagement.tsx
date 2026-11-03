@@ -651,7 +651,7 @@ const UserManagement = () => {
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
                                 <Button
-                                  variant="outline"
+                                  variant="destructive"
                                   size="sm"
                                   onClick={() => setUserToDelete(user)}
                                 >

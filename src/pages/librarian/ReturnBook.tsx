@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import LibraryLayout from "@/components/library/LibraryLayout";
 import { Button } from "@/components/ui/button";
 import libraryApi from "@/lib/libraryApi";
+import { useToast } from "@/hooks/use-toast";
 
 const ReturnBook = () => {
+  const { toast } = useToast();
   const [issues, setIssues] = useState<any[]>([]);
   const [books, setBooks] = useState<any[]>([]);
   const [members, setMembers] = useState<any[]>([]);
@@ -31,12 +33,15 @@ const ReturnBook = () => {
   const markReturned = async (id: string) => {
     try {
       const ok = await libraryApi.returnBook(id);
-      if (!ok) return alert("Return failed");
+      if (!ok) {
+        toast({ title: "Failed", description: "Return processing failed.", variant: "destructive" });
+        return;
+      }
       await load();
-      alert("Marked returned");
+      toast({ title: "Success", description: "Marked as returned successfully." });
     } catch (err: any) {
       console.error("Return failed", err);
-      alert(err?.message || "Failed to mark returned");
+      toast({ title: "Error", description: err?.message || "Failed to mark returned", variant: "destructive" });
     }
   };
 

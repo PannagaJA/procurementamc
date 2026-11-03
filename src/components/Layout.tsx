@@ -414,7 +414,7 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
               alt="AMC Logo"
               className="h-9 w-12 sm:h-12 sm:w-16 rounded-lg object-contain shadow-md shrink-0"
             />
-<div className="min-w-0">
+            <div className="min-w-0">
               <h1 className="text-sm sm:text-lg font-bold text-gray-800 dark:text-gray-100 truncate">
                 AMC Procurement Software
               </h1>
@@ -449,7 +449,7 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
               variant="outline"
               size="sm"
               onClick={handleLogout}
-              className="transition-all duration-300 hover:scale-105 hover:shadow-xs px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border border-rose-200 bg-rose-50/60 text-rose-700 hover:bg-rose-100 hover:text-rose-900 font-semibold flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm"
+              className="transition-all duration-300 hover:scale-105 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full border border-rose-200 bg-rose-50/60 text-rose-700 hover:bg-rose-100 hover:text-rose-900 font-semibold flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm"
             >
               <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">Logout</span>

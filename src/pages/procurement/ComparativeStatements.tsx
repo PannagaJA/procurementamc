@@ -16,6 +16,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -61,6 +71,7 @@ export default function ComparativeStatements() {
 
   // Prepare CS Modal
   const [prepOpen, setPrepOpen] = useState(false);
+  const [csToApprove, setCsToApprove] = useState<any | null>(null);
   const [selectedRfqId, setSelectedRfqId] = useState("");
   const [selectedRfq, setSelectedRfq] = useState<any>(null);
   const [vendorQuotes, setVendorQuotes] = useState<any[]>([]);
@@ -231,7 +242,14 @@ export default function ComparativeStatements() {
     }
   };
 
-  const handleApproveCs = async (cs: any) => {
+  const handleApproveCs = (cs: any) => {
+    setCsToApprove(cs);
+  };
+
+  const executeApproveCs = async () => {
+    if (!csToApprove) return;
+    const cs = csToApprove;
+    setCsToApprove(null);
     setActing(true);
     try {
       const res = await (approveCs as any)({
@@ -862,6 +880,48 @@ export default function ComparativeStatements() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        {/* Confirmation Modal to prevent accidental CS approval */}
+        <AlertDialog open={!!csToApprove} onOpenChange={(open) => !open && setCsToApprove(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirm Comparative Statement Approval</AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-3 text-sm text-slate-600 dark:text-slate-300 pt-2">
+                  <p>
+                    Are you sure you want to approve Comparative Statement{" "}
+                    <span className="font-mono font-bold text-slate-900 dark:text-white">
+                      {csToApprove?.cs_number}
+                    </span>
+                    ? Once approved, a Purchase Order can be generated against the selected vendor.
+                  </p>
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg space-y-1.5 text-xs font-medium">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Selected Vendor:</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-100">
+                        {csToApprove?.vendors?.name || "Vendor"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between border-t border-slate-200 dark:border-slate-700 pt-1.5 text-sm font-bold">
+                      <span className="text-slate-700 dark:text-slate-200">Recommended Total:</span>
+                      <span className="text-slate-900 dark:text-white font-mono">
+                        ₹{Number(csToApprove?.recommended_total || 0).toLocaleString("en-IN")}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={executeApproveCs}
+                className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
+              >
+                Confirm Approval
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </Layout>
   );

@@ -286,12 +286,6 @@ const Dashboard = () => {
     return (
       <Layout>
         <div className="space-y-8 animate-in fade-in-0 duration-500">
-<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-3xl font-bold tracking-tight text-[#0B1437] dark:text-white">Dashboard</h2>
-              <p className="text-muted-foreground text-sm sm:text-base">Overview of your AMC procurement software</p>
-            </div>
-          </div>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             {[...Array(4)].map((_, i) => (
               <Card
@@ -316,13 +310,6 @@ const Dashboard = () => {
   return (
     <Layout>
       <div className="space-y-8 animate-in slide-in-from-bottom duration-700">
-<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h2 className="text-3xl font-bold tracking-tight text-[#0B1437] dark:text-white">Dashboard</h2>
-              <p className="text-muted-foreground text-sm sm:text-base">Overview of your AMC procurement software</p>
-            </div>
-          </div>
-
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           <Card className="bg-blue-50 border border-emerald-100/80 shadow-xs rounded-2xl transition-all duration-300 hover:shadow-md hover:scale-[1.02]">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
@@ -383,30 +370,27 @@ const Dashboard = () => {
 
         {/* Search UI removed per request */}
 
-        <Card className="bg-card/90 backdrop-blur-sm shadow-xl border-0 rounded-xl transition-all duration-300 hover:shadow-2xl">
-          <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 rounded-t-xl">
-            <CardTitle className="text-2xl font-bold text-card-foreground flex items-center gap-2">
-              <ScanLine className="w-6 h-6 text-green-600 dark:text-green-400" />
+        <Card className="bg-card/90 backdrop-blur-sm border border-border/60 rounded-xl transition-all duration-300">
+          <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100/60 dark:from-slate-900/40 dark:to-slate-800/40 rounded-t-xl border-b border-border/40 text-center py-5">
+            <CardTitle className="text-2xl font-bold text-card-foreground flex items-center justify-center gap-2">
+              <ScanLine className="w-6 h-6 text-[#0B1437] dark:text-slate-200" />
               Scan to Get Info
             </CardTitle>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground mt-1">
               Scan QR codes to quickly access item details
             </p>
           </CardHeader>
-          <CardContent className="p-8">
-            <div className="text-center">
-              <Button
-                onClick={() => setShowQRScanner(true)}
-                className="bg-[#0B1437] hover:bg-[#111f54] text-white px-8 py-3.5 rounded-full font-bold transition-all duration-300 hover:scale-105 shadow-md text-base"
-                size="lg"
-              >
-                <ScanLine className="w-5 h-5 mr-2" />
-                Scan QR Code
-              </Button>
-              <p className="text-sm text-muted-foreground mt-3">
-                Use your camera to scan QR codes on inventory items
-              </p>
-            </div>
+          <CardContent className="p-8 flex flex-col items-center justify-center text-center">
+            <Button
+              onClick={() => setShowQRScanner(true)}
+              className="inline-flex items-center justify-center gap-2.5 bg-[#0B1437] hover:bg-[#111f54] text-white px-8 h-12 rounded-full font-bold transition-all duration-300 hover:scale-105 text-base mx-auto"
+            >
+              <ScanLine className="w-5 h-5 shrink-0" />
+              <span>Scan QR Code</span>
+            </Button>
+            <p className="text-sm text-muted-foreground mt-3">
+              Use your camera to scan QR codes on inventory items
+            </p>
           </CardContent>
         </Card>
 

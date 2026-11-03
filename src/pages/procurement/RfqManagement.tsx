@@ -17,6 +17,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -80,6 +90,7 @@ export default function RfqManagement() {
 
   // Create RFQ Modal
   const [createOpen, setCreateOpen] = useState(false);
+  const [confirmRfqOpen, setConfirmRfqOpen] = useState(false);
   const [selectedPrId, setSelectedPrId] = useState("");
   const [deadline, setDeadline] = useState("");
   const [notes, setNotes] = useState("");
@@ -167,7 +178,7 @@ export default function RfqManagement() {
     loadData();
   }, []);
 
-  const handleCreateRfq = async () => {
+  const handleCreateRfq = () => {
     if (!selectedPrId) {
       toast({
         title: "Validation Error",
@@ -176,6 +187,11 @@ export default function RfqManagement() {
       });
       return;
     }
+    setConfirmRfqOpen(true);
+  };
+
+  const executeCreateRfq = async () => {
+    setConfirmRfqOpen(false);
     setCreating(true);
     try {
       const res = await (createRfq as any)({
@@ -798,7 +814,7 @@ export default function RfqManagement() {
 
                       if (eligiblePrs.length === 0) {
                         return (
-                          <SelectItem value="_no_pr" disabled className="text-muted-foreground text-xs italic py-2">
+                          <SelectItem value="_no_pr" disabled className="text-slate-700 dark:text-slate-300 font-medium text-xs py-2 text-center">
                             No approved Requisitions (PR) found
                           </SelectItem>
                         );
@@ -863,7 +879,30 @@ export default function RfqManagement() {
           </DialogContent>
         </Dialog>
 
-        {/* Modal: Send RFQ to Empanelled Vendors */}
+        {/* Confirmation Modal to prevent accidental RFQ creation */}
+        <AlertDialog open={confirmRfqOpen} onOpenChange={setConfirmRfqOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Confirm RFQ Initiation</AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-3 text-sm text-slate-600 dark:text-slate-300 pt-2">
+                  <p>
+                    Are you sure you want to initiate this Request for Quotation (RFQ)? Once created, you can invite empanelled vendors to submit competitive bids.
+                  </p>
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={executeCreateRfq}
+                className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
+              >
+                Confirm & Create RFQ
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
         <Dialog open={sendOpen} onOpenChange={setSendOpen}>
           <DialogContent className="max-w-lg">
             <DialogHeader>

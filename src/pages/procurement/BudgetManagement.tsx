@@ -39,7 +39,7 @@ import {
   financialYear,
   fyQuarter,
 } from "@/lib/procurement/budgetLedger";
-import { Wallet, PieChart, Send, CheckCircle2, Undo2, Plus, Trash2, BookOpen } from "lucide-react";
+import { Wallet, PieChart, Send, CheckCircle2, Undo2, Plus, Trash2, BookOpen, BadgeCheck, Clock, Receipt } from "lucide-react";
 
 const inr = (n: number | string | null | undefined) =>
   `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
@@ -124,7 +124,6 @@ export default function BudgetManagement() {
       <div className="w-full max-w-full space-y-6 pb-12">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
           <div className="space-y-1 flex-1 min-w-0">
-
             <h1 className="text-3xl font-extrabold tracking-tight text-[#0B1437] dark:text-white">Budgets</h1>
             <p className="text-muted-foreground mt-1 text-sm max-w-3xl leading-relaxed">
               HODs propose in March, Finance consolidates in April, the EVP approves before June.
@@ -150,22 +149,54 @@ export default function BudgetManagement() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            ["Approved", totals.allocated, "border-l-4 border-l-blue-500"],
-            ["Committed", totals.committed, "border-l-4 border-l-amber-500"],
-            ["Spent", totals.spent, "border-l-4 border-l-purple-500"],
-            ["Balance", totals.balance, totals.balance < 0 ? "border-l-4 border-l-red-500" : "border-l-4 border-l-emerald-500"],
-          ].map(([label, value, accentBorder]) => (
-            <Card key={label as string} className={`rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs hover:shadow-md transition-all overflow-hidden ${accentBorder}`}>
-              <CardContent className="p-5 flex flex-col justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</span>
+            {
+              label: "Approved",
+              value: totals.allocated,
+              icon: <BadgeCheck className="w-5 h-5 text-blue-600 dark:text-blue-400" />,
+              iconBg: "bg-blue-50 dark:bg-blue-950/40",
+            },
+            {
+              label: "Committed",
+              value: totals.committed,
+              icon: <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />,
+              iconBg: "bg-amber-50 dark:bg-amber-950/40",
+            },
+            {
+              label: "Spent",
+              value: totals.spent,
+              icon: <Receipt className="w-5 h-5 text-purple-600 dark:text-purple-400" />,
+              iconBg: "bg-purple-50 dark:bg-purple-950/40",
+            },
+            {
+              label: "Balance",
+              value: totals.balance,
+              icon: <Wallet className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />,
+              iconBg: "bg-emerald-50 dark:bg-emerald-950/40",
+            },
+          ].map((item) => (
+            <Card
+              key={item.label}
+              className="rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 transition-colors"
+            >
+              <div className="p-4 sm:p-5 flex flex-col justify-between h-full">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                    {item.label}
+                  </span>
+                  <div className={`p-2 rounded-md ${item.iconBg}`}>
+                    {item.icon}
+                  </div>
+                </div>
                 <div
-                  className={`text-2xl font-bold font-mono tracking-tight mt-1.5 ${
-                    label === "Balance" && Number(value) < 0 ? "text-red-600 dark:text-red-400" : "text-[#0B1437] dark:text-white"
+                  className={`text-2xl font-bold font-mono tracking-tight mt-3 ${
+                    item.label === "Balance" && Number(item.value) < 0
+                      ? "text-red-600 dark:text-red-400"
+                      : "text-[#0B1437] dark:text-white"
                   }`}
                 >
-                  {inr(value as number)}
+                  {inr(item.value as number)}
                 </div>
-              </CardContent>
+              </div>
             </Card>
           ))}
         </div>
@@ -597,8 +628,8 @@ function ProposalEditor({
                 {editable && (
                   <Button
                     size="sm"
-                    variant="ghost"
-                    className="gap-1 text-red-600"
+                    variant="destructive"
+                    className="gap-1"
                     onClick={() => setLines(lines.filter((_, j) => j !== i))}
                   >
                     <Trash2 className="w-3.5 h-3.5" /> Remove

@@ -16,6 +16,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -337,15 +347,16 @@ export default function GrnManagement() {
   };
 
   const [dismissingId, setDismissingId] = useState<string | null>(null);
+  const [challanToDismiss, setChallanToDismiss] = useState<{ id: string; number: string } | null>(null);
 
-  const handleDismissChallan = async (challanId: string, challanNumber: string) => {
-    if (
-      !confirm(
-        `Are you sure you want to dismiss Delivery Challan ${challanNumber}? (e.g. over-delivered, cancelled, or returned to vendor)`,
-      )
-    ) {
-      return;
-    }
+  const handleDismissChallan = (challanId: string, challanNumber: string) => {
+    setChallanToDismiss({ id: challanId, number: challanNumber });
+  };
+
+  const executeDismissChallan = async () => {
+    if (!challanToDismiss) return;
+    const { id: challanId, number: challanNumber } = challanToDismiss;
+    setChallanToDismiss(null);
     setDismissingId(challanId);
     try {
       const res = await (deleteDeliveryChallan as any)({
@@ -588,8 +599,8 @@ export default function GrnManagement() {
                   <div className="flex items-center gap-2 shrink-0">
                     <Button
                       size="sm"
-                      variant="outline"
-                      className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200 dark:border-rose-900/50 dark:hover:bg-rose-950/40 gap-1"
+                      variant="destructive"
+                      className="text-xs gap-1"
                       disabled={dismissingId === c.id}
                       onClick={() => handleDismissChallan(c.id, c.challan_number || "DC-PENDING")}
                       title="Dismiss or remove invalid/excess delivery challan"
@@ -909,7 +920,7 @@ export default function GrnManagement() {
 
                       if (eligiblePos.length === 0) {
                         return (
-                          <SelectItem value="_no_po" disabled className="text-muted-foreground text-xs italic py-2">
+                          <SelectItem value="_no_po" disabled className="text-slate-700 dark:text-slate-300 font-medium text-xs py-2 text-center">
                             No issued Purchase Orders found
                           </SelectItem>
                         );
@@ -1036,8 +1047,8 @@ export default function GrnManagement() {
                       <SelectValue placeholder="Select PO..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {issuedPos
-                        .filter((po) => {
+                      {(() => {
+                        const eligiblePos = issuedPos.filter((po) => {
                           if (po.status === "closed" || po.status === "cancelled" || po.status === "rejected") return false;
                           const hasUnlinkedChallan = unlinkedChallans.some((c: any) => c.po_id === po.id);
                           if (!hasUnlinkedChallan) return false;
@@ -1060,12 +1071,22 @@ export default function GrnManagement() {
                             }, 0);
                           if (orderedQty > 0 && priorDelivered >= orderedQty) return false;
                           return true;
-                        })
-                        .map((po) => (
+                        });
+
+                        if (eligiblePos.length === 0) {
+                          return (
+                            <SelectItem value="_no_po" disabled className="text-slate-700 dark:text-slate-300 font-medium text-xs py-2 text-center">
+                              No purchase orders awaiting GRN
+                            </SelectItem>
+                          );
+                        }
+
+                        return eligiblePos.map((po) => (
                           <SelectItem key={po.id} value={po.id}>
                             {po.po_number} — {po.vendors?.name}
                           </SelectItem>
-                        ))}
+                        ));
+                      })()}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1086,14 +1107,26 @@ export default function GrnManagement() {
                       <SelectValue placeholder="Select Challan..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {unlinkedChallans
-                        .filter((c) => !grnPoId || c.po_id === grnPoId)
-                        .map((c) => (
+                      {(() => {
+                        const eligibleChallans = unlinkedChallans.filter(
+                          (c) => !grnPoId || c.po_id === grnPoId,
+                        );
+
+                        if (eligibleChallans.length === 0) {
+                          return (
+                            <SelectItem value="_no_challan" disabled className="text-slate-700 dark:text-slate-300 font-medium text-xs py-2 text-center">
+                              No unlinked delivery challans found
+                            </SelectItem>
+                          );
+                        }
+
+                        return eligibleChallans.map((c) => (
                           <SelectItem key={c.id} value={c.id}>
                             {c.challan_number} (PO: {c.purchase_orders?.po_number || "Ref"}) —{" "}
                             {c.packages_count ?? 1} pkgs
                           </SelectItem>
-                        ))}
+                        ));
+                      })()}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1282,6 +1315,34 @@ export default function GrnManagement() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        {/* Confirmation Modal to dismiss challan without local browser prompt */}
+        <AlertDialog open={!!challanToDismiss} onOpenChange={(open) => !open && setChallanToDismiss(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Dismiss Delivery Challan</AlertDialogTitle>
+              <AlertDialogDescription asChild>
+                <div className="space-y-3 text-sm text-slate-600 dark:text-slate-300 pt-2">
+                  <p>
+                    Are you sure you want to dismiss Delivery Challan{" "}
+                    <span className="font-mono font-bold text-slate-900 dark:text-white">
+                      {challanToDismiss?.number}
+                    </span>
+                    ? (e.g. over-delivered, cancelled, or returned to vendor). It will be removed from Awaiting GRN.
+                  </p>
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={executeDismissChallan}
+                className="bg-destructive hover:bg-destructive/90 text-white rounded-full font-semibold"
+              >
+                Confirm Dismiss
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </Layout>
   );

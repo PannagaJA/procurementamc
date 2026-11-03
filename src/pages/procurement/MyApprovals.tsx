@@ -378,16 +378,16 @@ export default function MyApprovals() {
         </div>
 
         {/* User Roles Banner */}
-        <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-          <div>
-            <span className="text-slate-500 font-medium block">Your roles:</span>
-            <div className="flex flex-wrap gap-1.5 mt-1">
+        <div className="bg-slate-50/80 dark:bg-slate-900/80 p-4 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
+          <div className="flex-1 min-w-0">
+            <span className="text-slate-500 dark:text-slate-400 font-medium block text-xs">Your roles:</span>
+            <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
               {userRoles.length > 0 ? (
                 userRoles.map((r: string) => (
                   <Badge
                     key={r}
                     variant="secondary"
-                    className="font-semibold bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300"
+                    className="font-semibold text-xs py-0.5 px-2.5 bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300"
                   >
                     {roleLabel(r)}
                   </Badge>
@@ -397,9 +397,9 @@ export default function MyApprovals() {
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2 font-semibold text-slate-700 dark:text-slate-300">
-            <span>Total Pending: </span>
-            <Badge variant="default" className="text-sm px-2.5 py-0.5">
+          <div className="flex items-center gap-2.5 font-semibold text-slate-700 dark:text-slate-300 sm:self-center shrink-0">
+            <span className="text-sm">Total Pending:</span>
+            <Badge variant="default" className="text-sm px-3 py-1 font-bold">
               {counts.total}
             </Badge>
           </div>
@@ -951,7 +951,6 @@ export default function MyApprovals() {
                 size="sm"
                 onClick={() => setHistoryTypeFilter("all")}
                 className="rounded-full text-xs h-8 gap-1.5"
-
               >
                 All History
                 <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
@@ -966,7 +965,6 @@ export default function MyApprovals() {
                 size="sm"
                 onClick={() => setHistoryTypeFilter("prs")}
                 className="rounded-full text-xs h-8 gap-1.5 text-blue-600 dark:text-blue-400"
-
               >
                 Requisitions (PR)
                 <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
@@ -978,7 +976,6 @@ export default function MyApprovals() {
                 size="sm"
                 onClick={() => setHistoryTypeFilter("css")}
                 className="rounded-full text-xs h-8 gap-1.5 text-emerald-600 dark:text-emerald-400"
-
               >
                 Comparative Statements
                 <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
@@ -990,7 +987,6 @@ export default function MyApprovals() {
                 size="sm"
                 onClick={() => setHistoryTypeFilter("pos")}
                 className="rounded-full text-xs h-8 gap-1.5 text-indigo-600 dark:text-indigo-400"
-
               >
                 Purchase Orders
                 <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
@@ -1002,7 +998,6 @@ export default function MyApprovals() {
                 size="sm"
                 onClick={() => setHistoryTypeFilter("invoices")}
                 className="rounded-full text-xs h-8 gap-1.5 text-teal-600 dark:text-teal-400"
-
               >
                 Invoices
                 <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
@@ -1014,7 +1009,6 @@ export default function MyApprovals() {
                 size="sm"
                 onClick={() => setHistoryTypeFilter("rateContracts")}
                 className="rounded-full text-xs h-8 gap-1.5 text-violet-600 dark:text-violet-400"
-
               >
                 Rate Contracts
                 <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
@@ -1363,8 +1357,8 @@ export default function MyApprovals() {
                 disabled={acting || (dialogType.includes("reject") && !remarks.trim())}
                 className={
                   dialogType.includes("reject")
-                    ? "border border-rose-200 bg-rose-50/70 text-rose-700 hover:bg-rose-100 hover:text-rose-900 hover:border-rose-300 rounded-full font-semibold shadow-xs"
-                    : "bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold shadow-xs"
+                    ? "border border-rose-200 bg-rose-50/70 text-rose-700 hover:bg-rose-100 hover:text-rose-900 hover:border-rose-300 rounded-full font-semibold"
+                    : "bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
                 }
               >
                 {acting ? "Processing..." : "Confirm"}
