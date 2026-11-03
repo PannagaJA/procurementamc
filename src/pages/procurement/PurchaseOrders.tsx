@@ -153,9 +153,43 @@ export default function PurchaseOrders() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [poRes, csRes] = await Promise.all([
+      // Parallelize all queries concurrently in a single roundtrip batch
+      const [
+        poRes,
+        csRes,
+        { data: rcData },
+        { data: prData },
+        { data: openRfqs },
+        { data: vData },
+        { data: rules },
+      ] = await Promise.all([
         (listPurchaseOrders as any)(),
         (listComparativeStatements as any)(),
+        supabase
+          .from("rate_contracts")
+          .select("*, vendors(id, name)")
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("purchase_requisitions")
+          .select(
+            `
+            id, pr_number, estimated_value, category, justification,
+            departments (id, name),
+            pr_line_items (id, description, net_qty_to_procure, est_unit_price, est_total)
+          `,
+          )
+          .eq("status", "approved")
+          .order("created_at", { ascending: false }),
+        supabase.from("rfqs").select("pr_id, rfq_number").in("status", ["draft", "sent"]),
+        supabase
+          .from("vendors")
+          .select("id, name, gst_number, status, empanelment_expiry")
+          .eq("status", "empanelled")
+          .or(
+            `empanelment_expiry.is.null,empanelment_expiry.gte.${new Date().toISOString().split("T")[0]}`,
+          )
+          .order("name"),
+        supabase.from("approval_matrix_rules").select("*").eq("active", true),
       ]);
 
       if (poRes?.ok) {
@@ -179,25 +213,7 @@ export default function PurchaseOrders() {
         );
       }
 
-      // Fetch active rate contracts
-      const { data: rcData } = await supabase
-        .from("rate_contracts")
-        .select("*, vendors(id, name)")
-        .order("created_at", { ascending: false });
       setRateContracts(rcData || []);
-
-      // Approved PRs without an active PO (for rate-contract orders)
-      const { data: prData } = await supabase
-        .from("purchase_requisitions")
-        .select(
-          `
-          id, pr_number, estimated_value, category, justification,
-          departments (id, name),
-          pr_line_items (id, description, net_qty_to_procure, est_unit_price, est_total)
-        `,
-        )
-        .eq("status", "approved")
-        .order("created_at", { ascending: false });
 
       // Filter eligible direct purchase PRs (<= 5000) that do not already have an active PO
       const existingPoPrIds = new Set(
@@ -205,28 +221,8 @@ export default function PurchaseOrders() {
       );
       setApprovedPrs((prData || []).filter((p: any) => !existingPoPrIds.has(p.id)));
 
-      const { data: openRfqs } = await supabase
-        .from("rfqs")
-        .select("pr_id, rfq_number")
-        .in("status", ["draft", "sent"]);
       setOpenRfqByPr(Object.fromEntries((openRfqs || []).map((r: any) => [r.pr_id, r.rfq_number])));
-
-      // Vendors that can be awarded work: empanelled and not past expiry (same rule as assertVendorEmpanelled)
-      const { data: vData } = await supabase
-        .from("vendors")
-        .select("id, name, gst_number, status, empanelment_expiry")
-        .eq("status", "empanelled")
-        .or(
-          `empanelment_expiry.is.null,empanelment_expiry.gte.${new Date().toISOString().split("T")[0]}`,
-        )
-        .order("name");
       setVendorsList(vData || []);
-
-      // Fetch matrix rules for previewing approver
-      const { data: rules } = await supabase
-        .from("approval_matrix_rules")
-        .select("*")
-        .eq("active", true);
       setMatrixRules(rules || []);
     } catch (e: any) {
       toast({ title: "Error loading data", description: e.message, variant: "destructive" });

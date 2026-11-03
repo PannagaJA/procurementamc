@@ -113,15 +113,15 @@ export default function RfqManagement() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const res = await (listRfqs as any)();
-      const list = res?.ok ? res.rfqs || [] : [];
-      if (res?.ok) {
-        setRfqs(list);
-        setTotal(list.length);
-      }
-
-      // Fetch approved PRs, existing RFQ PRs, and existing PO PRs
-      const [{ data: prData }, { data: allRfqPrs }, { data: allPoPrs }] = await Promise.all([
+      // Parallelize all queries concurrently in a single batch
+      const [
+        res,
+        { data: prData },
+        { data: allRfqPrs },
+        { data: allPoPrs },
+        { data: vData },
+      ] = await Promise.all([
+        (listRfqs as any)(),
         supabase
           .from("purchase_requisitions")
           .select(
@@ -130,7 +130,17 @@ export default function RfqManagement() {
           .eq("status", "approved"),
         supabase.from("rfqs").select("pr_id"),
         supabase.from("purchase_orders").select("pr_id"),
+        supabase
+          .from("vendors")
+          .select("id, name, gst_number, status, empanelment_expiry")
+          .eq("status", "empanelled"),
       ]);
+
+      const list = res?.ok ? res.rfqs || [] : [];
+      if (res?.ok) {
+        setRfqs(list);
+        setTotal(list.length);
+      }
 
       const takenPrIds = new Set<string>();
       (allRfqPrs || []).forEach((r: any) => {
@@ -145,12 +155,6 @@ export default function RfqManagement() {
 
       setExistingRfqPrIds(Array.from(takenPrIds));
       setApprovedPrs(prData || []);
-
-      // Fetch empanelled vendors
-      const { data: vData } = await supabase
-        .from("vendors")
-        .select("id, name, gst_number, status, empanelment_expiry")
-        .eq("status", "empanelled");
       setEmpanelledVendors(vData || []);
     } catch (e: any) {
       toast({ title: "Error loading data", description: e.message, variant: "destructive" });
