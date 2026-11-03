@@ -93,18 +93,20 @@ export function ApprovalNotificationBell() {
           variant="outline"
           size="icon"
           className={cn(
-            "relative transition-all duration-200 hover:shadow-sm",
+            "group relative transition-all duration-300 hover:scale-105 hover:shadow-md hover:bg-[#0B1437] hover:text-white hover:border-[#0B1437]",
             totalCount > 0
-              ? "border-blue-200 dark:border-blue-900 bg-blue-50/40 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400 hover:bg-blue-100/50"
-              : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+              ? "border-blue-200 dark:border-blue-900 bg-blue-50/40 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400"
+              : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300"
           )}
           title={totalCount > 0 ? `${totalCount} Pending Approvals` : "No pending approvals"}
           aria-label={`Pending Approvals: ${totalCount} notifications`}
         >
           <Bell
             className={cn(
-              "w-4 h-4 sm:w-[1.15rem] sm:h-[1.15rem] shrink-0 transition-transform",
-              totalCount > 0 && "text-blue-600 dark:text-blue-400"
+              "w-4 h-4 sm:w-[1.15rem] sm:h-[1.15rem] shrink-0 transition-all duration-200 group-hover:scale-110 group-hover:!text-white group-hover:!stroke-white",
+              totalCount > 0
+                ? "text-blue-600 dark:text-blue-400"
+                : "text-slate-600 dark:text-slate-300"
             )}
           />
           {totalCount > 0 && (
