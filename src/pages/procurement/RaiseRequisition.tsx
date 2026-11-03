@@ -44,7 +44,6 @@ import {
 import {
   resolveApprover,
   normalizeCategory,
-  AUTHORITY_MATRIX_DEFINITIONS,
   formatRoleTitle,
   fetchMonthlySpendBreakdown,
 } from "@/lib/procurement/authorityMatrix";
@@ -246,22 +245,6 @@ export default function RaiseRequisition() {
     }
     return "evp_escalation";
   }, [category, liveRouting]);
-
-  const activeTier = useMemo(() => {
-    return (
-      AUTHORITY_MATRIX_DEFINITIONS.find((t) => t.id === activeTierId) ||
-      (liveRouting.escalate
-        ? AUTHORITY_MATRIX_DEFINITIONS.find((t) => t.id === "evp_escalation")
-        : AUTHORITY_MATRIX_DEFINITIONS[0])
-    );
-  }, [activeTierId, liveRouting.escalate]);
-
-  const selectedCategoryDisplay = useMemo(() => {
-    const matched = CATEGORIES.find((c) => c.value === category);
-    return matched
-      ? matched.label
-      : category.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-  }, [category]);
 
   const handleAddItem = () => {
     setLineItems((prev) => [
@@ -1149,107 +1132,17 @@ export default function RaiseRequisition() {
                   </p>
                 </div>
 
-                {/* VI. AUTHORITY MATRIX - ACTIVE ROUTED TIER */}
-                <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
-                  <div className="flex items-center">
-                    <span className="font-bold text-xs uppercase tracking-wider text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                      <TableProperties className="w-3.5 h-3.5 text-indigo-600" />
-                      Active Routing Tier
-                    </span>
-                  </div>
-
-                  {activeTier && (
-                    <div
-                      className={`p-3.5 sm:p-4 rounded-xl border transition-all ${
-                        liveRouting.escalate
-                          ? "bg-amber-50/90 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700 ring-1 ring-amber-400/50 shadow-sm"
-                          : "bg-indigo-50/90 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-700 ring-1 ring-indigo-400/50 shadow-sm"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <div>
-                          <span className="text-[10px] sm:text-xs uppercase font-extrabold tracking-wider text-indigo-700 dark:text-indigo-300 block mb-0.5">
-                            Routing Upon Submit
-                          </span>
-                          <span className="font-bold text-sm sm:text-base text-slate-900 dark:text-white leading-snug">
-                            {selectedCategoryDisplay}
-                          </span>
-                        </div>
-                        <Badge
-                          className={`shrink-0 font-bold text-xs px-2.5 py-0.5 ${
-                            liveRouting.escalate
-                              ? "bg-amber-600 hover:bg-amber-600 text-white"
-                              : "bg-indigo-600 hover:bg-indigo-600 text-white"
-                          }`}
-                        >
-                          {liveRouting.escalate ? "ESCALATED" : "ACTIVE TIER"}
-                        </Badge>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm py-2 my-2 border-y border-indigo-200/60 dark:border-indigo-900/60 bg-white/60 dark:bg-slate-900/40 rounded-lg p-2.5">
-                        <div>
-                          <span className="text-slate-500 dark:text-slate-400 block text-[10px] sm:text-xs uppercase font-semibold">
-                            Limit / Transaction
-                          </span>
-                          <span className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm font-mono">
-                            {activeTier.txnLimitFormatted}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-slate-500 dark:text-slate-400 block text-[10px] sm:text-xs uppercase font-semibold">
-                            Limit / Month
-                          </span>
-                          <span className="font-bold text-slate-900 dark:text-white text-xs sm:text-sm font-mono">
-                            {activeTier.monthLimitFormatted}
-                          </span>
-                        </div>
-                        <div className="col-span-2 pt-1 border-t border-slate-200/50 dark:border-slate-800/50 flex justify-between items-center text-[11px] sm:text-xs">
-                          <span className="text-slate-500 dark:text-slate-400 font-medium">
-                            Spend Scope:
-                          </span>
-                          <span className="font-semibold text-slate-800 dark:text-slate-200">
-                            {activeTier.aggregationScopeFormatted}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="space-y-1.5 text-xs sm:text-sm">
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-600 dark:text-slate-400 font-medium">
-                            Method:
-                          </span>
-                          <span className="font-semibold text-slate-800 dark:text-slate-200 text-right">
-                            {activeTier.procurementMethod.split("(")[0]}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-600 dark:text-slate-400 font-medium">
-                            Assigned Approver:
-                          </span>
-                          <span className="font-bold text-indigo-700 dark:text-indigo-300">
-                            {liveRouting.role === "hod"
-                              ? `${departments.find((d) => d.id === departmentId)?.name || "Department"} HOD`
-                              : formatRoleTitle(liveRouting.role)}
-                          </span>
-                        </div>
-                      </div>
-
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setMatrixModalOpen(true)}
-                        className="w-full mt-3 font-semibold text-xs text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100/60 dark:hover:bg-indigo-950 flex items-center justify-center gap-1.5 bg-white/80 dark:bg-slate-900/80 shadow-sm"
-                      >
-                        <TableProperties className="w-3.5 h-3.5" />
-                        View Full Authority Matrix
-                      </Button>
-                    </div>
-                  )}
-
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-normal px-1">
-                    Showing only the active routing tier for this requisition. Click 'View Full Authority Matrix' to inspect all approval bands and thresholds.
-                  </p>
+                {/* Authority Matrix Modal Trigger */}
+                <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setMatrixModalOpen(true)}
+                    className="w-full font-semibold text-xs text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-950 flex items-center justify-center gap-2 py-2.5 shadow-sm"
+                  >
+                    <TableProperties className="w-4 h-4 text-indigo-600" />
+                    View Full Authority Matrix
+                  </Button>
                 </div>
               </CardContent>
             </Card>
