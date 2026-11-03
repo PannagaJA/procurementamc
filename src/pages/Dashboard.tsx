@@ -290,7 +290,7 @@ const Dashboard = () => {
             {[...Array(4)].map((_, i) => (
               <Card
                 key={i}
-                className="bg-white/80 backdrop-blur-sm shadow-lg border-0 rounded-xl transition-all duration-300 hover:shadow-xl"
+                className="bg-card backdrop-blur-sm border border-border/60 rounded-xl transition-all duration-300"
               >
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                   <Skeleton className="h-5 w-28" />
@@ -311,7 +311,7 @@ const Dashboard = () => {
     <Layout>
       <div className="space-y-8 animate-in slide-in-from-bottom duration-700">
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="bg-blue-50 border border-emerald-100/80 shadow-xs rounded-2xl transition-all duration-300 hover:shadow-md hover:scale-[1.02]">
+          <Card className="bg-blue-50 border border-emerald-100/80 rounded-2xl transition-all duration-300 hover:scale-[1.02]">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
               <CardTitle className="text-base font-semibold text-emerald-950/90">
                 Total Items
@@ -325,7 +325,7 @@ const Dashboard = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-blue-100 border border-teal-200/80 shadow-xs rounded-2xl transition-all duration-300 hover:shadow-md hover:scale-[1.02]">
+          <Card className="bg-blue-100 border border-teal-200/80 rounded-2xl transition-all duration-300 hover:scale-[1.02]">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
               <CardTitle className="text-base font-semibold text-teal-950/90">
                 Total Value
@@ -339,7 +339,7 @@ const Dashboard = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-rose-50 border border-rose-200/80 shadow-xs rounded-2xl transition-all duration-300 hover:shadow-md hover:scale-[1.02]">
+          <Card className="bg-rose-50 border border-rose-200/80 rounded-2xl transition-all duration-300 hover:scale-[1.02]">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
               <CardTitle className="text-base font-semibold text-rose-950/90">
                 Categories
@@ -353,7 +353,7 @@ const Dashboard = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-[#E0E7FF] border border-indigo-200/80 shadow-xs rounded-2xl transition-all duration-300 hover:shadow-md hover:scale-[1.02]">
+          <Card className="bg-[#E0E7FF] border border-indigo-200/80 rounded-2xl transition-all duration-300 hover:scale-[1.02]">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
               <CardTitle className="text-base font-semibold text-indigo-950/90">
                 Locations
@@ -370,32 +370,32 @@ const Dashboard = () => {
 
         {/* Search UI removed per request */}
 
-        <Card className="bg-card/90 backdrop-blur-sm border border-border/60 rounded-xl transition-all duration-300">
-          <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100/60 dark:from-slate-900/40 dark:to-slate-800/40 rounded-t-xl border-b border-border/40 text-center py-5">
-            <CardTitle className="text-2xl font-bold text-card-foreground flex items-center justify-center gap-2">
-              <ScanLine className="w-6 h-6 text-[#0B1437] dark:text-slate-200" />
-              Scan to Get Info
+        <Card className="w-full max-w-xl mx-auto bg-card/90 backdrop-blur-sm border border-border/60 rounded-xl transition-all duration-300">
+          <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100/60 dark:from-slate-900/40 dark:to-slate-800/40 rounded-t-xl border-b border-border/40 text-center py-3.5 px-4">
+            <CardTitle className="text-lg font-bold text-card-foreground flex items-center justify-center gap-2">
+              <ScanLine className="w-5 h-5 text-[#0B1437] dark:text-slate-200 shrink-0" />
+              <span>Scan to Get Info</span>
             </CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
               Scan QR codes to quickly access item details
             </p>
           </CardHeader>
-          <CardContent className="p-8 flex flex-col items-center justify-center text-center">
+          <CardContent className="py-6 px-6 flex flex-col items-center justify-center text-center">
             <Button
               onClick={() => setShowQRScanner(true)}
-              className="inline-flex items-center justify-center gap-2.5 bg-[#0B1437] hover:bg-[#111f54] text-white px-8 h-12 rounded-full font-bold transition-all duration-300 hover:scale-105 text-base mx-auto"
+              className="inline-flex items-center justify-center gap-2 bg-[#0B1437] hover:bg-[#111f54] text-white px-7 h-11 rounded-full font-semibold transition-all duration-300 hover:scale-105 text-sm sm:text-base mx-auto"
             >
-              <ScanLine className="w-5 h-5 shrink-0" />
+              <ScanLine className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
               <span>Scan QR Code</span>
             </Button>
-            <p className="text-sm text-muted-foreground mt-3">
+            <p className="text-xs sm:text-sm text-muted-foreground mt-2.5">
               Use your camera to scan QR codes on inventory items
             </p>
           </CardContent>
         </Card>
 
         {/* Campus Tickets & Maintenance Overview */}
-        <Card className="bg-card/90 backdrop-blur-sm shadow-xl border-0 rounded-xl transition-all duration-300 hover:shadow-2xl">
+        <Card className="bg-card/90 backdrop-blur-sm border border-border/60 rounded-xl transition-all duration-300">
           <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border/40">
             <div>
               <CardTitle className="text-xl font-bold text-card-foreground flex items-center gap-2">
@@ -410,7 +410,7 @@ const Dashboard = () => {
               <Button
                 size="sm"
                 onClick={() => navigate({ to: "/procurement/raise-pr" })}
-                className="gap-1.5 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full px-4 shadow-sm font-semibold"
+                className="gap-1.5 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full px-4 font-semibold"
               >
                 <PlusSquare className="w-4 h-4" />
                 Raise PR
@@ -418,7 +418,7 @@ const Dashboard = () => {
               <Button
                 size="sm"
                 onClick={() => navigate({ to: "/admin/tickets" })}
-                className="gap-1.5 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full px-4 shadow-sm font-semibold"
+                className="gap-1.5 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full px-4 font-semibold"
               >
                 <Ticket className="w-4 h-4" />
                 Manage All Tickets
