@@ -1112,7 +1112,7 @@ const AdminTicketDashboard = () => {
             )}
 
             {/* top table with summary */}
-            <div className="mb-4 overflow-x-auto rounded border bg-card">
+            <div className="mb-4 overflow-x-auto rounded-xl border border-border/60 bg-card">
               <table className="w-full min-w-[850px] table-auto">
                 <thead className="bg-muted/50">
                   <tr>
@@ -1356,16 +1356,14 @@ const AdminTicketDashboard = () => {
               </div>
             </div>
 
-            <div className="mt-6">
-              <PaginationControls
-                currentPage={pagination.page}
-                totalPages={Math.ceil(pagination.total / pagination.pageSize)}
-                pageSize={pagination.pageSize}
-                totalItems={pagination.total}
-                onPageChange={setPage}
-                onPageSizeChange={setPageSize}
-              />
-            </div>
+            <PaginationControls
+              currentPage={pagination.page}
+              totalPages={Math.ceil(pagination.total / pagination.pageSize)}
+              pageSize={pagination.pageSize}
+              totalItems={pagination.total}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+            />
           </CardContent>
         </Card>
 

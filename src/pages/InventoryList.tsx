@@ -513,9 +513,7 @@ className="flex-1 min-w-[200px] max-w-xl pl-4 py-2 text-sm rounded-full h-10 bor
           </CardContent>
         </Card>
 
-        <Card className="bg-card/90 backdrop-blur-sm shadow-xl border-0 rounded-xl transition-all duration-300 hover:shadow-2xl">
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
+        <div className="overflow-x-auto rounded-xl border border-border/60 bg-card">
               <Table className="w-full min-w-full">
                 <TableHeader className="bg-muted">
                   <TableRow>
@@ -681,17 +679,15 @@ className="flex-1 min-w-[200px] max-w-xl pl-4 py-2 text-sm rounded-full h-10 bor
               </Table>
             </div>
 
-            <PaginationControls
-              currentPage={pagination.page}
-              totalPages={Math.ceil(pagination.total / pagination.pageSize)}
-              currentItemsCount={items.length}
-              pageSize={pagination.pageSize}
-              totalItems={pagination.total}
-              onPageChange={setPage}
-              onPageSizeChange={setPageSize}
-            />
-          </CardContent>
-        </Card>
+        <PaginationControls
+          currentPage={pagination.page}
+          totalPages={Math.ceil(pagination.total / pagination.pageSize)}
+          currentItemsCount={items.length}
+          pageSize={pagination.pageSize}
+          totalItems={pagination.total}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </div>
 
       <Dialog open={showQRScanner} onOpenChange={setShowQRScanner}>

@@ -399,7 +399,7 @@ const HodDashboard = () => {
                   size="sm"
                   variant="outline"
                   onClick={() => navigate({ to: "/procurement/approvals" })}
-                  className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold shadow-xs"
+                  className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
                 >
                   Procurement Approvals
                 </Button>
@@ -407,7 +407,7 @@ const HodDashboard = () => {
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-xl border border-border/60 bg-card">
               <table className="w-full min-w-[700px] table-fixed">
                 <colgroup>
                   <col style={{ width: "14%" }} />
@@ -486,16 +486,14 @@ const HodDashboard = () => {
               </table>
             </div>
 
-            <div className="mt-6">
-              <PaginationControls
-                currentPage={pagination.page}
-                totalPages={Math.ceil(pagination.total / pagination.pageSize)}
-                pageSize={pagination.pageSize}
-                totalItems={pagination.total}
-                onPageChange={setPage}
-                onPageSizeChange={setPageSize}
-              />
-            </div>
+            <PaginationControls
+              currentPage={pagination.page}
+              totalPages={Math.ceil(pagination.total / pagination.pageSize)}
+              pageSize={pagination.pageSize}
+              totalItems={pagination.total}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+            />
           </CardContent>
         </Card>
 
@@ -647,7 +645,7 @@ const HodDashboard = () => {
               {loadingInventory ? (
                 <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<div key={i} className="h-14 w-full bg-muted/60 animate-pulse rounded-xl" />))}</div>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto rounded-xl border border-border/60 bg-card">
                   <table className="w-full min-w-[700px] table-fixed">
                     <colgroup>
                       <col style={{ width: "14%" }} />
@@ -719,16 +717,14 @@ const HodDashboard = () => {
                 </div>
               )}
 
-              <div className="mt-4">
-                <PaginationControls
-                  currentPage={invPagination.page}
-                  totalPages={Math.max(1, Math.ceil(invPagination.total / invPagination.pageSize))}
-                  pageSize={invPagination.pageSize}
-                  totalItems={invPagination.total}
-                  onPageChange={setInvPage}
-                  onPageSizeChange={setInvPageSize}
-                />
-              </div>
+              <PaginationControls
+                currentPage={invPagination.page}
+                totalPages={Math.max(1, Math.ceil(invPagination.total / invPagination.pageSize))}
+                pageSize={invPagination.pageSize}
+                totalItems={invPagination.total}
+                onPageChange={setInvPage}
+                onPageSizeChange={setInvPageSize}
+              />
             </CardContent>
           </Card>
         </div>

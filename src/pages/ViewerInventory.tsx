@@ -48,17 +48,14 @@ const ViewerInventory = () => {
   return (
     <Layout>
       <div className="container mx-auto py-6 px-4">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-lg font-semibold">Viewer Inventory</CardTitle>
-                <p className="text-sm text-muted-foreground">Read-only inventory listing</p>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-xl font-bold">Viewer Inventory</h1>
+            <p className="text-sm text-muted-foreground">Read-only inventory listing</p>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto rounded-xl border border-border/60 bg-card">
               <table className="w-full min-w-[650px] table-fixed">
                 <colgroup>
                   <col style={{ width: "14%" }} />
@@ -123,18 +120,14 @@ const ViewerInventory = () => {
               </table>
             </div>
 
-            <div className="mt-4">
-              <PaginationControls
-                currentPage={pagination.page}
-                totalPages={Math.max(1, Math.ceil(pagination.total / pagination.pageSize))}
-                pageSize={pagination.pageSize}
-                totalItems={pagination.total}
-                onPageChange={setPage}
-                onPageSizeChange={setPageSize}
-              />
-            </div>
-          </CardContent>
-        </Card>
+        <PaginationControls
+          currentPage={pagination.page}
+          totalPages={Math.max(1, Math.ceil(pagination.total / pagination.pageSize))}
+          pageSize={pagination.pageSize}
+          totalItems={pagination.total}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </div>
     </Layout>
   );

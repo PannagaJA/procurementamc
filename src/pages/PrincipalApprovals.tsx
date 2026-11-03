@@ -341,12 +341,11 @@ const PrincipalApprovals = () => {
     <>
       <Layout>
         <div className="w-full space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Principal — Approvals</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
+          <div className="mb-2">
+            <h1 className="text-xl font-bold">Principal — Approvals</h1>
+          </div>
+
+          <div className="overflow-x-auto rounded-xl border border-border/60 bg-card">
                 <table className="w-full min-w-[650px] table-auto">
                   <thead className="bg-slate-50">
                     <tr>
@@ -419,18 +418,14 @@ const PrincipalApprovals = () => {
                 </table>
               </div>
 
-              <div className="mt-6">
-                <PaginationControls
-                  currentPage={pagination.page}
-                  totalPages={Math.ceil(pagination.total / pagination.pageSize)}
-                  pageSize={pagination.pageSize}
-                  totalItems={pagination.total}
-                  onPageChange={setPage}
-                  onPageSizeChange={setPageSize}
-                />
-              </div>
-            </CardContent>
-          </Card>
+          <PaginationControls
+            currentPage={pagination.page}
+            totalPages={Math.ceil(pagination.total / pagination.pageSize)}
+            pageSize={pagination.pageSize}
+            totalItems={pagination.total}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
         </div>
       </Layout>
 

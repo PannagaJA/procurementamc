@@ -1205,7 +1205,7 @@ export default function RaiseRequisition() {
                 </Badge>
               </div>
 
-              <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm">
+              <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800">
                 <table className="w-full text-xs sm:text-sm text-left border-collapse">
                   <thead className="bg-slate-100 dark:bg-slate-800/90 text-slate-800 dark:text-slate-200 font-bold uppercase tracking-wider text-xs sm:text-sm border-b border-slate-200 dark:border-slate-800">
                     <tr>

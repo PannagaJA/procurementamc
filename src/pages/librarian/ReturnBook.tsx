@@ -48,7 +48,7 @@ const ReturnBook = () => {
   return (
     <LibraryLayout>
       <h2 className="text-2xl font-bold mb-4">Return Book</h2>
-      <div className="overflow-x-auto bg-card rounded shadow p-2">
+      <div className="overflow-x-auto rounded-xl border border-border/60 bg-card p-2">
         <table className="w-full text-left">
           <thead>
             <tr>
