@@ -5,8 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { MermaidViewer } from "@/components/MermaidViewer";
-import {
-  ShieldCheck,
+import { ShieldAlert, ShieldCheck,
   Building2,
   FileSpreadsheet,
   Users,
@@ -14,7 +13,6 @@ import {
   ShoppingBag,
   Truck,
   Receipt,
-  Zap,
   Award,
   UserCheck,
   CheckCircle2,
@@ -34,8 +32,7 @@ import {
   Sparkles,
   ExternalLink,
   Home,
-  AlertOctagon,
-} from "lucide-react";
+  AlertOctagon, } from "lucide-react";
 
 const DIAGRAM_1_P2P = `flowchart TD
     subgraph Sourcing ["1. Requisition & Sourcing"]
@@ -517,7 +514,7 @@ export default function Architecture() {
             <Card className="border-slate-200 dark:border-slate-800 shadow-sm">
               <CardHeader className="p-4 sm:p-6">
                 <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
-                  <Zap className="w-5 h-5 shrink-0" />
+                  <ShieldAlert className="w-5 h-5 shrink-0" />
                   <CardTitle className="text-base sm:text-lg">
                     Emergency Fast-Track & Annual Cap Ledger
                   </CardTitle>

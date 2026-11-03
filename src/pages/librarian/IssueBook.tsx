@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 import LibraryLayout from "@/components/library/LibraryLayout";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import libraryApi from "@/lib/libraryApi";
 
 const IssueBook = () => {
@@ -48,30 +55,30 @@ const IssueBook = () => {
     <LibraryLayout>
       <h2 className="text-2xl font-bold mb-4">Issue Book</h2>
       <div className="space-y-3 max-w-md">
-        <select
-          value={memberId}
-          onChange={(e) => setMemberId(e.target.value)}
-          className="w-full p-2 border rounded"
-        >
-          <option value="">Select an option</option>
-          {members.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.name} ({m.email})
-            </option>
-          ))}
-        </select>
-        <select
-          value={bookId}
-          onChange={(e) => setBookId(e.target.value)}
-          className="w-full p-2 border rounded"
-        >
-          <option value="">Select an option</option>
-          {books.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.title} — {b.available} available
-            </option>
-          ))}
-        </select>
+        <Select value={memberId} onValueChange={setMemberId}>
+          <SelectTrigger className="w-full h-10">
+            <SelectValue placeholder="Select member" />
+          </SelectTrigger>
+          <SelectContent>
+            {members.map((m) => (
+              <SelectItem key={m.id} value={m.id}>
+                {m.name} ({m.email})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={bookId} onValueChange={setBookId}>
+          <SelectTrigger className="w-full h-10">
+            <SelectValue placeholder="Select book" />
+          </SelectTrigger>
+          <SelectContent>
+            {books.map((b) => (
+              <SelectItem key={b.id} value={b.id}>
+                {b.title} — {b.available} available
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <input
           type="date"
           value={dueDate}

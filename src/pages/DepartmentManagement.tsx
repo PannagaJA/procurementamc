@@ -222,7 +222,14 @@ export default function DepartmentManagement() {
 
   return (
     <Layout>
-      <div className="w-full max-w-full py-6">
+      <div className="w-full max-w-full space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight text-[#0B1437] dark:text-white">Department Management</h2>
+            <p className="text-muted-foreground">Manage departments and assign them to campus locations</p>
+          </div>
+        </div>
+
         <Card>
           <CardHeader>
             <CardTitle>Add Department</CardTitle>

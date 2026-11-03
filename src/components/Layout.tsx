@@ -22,7 +22,7 @@ import {
   UserCheck,
   Truck,
   Receipt,
-  Zap,
+  ShieldAlert,
   Award,
   Menu,
   X,
@@ -344,7 +344,7 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
       {
         label: "Emergency Procurement",
         path: "/procurement/emergency",
-        icon: Zap,
+        icon: ShieldAlert,
         iconClass: "text-amber-500",
       },
     ]),
@@ -435,9 +435,9 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
               alt="AMC Logo"
               className="h-9 w-12 sm:h-12 sm:w-16 rounded-lg object-contain shadow-md shrink-0"
             />
-            <div className="min-w-0">
+<div className="min-w-0">
               <h1 className="text-sm sm:text-lg font-bold text-gray-800 dark:text-gray-100 truncate">
-                AMC Inventory System
+                AMC Procurement Software
               </h1>
               <p className="text-[10px] sm:text-xs text-gray-600 dark:text-gray-400 font-medium truncate">
                 {authCtx?.loading && !authCtx?.primaryRole ? (

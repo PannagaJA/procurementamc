@@ -107,8 +107,17 @@ const AddInventory = () => {
   };
 
   const fetchVendors = async () => {
-    const { data } = await supabase.from("vendors").select("id, name, registered_address, contact_number").order("name");
-    setVendorsList((data as any) || []);
+try {
+      const { data, error } = await supabase
+        .from("vendors")
+        .select("id, name, registered_address, contact_number")
+        .order("name");
+      if (!error && data) {
+        setVendorsList((data as any) || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch vendors", err);
+    }
   };
 
   const [departments, setDepartments] = useState<
@@ -366,7 +375,7 @@ const AddInventory = () => {
       <div className="w-full max-w-full animate-in fade-in-0 duration-700">
         <div className="mb-8 text-center">
           <h2 className="text-4xl font-bold tracking-tight text-foreground mb-2">Add New Item</h2>
-          <p className="text-muted-foreground text-lg">Add a new item to the inventory system</p>
+          <p className="text-muted-foreground text-lg">Add a new item to the AMC procurement software</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">

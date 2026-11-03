@@ -83,12 +83,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "AMC Inventory Management" },
+      { title: "AMC Procurement Software" },
       {
         name: "description",
         content: "College inventory, procurement, ticketing and library management system.",
       },
-      { property: "og:title", content: "AMC Inventory Management" },
+      { property: "og:title", content: "AMC Procurement Software" },
       {
         property: "og:description",
         content: "College inventory, procurement, ticketing and library management system.",

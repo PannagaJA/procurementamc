@@ -6,6 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -295,40 +302,45 @@ const UserTickets = () => {
           </CardHeader>
           <CardContent>
             {/* Filters */}
-            <div className="flex flex-wrap gap-4 mb-6">
+            <div className="flex flex-wrap items-center gap-4 mb-6">
               <div className="flex items-center space-x-2">
-                <label className="text-sm font-medium text-foreground">Status:</label>
-                <select
-                  value={filters.status}
-                  onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))}
-                  className="px-3 py-1 border border-border rounded-md text-sm bg-background text-foreground"
+                <label className="text-sm font-medium text-foreground whitespace-nowrap">Status:</label>
+                <Select
+                  value={filters.status || "all"}
+                  onValueChange={(val) => setFilters((prev) => ({ ...prev, status: val === "all" ? "" : val }))}
                 >
-                  <option value="">Select an option</option>
-                  <option value="all">All Statuses</option>
-                  <option value="pending">Pending</option>
-                  <option value="in-progress">In Progress</option>
-                  <option value="waiting-for-user">Waiting for User</option>
-
-                  <option value="completed">Completed</option>
-                  <option value="procure-in-progress">Procure In Progress</option>
-                  <option value="procure-completed">Procure Completed</option>
-                  <option value="procure-approved">Procure Approved</option>
-                  <option value="procure-rejected">Procure Rejected</option>
-                </select>
+                  <SelectTrigger className="w-[180px] h-9 text-sm rounded-md">
+                    <SelectValue placeholder="All Statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="in-progress">In Progress</SelectItem>
+                    <SelectItem value="waiting-for-user">Waiting for User</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="procure-in-progress">Procure In Progress</SelectItem>
+                    <SelectItem value="procure-completed">Procure Completed</SelectItem>
+                    <SelectItem value="procure-approved">Procure Approved</SelectItem>
+                    <SelectItem value="procure-rejected">Procure Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="flex items-center space-x-2">
-                <label className="text-sm font-medium text-foreground">Priority:</label>
-                <select
-                  value={filters.priority}
-                  onChange={(e) => setFilters((prev) => ({ ...prev, priority: e.target.value }))}
-                  className="px-3 py-1 border border-border rounded-md text-sm bg-background text-foreground"
+                <label className="text-sm font-medium text-foreground whitespace-nowrap">Priority:</label>
+                <Select
+                  value={filters.priority || "all"}
+                  onValueChange={(val) => setFilters((prev) => ({ ...prev, priority: val === "all" ? "" : val }))}
                 >
-                  <option value="">Select an option</option>
-                  <option value="all">All Priorities</option>
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                </select>
+                  <SelectTrigger className="w-[160px] h-9 text-sm rounded-md">
+                    <SelectValue placeholder="All Priorities" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Priorities</SelectItem>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

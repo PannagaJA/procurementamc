@@ -40,7 +40,6 @@ import {
 import { BUDGET_CATEGORIES } from "@/lib/procurement/budgetLedger";
 import { ITEM_GROUPS } from "@/lib/procurement/itemGroups";
 import {
-  Zap,
   PlusCircle,
   CheckCircle2,
   XCircle,
@@ -358,7 +357,7 @@ export default function EmergencyProcurement() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-[#0B1437]/10 text-[#0B1437] mb-2">
-              <Zap className="w-3.5 h-3.5 text-amber-600" /> Emergency Procurement Governance
+              Emergency Procurement Governance
             </div>
             <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
               Emergency Procurement Register

@@ -84,7 +84,7 @@ const PendingApproval = () => {
             />
             <div className="text-center">
               <h1 className="text-2xl font-bold">AMC</h1>
-              <p className="text-sm text-muted-foreground">Inventory System</p>
+              <p className="text-sm text-muted-foreground">AMC Procurement Software</p>
             </div>
           </div>
           <CardTitle className="text-2xl text-center flex items-center justify-center gap-2">

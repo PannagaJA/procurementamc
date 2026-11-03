@@ -13,8 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MermaidViewer } from "@/components/MermaidViewer";
-import {
-  ShieldCheck,
+import { ShieldAlert, ShieldCheck,
   Building2,
   FileSpreadsheet,
   Users,
@@ -22,7 +21,6 @@ import {
   ShoppingBag,
   Truck,
   Receipt,
-  Zap,
   Award,
   UserCheck,
   CheckCircle2,
@@ -38,8 +36,7 @@ import {
   Network,
   Activity,
   Workflow,
-  Sparkles,
-} from "lucide-react";
+  Sparkles, } from "lucide-react";
 
 const DIAGRAM_1_P2P = `flowchart TD
     subgraph Sourcing ["1. Requisition & Sourcing"]
@@ -593,7 +590,7 @@ export const SystemReadmeModal: React.FC<SystemReadmeModalProps> = ({ open, onOp
                   <CardHeader className="p-4 pb-2">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-sm flex items-center gap-2 text-amber-600">
-                        <Zap className="w-4 h-4" /> 8. Emergency Track
+                        <ShieldAlert className="w-4 h-4" /> 8. Emergency Track
                       </CardTitle>
                       <Badge variant="outline" className="text-[10px]">
                         /procurement/emergency

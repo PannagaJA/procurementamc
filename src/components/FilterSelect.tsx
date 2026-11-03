@@ -1,3 +1,4 @@
+import { cn } from "@/lib/utils";
 import type { ComponentType } from "react";
 import { Check, ChevronDown, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -82,19 +83,19 @@ export function FilterSelect<T>({
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
-          className="h-10 w-full sm:w-auto sm:min-w-[260px] justify-between gap-3 rounded-xl bg-background px-3.5 text-sm shadow-sm"
+          className="group h-10 w-full sm:w-auto sm:min-w-[260px] justify-between gap-3 rounded-xl bg-background px-3.5 text-sm shadow-sm transition-all"
           aria-label={`${title}: ${selected?.label}`}
         >
           <span className="flex min-w-0 items-center gap-2">
-            <SelectedIcon className={`h-4 w-4 shrink-0 ${selected?.color ?? "text-primary"}`} />
-            <span className="text-muted-foreground font-normal">Show:</span>
-            <span className="truncate font-semibold">{selected?.label}</span>
+            <SelectedIcon className={`h-4 w-4 shrink-0 transition-colors group-hover:text-white ${selected?.color ?? "text-primary"}`} />
+            <span className="text-muted-foreground group-hover:text-white/80 font-normal transition-colors">Show:</span>
+            <span className="truncate font-semibold text-foreground group-hover:text-white transition-colors">{selected?.label}</span>
           </span>
           <span className="flex items-center gap-2">
-            <Badge variant="secondary" className="px-2 py-0 text-xs tabular-nums">
+            <Badge variant="secondary" className="px-2 py-0 text-xs tabular-nums group-hover:bg-white/20 group-hover:text-white transition-colors border-transparent">
               {selected?.count ?? 0}
             </Badge>
-            <ChevronDown className="h-4 w-4 opacity-60" />
+            <ChevronDown className="h-4 w-4 opacity-60 group-hover:opacity-100 group-hover:text-white transition-all" />
           </span>
         </Button>
       </DropdownMenuTrigger>
@@ -113,17 +114,51 @@ export function FilterSelect<T>({
               {opt.divider && <DropdownMenuSeparator />}
               <DropdownMenuItem
                 onSelect={() => onChange(opt.id)}
-                className={`cursor-pointer gap-2.5 rounded-lg px-2.5 py-2.5 text-sm ${isSelected ? "bg-accent font-semibold" : ""}`}
+                className={cn(
+                  "cursor-pointer gap-2.5 rounded-lg px-2.5 py-2.5 text-sm transition-colors group",
+                  isSelected
+                    ? "bg-[#0B1437] text-white font-semibold data-[highlighted]:bg-[#111f54] data-[highlighted]:text-white"
+                    : "text-slate-800 hover:bg-slate-100 data-[highlighted]:bg-[#0B1437] data-[highlighted]:text-white"
+                )}
               >
                 {Icon ? (
-                  <Icon className={`h-4 w-4 ${opt.color ?? ""}`} />
+                  <Icon
+                    className={cn(
+                      "h-4 w-4 transition-colors",
+                      isSelected
+                        ? "text-white"
+                        : (opt.color ?? "text-slate-600"),
+                      "group-data-[highlighted]:text-white group-focus:text-white"
+                    )}
+                  />
                 ) : (
-                  <Check className={`h-4 w-4 ${isSelected ? "opacity-100" : "opacity-0"}`} />
+                  <Check
+                    className={cn(
+                      "h-4 w-4 transition-colors",
+                      isSelected
+                        ? "opacity-100 text-white"
+                        : "opacity-0 text-transparent",
+                      "group-data-[highlighted]:text-white group-focus:text-white"
+                    )}
+                  />
                 )}
-                <span className="flex-1">{opt.label}</span>
+                <span
+                  className={cn(
+                    "flex-1 transition-colors",
+                    isSelected ? "text-white" : "text-slate-900",
+                    "group-data-[highlighted]:text-white group-focus:text-white"
+                  )}
+                >
+                  {opt.label}
+                </span>
                 <Badge
-                  variant={isSelected ? "default" : "secondary"}
-                  className="px-2 py-0 text-xs tabular-nums"
+                  variant="secondary"
+                  className={cn(
+                    "px-2 py-0 text-xs tabular-nums font-semibold transition-colors border-transparent",
+                    isSelected
+                      ? "bg-white text-[#0B1437]"
+                      : "bg-slate-100 text-slate-800 group-data-[highlighted]:bg-white/20 group-data-[highlighted]:text-white group-focus:bg-white/20 group-focus:text-white"
+                  )}
                 >
                   {opt.count}
                 </Badge>
