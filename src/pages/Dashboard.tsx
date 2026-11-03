@@ -286,6 +286,12 @@ const Dashboard = () => {
     return (
       <Layout>
         <div className="space-y-8 animate-in fade-in-0 duration-500">
+<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-3xl font-bold tracking-tight text-[#0B1437] dark:text-white">Dashboard</h2>
+              <p className="text-muted-foreground text-sm sm:text-base">Overview of your AMC procurement software</p>
+            </div>
+          </div>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             {[...Array(4)].map((_, i) => (
               <Card
@@ -310,6 +316,12 @@ const Dashboard = () => {
   return (
     <Layout>
       <div className="space-y-8 animate-in slide-in-from-bottom duration-700">
+<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-3xl font-bold tracking-tight text-[#0B1437] dark:text-white">Dashboard</h2>
+              <p className="text-muted-foreground text-sm sm:text-base">Overview of your AMC procurement software</p>
+            </div>
+          </div>
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           <Card className="bg-blue-50 border border-emerald-100/80 shadow-xs rounded-2xl transition-all duration-300 hover:shadow-md hover:scale-[1.02]">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">

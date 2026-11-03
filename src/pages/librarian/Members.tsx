@@ -26,6 +26,7 @@ const memberSchema = z.object({
 });
 
 const Members = () => {
+  const { toast } = useToast();
   const [members, setMembers] = useState<Member[]>([]);
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);

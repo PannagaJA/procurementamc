@@ -356,6 +356,7 @@ export default function EmergencyProcurement() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
           <div>
+
             <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
               Emergency Procurement Register
             </h1>

@@ -69,6 +69,7 @@ const IssueBook = () => {
             <SelectValue placeholder="Select member" />
           </SelectTrigger>
           <SelectContent>
+
             {members.length === 0 ? (
               <div className="py-2 px-3 text-sm text-muted-foreground text-center">No members found</div>
             ) : (
@@ -78,6 +79,7 @@ const IssueBook = () => {
                 </SelectItem>
               ))
             )}
+
           </SelectContent>
         </Select>
         <Select value={bookId} onValueChange={setBookId}>
@@ -85,6 +87,7 @@ const IssueBook = () => {
             <SelectValue placeholder="Select book" />
           </SelectTrigger>
           <SelectContent>
+
             {books.length === 0 ? (
               <div className="py-2 px-3 text-sm text-muted-foreground text-center">No books found</div>
             ) : (
@@ -97,6 +100,7 @@ const IssueBook = () => {
           </SelectContent>
         </Select>
         <DatePicker
+
           value={dueDate}
           onChange={setDueDate}
           placeholder="Select due date"
