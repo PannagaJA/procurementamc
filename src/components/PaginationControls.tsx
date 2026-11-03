@@ -2,7 +2,6 @@ import React from "react";
 import {
   Pagination,
   PaginationContent,
-  PaginationEllipsis,
   PaginationItem,
   PaginationLink,
   PaginationNext,
@@ -79,100 +78,16 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
   if (!shouldRender) return null;
 
   const renderPageNumbers = () => {
-    if (totalPages <= 1) {
-      return (
-        <PaginationItem>
-          <PaginationLink
-            isActive
-            className="min-w-8 h-8 px-2.5 text-xs sm:text-sm font-bold pointer-events-none bg-[#0B1437] text-white rounded-full"
-          >
-            {currentPage || 1}
-          </PaginationLink>
-        </PaginationItem>
-      );
-    }
-
-    const pages = [];
-    const maxVisiblePages = 5;
-    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
-
-    if (endPage - startPage + 1 < maxVisiblePages) {
-      startPage = Math.max(1, endPage - maxVisiblePages + 1);
-    }
-
-    // Add first page and ellipsis if needed
-    if (startPage > 1) {
-      pages.push(
-        <PaginationItem key={1}>
-          <PaginationLink
-            onClick={() => onPageChange(1)}
-            isActive={currentPage === 1}
-            className={
-              currentPage === 1
-                ? "min-w-8 h-8 px-2.5 text-xs sm:text-sm font-bold pointer-events-none bg-[#0B1437] text-white rounded-full"
-                : "min-w-8 h-8 px-2.5 text-xs sm:text-sm cursor-pointer hover:bg-accent rounded-full"
-            }
-          >
-            1
-          </PaginationLink>
-        </PaginationItem>,
-      );
-      if (startPage > 2) {
-        pages.push(
-          <PaginationItem key="start-ellipsis">
-            <PaginationEllipsis />
-          </PaginationItem>,
-        );
-      }
-    }
-
-    // Add visible pages
-    for (let i = startPage; i <= endPage; i++) {
-      pages.push(
-        <PaginationItem key={i}>
-          <PaginationLink
-            onClick={() => onPageChange(i)}
-            isActive={currentPage === i}
-            className={
-              currentPage === i
-                ? "min-w-8 h-8 px-2.5 text-xs sm:text-sm font-bold pointer-events-none bg-[#0B1437] text-white rounded-full"
-                : "min-w-8 h-8 px-2.5 text-xs sm:text-sm cursor-pointer hover:bg-accent rounded-full"
-            }
-          >
-            {i}
-          </PaginationLink>
-        </PaginationItem>,
-      );
-    }
-
-    // Add last page and ellipsis if needed
-    if (endPage < totalPages) {
-      if (endPage < totalPages - 1) {
-        pages.push(
-          <PaginationItem key="end-ellipsis">
-            <PaginationEllipsis />
-          </PaginationItem>,
-        );
-      }
-      pages.push(
-        <PaginationItem key={totalPages}>
-          <PaginationLink
-            onClick={() => onPageChange(totalPages)}
-            isActive={currentPage === totalPages}
-            className={
-              currentPage === totalPages
-                ? "min-w-8 h-8 px-2.5 text-xs sm:text-sm font-bold pointer-events-none bg-[#0B1437] text-white rounded-full"
-                : "min-w-8 h-8 px-2.5 text-xs sm:text-sm cursor-pointer hover:bg-accent rounded-full"
-            }
-          >
-            {totalPages}
-          </PaginationLink>
-        </PaginationItem>,
-      );
-    }
-
-    return pages;
+    return (
+      <PaginationItem>
+        <PaginationLink
+          isActive
+          className="min-w-8 h-8 px-2.5 text-xs sm:text-sm font-bold pointer-events-none bg-[#0B1437] text-white rounded-full"
+        >
+          {currentPage || 1}
+        </PaginationLink>
+      </PaginationItem>
+    );
   };
 
   const containerClasses = asFooterBox
@@ -207,8 +122,8 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
                   onClick={() => hasPrev && onPageChange(currentPage - 1)}
                   className={
                     hasPrev
-                      ? "cursor-pointer hover:bg-accent rounded-full px-3 text-xs sm:text-sm font-medium"
-                      : "pointer-events-none opacity-40 rounded-full px-3 text-xs sm:text-sm font-medium"
+                      ? "h-8 cursor-pointer text-foreground hover:bg-[#0B1437] hover:text-white dark:hover:bg-slate-800 dark:hover:text-white rounded-full px-3 text-xs sm:text-sm font-medium transition-colors"
+                      : "h-8 pointer-events-none opacity-40 text-muted-foreground rounded-full px-3 text-xs sm:text-sm font-medium"
                   }
                 />
               </PaginationItem>
@@ -220,8 +135,8 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
                   onClick={() => hasNext && onPageChange(currentPage + 1)}
                   className={
                     hasNext
-                      ? "cursor-pointer hover:bg-accent rounded-full px-3 text-xs sm:text-sm font-medium"
-                      : "pointer-events-none opacity-40 rounded-full px-3 text-xs sm:text-sm font-medium"
+                      ? "h-8 cursor-pointer text-foreground hover:bg-[#0B1437] hover:text-white dark:hover:bg-slate-800 dark:hover:text-white rounded-full px-3 text-xs sm:text-sm font-medium transition-colors"
+                      : "h-8 pointer-events-none opacity-40 text-muted-foreground rounded-full px-3 text-xs sm:text-sm font-medium"
                   }
                 />
               </PaginationItem>
