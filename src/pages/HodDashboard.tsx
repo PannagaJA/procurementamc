@@ -446,10 +446,10 @@ const HodDashboard = () => {
                     tickets.map((t) => (
                     <tr key={t.id} className="border-t">
                       <td className="px-3 py-2 align-middle">
-                        <div className="font-mono">{t.ticket_number}</div>
+                        <div className="font-mono whitespace-nowrap">{t.ticket_number}</div>
                       </td>
                       <td className="px-3 py-2 align-middle">
-                        <div className="truncate max-w-full">{t.issue_category}</div>
+                        <div className="whitespace-normal break-words min-w-[120px]">{t.issue_category}</div>
                       </td>
                       <td className="px-3 py-2 align-middle">
                         <Badge className={getStatusColor(t.status)}>
@@ -671,21 +671,21 @@ const HodDashboard = () => {
                       {inventoryItems.map((it) => (
                         <tr key={it.id} className="border-t">
                           <td className="px-2 py-2 align-middle">
-                            <div className="truncate max-w-full">{it.item_code}</div>
+                            <div className="whitespace-normal break-words">{it.item_code}</div>
                           </td>
                           <td className="px-2 py-2 align-middle">
-                            <div className="truncate max-w-full">{it.item_name}</div>
+                            <div className="whitespace-normal break-words">{it.item_name}</div>
                           </td>
                           <td className="px-2 py-2 align-middle">
-                            <div className="truncate max-w-full">
+                            <div className="whitespace-normal break-words">
                               {(it.categories && it.categories.name) || it.category_name || "-"}
                             </div>
                           </td>
                           <td className="px-2 py-2 align-middle">
-                            <div className="truncate max-w-full">{it.department || "-"}</div>
+                            <div className="whitespace-normal break-words">{it.department || "-"}</div>
                           </td>
                           <td className="px-2 py-2 align-middle">
-                            <div className="truncate max-w-full">
+                            <div className="whitespace-normal break-words">
                               {(it.locations && it.locations.name) || it.location_name || "-"}
                             </div>
                           </td>

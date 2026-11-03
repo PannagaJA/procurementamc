@@ -38,16 +38,6 @@ interface LayoutProps {
 }
 
 const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isPrinciple, setIsPrinciple] = useState(false);
-  const [isHod, setIsHod] = useState(false);
-  const [isViewer, setIsViewer] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [pendingPrincipalCount, setPendingPrincipalCount] = useState<number>(0);
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { toast } = useToast();
   let authCtx: any = null;
   try {
     authCtx = useAuth();
@@ -55,6 +45,30 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
     // AuthProvider may not be mounted yet in some contexts
     authCtx = null;
   }
+
+  const [user, setUser] = useState<User | null>(() => authCtx?.user || null);
+  const [isAdmin, setIsAdmin] = useState(() => Boolean(authCtx?.hasRole("admin")));
+  const [isPrinciple, setIsPrinciple] = useState(() =>
+    Boolean(authCtx?.hasRole("principal") || authCtx?.hasRole("principle")),
+  );
+  const [isHod, setIsHod] = useState(() => Boolean(authCtx?.hasRole("hod")));
+  const [isViewer, setIsViewer] = useState(() => Boolean(authCtx?.hasRole("viewer")));
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [pendingPrincipalCount, setPendingPrincipalCount] = useState<number>(0);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { toast } = useToast();
+
+  // Fast sync from AuthContext cached in memory/localStorage (0ms delay)
+  useEffect(() => {
+    if (authCtx?.roles && authCtx.roles.length > 0) {
+      setIsAdmin(authCtx.hasRole("admin"));
+      setIsPrinciple(authCtx.hasRole("principal") || authCtx.hasRole("principle"));
+      setIsHod(authCtx.hasRole("hod"));
+      setIsViewer(authCtx.hasRole("viewer"));
+      if (authCtx.user) setUser(authCtx.user);
+    }
+  }, [authCtx?.roles, authCtx?.user]);
 
   useEffect(() => {
     // Check authentication
@@ -106,65 +120,30 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
   }, [isPrinciple, location.pathname]);
 
   const checkUserRoles = async (userId: string) => {
+    // If AuthContext already has cached/loaded roles, sync with 0 network calls
+    if (authCtx?.roles && authCtx.roles.length > 0) {
+      setIsAdmin(authCtx.hasRole("admin"));
+      setIsPrinciple(authCtx.hasRole("principal") || authCtx.hasRole("principle"));
+      setIsHod(authCtx.hasRole("hod"));
+      setIsViewer(authCtx.hasRole("viewer"));
+      return;
+    }
+
     try {
-      // Check admin role
-      const { data: adminData, error: adminError } = await supabase
+      // Single query fetching all user roles at once instead of 4 sequential queries
+      const { data: roleRows, error } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", userId)
-        .eq("role", "admin")
-        .maybeSingle();
+        .eq("user_id", userId);
 
-      if (adminError) {
-        console.error("Error checking admin role:", adminError);
-        setIsAdmin(false);
-      } else {
-        setIsAdmin(!!adminData);
-      }
-
-      // Check principle role
-      const { data: principleData, error: principleError } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userId)
-        .eq("role", "principle")
-        .maybeSingle();
-
-      if (principleError) {
-        console.error("Error checking principle role:", principleError);
-        setIsPrinciple(false);
-      } else {
-        setIsPrinciple(!!principleData);
-      }
-
-      // Check HOD role
-      const { data: hodData, error: hodError } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userId)
-        .eq("role", "hod")
-        .maybeSingle();
-
-      if (hodError) {
-        console.error("Error checking HOD role:", hodError);
-        setIsHod(false);
-      } else {
-        setIsHod(!!hodData);
-      }
-
-      // Check Viewer role
-      const { data: viewerData, error: viewerError } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userId)
-        .eq("role", "viewer")
-        .maybeSingle();
-
-      if (viewerError) {
-        console.error("Error checking viewer role:", viewerError);
-        setIsViewer(false);
-      } else {
-        setIsViewer(!!viewerData);
+      if (error) {
+        console.error("Error checking user roles:", error);
+      } else if (roleRows) {
+        const rolesList = roleRows.map((r: any) => r.role);
+        setIsAdmin(rolesList.includes("admin"));
+        setIsPrinciple(rolesList.includes("principal") || rolesList.includes("principle"));
+        setIsHod(rolesList.includes("hod"));
+        setIsViewer(rolesList.includes("viewer"));
       }
     } catch (error) {
       console.error("Error in checkUserRoles:", error);

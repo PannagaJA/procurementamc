@@ -10,7 +10,8 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: "bg-[#0B1437] text-white hover:bg-[#111f54] shadow-xs font-semibold rounded-full",
-        destructive: "bg-rose-500 text-white hover:bg-rose-600 shadow-xs font-semibold rounded-full",
+        destructive:
+          "border border-rose-200 bg-rose-50/70 text-rose-700 hover:bg-rose-100 hover:text-rose-900 hover:border-rose-300 shadow-xs font-semibold rounded-full transition-all duration-200",
         outline:
           "border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-[#0B1437] dark:text-white hover:bg-[#0B1437] hover:text-white shadow-xs font-semibold rounded-full transition-all duration-300",
         secondary: "bg-[#0B1437] text-white hover:bg-[#111f54] font-semibold shadow-xs rounded-full",

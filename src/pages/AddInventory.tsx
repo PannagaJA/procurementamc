@@ -1,10 +1,10 @@
-import { DatePicker } from "@/components/ui/date-picker";
 import { useState, useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { uploadImage, generateItemCode, generateQRCode } from "@/lib/inventoryApi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -108,7 +108,7 @@ const AddInventory = () => {
   };
 
   const fetchVendors = async () => {
-try {
+    try {
       const { data, error } = await supabase
         .from("vendors")
         .select("id, name, registered_address, contact_number")
@@ -374,7 +374,7 @@ try {
   return (
     <Layout>
       <div className="w-full max-w-full animate-in fade-in-0 duration-700">
-        <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+<div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-3xl font-bold tracking-tight text-[#0B1437] dark:text-white">Add New Item</h2>
             <p className="text-muted-foreground text-sm sm:text-base">Add a new item to the AMC procurement software</p>
@@ -740,10 +740,11 @@ try {
                   <DatePicker
                     id="invoice_date"
                     value={formData.invoice_date}
-                    onChange={(date) =>
-                      setFormData((prev) => ({ ...prev, invoice_date: date }))
+onChange={(val) =>
+                      setFormData((prev) => ({ ...prev, invoice_date: val }))
                     }
                     placeholder="Select invoice date"
+                    className="h-12 text-base"
                   />
                 </div>
               </div>
@@ -780,10 +781,11 @@ try {
                   <DatePicker
                     id="approval_date"
                     value={formData.approval_letter_date}
-                    onChange={(date) =>
-                      setFormData((prev) => ({ ...prev, approval_letter_date: date }))
+onChange={(val) =>
+                      setFormData((prev) => ({ ...prev, approval_letter_date: val }))
                     }
                     placeholder="Select approval date"
+                    className="h-12 text-base"
                   />
                 </div>
               </div>

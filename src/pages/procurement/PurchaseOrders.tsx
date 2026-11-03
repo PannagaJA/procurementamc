@@ -4,6 +4,7 @@ import Layout from "@/components/Layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -152,9 +153,43 @@ export default function PurchaseOrders() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [poRes, csRes] = await Promise.all([
+      // Parallelize all queries concurrently in a single roundtrip batch
+      const [
+        poRes,
+        csRes,
+        { data: rcData },
+        { data: prData },
+        { data: openRfqs },
+        { data: vData },
+        { data: rules },
+      ] = await Promise.all([
         (listPurchaseOrders as any)(),
         (listComparativeStatements as any)(),
+        supabase
+          .from("rate_contracts")
+          .select("*, vendors(id, name)")
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("purchase_requisitions")
+          .select(
+            `
+            id, pr_number, estimated_value, category, justification,
+            departments (id, name),
+            pr_line_items (id, description, net_qty_to_procure, est_unit_price, est_total)
+          `,
+          )
+          .eq("status", "approved")
+          .order("created_at", { ascending: false }),
+        supabase.from("rfqs").select("pr_id, rfq_number").in("status", ["draft", "sent"]),
+        supabase
+          .from("vendors")
+          .select("id, name, gst_number, status, empanelment_expiry")
+          .eq("status", "empanelled")
+          .or(
+            `empanelment_expiry.is.null,empanelment_expiry.gte.${new Date().toISOString().split("T")[0]}`,
+          )
+          .order("name"),
+        supabase.from("approval_matrix_rules").select("*").eq("active", true),
       ]);
 
       if (poRes?.ok) {
@@ -178,25 +213,7 @@ export default function PurchaseOrders() {
         );
       }
 
-      // Fetch active rate contracts
-      const { data: rcData } = await supabase
-        .from("rate_contracts")
-        .select("*, vendors(id, name)")
-        .order("created_at", { ascending: false });
       setRateContracts(rcData || []);
-
-      // Approved PRs without an active PO (for rate-contract orders)
-      const { data: prData } = await supabase
-        .from("purchase_requisitions")
-        .select(
-          `
-          id, pr_number, estimated_value, category, justification,
-          departments (id, name),
-          pr_line_items (id, description, net_qty_to_procure, est_unit_price, est_total)
-        `,
-        )
-        .eq("status", "approved")
-        .order("created_at", { ascending: false });
 
       // Filter eligible direct purchase PRs (<= 5000) that do not already have an active PO
       const existingPoPrIds = new Set(
@@ -204,28 +221,8 @@ export default function PurchaseOrders() {
       );
       setApprovedPrs((prData || []).filter((p: any) => !existingPoPrIds.has(p.id)));
 
-      const { data: openRfqs } = await supabase
-        .from("rfqs")
-        .select("pr_id, rfq_number")
-        .in("status", ["draft", "sent"]);
       setOpenRfqByPr(Object.fromEntries((openRfqs || []).map((r: any) => [r.pr_id, r.rfq_number])));
-
-      // Vendors that can be awarded work: empanelled and not past expiry (same rule as assertVendorEmpanelled)
-      const { data: vData } = await supabase
-        .from("vendors")
-        .select("id, name, gst_number, status, empanelment_expiry")
-        .eq("status", "empanelled")
-        .or(
-          `empanelment_expiry.is.null,empanelment_expiry.gte.${new Date().toISOString().split("T")[0]}`,
-        )
-        .order("name");
       setVendorsList(vData || []);
-
-      // Fetch matrix rules for previewing approver
-      const { data: rules } = await supabase
-        .from("approval_matrix_rules")
-        .select("*")
-        .eq("active", true);
       setMatrixRules(rules || []);
     } catch (e: any) {
       toast({ title: "Error loading data", description: e.message, variant: "destructive" });
@@ -589,9 +586,6 @@ export default function PurchaseOrders() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-[#0B1437]/10 text-[#0B1437] mb-2">
-              <ShoppingBag className="w-3.5 h-3.5" /> Purchase Order Governance
-            </div>
             <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
               Purchase Orders & Amendments
             </h1>
@@ -952,12 +946,18 @@ export default function PurchaseOrders() {
                         <SelectValue placeholder="Select CS..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {approvedCss.map((cs) => (
-                          <SelectItem key={cs.id} value={cs.id}>
-                            {cs.cs_number} — {cs.vendors?.name} (₹
-                            {Number(cs.recommended_total).toLocaleString("en-IN")})
+                        {approvedCss.length === 0 ? (
+                          <SelectItem value="_no_cs" disabled className="text-muted-foreground text-xs italic py-2">
+                            No approved Comparative Statements found
                           </SelectItem>
-                        ))}
+                        ) : (
+                          approvedCss.map((cs) => (
+                            <SelectItem key={cs.id} value={cs.id}>
+                              {cs.cs_number} — {cs.vendors?.name} (₹
+                              {Number(cs.recommended_total).toLocaleString("en-IN")})
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -1123,11 +1123,11 @@ export default function PurchaseOrders() {
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
                           <Label className="text-xs">Quotes due by</Label>
-                          <Input
-                            type="date"
-                            min={new Date().toISOString().slice(0, 10)}
+                          <DatePicker
                             value={quoteDeadline}
-                            onChange={(e) => setQuoteDeadline(e.target.value)}
+                            onChange={setQuoteDeadline}
+                            placeholder="Select deadline"
+                            minDate={new Date()}
                           />
                         </div>
                         <div className="space-y-1">
@@ -1154,11 +1154,17 @@ export default function PurchaseOrders() {
                             <SelectValue placeholder="Select empanelled vendor..." />
                           </SelectTrigger>
                           <SelectContent>
-                            {vendorsList.map((v: any) => (
-                              <SelectItem key={v.id} value={v.id}>
-                                {v.name}
+                            {vendorsList.length === 0 ? (
+                              <SelectItem value="_no_vendor" disabled className="text-muted-foreground text-xs italic py-2">
+                                No empanelled vendors found
                               </SelectItem>
-                            ))}
+                            ) : (
+                              vendorsList.map((v: any) => (
+                                <SelectItem key={v.id} value={v.id}>
+                                  {v.name}
+                                </SelectItem>
+                              ))
+                            )}
                           </SelectContent>
                         </Select>
                       </div>

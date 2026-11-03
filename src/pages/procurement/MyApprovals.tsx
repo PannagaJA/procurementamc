@@ -367,9 +367,6 @@ export default function MyApprovals() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-[#0B1437]/10 text-[#0B1437] mb-2">
-              <UserCheck className="w-3.5 h-3.5" /> Approvals
-            </div>
             <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
               My Procurement Approvals
             </h1>
@@ -466,7 +463,7 @@ export default function MyApprovals() {
                         />
                       </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 my-1">
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(pr, "pr_approve")}
@@ -549,7 +546,7 @@ export default function MyApprovals() {
                         • Total: ₹{Number(cs.recommended_total).toLocaleString("en-IN")}
                       </p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 my-1">
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(cs, "cs_approve")}
@@ -619,7 +616,7 @@ export default function MyApprovals() {
                         {(Number(po.price || 0) + Number(po.taxes || 0)).toLocaleString("en-IN")}
                       </p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 my-1">
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(po, "po_approve")}
@@ -685,7 +682,7 @@ export default function MyApprovals() {
                         {Number(am.new_value_total).toLocaleString("en-IN")}
                       </p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 my-1">
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(am, "am_approve")}
@@ -757,7 +754,7 @@ export default function MyApprovals() {
                         </div>
                       )}
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 my-1">
                       {inv.deviation_status === "requested" ? (
                         <>
                           <Button
@@ -815,7 +812,7 @@ export default function MyApprovals() {
                         {Number(ep.estimated_cost).toLocaleString("en-IN")}
                       </p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 my-1">
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(ep, "ep_approve")}
@@ -881,7 +878,7 @@ export default function MyApprovals() {
                         {rc.valid_to}
                       </p>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 my-1">
                       <Button
                         size="sm"
                         onClick={() => handleOpenAction(rc, "rc_approve")}
@@ -1365,7 +1362,9 @@ export default function MyApprovals() {
                 onClick={handleExecuteAction}
                 disabled={acting || (dialogType.includes("reject") && !remarks.trim())}
                 className={
-                  dialogType.includes("reject") ? "bg-rose-500 hover:bg-rose-600 text-white rounded-full font-semibold" : "bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
+                  dialogType.includes("reject")
+                    ? "border border-rose-200 bg-rose-50/70 text-rose-700 hover:bg-rose-100 hover:text-rose-900 hover:border-rose-300 rounded-full font-semibold shadow-xs"
+                    : "bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold shadow-xs"
                 }
               >
                 {acting ? "Processing..." : "Confirm"}

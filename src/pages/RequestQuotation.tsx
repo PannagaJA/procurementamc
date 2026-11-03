@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -383,7 +384,11 @@ export default function RequestQuotation() {
                         <FormItem>
                           <FormLabel>Last Date to Reply by the Vendor</FormLabel>
                           <FormControl>
-                            <Input type="date" {...field} />
+                            <DatePicker
+                              value={field.value}
+                              onChange={field.onChange}
+                              placeholder="Select reply deadline"
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>

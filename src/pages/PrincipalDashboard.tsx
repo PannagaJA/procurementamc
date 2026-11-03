@@ -716,10 +716,10 @@ const PrincipalDashboard = () => {
                         tickets.map((t) => (
                         <tr key={t.id} className="border-t">
                           <td className="px-3 py-2 align-middle">
-                            <div className="truncate max-w-full">{t.ticket_number}</div>
+                            <div className="font-mono whitespace-nowrap">{t.ticket_number}</div>
                           </td>
                           <td className="px-3 py-2 align-middle">
-                            <div className="truncate max-w-full">
+                            <div className="whitespace-normal break-words">
                               {(() => {
                                 const found = departments.find(
                                   (d) =>
@@ -733,7 +733,7 @@ const PrincipalDashboard = () => {
                             </div>
                           </td>
                           <td className="px-3 py-2 align-middle">
-                            <div className="truncate max-w-full">{t.name}</div>
+                            <div className="whitespace-normal break-words">{t.name}</div>
                           </td>
                           <td className="px-3 py-2 align-middle">
                             <div className="inline-block">

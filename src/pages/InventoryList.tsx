@@ -43,6 +43,7 @@ import QRScanner from "@/components/QRScanner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScanLine } from "lucide-react";
 import { usePagination } from "@/hooks/use-pagination";
+import { useAuth } from "@/lib/auth";
 import { PaginationControls } from "@/components/PaginationControls";
 import { createPaginatedQuery, createCountQuery } from "@/lib/utils";
 
@@ -70,8 +71,20 @@ const InventoryList = () => {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [locationFilter, setLocationFilter] = useState("all");
   const [departmentFilter, setDepartmentFilter] = useState("all");
-  const [userRole, setUserRole] = useState<string | null>(null);
+  let authCtx: any = null;
+  try {
+    authCtx = useAuth();
+  } catch {
+    authCtx = null;
+  }
+  const [userRole, setUserRole] = useState<string | null>(() => authCtx?.primaryRole || null);
   const [showQRScanner, setShowQRScanner] = useState(false);
+
+  useEffect(() => {
+    if (authCtx?.primaryRole) {
+      setUserRole(authCtx.primaryRole);
+    }
+  }, [authCtx?.primaryRole]);
 
   const { pagination, setPage, setPageSize, setTotal, resetPagination } = usePagination(10, 1);
 
@@ -134,15 +147,19 @@ const InventoryList = () => {
   }, []);
 
   const checkUserRole = async () => {
+    if (authCtx?.primaryRole) {
+      setUserRole(authCtx.primaryRole);
+      return;
+    }
     try {
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session?.user) {
         const { data: roleData } = await supabase
           .from("user_roles")
           .select("role")
-          .eq("user_id", user.id)
+          .eq("user_id", session.user.id)
           .maybeSingle();
         setUserRole(roleData?.role || null);
       }
