@@ -280,6 +280,39 @@ const PrincipalApprovals = () => {
     return <PageSkeleton cards={0} rows={6} />;
   }
 
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "procure-approved":
+      case "service-approved":
+      case "approved":
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
+            Approved
+          </span>
+        );
+      case "procure-rejected":
+      case "service-rejected":
+      case "rejected":
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800">
+            Rejected
+          </span>
+        );
+      case "pending_principal":
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-900 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
+            Pending Principal
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-800 border border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700">
+            {status.replace(/_/g, " ")}
+          </span>
+        );
+    }
+  };
+
   return (
     <>
       <Layout>
@@ -330,58 +363,51 @@ const PrincipalApprovals = () => {
                     ) : (
                       requests.map((r) => (
                         <tr key={r.id} className="border-t">
-                          <td className="px-3 py-2">{r.ticket_number}</td>
+                          <td className="px-3 py-2 font-medium">{r.ticket_number}</td>
                           <td className="px-3 py-2">{r.department}</td>
                           <td className="px-3 py-2">{r.issue_category}</td>
-                          <td className="px-3 py-2">{r.status}</td>
+                          <td className="px-3 py-2">{getStatusBadge(r.status)}</td>
                           <td className="px-3 py-2">
-                            <Button
-                              size="sm"
-                              onClick={() => {
-                                setViewRequest(computeTicketSLA(r));
-                              }}
-                            >
-                              View
-                            </Button>
-                            {r.status === "pending_principal" &&
-                            hasRole("principal") &&
-                            r.created_by !== userId ? (
-                              <>
-                                <Button
-                                  size="sm"
-                                  className="ml-2 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
-                                  onClick={() => openActionDialog("approve", r)}
-                                >
-                                  Approve
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  className="ml-2"
-                                  onClick={() => openActionDialog("reject", r)}
-                                >
-                                  Reject
-                                </Button>
-                              </>
-                            ) : r.status === "procure-approved" ||
-                              r.status === "service-approved" ? (
+                            <div className="flex items-center gap-2 whitespace-nowrap">
                               <Button
                                 size="sm"
-                                className="ml-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full font-semibold"
-                                disabled
+                                onClick={() => {
+                                  setViewRequest(computeTicketSLA(r));
+                                }}
                               >
-                                Approved
+                                View
                               </Button>
-                            ) : r.status === "procure-rejected" ||
-                              r.status === "service-rejected" ? (
-                              <Button
-                                size="sm"
-                                className="ml-2 bg-rose-50 text-rose-700 border border-rose-200 rounded-full font-semibold"
-                                disabled
-                              >
-                                Rejected
-                              </Button>
-                            ) : null}
+                              {r.status === "pending_principal" &&
+                              hasRole("principal") &&
+                              r.created_by !== userId ? (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
+                                    onClick={() => openActionDialog("approve", r)}
+                                  >
+                                    Approve
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => openActionDialog("reject", r)}
+                                  >
+                                    Reject
+                                  </Button>
+                                </>
+                              ) : r.status === "procure-approved" ||
+                                r.status === "service-approved" ? (
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 shrink-0">
+                                  Approved
+                                </span>
+                              ) : r.status === "procure-rejected" ||
+                                r.status === "service-rejected" ? (
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800 shrink-0">
+                                  Rejected
+                                </span>
+                              ) : null}
+                            </div>
                           </td>
                         </tr>
                       ))
