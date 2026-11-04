@@ -55,6 +55,8 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { TurnaroundWidget } from "@/components/procurement/TurnaroundWidget";
+import { PaginationControls } from "@/components/PaginationControls";
+import { usePagedList } from "@/hooks/use-paged-list";
 import { statusLabel, roleLabel, poTypeLabel, categoryLabel } from "@/lib/procurement/labels";
 import { RateBenchmarkingWidget } from "@/components/procurement/RateBenchmarkingWidget";
 
@@ -67,6 +69,29 @@ export default function MyApprovals() {
   >("all");
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
+
+  const prsPage = usePagedList<any>(data?.prs);
+  const csPage = usePagedList<any>(data?.comparativeStatements);
+  const poPage = usePagedList<any>(data?.purchaseOrders);
+  const amendPage = usePagedList<any>(data?.amendments);
+  const invPage = usePagedList<any>(data?.invoices);
+  const epPage = usePagedList<any>(data?.emergencyProcurements);
+  const rcPage = usePagedList<any>(data?.rateContracts);
+
+  const showHistory = (f: typeof historyTypeFilter) =>
+    historyTypeFilter === "all" || historyTypeFilter === f;
+  const historyRows: { kind: string; row: any }[] = (
+    [
+      ["pr", "prs", historyData?.prHistory],
+      ["cs", "css", historyData?.csHistory],
+      ["po", "pos", historyData?.poHistory],
+      ["inv", "invoices", historyData?.invHistory],
+      ["rc", "rateContracts", historyData?.rcHistory],
+    ] as const
+  ).flatMap(([kind, filter, rows]) =>
+    showHistory(filter) ? (rows || []).map((row: any) => ({ kind, row })) : [],
+  );
+  const historyPage = usePagedList(historyRows);
 
   // Decision Modal
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -155,7 +180,10 @@ export default function MyApprovals() {
         toast(
           res.status === "escalated_to_evp"
             ? { title: "Sent to the EVP", description: `${activeItem.pr_number}: ${res.reason}` }
-            : { title: "Requisition Approved", description: `PR ${activeItem.pr_number} approved.` },
+            : {
+                title: "Requisition Approved",
+                description: `PR ${activeItem.pr_number} approved.`,
+              },
         );
       } else if (dialogType === "pr_reject") {
         const res = await (rejectPr as any)({ data: { pr_id: activeItem.id, remarks } });
@@ -380,7 +408,9 @@ export default function MyApprovals() {
         {/* User Roles Banner */}
         <div className="bg-slate-50/80 dark:bg-slate-900/80 p-4 sm:p-5 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
           <div className="flex-1 min-w-0">
-            <span className="text-slate-500 dark:text-slate-400 font-medium block text-xs">Your roles:</span>
+            <span className="text-slate-500 dark:text-slate-400 font-medium block text-xs">
+              Your roles:
+            </span>
             <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
               {userRoles.length > 0 ? (
                 userRoles.map((r: string) => (
@@ -426,519 +456,701 @@ export default function MyApprovals() {
           {/* Requisitions Tab */}
           <TabsContent value="prs" className="space-y-3">
             {loading ? (
-              <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
+              <div className="space-y-3 p-4">
+                {[...Array(4)].map((_, i) => (
+                  <Skeleton key={i} className="h-20 w-full rounded-xl" />
+                ))}
+              </div>
             ) : (data?.prs || []).length === 0 ? (
               <Card className="p-8 text-center border-slate-100">
                 <div className="flex flex-col items-center justify-center py-6">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="w-12 h-12 mb-3 text-slate-300"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                    />
+                  </svg>
                   <p className="text-base font-semibold text-slate-500">No data found</p>
-                  <p className="text-sm text-slate-400 mt-1">No purchase requisitions awaiting your approval.</p>
+                  <p className="text-sm text-slate-400 mt-1">
+                    No purchase requisitions awaiting your approval.
+                  </p>
                 </div>
               </Card>
             ) : (
-              data?.prs?.map((pr: any) => (
-                <Card key={pr.id} className="border border-slate-200 dark:border-slate-800">
-                  <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono font-bold whitespace-nowrap">{pr.pr_number}</span>
-                        <Badge variant="outline">{categoryLabel(pr.category)}</Badge>
-                        <Badge variant="secondary">{statusLabel(pr.status)}</Badge>
-                        {pr.budget_status === "over" && (
-                          <Badge className="bg-red-600 hover:bg-red-600 text-white">Over budget</Badge>
-                        )}
+              <>
+                {prsPage.pageItems.map((pr: any) => (
+                  <Card key={pr.id} className="border border-slate-200 dark:border-slate-800">
+                    <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono font-bold whitespace-nowrap">
+                            {pr.pr_number}
+                          </span>
+                          <Badge variant="outline">{categoryLabel(pr.category)}</Badge>
+                          <Badge variant="secondary">{statusLabel(pr.status)}</Badge>
+                          {pr.budget_status === "over" && (
+                            <Badge className="bg-red-600 hover:bg-red-600 text-white">
+                              Over budget
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="text-xs text-slate-500 mt-1 flex flex-wrap items-center gap-2">
+                          <span>
+                            Dept: {pr.departments?.name || "Academic"} • Est. Value: ₹
+                            {Number(pr.estimated_value).toLocaleString("en-IN")}
+                          </span>
+                          <RateBenchmarkingWidget
+                            compact
+                            description={
+                              pr.pr_line_items?.[0]?.description || categoryLabel(pr.category)
+                            }
+                            unitRate={
+                              Number(pr.estimated_value || 0) /
+                              Math.max(1, pr.pr_line_items?.length || 1)
+                            }
+                          />
+                        </div>
                       </div>
-                      <div className="text-xs text-slate-500 mt-1 flex flex-wrap items-center gap-2">
-                        <span>
-                          Dept: {pr.departments?.name || "Academic"} • Est. Value: ₹
-                          {Number(pr.estimated_value).toLocaleString("en-IN")}
+                      <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 my-1">
+                        <Button
+                          size="sm"
+                          onClick={() => handleOpenAction(pr, "pr_approve")}
+                          className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 rounded-full font-semibold"
+                        >
+                          <CheckCircle className="w-3.5 h-3.5" /> Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleOpenAction(pr, "pr_reject")}
+                          className="gap-1"
+                        >
+                          <XCircle className="w-3.5 h-3.5" /> Reject
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleOpenAction(pr, "pr_escalate")}
+                          className="gap-1"
+                        >
+                          <ArrowUpRight className="w-3.5 h-3.5" /> Escalate
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-2 text-xs space-y-2">
+                      <p className="text-slate-600 dark:text-slate-300">
+                        <span className="font-medium">Justification: </span>
+                        {pr.justification}
+                      </p>
+                      <div className="p-2 bg-slate-50 dark:bg-slate-900 rounded text-slate-500">
+                        <span className="font-medium text-slate-700 dark:text-slate-300">
+                          Routing:{" "}
                         </span>
-                        <RateBenchmarkingWidget
-                          compact
-                          description={pr.pr_line_items?.[0]?.description || categoryLabel(pr.category)}
-                          unitRate={
-                            Number(pr.estimated_value || 0) /
-                            Math.max(1, pr.pr_line_items?.length || 1)
-                          }
-                        />
+                        {pr.routing_reason}
                       </div>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 my-1">
-                      <Button
-                        size="sm"
-                        onClick={() => handleOpenAction(pr, "pr_approve")}
-                        className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 rounded-full font-semibold"
-                      >
-                        <CheckCircle className="w-3.5 h-3.5" /> Approve
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleOpenAction(pr, "pr_reject")}
-                        className="gap-1"
-                      >
-                        <XCircle className="w-3.5 h-3.5" /> Reject
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleOpenAction(pr, "pr_escalate")}
-                        className="gap-1"
-                      >
-                        <ArrowUpRight className="w-3.5 h-3.5" /> Escalate
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-4 pt-2 text-xs space-y-2">
-                    <p className="text-slate-600 dark:text-slate-300">
-                      <span className="font-medium">Justification: </span>
-                      {pr.justification}
-                    </p>
-                    <div className="p-2 bg-slate-50 dark:bg-slate-900 rounded text-slate-500">
-                      <span className="font-medium text-slate-700 dark:text-slate-300">
-                        Routing:{" "}
-                      </span>
-                      {pr.routing_reason}
-                    </div>
-                    {pr.budget_status === "over" && (pr.budget_justification || pr.reappropriation_ref) && (
-                      <div className="p-2 rounded border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/30 text-red-900 dark:text-red-200">
-                        <span className="font-medium">Why over budget: </span>
-                        {pr.budget_justification}
-                        {pr.reappropriation_ref && (
-                          <span className="font-mono"> (re-appropriation {pr.reappropriation_ref})</span>
+                      {pr.budget_status === "over" &&
+                        (pr.budget_justification || pr.reappropriation_ref) && (
+                          <div className="p-2 rounded border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/30 text-red-900 dark:text-red-200">
+                            <span className="font-medium">Why over budget: </span>
+                            {pr.budget_justification}
+                            {pr.reappropriation_ref && (
+                              <span className="font-mono">
+                                {" "}
+                                (re-appropriation {pr.reappropriation_ref})
+                              </span>
+                            )}
+                          </div>
                         )}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))
+                    </CardContent>
+                  </Card>
+                ))}
+                <PaginationControls {...prsPage.controls} />
+              </>
             )}
           </TabsContent>
 
           {/* Comparative Statements Tab */}
           <TabsContent value="css" className="space-y-3">
             {loading ? (
-              <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
+              <div className="space-y-3 p-4">
+                {[...Array(4)].map((_, i) => (
+                  <Skeleton key={i} className="h-20 w-full rounded-xl" />
+                ))}
+              </div>
             ) : (data?.comparativeStatements || []).length === 0 ? (
               <Card className="p-8 text-center border-slate-100">
                 <div className="flex flex-col items-center justify-center py-6">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="w-12 h-12 mb-3 text-slate-300"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                    />
+                  </svg>
                   <p className="text-base font-semibold text-slate-500">No data found</p>
-                  <p className="text-sm text-slate-400 mt-1">No comparative statements awaiting your review.</p>
+                  <p className="text-sm text-slate-400 mt-1">
+                    No comparative statements awaiting your review.
+                  </p>
                 </div>
               </Card>
             ) : (
-              data?.comparativeStatements?.map((cs: any) => (
-                <Card key={cs.id} className="border border-slate-200 dark:border-slate-800">
-                  <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono font-bold whitespace-nowrap">{cs.cs_number}</span>
-                        <Badge variant="outline">
-                          {cs.is_lowest_price ? "L1 Lowest" : "Non-Lowest Quote"}
-                        </Badge>
+              <>
+                {csPage.pageItems.map((cs: any) => (
+                  <Card key={cs.id} className="border border-slate-200 dark:border-slate-800">
+                    <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono font-bold whitespace-nowrap">
+                            {cs.cs_number}
+                          </span>
+                          <Badge variant="outline">
+                            {cs.is_lowest_price ? "L1 Lowest" : "Non-Lowest Quote"}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Recommended Vendor:{" "}
+                          <span className="font-semibold text-slate-700 dark:text-slate-300">
+                            {cs.vendors?.name}
+                          </span>{" "}
+                          • Total: ₹{Number(cs.recommended_total).toLocaleString("en-IN")}
+                        </p>
                       </div>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Recommended Vendor:{" "}
-                        <span className="font-semibold text-slate-700 dark:text-slate-300">
-                          {cs.vendors?.name}
-                        </span>{" "}
-                        • Total: ₹{Number(cs.recommended_total).toLocaleString("en-IN")}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 my-1">
-                      <Button
-                        size="sm"
-                        onClick={() => handleOpenAction(cs, "cs_approve")}
-                        className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 rounded-full font-semibold"
-                      >
-                        <CheckCircle className="w-3.5 h-3.5" /> Approve CS
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleOpenAction(cs, "cs_reject")}
-                        className="gap-1"
-                      >
-                        <XCircle className="w-3.5 h-3.5" /> Reject
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-4 pt-2 text-xs space-y-2">
-                    {!cs.is_lowest_price && (
-                      <div className="p-2 bg-amber-50 dark:bg-amber-950/50 border border-amber-300 rounded text-amber-900 dark:text-amber-200">
-                        <span className="font-semibold">Non-Lowest Rationale: </span>
-                        {cs.non_lowest_rationale}
+                      <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 my-1">
+                        <Button
+                          size="sm"
+                          onClick={() => handleOpenAction(cs, "cs_approve")}
+                          className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 rounded-full font-semibold"
+                        >
+                          <CheckCircle className="w-3.5 h-3.5" /> Approve CS
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleOpenAction(cs, "cs_reject")}
+                          className="gap-1"
+                        >
+                          <XCircle className="w-3.5 h-3.5" /> Reject
+                        </Button>
                       </div>
-                    )}
-                    <div className="p-2 bg-slate-50 dark:bg-slate-900 rounded text-slate-500">
-                      <span className="font-medium text-slate-700 dark:text-slate-300">
-                        Routing Rule:{" "}
-                      </span>
-                      {cs.routing_reason}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
+                    </CardHeader>
+                    <CardContent className="p-4 pt-2 text-xs space-y-2">
+                      {!cs.is_lowest_price && (
+                        <div className="p-2 bg-amber-50 dark:bg-amber-950/50 border border-amber-300 rounded text-amber-900 dark:text-amber-200">
+                          <span className="font-semibold">Non-Lowest Rationale: </span>
+                          {cs.non_lowest_rationale}
+                        </div>
+                      )}
+                      <div className="p-2 bg-slate-50 dark:bg-slate-900 rounded text-slate-500">
+                        <span className="font-medium text-slate-700 dark:text-slate-300">
+                          Routing Rule:{" "}
+                        </span>
+                        {cs.routing_reason}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+                <PaginationControls {...csPage.controls} />
+              </>
             )}
           </TabsContent>
 
           {/* Purchase Orders Tab */}
           <TabsContent value="pos" className="space-y-3">
             {loading ? (
-              <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
+              <div className="space-y-3 p-4">
+                {[...Array(4)].map((_, i) => (
+                  <Skeleton key={i} className="h-20 w-full rounded-xl" />
+                ))}
+              </div>
             ) : (data?.purchaseOrders || []).length === 0 ? (
               <Card className="p-8 text-center border-slate-100">
                 <div className="flex flex-col items-center justify-center py-6">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="w-12 h-12 mb-3 text-slate-300"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                    />
+                  </svg>
                   <p className="text-base font-semibold text-slate-500">No data found</p>
-                  <p className="text-sm text-slate-400 mt-1">No purchase orders awaiting your approval.</p>
+                  <p className="text-sm text-slate-400 mt-1">
+                    No purchase orders awaiting your approval.
+                  </p>
                 </div>
               </Card>
             ) : (
-              data?.purchaseOrders?.map((po: any) => (
-                <Card key={po.id} className="border border-slate-200 dark:border-slate-800">
-                  <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono font-bold whitespace-nowrap">{po.po_number}</span>
-                        <Badge variant="outline">{poTypeLabel(po.type)}</Badge>
-                        {po.budget_status === "over_pending_evp" && (
-                          <Badge className="bg-red-600 hover:bg-red-600 text-white">Over budget</Badge>
-                        )}
+              <>
+                {poPage.pageItems.map((po: any) => (
+                  <Card key={po.id} className="border border-slate-200 dark:border-slate-800">
+                    <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono font-bold whitespace-nowrap">
+                            {po.po_number}
+                          </span>
+                          <Badge variant="outline">{poTypeLabel(po.type)}</Badge>
+                          {po.budget_status === "over_pending_evp" && (
+                            <Badge className="bg-red-600 hover:bg-red-600 text-white">
+                              Over budget
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Vendor:{" "}
+                          <span className="font-semibold text-slate-700 dark:text-slate-300">
+                            {po.vendors?.name}
+                          </span>{" "}
+                          • Total Value: ₹
+                          {(Number(po.price || 0) + Number(po.taxes || 0)).toLocaleString("en-IN")}
+                        </p>
                       </div>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Vendor:{" "}
-                        <span className="font-semibold text-slate-700 dark:text-slate-300">
-                          {po.vendors?.name}
-                        </span>{" "}
-                        • Total Value: ₹
-                        {(Number(po.price || 0) + Number(po.taxes || 0)).toLocaleString("en-IN")}
+                      <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 my-1">
+                        <Button
+                          size="sm"
+                          onClick={() => handleOpenAction(po, "po_approve")}
+                          className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 rounded-full font-semibold"
+                        >
+                          <CheckCircle className="w-3.5 h-3.5" /> Approve PO
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleOpenAction(po, "po_reject")}
+                          className="gap-1"
+                        >
+                          <XCircle className="w-3.5 h-3.5" /> Reject
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-2 text-xs space-y-1">
+                      <p className="text-slate-600 dark:text-slate-300">
+                        <span className="font-medium">Scope: </span>
+                        {po.scope_of_supply}
                       </p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 my-1">
-                      <Button
-                        size="sm"
-                        onClick={() => handleOpenAction(po, "po_approve")}
-                        className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 rounded-full font-semibold"
-                      >
-                        <CheckCircle className="w-3.5 h-3.5" /> Approve PO
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleOpenAction(po, "po_reject")}
-                        className="gap-1"
-                      >
-                        <XCircle className="w-3.5 h-3.5" /> Reject
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-4 pt-2 text-xs space-y-1">
-                    <p className="text-slate-600 dark:text-slate-300">
-                      <span className="font-medium">Scope: </span>
-                      {po.scope_of_supply}
-                    </p>
-                    <div className="p-2 bg-slate-50 dark:bg-slate-900 rounded text-slate-500">
-                      <span className="font-medium text-slate-700 dark:text-slate-300">
-                        Routing Rule:{" "}
-                      </span>
-                      {po.routing_reason}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
+                      <div className="p-2 bg-slate-50 dark:bg-slate-900 rounded text-slate-500">
+                        <span className="font-medium text-slate-700 dark:text-slate-300">
+                          Routing Rule:{" "}
+                        </span>
+                        {po.routing_reason}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+                <PaginationControls {...poPage.controls} />
+              </>
             )}
           </TabsContent>
 
           {/* Amendments Tab */}
           <TabsContent value="amendments" className="space-y-3">
             {loading ? (
-              <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
+              <div className="space-y-3 p-4">
+                {[...Array(4)].map((_, i) => (
+                  <Skeleton key={i} className="h-20 w-full rounded-xl" />
+                ))}
+              </div>
             ) : (data?.amendments || []).length === 0 ? (
               <Card className="p-8 text-center border-slate-100">
                 <div className="flex flex-col items-center justify-center py-6">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="w-12 h-12 mb-3 text-slate-300"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                    />
+                  </svg>
                   <p className="text-base font-semibold text-slate-500">No data found</p>
-                  <p className="text-sm text-slate-400 mt-1">No order amendments requiring re-approval.</p>
+                  <p className="text-sm text-slate-400 mt-1">
+                    No order amendments requiring re-approval.
+                  </p>
                 </div>
               </Card>
             ) : (
-              data?.amendments?.map((am: any) => (
-                <Card key={am.id} className="border border-slate-200 dark:border-slate-800">
-                  <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono font-bold whitespace-nowrap">
-                          {am.purchase_orders?.po_number} Amendment
-                        </span>
-                        <Badge variant="outline" className="text-purple-700 border-purple-400">
-                          Needs re-approval
-                        </Badge>
+              <>
+                {amendPage.pageItems.map((am: any) => (
+                  <Card key={am.id} className="border border-slate-200 dark:border-slate-800">
+                    <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono font-bold whitespace-nowrap">
+                            {am.purchase_orders?.po_number} Amendment
+                          </span>
+                          <Badge variant="outline" className="text-purple-700 border-purple-400">
+                            Needs re-approval
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Vendor: {am.purchase_orders?.vendors?.name} • ₹
+                          {Number(am.old_value_total).toLocaleString("en-IN")} → ₹
+                          {Number(am.new_value_total).toLocaleString("en-IN")}
+                        </p>
                       </div>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Vendor: {am.purchase_orders?.vendors?.name} • ₹
-                        {Number(am.old_value_total).toLocaleString("en-IN")} → ₹
-                        {Number(am.new_value_total).toLocaleString("en-IN")}
+                      <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 my-1">
+                        <Button
+                          size="sm"
+                          onClick={() => handleOpenAction(am, "am_approve")}
+                          className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 rounded-full font-semibold"
+                        >
+                          <CheckCircle className="w-3.5 h-3.5" /> Approve Amendment
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleOpenAction(am, "am_reject")}
+                          className="gap-1"
+                        >
+                          <XCircle className="w-3.5 h-3.5" /> Reject
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-2 text-xs space-y-1">
+                      <p className="text-slate-600 dark:text-slate-300">
+                        <span className="font-medium">Reason: </span>
+                        {am.reason}
                       </p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 my-1">
-                      <Button
-                        size="sm"
-                        onClick={() => handleOpenAction(am, "am_approve")}
-                        className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 rounded-full font-semibold"
-                      >
-                        <CheckCircle className="w-3.5 h-3.5" /> Approve Amendment
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleOpenAction(am, "am_reject")}
-                        className="gap-1"
-                      >
-                        <XCircle className="w-3.5 h-3.5" /> Reject
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-4 pt-2 text-xs space-y-1">
-                    <p className="text-slate-600 dark:text-slate-300">
-                      <span className="font-medium">Reason: </span>
-                      {am.reason}
-                    </p>
-                  </CardContent>
-                </Card>
-              ))
+                    </CardContent>
+                  </Card>
+                ))}
+                <PaginationControls {...amendPage.controls} />
+              </>
             )}
           </TabsContent>
 
           {/* Invoices Tab */}
           <TabsContent value="invoices" className="space-y-3">
             {loading ? (
-              <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
+              <div className="space-y-3 p-4">
+                {[...Array(4)].map((_, i) => (
+                  <Skeleton key={i} className="h-20 w-full rounded-xl" />
+                ))}
+              </div>
             ) : (data?.invoices || []).length === 0 ? (
               <Card className="p-8 text-center border-slate-100">
                 <div className="flex flex-col items-center justify-center py-6">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="w-12 h-12 mb-3 text-slate-300"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                    />
+                  </svg>
                   <p className="text-base font-semibold text-slate-500">No data found</p>
                   <p className="text-sm text-slate-400 mt-1">No invoices awaiting approval.</p>
                 </div>
               </Card>
             ) : (
-              data?.invoices?.map((inv: any) => (
-                <Card key={inv.id} className="border border-slate-200 dark:border-slate-800">
-                  <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono font-bold whitespace-nowrap">Invoice: {inv.invoice_number}</span>
-                        {inv.deviation_status === "requested" ? (
-                          <Badge variant="outline" className="text-amber-700 border-amber-400 dark:text-amber-300">
-                            Deviation request
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-emerald-700 border-emerald-400">
-                            Matches order & delivery
-                          </Badge>
+              <>
+                {invPage.pageItems.map((inv: any) => (
+                  <Card key={inv.id} className="border border-slate-200 dark:border-slate-800">
+                    <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono font-bold whitespace-nowrap">
+                            Invoice: {inv.invoice_number}
+                          </span>
+                          {inv.deviation_status === "requested" ? (
+                            <Badge
+                              variant="outline"
+                              className="text-amber-700 border-amber-400 dark:text-amber-300"
+                            >
+                              Deviation request
+                            </Badge>
+                          ) : (
+                            <Badge
+                              variant="outline"
+                              className="text-emerald-700 border-emerald-400"
+                            >
+                              Matches order & delivery
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Vendor: {inv.vendors?.name} • PO: {inv.purchase_orders?.po_number} •
+                          Amount: ₹{Number(inv.invoice_amount).toLocaleString("en-IN")}
+                        </p>
+                        {inv.deviation_status === "requested" && (
+                          <div className="mt-2 space-y-1 text-xs">
+                            <p className="text-red-700 dark:text-red-300">{inv.hold_reason}</p>
+                            <p className="text-slate-600 dark:text-slate-300">
+                              <span className="font-semibold">Why accept it: </span>
+                              {inv.deviation_reason}
+                            </p>
+                          </div>
                         )}
                       </div>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Vendor: {inv.vendors?.name} • PO: {inv.purchase_orders?.po_number} • Amount:
-                        ₹{Number(inv.invoice_amount).toLocaleString("en-IN")}
-                      </p>
-                      {inv.deviation_status === "requested" && (
-                        <div className="mt-2 space-y-1 text-xs">
-                          <p className="text-red-700 dark:text-red-300">{inv.hold_reason}</p>
-                          <p className="text-slate-600 dark:text-slate-300">
-                            <span className="font-semibold">Why accept it: </span>
-                            {inv.deviation_reason}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 my-1">
-                      {inv.deviation_status === "requested" ? (
-                        <>
+                      <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 my-1">
+                        {inv.deviation_status === "requested" ? (
+                          <>
+                            <Button
+                              size="sm"
+                              onClick={() => handleOpenAction(inv, "dev_approve")}
+                              className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 rounded-full font-semibold"
+                            >
+                              <CheckCircle className="w-3.5 h-3.5" /> Accept Difference
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleOpenAction(inv, "dev_reject")}
+                            >
+                              Reject
+                            </Button>
+                          </>
+                        ) : (
                           <Button
                             size="sm"
-                            onClick={() => handleOpenAction(inv, "dev_approve")}
+                            onClick={() => handleOpenAction(inv, "inv_approve")}
                             className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 rounded-full font-semibold"
                           >
-                            <CheckCircle className="w-3.5 h-3.5" /> Accept Difference
+                            <CheckCircle className="w-3.5 h-3.5" /> Approve for Payment
                           </Button>
-                          <Button size="sm" variant="destructive" onClick={() => handleOpenAction(inv, "dev_reject")}>
-                            Reject
-                          </Button>
-                        </>
-                      ) : (
-                        <Button
-                          size="sm"
-                          onClick={() => handleOpenAction(inv, "inv_approve")}
-                          className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 rounded-full font-semibold"
-                        >
-                          <CheckCircle className="w-3.5 h-3.5" /> Approve for Payment
-                        </Button>
-                      )}
-                    </div>
-                  </CardHeader>
-                </Card>
-              ))
+                        )}
+                      </div>
+                    </CardHeader>
+                  </Card>
+                ))}
+                <PaginationControls {...invPage.controls} />
+              </>
             )}
           </TabsContent>
 
           {/* Emergency Tab */}
           <TabsContent value="emergency" className="space-y-3">
             {loading ? (
-              <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
+              <div className="space-y-3 p-4">
+                {[...Array(4)].map((_, i) => (
+                  <Skeleton key={i} className="h-20 w-full rounded-xl" />
+                ))}
+              </div>
             ) : (data?.emergencyProcurements || []).length === 0 ? (
               <Card className="p-8 text-center border-slate-100">
                 <div className="flex flex-col items-center justify-center py-6">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="w-12 h-12 mb-3 text-slate-300"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                    />
+                  </svg>
                   <p className="text-base font-semibold text-slate-500">No data found</p>
-                  <p className="text-sm text-slate-400 mt-1">No emergency procurements awaiting EVP authorization.</p>
+                  <p className="text-sm text-slate-400 mt-1">
+                    No emergency procurements awaiting EVP authorization.
+                  </p>
                 </div>
               </Card>
             ) : (
-              data?.emergencyProcurements?.map((ep: any) => (
-                <Card key={ep.id} className="border border-slate-200 dark:border-slate-800">
-                  <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono font-bold whitespace-nowrap">{ep.emergency_number}</span>
-                        <Badge variant="outline" className="text-amber-700 border-amber-400">
-                          {ep.is_post_facto ? "Post-Facto Ratification" : "Emergency Request"}
-                        </Badge>
+              <>
+                {epPage.pageItems.map((ep: any) => (
+                  <Card key={ep.id} className="border border-slate-200 dark:border-slate-800">
+                    <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono font-bold whitespace-nowrap">
+                            {ep.emergency_number}
+                          </span>
+                          <Badge variant="outline" className="text-amber-700 border-amber-400">
+                            {ep.is_post_facto ? "Post-Facto Ratification" : "Emergency Request"}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Dept: {ep.departments?.name || "Central"} • Estimated Cost: ₹
+                          {Number(ep.estimated_cost).toLocaleString("en-IN")}
+                        </p>
                       </div>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Dept: {ep.departments?.name || "Central"} • Estimated Cost: ₹
-                        {Number(ep.estimated_cost).toLocaleString("en-IN")}
+                      <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 my-1">
+                        <Button
+                          size="sm"
+                          onClick={() => handleOpenAction(ep, "ep_approve")}
+                          className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 rounded-full font-semibold"
+                        >
+                          <CheckCircle className="w-3.5 h-3.5" /> Authorize
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleOpenAction(ep, "ep_reject")}
+                          className="gap-1"
+                        >
+                          <XCircle className="w-3.5 h-3.5" /> Reject
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-2 text-xs space-y-1">
+                      <p className="text-slate-600 dark:text-slate-300">
+                        <span className="font-medium">Description: </span>
+                        {ep.description}
                       </p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 my-1">
-                      <Button
-                        size="sm"
-                        onClick={() => handleOpenAction(ep, "ep_approve")}
-                        className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 rounded-full font-semibold"
-                      >
-                        <CheckCircle className="w-3.5 h-3.5" /> Authorize
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleOpenAction(ep, "ep_reject")}
-                        className="gap-1"
-                      >
-                        <XCircle className="w-3.5 h-3.5" /> Reject
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-4 pt-2 text-xs space-y-1">
-                    <p className="text-slate-600 dark:text-slate-300">
-                      <span className="font-medium">Description: </span>
-                      {ep.description}
-                    </p>
-                    <p className="text-amber-800 dark:text-amber-300">
-                      <span className="font-medium">Reason Standard Process Failed: </span>
-                      {ep.reason_standard_process_failed}
-                    </p>
-                  </CardContent>
-                </Card>
-              ))
+                      <p className="text-amber-800 dark:text-amber-300">
+                        <span className="font-medium">Reason Standard Process Failed: </span>
+                        {ep.reason_standard_process_failed}
+                      </p>
+                    </CardContent>
+                  </Card>
+                ))}
+                <PaginationControls {...epPage.controls} />
+              </>
             )}
           </TabsContent>
 
           {/* Rate Contracts Tab (SOP Section VI: approved by the EVP, from 3+ quotations) */}
           <TabsContent value="rateContracts" className="space-y-3">
             {loading ? (
-              <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
+              <div className="space-y-3 p-4">
+                {[...Array(4)].map((_, i) => (
+                  <Skeleton key={i} className="h-20 w-full rounded-xl" />
+                ))}
+              </div>
             ) : (data?.rateContracts || []).length === 0 ? (
               <Card className="p-8 text-center border-slate-100">
                 <div className="flex flex-col items-center justify-center py-6">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="w-12 h-12 mb-3 text-slate-300"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                    />
+                  </svg>
                   <p className="text-base font-semibold text-slate-500">No data found</p>
-                  <p className="text-sm text-slate-400 mt-1">No rate contracts awaiting EVP approval.</p>
+                  <p className="text-sm text-slate-400 mt-1">
+                    No rate contracts awaiting EVP approval.
+                  </p>
                 </div>
               </Card>
             ) : (
-              data?.rateContracts?.map((rc: any) => (
-                <Card key={rc.id} className="border border-slate-200 dark:border-slate-800">
-                  <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono font-bold whitespace-nowrap">
-                          {rc.contract_number}
-                        </span>
-                        <Badge variant="outline" className="text-violet-700 border-violet-400">
-                          {rateCategoryLabel(rc.category)}
-                        </Badge>
-                        {rc.rfqs?.rfq_number && (
-                          <Badge variant="secondary">From {rc.rfqs.rfq_number}</Badge>
-                        )}
-                      </div>
-                      <p className="text-xs text-slate-500 mt-1">
-                        {rc.title} • Vendor: {rc.vendors?.name} • Valid {rc.valid_from} to{" "}
-                        {rc.valid_to}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 my-1">
-                      <Button
-                        size="sm"
-                        onClick={() => handleOpenAction(rc, "rc_approve")}
-                        className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 rounded-full font-semibold"
-                      >
-                        <CheckCircle className="w-3.5 h-3.5" /> Approve
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleOpenAction(rc, "rc_reject")}
-                        className="gap-1"
-                      >
-                        <XCircle className="w-3.5 h-3.5" /> Reject
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-4 pt-2 text-xs space-y-2">
-                    <div className="flex flex-wrap gap-x-4 gap-y-1">
-                      {(rc.approved_rates_json || []).map((r: any, i: number) => (
-                        <span key={i}>
-                          {r.description}:{" "}
-                          <span className="font-mono font-semibold">
-                            ₹{Number(r.rate).toLocaleString("en-IN")}
+              <>
+                {rcPage.pageItems.map((rc: any) => (
+                  <Card key={rc.id} className="border border-slate-200 dark:border-slate-800">
+                    <CardHeader className="p-4 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono font-bold whitespace-nowrap">
+                            {rc.contract_number}
                           </span>
-                          /{r.unit}
-                          {rc.vendors?.name && (
-                            <span className="text-slate-600 dark:text-slate-400 font-normal ml-1">
-                              ({rc.vendors.name})
-                            </span>
+                          <Badge variant="outline" className="text-violet-700 border-violet-400">
+                            {rateCategoryLabel(rc.category)}
+                          </Badge>
+                          {rc.rfqs?.rfq_number && (
+                            <Badge variant="secondary">From {rc.rfqs.rfq_number}</Badge>
                           )}
-                        </span>
-                      ))}
-                    </div>
-                    {rc.quotes?.length ? (
-                      <p className="text-slate-600 dark:text-slate-300">
-                        <span className="font-medium">
-                          Quotes (sum of unit rates, used only to rank):{" "}
-                        </span>
-                        {rc.quotes
-                          .map(
-                            (q: any, i: number) =>
-                              `${q.vendor_name} ₹${Number(q.total).toLocaleString("en-IN")}${i === 0 ? " (lowest)" : ""}`,
-                          )
-                          .join(" · ")}
-                      </p>
-                    ) : (
-                      <p className="text-amber-700 dark:text-amber-300">
-                        Registered before the 3-quotation rule: no quotes on record.
-                      </p>
-                    )}
-                    {rc.selection_note && (
-                      <p className="text-amber-800 dark:text-amber-300">
-                        <span className="font-medium">Why not the lowest quote: </span>
-                        {rc.selection_note}
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-              ))
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1">
+                          {rc.title} • Vendor: {rc.vendors?.name} • Valid {rc.valid_from} to{" "}
+                          {rc.valid_to}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 my-1">
+                        <Button
+                          size="sm"
+                          onClick={() => handleOpenAction(rc, "rc_approve")}
+                          className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 rounded-full font-semibold"
+                        >
+                          <CheckCircle className="w-3.5 h-3.5" /> Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleOpenAction(rc, "rc_reject")}
+                          className="gap-1"
+                        >
+                          <XCircle className="w-3.5 h-3.5" /> Reject
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-2 text-xs space-y-2">
+                      <div className="flex flex-wrap gap-x-4 gap-y-1">
+                        {(rc.approved_rates_json || []).map((r: any, i: number) => (
+                          <span key={i}>
+                            {r.description}:{" "}
+                            <span className="font-mono font-semibold">
+                              ₹{Number(r.rate).toLocaleString("en-IN")}
+                            </span>
+                            /{r.unit}
+                            {rc.vendors?.name && (
+                              <span className="text-slate-600 dark:text-slate-400 font-normal ml-1">
+                                ({rc.vendors.name})
+                              </span>
+                            )}
+                          </span>
+                        ))}
+                      </div>
+                      {rc.quotes?.length ? (
+                        <p className="text-slate-600 dark:text-slate-300">
+                          <span className="font-medium">
+                            Quotes (sum of unit rates, used only to rank):{" "}
+                          </span>
+                          {rc.quotes
+                            .map(
+                              (q: any, i: number) =>
+                                `${q.vendor_name} ₹${Number(q.total).toLocaleString("en-IN")}${i === 0 ? " (lowest)" : ""}`,
+                            )
+                            .join(" · ")}
+                        </p>
+                      ) : (
+                        <p className="text-amber-700 dark:text-amber-300">
+                          Registered before the 3-quotation rule: no quotes on record.
+                        </p>
+                      )}
+                      {rc.selection_note && (
+                        <p className="text-amber-800 dark:text-amber-300">
+                          <span className="font-medium">Why not the lowest quote: </span>
+                          {rc.selection_note}
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+                <PaginationControls {...rcPage.controls} />
+              </>
             )}
           </TabsContent>
 
@@ -951,14 +1163,14 @@ export default function MyApprovals() {
                 size="sm"
                 onClick={() => setHistoryTypeFilter("all")}
                 className="rounded-full text-xs h-8 gap-1.5"
-
               >
                 All History
                 <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
-                  {((historyData?.prHistory || []).length +
+                  {(historyData?.prHistory || []).length +
                     (historyData?.csHistory || []).length +
                     (historyData?.poHistory || []).length +
-                    (historyData?.invHistory || []).length)}
+                    (historyData?.invHistory || []).length +
+                    (historyData?.rcHistory || []).length}
                 </Badge>
               </Button>
               <Button
@@ -966,7 +1178,6 @@ export default function MyApprovals() {
                 size="sm"
                 onClick={() => setHistoryTypeFilter("prs")}
                 className="rounded-full text-xs h-8 gap-1.5 text-blue-600 dark:text-blue-400"
-
               >
                 Requisitions (PR)
                 <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
@@ -978,7 +1189,6 @@ export default function MyApprovals() {
                 size="sm"
                 onClick={() => setHistoryTypeFilter("css")}
                 className="rounded-full text-xs h-8 gap-1.5 text-emerald-600 dark:text-emerald-400"
-
               >
                 Comparative Statements
                 <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
@@ -990,7 +1200,6 @@ export default function MyApprovals() {
                 size="sm"
                 onClick={() => setHistoryTypeFilter("pos")}
                 className="rounded-full text-xs h-8 gap-1.5 text-indigo-600 dark:text-indigo-400"
-
               >
                 Purchase Orders
                 <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
@@ -1002,7 +1211,6 @@ export default function MyApprovals() {
                 size="sm"
                 onClick={() => setHistoryTypeFilter("invoices")}
                 className="rounded-full text-xs h-8 gap-1.5 text-teal-600 dark:text-teal-400"
-
               >
                 Invoices
                 <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
@@ -1014,7 +1222,6 @@ export default function MyApprovals() {
                 size="sm"
                 onClick={() => setHistoryTypeFilter("rateContracts")}
                 className="rounded-full text-xs h-8 gap-1.5 text-violet-600 dark:text-violet-400"
-
               >
                 Rate Contracts
                 <Badge variant="secondary" className="px-1.5 py-0 text-[10px] ml-1">
@@ -1025,37 +1232,39 @@ export default function MyApprovals() {
 
             {/* Content List */}
             {(() => {
-              const prs =
-                historyTypeFilter === "all" || historyTypeFilter === "prs"
-                  ? historyData?.prHistory || []
-                  : [];
-              const css =
-                historyTypeFilter === "all" || historyTypeFilter === "css"
-                  ? historyData?.csHistory || []
-                  : [];
-              const pos =
-                historyTypeFilter === "all" || historyTypeFilter === "pos"
-                  ? historyData?.poHistory || []
-                  : [];
-              const invs =
-                historyTypeFilter === "all" || historyTypeFilter === "invoices"
-                  ? historyData?.invHistory || []
-                  : [];
-              const rcs =
-                historyTypeFilter === "all" || historyTypeFilter === "rateContracts"
-                  ? historyData?.rcHistory || []
-                  : [];
+              // historyPage keeps type order (PRs, CS, POs, invoices, RCs); split the page back by type.
+              const ofKind = (k: string) =>
+                historyPage.pageItems.filter((i) => i.kind === k).map((i) => i.row);
+              const prs = ofKind("pr");
+              const css = ofKind("cs");
+              const pos = ofKind("po");
+              const invs = ofKind("inv");
+              const rcs = ofKind("rc");
 
-              const totalItems = prs.length + css.length + pos.length + invs.length + rcs.length;
-              if (totalItems === 0) {
+              if (historyPage.controls.totalItems === 0) {
                 return (
                   <Card className="p-8 text-center border-slate-100">
-                <div className="flex flex-col items-center justify-center py-6">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
-                  <p className="text-base font-semibold text-slate-500">No data found</p>
-                  <p className="text-sm text-slate-400 mt-1">No approval history found for your role or department yet.</p>
-                </div>
-              </Card>
+                    <div className="flex flex-col items-center justify-center py-6">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="w-12 h-12 mb-3 text-slate-300"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                        />
+                      </svg>
+                      <p className="text-base font-semibold text-slate-500">No data found</p>
+                      <p className="text-sm text-slate-400 mt-1">
+                        No approval history found for your role or department yet.
+                      </p>
+                    </div>
+                  </Card>
                 );
               }
 
@@ -1076,7 +1285,9 @@ export default function MyApprovals() {
                               <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
                                 PR
                               </Badge>
-                              <span className="font-mono font-bold whitespace-nowrap">{pr.pr_number}</span>
+                              <span className="font-mono font-bold whitespace-nowrap">
+                                {pr.pr_number}
+                              </span>
                               <Badge variant="outline">{categoryLabel(pr.category)}</Badge>
                               <Badge
                                 variant={
@@ -1128,7 +1339,9 @@ export default function MyApprovals() {
                               <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
                                 CS
                               </Badge>
-                              <span className="font-mono font-bold whitespace-nowrap">{cs.cs_number}</span>
+                              <span className="font-mono font-bold whitespace-nowrap">
+                                {cs.cs_number}
+                              </span>
                               <Badge
                                 variant={
                                   isApproved ? "default" : isRejected ? "destructive" : "secondary"
@@ -1171,7 +1384,9 @@ export default function MyApprovals() {
                               <Badge className="bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300">
                                 PO
                               </Badge>
-                              <span className="font-mono font-bold whitespace-nowrap">{po.po_number}</span>
+                              <span className="font-mono font-bold whitespace-nowrap">
+                                {po.po_number}
+                              </span>
                               <Badge variant="outline">{po.vendors?.name || "Vendor"}</Badge>
                               <Badge
                                 variant={po.status === "issued" ? "default" : "secondary"}
@@ -1213,7 +1428,9 @@ export default function MyApprovals() {
                               <Badge className="bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300">
                                 Invoice
                               </Badge>
-                              <span className="font-mono font-bold whitespace-nowrap">{inv.invoice_number}</span>
+                              <span className="font-mono font-bold whitespace-nowrap">
+                                {inv.invoice_number}
+                              </span>
                               <Badge variant="outline">{inv.vendors?.name || "Vendor"}</Badge>
                               <Badge
                                 variant={inv.match_status === "paid" ? "default" : "secondary"}
@@ -1263,7 +1480,11 @@ export default function MyApprovals() {
                                 }
                                 className={isApproved ? "bg-emerald-600 text-white" : ""}
                               >
-                                {isApproved ? "Approved" : isRejected ? "Rejected" : statusLabel(rc.status)}
+                                {isApproved
+                                  ? "Approved"
+                                  : isRejected
+                                    ? "Rejected"
+                                    : statusLabel(rc.status)}
                               </Badge>
                               {rc.rfqs?.rfq_number && (
                                 <Badge variant="secondary">From {rc.rfqs.rfq_number}</Badge>
@@ -1303,6 +1524,7 @@ export default function MyApprovals() {
                       </Card>
                     );
                   })}
+                  <PaginationControls {...historyPage.controls} />
                 </div>
               );
             })()}
@@ -1329,7 +1551,9 @@ export default function MyApprovals() {
               <Label className="flex items-center justify-between">
                 <span>Remarks / Observations</span>
                 {dialogType.includes("reject") && (
-                  <span className="text-xs text-red-500 font-semibold">(Mandatory for Rejection)</span>
+                  <span className="text-xs text-red-500 font-semibold">
+                    (Mandatory for Rejection)
+                  </span>
                 )}
               </Label>
               <Textarea
@@ -1372,7 +1596,6 @@ export default function MyApprovals() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-
       </div>
     </Layout>
   );
