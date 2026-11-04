@@ -274,7 +274,11 @@ export default function VendorRatings() {
           <div className="flex items-center gap-2">
             <Button
               onClick={() => setRateOpen(true)}
-              className="gap-2 bg-[#0B1437] hover:bg-[#111f54] text-white shadow-sm rounded-full"
+              className={
+                auth.isReadOnly
+                  ? "hidden"
+                  : "gap-2 bg-[#0B1437] hover:bg-[#111f54] text-white shadow-sm rounded-full"
+              }
             >
               <PlusCircle className="w-4 h-4" /> Evaluate Vendor
             </Button>
@@ -284,19 +288,41 @@ export default function VendorRatings() {
         {/* Ratings List */}
         <div className="space-y-4">
           {loading ? (
-            <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
+            <div className="space-y-3 p-4">
+              {[...Array(4)].map((_, i) => (
+                <Skeleton key={i} className="h-20 w-full rounded-xl" />
+              ))}
+            </div>
           ) : ratings.length === 0 ? (
             <Card className="border-slate-100 shadow-none">
               <div className="flex flex-col items-center justify-center py-14 text-center px-8">
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-14 h-14 mb-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5L12 3l9 7.5" /></svg>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="w-14 h-14 mb-4 text-slate-300"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5L12 3l9 7.5"
+                  />
+                </svg>
                 <p className="text-base font-semibold text-slate-500">No data found</p>
-                <p className="text-sm text-slate-400 mt-1">No vendor evaluations recorded yet. Evaluate a vendor using the 6-pillar form.</p>
+                <p className="text-sm text-slate-400 mt-1">
+                  No vendor evaluations recorded yet. Evaluate a vendor using the 6-pillar form.
+                </p>
               </div>
             </Card>
           ) : (
             (() => {
               // Group ratings by vendor ID preserving chronological sorting
-              const vendorGroupsMap = new Map<string, { vendor: any; latest: any; history: any[] }>();
+              const vendorGroupsMap = new Map<
+                string,
+                { vendor: any; latest: any; history: any[] }
+              >();
 
               ratings.forEach((r) => {
                 const vId = r.vendor_id || r.vendors?.id;
@@ -323,14 +349,28 @@ export default function VendorRatings() {
               const getStatusBadge = (status: string) => {
                 switch (status) {
                   case "empanelled":
-                    return <Badge className="bg-emerald-600/90 text-white hover:bg-emerald-600">Empanelled</Badge>;
+                    return (
+                      <Badge className="bg-emerald-600/90 text-white hover:bg-emerald-600">
+                        Empanelled
+                      </Badge>
+                    );
                   case "debarred":
                   case "blacklisted":
-                    return <Badge className="bg-red-600 text-white hover:bg-red-600">Debarred / Blacklisted</Badge>;
+                    return (
+                      <Badge className="bg-red-600 text-white hover:bg-red-600">
+                        Debarred / Blacklisted
+                      </Badge>
+                    );
                   case "suspended":
-                    return <Badge className="bg-orange-600 text-white hover:bg-orange-600">Suspended</Badge>;
+                    return (
+                      <Badge className="bg-orange-600 text-white hover:bg-orange-600">
+                        Suspended
+                      </Badge>
+                    );
                   case "applied":
-                    return <Badge className="bg-blue-600 text-white hover:bg-blue-600">Applied</Badge>;
+                    return (
+                      <Badge className="bg-blue-600 text-white hover:bg-blue-600">Applied</Badge>
+                    );
                   case "rejected":
                     return <Badge variant="destructive">Rejected</Badge>;
                   default:
@@ -361,9 +401,13 @@ export default function VendorRatings() {
                                   Period: {r.review_period}
                                 </Badge>
                                 {hasHistory && (
-                                  <Badge variant="secondary" className="text-[11px] font-normal gap-1">
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-[11px] font-normal gap-1"
+                                  >
                                     <History className="w-3 h-3" />
-                                    {history.length} earlier {history.length === 1 ? "evaluation" : "evaluations"}
+                                    {history.length} earlier{" "}
+                                    {history.length === 1 ? "evaluation" : "evaluations"}
                                   </Badge>
                                 )}
                               </div>
@@ -400,7 +444,8 @@ export default function VendorRatings() {
                                     Debarment Recommendation Awaiting EVP Countersignature
                                   </p>
                                   <p className="text-amber-800 dark:text-amber-300">
-                                    The recorded score is below 40. The vendor will not be debarred until the Executive Vice President (EVP) countersigns.
+                                    The recorded score is below 40. The vendor will not be debarred
+                                    until the Executive Vice President (EVP) countersigns.
                                   </p>
                                 </div>
                               </div>
@@ -418,7 +463,10 @@ export default function VendorRatings() {
                                   Authorize &amp; Countersign Debarment
                                 </Button>
                               ) : (
-                                <Badge variant="outline" className="border-amber-400 bg-amber-100/50 text-amber-900 dark:text-amber-200 shrink-0 self-start sm:self-center">
+                                <Badge
+                                  variant="outline"
+                                  className="border-amber-400 bg-amber-100/50 text-amber-900 dark:text-amber-200 shrink-0 self-start sm:self-center"
+                                >
                                   Pending EVP Review
                                 </Badge>
                               )}
@@ -765,17 +813,24 @@ export default function VendorRatings() {
                         Debarment Requires EVP Countersignature
                       </span>
                       <p className="text-red-800 dark:text-red-300">
-                        Score <strong>{liveScore} &lt; 40</strong> will debar this vendor. Debarment must be authorized and countersigned by the Executive Vice President (EVP).
+                        Score <strong>{liveScore} &lt; 40</strong> will debar this vendor. Debarment
+                        must be authorized and countersigned by the Executive Vice President (EVP).
                       </p>
                       {!isEvpOrAdmin ? (
                         <div className="p-2 bg-red-100/70 dark:bg-red-900/40 rounded border border-red-300 dark:border-red-800 text-[11px] font-medium text-red-900 dark:text-red-200">
-                          🔒 <strong>Access Locked:</strong> You are currently signed in as <u>{auth.user?.email || "Procurement Officer"}</u>. A procurement officer cannot finalize debarment unilaterally. Please sign in as <strong>evp@institution.edu</strong> to countersign and enforce this debarment order.
+                          🔒 <strong>Access Locked:</strong> You are currently signed in as{" "}
+                          <u>{auth.user?.email || "Procurement Officer"}</u>. A procurement officer
+                          cannot finalize debarment unilaterally. Please sign in as{" "}
+                          <strong>evp@institution.edu</strong> to countersign and enforce this
+                          debarment order.
                         </div>
                       ) : (
                         <div className="p-2 bg-emerald-100/70 dark:bg-emerald-950/40 rounded border border-emerald-300 dark:border-emerald-800 text-[11px] font-medium text-emerald-900 dark:text-emerald-200 flex items-center gap-1.5">
                           <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
                           <span>
-                            <strong>Executive Authority Verified:</strong> Signed in as {auth.user?.email}. Enter the formal authorization memo or order reference below to countersign.
+                            <strong>Executive Authority Verified:</strong> Signed in as{" "}
+                            {auth.user?.email}. Enter the formal authorization memo or order
+                            reference below to countersign.
                           </span>
                         </div>
                       )}
@@ -856,9 +911,7 @@ export default function VendorRatings() {
                 <ShieldAlert className="w-5 h-5 text-red-600" />
                 Authorize &amp; Countersign Debarment
               </DialogTitle>
-              <DialogDescription>
-                Countersign to confirm this vendor's debarment.
-              </DialogDescription>
+              <DialogDescription>Countersign to confirm this vendor's debarment.</DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 py-2">
@@ -892,7 +945,10 @@ export default function VendorRatings() {
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="evp-ref" className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                <Label
+                  htmlFor="evp-ref"
+                  className="text-xs font-semibold text-slate-800 dark:text-slate-200"
+                >
                   EVP Authorization Reference / Order Memo *
                 </Label>
                 <Input
@@ -903,13 +959,19 @@ export default function VendorRatings() {
                   className="font-mono text-sm"
                 />
                 <p className="text-[11px] text-slate-500">
-                  Entering an executive reference will permanently transition the vendor to <strong className="text-red-600">Debarred</strong> status in Vendor Master and add them to the institutional procurement blacklist.
+                  Entering an executive reference will permanently transition the vendor to{" "}
+                  <strong className="text-red-600">Debarred</strong> status in Vendor Master and add
+                  them to the institutional procurement blacklist.
                 </p>
               </div>
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setCountersignOpen(false)} disabled={countersigning}>
+              <Button
+                variant="outline"
+                onClick={() => setCountersignOpen(false)}
+                disabled={countersigning}
+              >
                 Cancel
               </Button>
               <Button

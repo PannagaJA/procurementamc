@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { canonicalRole, canReadAll, isReadOnlyUser } from "@/lib/roleAliases";
 
 export type RoleEntry = { role: string; department_id?: string | null };
 
@@ -11,12 +12,18 @@ export type AuthContextValue = {
   departmentId?: string | null;
   loading: boolean;
   hasRole: (role: string) => boolean;
+  /** Admin, Auditor or Corporate Office: sees the admin screens. */
+  canViewAdmin: boolean;
+  /** Auditor / Corporate Office only: hide every write control. */
+  isReadOnly: boolean;
   refresh: () => Promise<void>;
 };
 
 export function computePrimaryRole(roles: RoleEntry[]): string | null {
   return (
     roles.find((r) => r.role === "admin")?.role ||
+    roles.find((r) => r.role === "chairman")?.role ||
+    roles.find((r) => r.role === "vice_chairman")?.role ||
     roles.find((r) => r.role === "evp")?.role ||
     roles.find((r) => r.role === "director_admin_finance")?.role ||
     roles.find((r) => r.role === "purchase_committee")?.role ||
@@ -27,6 +34,8 @@ export function computePrimaryRole(roles: RoleEntry[]): string | null {
     roles.find((r) => r.role === "stores")?.role ||
     roles.find((r) => r.role === "finance")?.role ||
     roles.find((r) => r.role === "librarian")?.role ||
+    roles.find((r) => r.role === "auditor")?.role ||
+    roles.find((r) => r.role === "corporate_office")?.role ||
     roles.find((r) => r.role === "viewer")?.role ||
     roles.find((r) => r.role === "faculty")?.role ||
     roles.find((r) => r.role === "user" || r.role === "staff")?.role ||
@@ -50,6 +59,8 @@ export function getRoleDefaultPath(role: string | null): string {
       return "/procurement/invoices";
     case "purchase_committee":
     case "evp":
+    case "chairman":
+    case "vice_chairman":
     case "director_admin_finance":
       return "/procurement/approvals";
     case "librarian":
@@ -70,6 +81,8 @@ const PROCUREMENT_DASHBOARD_ROLES = [
   "finance",
   "stores",
   "evp",
+  "chairman",
+  "vice_chairman",
   "director_admin_finance",
   "purchase_committee",
 ];
@@ -80,7 +93,9 @@ const PROCUREMENT_DASHBOARD_ROLES = [
  * sidebar item. Login still lands on getRoleDefaultPath().
  */
 export function getRoleDashboardPath(role: string | null): string {
-  return role && PROCUREMENT_DASHBOARD_ROLES.includes(role) ? "/procurement" : getRoleDefaultPath(role);
+  return role && PROCUREMENT_DASHBOARD_ROLES.includes(role)
+    ? "/procurement"
+    : getRoleDefaultPath(role);
 }
 
 const getCachedRoles = (): RoleEntry[] => {
@@ -128,13 +143,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           localStorage.removeItem("amc_roles");
           localStorage.removeItem("amc_user_id");
-        } catch (e) { }
+        } catch (e) {}
         return;
       }
 
       try {
         localStorage.setItem("amc_user_id", authUser.id);
-      } catch (e) { }
+      } catch (e) {}
 
       const { data: roleData, error } = await supabase
         .from("user_roles")
@@ -148,7 +163,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setRoles(fetchedRoles);
         try {
           localStorage.setItem("amc_roles", JSON.stringify(fetchedRoles));
-        } catch (e) { }
+        } catch (e) {}
       }
     } catch (err) {
       console.error("AuthProvider load failed", err);
@@ -171,7 +186,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           localStorage.removeItem("amc_roles");
           localStorage.removeItem("amc_user_id");
-        } catch (e) { }
+        } catch (e) {}
         setLoading(false);
       } else {
         load();
@@ -180,13 +195,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, []);
 
+  // Aliases: principle → principal, chairman / vice_chairman → evp.
   const hasRole = (role: string) => {
     const target = role === "principle" ? "principal" : role;
-    return roles.some((r) => {
-      const canonical = r.role === "principle" ? "principal" : r.role;
-      return canonical === target;
-    });
+    return roles.some((r) => r.role === role || canonicalRole(r.role) === target);
   };
+  const held = roles.map((r) => r.role);
+  const canViewAdmin = canReadAll(held);
+  const isReadOnly = isReadOnlyUser(held);
 
   const primaryRole = computePrimaryRole(roles);
 
@@ -198,7 +214,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <AuthContext.Provider
-      value={{ userId, user, roles, primaryRole, departmentId, loading, hasRole, refresh: load }}
+      value={{
+        userId,
+        user,
+        roles,
+        primaryRole,
+        departmentId,
+        loading,
+        hasRole,
+        canViewAdmin,
+        isReadOnly,
+        refresh: load,
+      }}
     >
       {children}
     </AuthContext.Provider>

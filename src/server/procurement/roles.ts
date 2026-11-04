@@ -1,10 +1,8 @@
 /** Server-side role resolution. Never trust a client-sent role. */
 import { ForbiddenError } from "./errors";
+import { canonicalRole } from "@/lib/roleAliases";
 
-/** `principle` is a deprecated alias of `principal` (DECISIONS.md Q5). */
-export function canonicalRole(role: string): string {
-  return role === "principle" ? "principal" : role;
-}
+export { canonicalRole, canReadAll } from "@/lib/roleAliases";
 
 export async function getCallerRoles(
   db: { from: (t: string) => any },

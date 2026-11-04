@@ -91,13 +91,16 @@ export const createPr = createServerFn({ method: "POST" })
     const { normalizeCategory } = await import("@/lib/procurement/authorityMatrix");
     const { ProcurementRuleError } = await import("@/server/procurement/errors");
     const roles = await getCallerRoles(db, context.userId);
+    const { isReadOnlyUser } = await import("@/lib/roleAliases");
+    if (isReadOnlyUser(roles.map((r) => r.role)))
+      return { ok: false as const, error: "Your role has read-only access." };
 
     const linesRaw = data.line_items ?? [];
     const computedTotal = linesRaw.reduce((sum, item) => {
       const net = Math.max(0, Number(item.qty_required || 0) - Number(item.qty_in_stock || 0));
       return sum + net * Number(item.est_unit_price || 0);
     }, 0);
-    const value = computedTotal > 0 ? computedTotal : (Number(data.estimated_value) || 0);
+    const value = computedTotal > 0 ? computedTotal : Number(data.estimated_value) || 0;
     const canonicalCat = normalizeCategory(data.category);
 
     if (data.is_emergency) {

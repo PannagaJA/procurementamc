@@ -7,13 +7,18 @@ import {
 } from "./smtp";
 
 /** Fetch all user emails belonging to a specific role (and optional department) */
-export async function getEmailsForRole(role: string, departmentId?: string | null): Promise<string[]> {
+export async function getEmailsForRole(
+  role: string,
+  departmentId?: string | null,
+): Promise<string[]> {
   try {
     let query = (supabaseAdmin as any).from("user_roles").select("user_id, department_id, role");
     if (role === "admin") {
       query = query.eq("role", "admin");
     } else {
-      query = query.in("role", [role, "admin"]);
+      // Chairman and Vice Chairman receive the EVP's mail (DECISIONS.md Q18).
+      const aliases = role === "evp" ? ["chairman", "vice_chairman"] : [];
+      query = query.in("role", [role, ...aliases, "admin"]);
     }
 
     const { data: rows, error } = await query;

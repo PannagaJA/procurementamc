@@ -268,7 +268,9 @@ export const getMyApprovalHistory = createServerFn({ method: "GET" })
     const { getCallerRoles } = await import("@/server/procurement/roles");
     const roles = await getCallerRoles(db, context.userId);
     const held = roles.map((r) => r.role);
-    const isAdmin = held.includes("admin");
+    // Auditor / Corporate Office see the full history, like admin (no pending queue).
+    const { canReadAll } = await import("@/lib/roleAliases");
+    const isAdmin = canReadAll(held);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const queryDb = (supabaseAdmin || db) as any;

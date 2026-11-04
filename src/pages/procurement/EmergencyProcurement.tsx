@@ -64,7 +64,7 @@ import {
 
 export default function EmergencyProcurement() {
   const { toast } = useToast();
-  const { hasRole } = useAuth();
+  const { hasRole, isReadOnly } = useAuth();
   const canAuthorize = hasRole("evp") || hasRole("admin");
   const canOrder = hasRole("procurement_officer") || hasRole("admin");
   const navigate = useNavigate();
@@ -356,7 +356,6 @@ export default function EmergencyProcurement() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
           <div>
-
             <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
               Emergency Procurement Register
             </h1>
@@ -375,7 +374,11 @@ export default function EmergencyProcurement() {
             </Button>
             <Button
               onClick={() => setRequestOpen(true)}
-              className="gap-2 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold shadow-xs transition-all"
+              className={
+                isReadOnly
+                  ? "hidden"
+                  : "gap-2 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold shadow-xs transition-all"
+              }
             >
               <PlusCircle className="w-4 h-4" /> Request Emergency Procurement
             </Button>
@@ -427,7 +430,8 @@ export default function EmergencyProcurement() {
                 <div className="flex items-center gap-2 text-red-900 dark:text-red-200">
                   <ShieldAlert className="w-5 h-5 text-red-600 shrink-0" />
                   <CardTitle className="text-base font-bold">
-                    Repeat-Pattern Anomaly Flagged ({anomalies.length} finding{anomalies.length > 1 ? "s" : ""})
+                    Repeat-Pattern Anomaly Flagged ({anomalies.length} finding
+                    {anomalies.length > 1 ? "s" : ""})
                   </CardTitle>
                 </div>
                 <Badge variant="destructive" className="text-xs">
@@ -435,7 +439,8 @@ export default function EmergencyProcurement() {
                 </Badge>
               </div>
               <CardDescription className="text-xs text-red-800/90 dark:text-red-300">
-                Mandatory audit review: departments repeatedly utilizing emergency procurement for identical routine items within 90 days.
+                Mandatory audit review: departments repeatedly utilizing emergency procurement for
+                identical routine items within 90 days.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3 pt-1">
@@ -470,13 +475,32 @@ export default function EmergencyProcurement() {
         {/* Emergency Procurements List */}
         <div className="space-y-4">
           {loading ? (
-            <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
+            <div className="space-y-3 p-4">
+              {[...Array(4)].map((_, i) => (
+                <Skeleton key={i} className="h-20 w-full rounded-xl" />
+              ))}
+            </div>
           ) : (data?.emergencyProcurements || []).length === 0 ? (
             <Card className="border-slate-100 shadow-none">
               <div className="flex flex-col items-center justify-center py-14 text-center px-8">
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-14 h-14 mb-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5L12 3l9 7.5" /></svg>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="w-14 h-14 mb-4 text-slate-300"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5L12 3l9 7.5"
+                  />
+                </svg>
                 <p className="text-base font-semibold text-slate-500">No data found</p>
-                <p className="text-sm text-slate-400 mt-1">No emergency procurements registered for this financial year.</p>
+                <p className="text-sm text-slate-400 mt-1">
+                  No emergency procurements registered for this financial year.
+                </p>
               </div>
             </Card>
           ) : (
@@ -601,7 +625,8 @@ export default function EmergencyProcurement() {
                             <div>
                               <span className="text-slate-500 block">Quotes Received</span>
                               <span className="font-semibold text-slate-800 dark:text-slate-200">
-                                {ep.quotations_obtained_count ?? 0} {Number(ep.quotations_obtained_count) === 1 ? "quote" : "quotes"}
+                                {ep.quotations_obtained_count ?? 0}{" "}
+                                {Number(ep.quotations_obtained_count) === 1 ? "quote" : "quotes"}
                               </span>
                             </div>
                             <div>
@@ -748,8 +773,8 @@ export default function EmergencyProcurement() {
                 <div className="p-2.5 bg-red-50 dark:bg-red-950/40 border border-red-300 rounded text-xs text-red-900 dark:text-red-200 flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
                   <span>
-                    HARD BLOCK: Cost ₹{Number(estimatedCost).toLocaleString("en-IN")} exceeds remaining
-                    annual cap ₹{remaining.toLocaleString("en-IN")}.
+                    HARD BLOCK: Cost ₹{Number(estimatedCost).toLocaleString("en-IN")} exceeds
+                    remaining annual cap ₹{remaining.toLocaleString("en-IN")}.
                   </span>
                 </div>
               )}
@@ -1060,10 +1085,12 @@ export default function EmergencyProcurement() {
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <FileSpreadsheet className="w-5 h-5 text-amber-600" /> Quarterly Emergency Register Audit Report
+                <FileSpreadsheet className="w-5 h-5 text-amber-600" /> Quarterly Emergency Register
+                Audit Report
               </DialogTitle>
               <DialogDescription>
-                Formal quarterly reporting to Director of Admin & Finance, Procurement Committee, and EVP.
+                Formal quarterly reporting to Director of Admin & Finance, Procurement Committee,
+                and EVP.
               </DialogDescription>
             </DialogHeader>
 
@@ -1076,7 +1103,9 @@ export default function EmergencyProcurement() {
                   </SelectTrigger>
                   <SelectContent>
                     {FISCAL_QUARTERS.map((q) => (
-                      <SelectItem key={q.name} value={q.name}>{q.label}</SelectItem>
+                      <SelectItem key={q.name} value={q.name}>
+                        {q.label}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -1084,19 +1113,26 @@ export default function EmergencyProcurement() {
 
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold">Export Document Format</Label>
-                <Select value={auditExportFormat} onValueChange={(v: any) => setAuditExportFormat(v)}>
+                <Select
+                  value={auditExportFormat}
+                  onValueChange={(v: any) => setAuditExportFormat(v)}
+                >
                   <SelectTrigger className="text-xs">
                     <SelectValue placeholder="Select an option" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="pdf">Official PDF Audit Register (Signed Columns)</SelectItem>
+                    <SelectItem value="pdf">
+                      Official PDF Audit Register (Signed Columns)
+                    </SelectItem>
                     <SelectItem value="csv">Excel Spreadsheet (CSV Data)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="p-3 rounded-lg bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 text-xs space-y-1">
-                <span className="font-semibold text-amber-900 dark:text-amber-200">Statutory Governance Audit Inclusions:</span>
+                <span className="font-semibold text-amber-900 dark:text-amber-200">
+                  Statutory Governance Audit Inclusions:
+                </span>
                 <ul className="list-disc list-inside text-[11px] text-amber-800 dark:text-amber-300 space-y-0.5">
                   <li>Full 48-hour post-facto ratification verification register</li>
                   <li>Statutory ₹10,00,000 annual hard cap consumption ledger</li>
@@ -1107,9 +1143,15 @@ export default function EmergencyProcurement() {
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setAuditModalOpen(false)}>Cancel</Button>
-              <Button onClick={handleExportAudit} className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1.5 rounded-full font-bold">
-                <Download className="w-3.5 h-3.5" /> Download {auditExportFormat.toUpperCase()} Report
+              <Button variant="outline" onClick={() => setAuditModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleExportAudit}
+                className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1.5 rounded-full font-bold"
+              >
+                <Download className="w-3.5 h-3.5" /> Download {auditExportFormat.toUpperCase()}{" "}
+                Report
               </Button>
             </DialogFooter>
           </DialogContent>
