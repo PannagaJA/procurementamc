@@ -177,29 +177,16 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
 
   const containerClasses = asFooterBox
     ? cn(
-        "rounded-xl border border-border/60 bg-card p-3 sm:px-4 sm:py-3 mt-4",
+        "rounded-xl border border-border/60 bg-card p-3 sm:px-4 sm:py-3 mt-4 w-full max-w-full",
         className,
       )
-    : cn("w-full mt-4", className);
+    : cn("w-full max-w-full mt-4", className);
 
   return (
     <div className={containerClasses}>
-      <div className="flex flex-col md:flex-row items-center justify-between gap-4 w-full">
-        {/* Left: Items info */}
-        <div className="text-sm text-muted-foreground order-2 md:order-1 whitespace-nowrap">
-          {displayTotal > 0 ? (
-            <>
-              Showing <span className="font-semibold text-foreground">{startItem}</span> to{" "}
-              <span className="font-semibold text-foreground">{endItem}</span> of{" "}
-              <span className="font-semibold text-foreground">{displayTotal}</span> items
-            </>
-          ) : (
-            <span>No items</span>
-          )}
-        </div>
-
-        {/* Center: Dynamic Prev [pages] Next controls */}
-        <div className="flex items-center justify-center order-1 md:order-2">
+      <div className="flex flex-col xl:flex-row items-center justify-between gap-3 sm:gap-4 w-full">
+        {/* On tablet/mobile, page controls are centered on row 1; on desktop (xl+), in the center */}
+        <div className="flex items-center justify-center w-full xl:w-auto order-1 xl:order-2 overflow-x-auto max-w-full py-0.5">
           <Pagination>
             <PaginationContent className="gap-1 sm:gap-2">
               <PaginationItem>
@@ -229,31 +216,47 @@ export const PaginationControls: React.FC<PaginationControlsProps> = ({
           </Pagination>
         </div>
 
-        {/* Right: Items per page selector */}
-        {showPageSizeSelector && onPageSizeChange ? (
-          <div className="flex items-center gap-2 order-3 md:order-3">
-            <span className="text-sm text-muted-foreground whitespace-nowrap">
-              Items per page:
-            </span>
-            <Select
-              value={pageSize.toString()}
-              onValueChange={(value) => onPageSizeChange(parseInt(value))}
-            >
-              <SelectTrigger className="w-20 h-8">
-                <SelectValue placeholder="Select" />
-              </SelectTrigger>
-              <SelectContent>
-                {pageSizeOptions.map((size) => (
-                  <SelectItem key={size} value={size.toString()}>
-                    {size}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        {/* On tablet/mobile: Row 2 holds items info on left & items-per-page on right; on desktop (xl+), unwraps into columns */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 w-full xl:w-auto xl:contents order-2 xl:order-none">
+          {/* Items info */}
+          <div className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap order-2 sm:order-1 xl:order-1 text-center sm:text-left">
+            {displayTotal > 0 ? (
+              <>
+                Showing <span className="font-semibold text-foreground">{startItem}</span> to{" "}
+                <span className="font-semibold text-foreground">{endItem}</span> of{" "}
+                <span className="font-semibold text-foreground">{displayTotal}</span> items
+              </>
+            ) : (
+              <span>No items</span>
+            )}
           </div>
-        ) : (
-          <div className="hidden md:block w-24 order-3" />
-        )}
+
+          {/* Items per page selector */}
+          {showPageSizeSelector && onPageSizeChange ? (
+            <div className="flex items-center gap-2 order-1 sm:order-2 xl:order-3 shrink-0">
+              <span className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">
+                Items per page:
+              </span>
+              <Select
+                value={pageSize.toString()}
+                onValueChange={(value) => onPageSizeChange(parseInt(value))}
+              >
+                <SelectTrigger className="w-18 sm:w-20 h-8 text-xs sm:text-sm">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  {pageSizeOptions.map((size) => (
+                    <SelectItem key={size} value={size.toString()}>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <div className="hidden xl:block w-24 order-3" />
+          )}
+        </div>
       </div>
     </div>
   );

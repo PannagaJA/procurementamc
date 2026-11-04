@@ -270,16 +270,16 @@ const UserTickets = () => {
 
   // SLA color helper (matches admin dashboard fallback colors)
   const getSLAColor = (ticket: Ticket | null) => {
-    if (!ticket) return "bg-gray-200 text-gray-800";
+    if (!ticket) return "bg-slate-100 text-slate-800";
     switch (ticket.priority) {
       case "high":
-        return "bg-red-600 text-white";
+        return "bg-rose-100 text-rose-800 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800";
       case "medium":
-        return "bg-yellow-400 text-black";
+        return "bg-amber-100 text-amber-900 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800";
       case "low":
-        return "bg-green-600 text-white";
+        return "bg-emerald-100 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800";
       default:
-        return "bg-gray-200 text-gray-800";
+        return "bg-slate-100 text-slate-800 border border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700";
     }
   };
 
