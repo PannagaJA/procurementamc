@@ -35,6 +35,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Layout from "@/components/Layout";
+import { WhatsAppButtons } from "@/components/WhatsAppButtons";
 import { Copy, ExternalLink } from "lucide-react";
 import { publicAppOrigin } from "@/lib/quotationAuth";
 import { getQuotationLink } from "@/lib/quotations.functions";
@@ -214,9 +215,7 @@ export default function RequestQuotation() {
             emailDispatched = true;
           } else {
             emailErrorDetail =
-              res.data?.message ||
-              res.error?.message ||
-              "Email service rejected delivery.";
+              res.data?.message || res.error?.message || "Email service rejected delivery.";
           }
         } catch (callErr: any) {
           emailErrorDetail = callErr?.message || "Failed to contact edge function.";
@@ -636,6 +635,22 @@ export default function RequestQuotation() {
                                         <Copy className="h-3.5 w-3.5 mr-1 text-slate-500" />
                                         Copy Private Link
                                       </Button>
+                                      <WhatsAppButtons
+                                        vendorButton={false}
+                                        getMessage={async () => {
+                                          const res = await (getQuotationLink as any)({
+                                            data: {
+                                              quotation_id: quotation.id,
+                                              origin: publicAppOrigin(),
+                                            },
+                                          });
+                                          if (!res?.ok)
+                                            throw new Error(
+                                              res?.error || "Could not create the link.",
+                                            );
+                                          return `Dear Vendor,\n\nYou are invited to quote for ${quotation.item_name || "our requirement"} (AMC Engineering College). Please submit your quotation using your private link:\n${res.url}\n\nThank you.`;
+                                        }}
+                                      />
                                       <Button
                                         type="button"
                                         size="sm"

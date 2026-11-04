@@ -232,8 +232,11 @@ export const createPo = createServerFn({ method: "POST" })
       }
 
       // 2. Guard: Every item in the PR must be covered by the rate contract (RC-38)
-      const approvedRates: Array<{ group?: string | null; description?: string | null; rate?: number | null }> =
-        Array.isArray(rc.approved_rates_json) ? rc.approved_rates_json : [];
+      const approvedRates: Array<{
+        group?: string | null;
+        description?: string | null;
+        rate?: number | null;
+      }> = Array.isArray(rc.approved_rates_json) ? rc.approved_rates_json : [];
       const approvedGroups = new Set(
         approvedRates.map((r) => r.group?.trim().toLowerCase()).filter(Boolean),
       );
@@ -251,14 +254,20 @@ export const createPo = createServerFn({ method: "POST" })
           const descMatches = approvedRates.some((ar) => {
             const arDesc = (ar.description || "").trim().toLowerCase();
             const itDesc = (it.description || "").trim().toLowerCase();
-            return arDesc && itDesc && (arDesc === itDesc || itDesc.includes(arDesc) || arDesc.includes(itDesc));
+            return (
+              arDesc &&
+              itDesc &&
+              (arDesc === itDesc || itDesc.includes(arDesc) || arDesc.includes(itDesc))
+            );
           });
           return !groupMatches && !descMatches;
         });
 
         if (uncovered) {
           const { itemGroupLabel } = await import("@/lib/procurement/itemGroups");
-          const groupName = uncovered.item_group ? itemGroupLabel(uncovered.item_group) : "Unassigned group";
+          const groupName = uncovered.item_group
+            ? itemGroupLabel(uncovered.item_group)
+            : "Unassigned group";
           return {
             ok: false as const,
             error: `Item "${uncovered.description}" (${groupName}) is not covered by rate contract ${rc.contract_number}.`,
@@ -275,7 +284,11 @@ export const createPo = createServerFn({ method: "POST" })
           const itDesc = (it.description || "").trim().toLowerCase();
           const matchedRate = approvedRates.find((ar) => {
             const arDesc = (ar.description || "").trim().toLowerCase();
-            return arDesc && itDesc && (arDesc === itDesc || itDesc.includes(arDesc) || arDesc.includes(itDesc));
+            return (
+              arDesc &&
+              itDesc &&
+              (arDesc === itDesc || itDesc.includes(arDesc) || arDesc.includes(itDesc))
+            );
           });
           if (matchedRate && Number(matchedRate.rate) > 0) {
             maxAllowedTotal += qty * Number(matchedRate.rate);
@@ -411,7 +424,11 @@ export const createPo = createServerFn({ method: "POST" })
     const canonicalCat = normalizeCategory(pr?.category ?? "routine_consumable");
     const { data: rules } = await db.from("approval_matrix_rules").select("*").eq("active", true);
     const { fetchMonthlySpendBreakdown } = await import("@/lib/procurement/authorityMatrix");
-    const spendContext = await fetchMonthlySpendBreakdown(db, canonicalCat, pr?.department_id ?? null);
+    const spendContext = await fetchMonthlySpendBreakdown(
+      db,
+      canonicalCat,
+      pr?.department_id ?? null,
+    );
 
     const standardResolved = resolveApprover(canonicalCat, totalValue, spendContext, rules ?? []);
     const matrixRole = escalationInfo?.escalateRole || standardResolved.role;
@@ -498,7 +515,9 @@ export const approvePo = createServerFn({ method: "POST" })
 
     const { data: po, error } = await supabaseAdmin
       .from("purchase_orders")
-      .select("id, status, current_approver_role, po_number, created_by, department_id, budget_status")
+      .select(
+        "id, status, current_approver_role, po_number, created_by, department_id, budget_status",
+      )
       .eq("id", data.po_id)
       .maybeSingle();
 
@@ -576,7 +595,8 @@ export const rejectPo = createServerFn({ method: "POST" })
     if (!po) return { ok: false as const, error: "Purchase Order not found" };
 
     const now = new Date().toISOString();
-    const { recomputeMonthlySpend, releasePoRemainder } = await import("@/server/procurement/budget");
+    const { recomputeMonthlySpend, releasePoRemainder } =
+      await import("@/server/procurement/budget");
     const { data: amendment } = await supabaseAdmin
       .from("po_amendments")
       .select("id, created_by, old_value_total, changed_fields_json, original_approver_role")
@@ -700,7 +720,13 @@ export const issuePo = createServerFn({ method: "POST" })
     const { syncPoCommitment, recomputeMonthlySpend, overBudgetReason } =
       await import("@/server/procurement/budget");
     const budget = await syncPoCommitment(supabaseAdmin as any, {
-      po: { id: po.id, po_number: po.po_number ?? "PO", pr_id: po.pr_id, total, budget_status: po.budget_status },
+      po: {
+        id: po.id,
+        po_number: po.po_number ?? "PO",
+        pr_id: po.pr_id,
+        total,
+        budget_status: po.budget_status,
+      },
       pr,
       actorId: context.userId,
     });
@@ -807,7 +833,10 @@ export const amendPo = createServerFn({ method: "POST" })
     // Never reduce an order below what has already been received or billed.
     const [{ data: grns }, { data: invs }] = await Promise.all([
       supabaseAdmin.from("grns").select("accepted_value, status").eq("po_id", po.id),
-      supabaseAdmin.from("invoices").select("invoice_amount, approved_amount, match_status").eq("po_id", po.id),
+      supabaseAdmin
+        .from("invoices")
+        .select("invoice_amount, approved_amount, match_status")
+        .eq("po_id", po.id),
     ]);
     const received = (grns ?? [])
       .filter((g: any) => g.status === "accepted" || g.status === "partially_accepted")
@@ -841,7 +870,11 @@ export const amendPo = createServerFn({ method: "POST" })
     );
     const { data: rules } = await db.from("approval_matrix_rules").select("*").eq("active", true);
     const { fetchMonthlySpendBreakdown } = await import("@/lib/procurement/authorityMatrix");
-    const spendContext = await fetchMonthlySpendBreakdown(db, canonicalCat, po.purchase_requisitions?.department_id ?? null);
+    const spendContext = await fetchMonthlySpendBreakdown(
+      db,
+      canonicalCat,
+      po.purchase_requisitions?.department_id ?? null,
+    );
 
     const resolvedNew = resolveApprover(canonicalCat, newTotal, spendContext, rules ?? []);
     const resolvedOld = resolveApprover(canonicalCat, oldTotal, spendContext, rules ?? []);
@@ -861,7 +894,9 @@ export const amendPo = createServerFn({ method: "POST" })
       if (!roleHierarchy.includes(lower)) return resolvedOld.role.toLowerCase();
       return lower;
     };
-    const effectiveOriginalRole = canonicalApproverRole(po.original_approver_role || resolvedOld.role);
+    const effectiveOriginalRole = canonicalApproverRole(
+      po.original_approver_role || resolvedOld.role,
+    );
     const originalRank = roleHierarchy.indexOf(effectiveOriginalRole);
     const newRank = roleHierarchy.indexOf(resolvedNew.role.toLowerCase());
 
@@ -961,7 +996,13 @@ export const amendPo = createServerFn({ method: "POST" })
     if (!requiresReapproval && nextStatus === "issued") {
       const { syncPoCommitment } = await import("@/server/procurement/budget");
       await syncPoCommitment(supabaseAdmin as any, {
-        po: { id: po.id, po_number: po.po_number ?? "PO", pr_id: po.pr_id, total: newTotal, budget_status: po.budget_status },
+        po: {
+          id: po.id,
+          po_number: po.po_number ?? "PO",
+          pr_id: po.pr_id,
+          total: newTotal,
+          budget_status: po.budget_status,
+        },
         pr: budgetPr ?? null,
         actorId: context.userId,
       });
@@ -991,7 +1032,10 @@ export const closePo = createServerFn({ method: "POST" })
         held.includes(r),
       )
     ) {
-      return { ok: false as const, error: "Only the procurement team or Finance can close orders." };
+      return {
+        ok: false as const,
+        error: "Only the procurement team or Finance can close orders.",
+      };
     }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const nextStatus = data.partially ? "partially_closed" : "closed";
@@ -1009,7 +1053,12 @@ export const closePo = createServerFn({ method: "POST" })
     let released = 0;
     if (nextStatus === "closed") {
       const { releasePoRemainder } = await import("@/server/procurement/budget");
-      released = await releasePoRemainder(supabaseAdmin as any, data.po_id, context.userId, "Order closed");
+      released = await releasePoRemainder(
+        supabaseAdmin as any,
+        data.po_id,
+        context.userId,
+        "Order closed",
+      );
     }
     return { ok: true as const, status: nextStatus, released };
   });
@@ -1067,6 +1116,8 @@ export const listPurchaseOrders = createServerFn({ method: "GET" })
     const held = callerRoles.map((r) => r.role);
     const SEE_ALL = [
       "admin",
+      "auditor",
+      "corporate_office",
       "evp",
       "director_admin_finance",
       "purchase_committee",
@@ -1095,4 +1146,45 @@ export const listPurchaseOrders = createServerFn({ method: "GET" })
       quoted_lines: quoted.get(po.id) ?? [],
     }));
     return { ok: true as const, purchaseOrders };
+  });
+
+/**
+ * Stores an issued PO's PDF (built in the browser by buildPoPdf) in the private `po-documents`
+ * bucket and returns a 30-day signed link, so the PO can be sent to the vendor on WhatsApp.
+ */
+export const sharePoLink = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: { po_id: string; pdf_base64: string }) => input)
+  .handler(async ({ data, context }) => {
+    const { getCallerRoles } = await import("@/server/procurement/roles");
+    const held = (await getCallerRoles(context.supabase as any, context.userId)).map((r) => r.role);
+    if (!["admin", "procurement_officer", "procurement_executive"].some((r) => held.includes(r))) {
+      return { ok: false as const, error: "Only the procurement team can send purchase orders." };
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: po } = await supabaseAdmin
+      .from("purchase_orders")
+      .select("id, po_number, status")
+      .eq("id", data.po_id)
+      .maybeSingle();
+    if (!po) return { ok: false as const, error: "Purchase Order not found" };
+    if (!["issued", "partially_closed", "closed"].includes(po.status)) {
+      return { ok: false as const, error: "Issue the purchase order before sending it." };
+    }
+    const pdf = Buffer.from(String(data.pdf_base64 ?? ""), "base64");
+    if (pdf.length > 10 * 1024 * 1024 || pdf.subarray(0, 5).toString() !== "%PDF-") {
+      return { ok: false as const, error: "The PO document could not be prepared." };
+    }
+    const path = `${po.id}.pdf`;
+    const bucket = supabaseAdmin.storage.from("po-documents");
+    const { error: upErr } = await bucket.upload(path, pdf, {
+      contentType: "application/pdf",
+      upsert: true,
+    });
+    if (upErr) return { ok: false as const, error: `Could not store the PO PDF: ${upErr.message}` };
+    const { data: signed, error: signErr } = await bucket.createSignedUrl(path, 60 * 60 * 24 * 30, {
+      download: `${po.po_number}.pdf`,
+    });
+    if (signErr || !signed) return { ok: false as const, error: signErr?.message || "No link" };
+    return { ok: true as const, url: signed.signedUrl };
   });

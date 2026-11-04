@@ -39,7 +39,21 @@ import {
   financialYear,
   fyQuarter,
 } from "@/lib/procurement/budgetLedger";
-import { Wallet, PieChart, Send, CheckCircle2, Undo2, Plus, Trash2, BookOpen, BadgeCheck, Clock, Receipt } from "lucide-react";
+import {
+  Wallet,
+  PieChart,
+  Send,
+  CheckCircle2,
+  Undo2,
+  Plus,
+  Trash2,
+  BookOpen,
+  BadgeCheck,
+  Clock,
+  Receipt,
+} from "lucide-react";
+import { PaginationControls } from "@/components/PaginationControls";
+import { usePagedList } from "@/hooks/use-paged-list";
 
 const inr = (n: number | string | null | undefined) =>
   `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
@@ -124,15 +138,18 @@ export default function BudgetManagement() {
       <div className="w-full max-w-full space-y-6 pb-12">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
           <div className="space-y-1 flex-1 min-w-0">
-
-            <h1 className="text-3xl font-extrabold tracking-tight text-[#0B1437] dark:text-white">Budgets</h1>
+            <h1 className="text-3xl font-extrabold tracking-tight text-[#0B1437] dark:text-white">
+              Budgets
+            </h1>
             <p className="text-muted-foreground mt-1 text-sm max-w-3xl leading-relaxed">
               HODs propose in March, Finance consolidates in April, the EVP approves before June.
               Issued orders commit against a head; payments count as spent.
             </p>
           </div>
           <div className="w-48 shrink-0 space-y-1">
-            <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400">Financial year</Label>
+            <Label className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+              Financial year
+            </Label>
             <Select value={fy} onValueChange={setFy}>
               <SelectTrigger className="h-10 rounded-xl bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700">
                 <SelectValue placeholder="Select an option" />
@@ -184,9 +201,7 @@ export default function BudgetManagement() {
                   <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                     {item.label}
                   </span>
-                  <div className={`p-2 rounded-md ${item.iconBg}`}>
-                    {item.icon}
-                  </div>
+                  <div className={`p-2 rounded-md ${item.iconBg}`}>{item.icon}</div>
                 </div>
                 <div
                   className={`text-2xl font-bold font-mono tracking-tight mt-3 ${
@@ -203,7 +218,11 @@ export default function BudgetManagement() {
         </div>
 
         {loading && !data ? (
-          <div className="space-y-3 p-4">{[...Array(3)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
+          <div className="space-y-3 p-4">
+            {[...Array(3)].map((_, i) => (
+              <Skeleton key={i} className="h-20 w-full rounded-xl" />
+            ))}
+          </div>
         ) : (
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList className="flex flex-wrap h-auto">
@@ -265,23 +284,40 @@ function HeadsTable({
   onLedger: (h: any) => void;
   fy: string;
 }) {
-  if (!heads.length)
-    return (
-      <Card className="border-slate-100 shadow-none">
-      <div className="flex flex-col items-center justify-center py-14 text-center px-8">
-        <svg xmlns="http://www.w3.org/2000/svg" className="w-14 h-14 mb-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-        <p className="text-base font-semibold text-slate-500">No budget heads for FY {fy}</p>
-        <p className="text-sm text-slate-400 mt-1">They appear when the EVP approves a department's budget, or when Finance enters an opening budget.</p>
-      </div>
-    </Card>
-    );
   const byDept = heads.reduce((m: Record<string, any[]>, h) => {
     (m[h.department_name] ??= []).push(h);
     return m;
   }, {});
+  const deptPage = usePagedList(Object.entries(byDept));
+  if (!heads.length)
+    return (
+      <Card className="border-slate-100 shadow-none">
+        <div className="flex flex-col items-center justify-center py-14 text-center px-8">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="w-14 h-14 mb-4 text-slate-300"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.5}
+              d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
+          </svg>
+          <p className="text-base font-semibold text-slate-500">No budget heads for FY {fy}</p>
+          <p className="text-sm text-slate-400 mt-1">
+            They appear when the EVP approves a department's budget, or when Finance enters an
+            opening budget.
+          </p>
+        </div>
+      </Card>
+    );
   return (
     <div className="space-y-4">
-      {Object.entries(byDept).map(([dept, rows]) => (
+      {deptPage.pageItems.map(([dept, rows]) => (
         <Card key={dept}>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">{dept}</CardTitle>
@@ -356,6 +392,7 @@ function HeadsTable({
           </CardContent>
         </Card>
       ))}
+      <PaginationControls {...deptPage.controls} />
     </div>
   );
 }
@@ -374,6 +411,8 @@ function LedgerDialog({ head, onClose }: { head: any; onClose: () => void }) {
     spend: "Spent",
     release: "Released",
   };
+  const entriesPage = usePagedList(entries);
+
   return (
     <Dialog open={!!head} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
@@ -384,44 +423,51 @@ function LedgerDialog({ head, onClose }: { head: any; onClose: () => void }) {
           </DialogDescription>
         </DialogHeader>
         {entries === null ? (
-          <div className="space-y-3 p-4">{[...Array(2)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
+          <div className="space-y-3 p-4">
+            {[...Array(2)].map((_, i) => (
+              <Skeleton key={i} className="h-20 w-full rounded-xl" />
+            ))}
+          </div>
         ) : entries.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             Nothing has been charged to this head yet.
           </p>
         ) : (
-          <ul className="divide-y text-sm">
-            {entries.map((e) => (
-              <li key={e.id} className="py-2 flex justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="font-medium">
-                    {label[e.entry_type] ?? e.entry_type}
-                    {e.purchase_orders?.po_number && (
-                      <span className="font-mono text-xs text-muted-foreground">
-                        {" "}
-                        · {e.purchase_orders.po_number}
-                      </span>
-                    )}
-                    {e.invoices?.invoice_number && (
-                      <span className="font-mono text-xs text-muted-foreground">
-                        {" "}
-                        · {e.invoices.invoice_number}
-                      </span>
-                    )}
+          <>
+            <ul className="divide-y text-sm">
+              {entriesPage.pageItems.map((e) => (
+                <li key={e.id} className="py-2 flex justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="font-medium">
+                      {label[e.entry_type] ?? e.entry_type}
+                      {e.purchase_orders?.po_number && (
+                        <span className="font-mono text-xs text-muted-foreground">
+                          {" "}
+                          · {e.purchase_orders.po_number}
+                        </span>
+                      )}
+                      {e.invoices?.invoice_number && (
+                        <span className="font-mono text-xs text-muted-foreground">
+                          {" "}
+                          · {e.invoices.invoice_number}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {e.notes} · {new Date(e.created_at).toLocaleString()}
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-foreground truncate">
-                    {e.notes} · {new Date(e.created_at).toLocaleString()}
-                  </div>
-                </div>
-                <span
-                  className={`font-mono shrink-0 ${e.entry_type === "release" ? "text-emerald-600 dark:text-emerald-400" : ""}`}
-                >
-                  {e.entry_type === "release" ? "+" : e.entry_type === "commit" ? "−" : ""}
-                  {inr(e.amount)}
-                </span>
-              </li>
-            ))}
-          </ul>
+                  <span
+                    className={`font-mono shrink-0 ${e.entry_type === "release" ? "text-emerald-600 dark:text-emerald-400" : ""}`}
+                  >
+                    {e.entry_type === "release" ? "+" : e.entry_type === "commit" ? "−" : ""}
+                    {inr(e.amount)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <PaginationControls {...entriesPage.controls} />
+          </>
         )}
       </DialogContent>
     </Dialog>
@@ -1016,6 +1062,7 @@ function OpeningBudget({
 
 function Quarterly({ heads, fy }: { heads: any[]; fy: string }) {
   const current = fy === financialYear() ? fyQuarter(new Date()) : null;
+  const headsPage = usePagedList(heads);
   if (!heads.length)
     return (
       <Card className="p-8 text-center text-muted-foreground text-sm">
@@ -1046,7 +1093,7 @@ function Quarterly({ heads, fy }: { heads: any[]; fy: string }) {
             </tr>
           </thead>
           <tbody className="divide-y">
-            {heads.map((h) => (
+            {headsPage.pageItems.map((h) => (
               <tr key={h.id}>
                 <td className="py-2 pr-3">
                   <div className="font-mono font-semibold">{h.code}</div>
@@ -1071,6 +1118,7 @@ function Quarterly({ heads, fy }: { heads: any[]; fy: string }) {
             ))}
           </tbody>
         </table>
+        <PaginationControls {...headsPage.controls} />
       </CardContent>
     </Card>
   );

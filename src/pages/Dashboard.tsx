@@ -98,7 +98,7 @@ const Dashboard = () => {
   const [filteredItems, setFilteredItems] = useState<any[]>([]);
 
   // Check user role and redirect accordingly
-  const { primaryRole, loading: authLoading } = useAuth();
+  const { primaryRole, loading: authLoading, isReadOnly } = useAuth();
 
   useEffect(() => {
     // If auth hasn't loaded yet, don't redirect
@@ -196,12 +196,15 @@ const Dashboard = () => {
       const allTickets = allTicketsRes.data || [];
       const ticketStats = {
         total: allTickets.length,
-        pending: allTickets.filter((t) => t.status === "pending" || t.status === "pending_principal")
-          .length,
-        inProgress: allTickets.filter((t) => t.status === "in-progress" || t.status.startsWith("procure"))
-          .length,
+        pending: allTickets.filter(
+          (t) => t.status === "pending" || t.status === "pending_principal",
+        ).length,
+        inProgress: allTickets.filter(
+          (t) => t.status === "in-progress" || t.status.startsWith("procure"),
+        ).length,
         resolved: allTickets.filter(
-          (t) => t.status === "resolved" || t.status === "completed" || t.status === "procure-completed",
+          (t) =>
+            t.status === "resolved" || t.status === "completed" || t.status === "procure-completed",
         ).length,
       };
 
@@ -318,9 +321,7 @@ const Dashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-emerald-950">
-                {stats?.totalItems || 0}
-              </div>
+              <div className="text-3xl font-bold text-emerald-950">{stats?.totalItems || 0}</div>
               <p className="text-sm text-emerald-800/80">Across all locations</p>
             </CardContent>
           </Card>
@@ -341,14 +342,10 @@ const Dashboard = () => {
 
           <Card className="bg-rose-50 border border-rose-200/80 rounded-2xl transition-all duration-300 hover:scale-[1.02]">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-              <CardTitle className="text-base font-semibold text-rose-950/90">
-                Categories
-              </CardTitle>
+              <CardTitle className="text-base font-semibold text-rose-950/90">Categories</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-rose-950">
-                {stats?.categoriesCount || 0}
-              </div>
+              <div className="text-3xl font-bold text-rose-950">{stats?.categoriesCount || 0}</div>
               <p className="text-sm text-rose-800/80">Item categories</p>
             </CardContent>
           </Card>
@@ -360,9 +357,7 @@ const Dashboard = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-indigo-950">
-                {stats?.locationsCount || 0}
-              </div>
+              <div className="text-3xl font-bold text-indigo-950">{stats?.locationsCount || 0}</div>
               <p className="text-sm text-indigo-800/80">Storage locations</p>
             </CardContent>
           </Card>
@@ -410,7 +405,11 @@ const Dashboard = () => {
               <Button
                 size="sm"
                 onClick={() => navigate({ to: "/procurement/raise-pr" })}
-                className="gap-1.5 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full px-4 font-semibold"
+                className={
+                  isReadOnly
+                    ? "hidden"
+                    : "gap-1.5 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full px-4 font-semibold"
+                }
               >
                 <PlusSquare className="w-4 h-4" />
                 Raise PR
@@ -485,7 +484,9 @@ const Dashboard = () => {
                         </td>
                         <td className="px-3 py-2.5 text-foreground">{t.name || "—"}</td>
                         <td className="px-3 py-2.5 text-muted-foreground">{t.department || "—"}</td>
-                        <td className="px-3 py-2.5 text-muted-foreground">{t.issue_category || "—"}</td>
+                        <td className="px-3 py-2.5 text-muted-foreground">
+                          {t.issue_category || "—"}
+                        </td>
                         <td className="px-3 py-2.5">
                           <span
                             className={`px-2 py-0.5 rounded text-xs font-medium capitalize ${
@@ -545,37 +546,51 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="h-80">
-              {(!stats?.locationBreakdown || stats.locationBreakdown.length === 0) ? (
+              {!stats?.locationBreakdown || stats.locationBreakdown.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
-                  <p className="text-sm font-semibold text-slate-400">No inventory data available</p>
-                  <p className="text-xs text-slate-300 mt-1">Add inventory items to see the chart</p>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="w-12 h-12 mb-3 text-slate-300"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                    />
+                  </svg>
+                  <p className="text-sm font-semibold text-slate-400">
+                    No inventory data available
+                  </p>
+                  <p className="text-xs text-slate-300 mt-1">
+                    Add inventory items to see the chart
+                  </p>
                 </div>
               ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats?.locationBreakdown || []}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis
-                    dataKey="location"
-                    angle={-45}
-                    textAnchor="end"
-                    height={80}
-                    fontSize={12}
-                    stroke="hsl(var(--muted-foreground))"
-                  />
-                  <YAxis stroke="hsl(var(--muted-foreground))" />
-                  <Tooltip
-                    cursor={{ fill: "transparent" }}
-                    content={<LocationBarTooltip />}
-                  />
-                  <Bar
-                    dataKey="count"
-                    fill="hsl(var(--primary))"
-                    name="count"
-                    radius={[4, 4, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={stats?.locationBreakdown || []}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis
+                      dataKey="location"
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                      fontSize={12}
+                      stroke="hsl(var(--muted-foreground))"
+                    />
+                    <YAxis stroke="hsl(var(--muted-foreground))" />
+                    <Tooltip cursor={{ fill: "transparent" }} content={<LocationBarTooltip />} />
+                    <Bar
+                      dataKey="count"
+                      fill="hsl(var(--primary))"
+                      name="count"
+                      radius={[4, 4, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
               )}
             </div>
           </CardContent>
@@ -589,38 +604,61 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="h-80">
-              {(!stats?.locationBreakdown || stats.locationBreakdown.length === 0) ? (
+              {!stats?.locationBreakdown || stats.locationBreakdown.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" /></svg>
-                  <p className="text-sm font-semibold text-slate-400">No distribution data available</p>
-                  <p className="text-xs text-slate-300 mt-1">Add inventory items to see distribution</p>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="w-12 h-12 mb-3 text-slate-300"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"
+                    />
+                  </svg>
+                  <p className="text-sm font-semibold text-slate-400">
+                    No distribution data available
+                  </p>
+                  <p className="text-xs text-slate-300 mt-1">
+                    Add inventory items to see distribution
+                  </p>
                 </div>
               ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={stats?.locationBreakdown || []}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ location, count }) => `${location}: ${count}`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="count"
-                    nameKey="location"
-                  >
-                    {stats?.locationBreakdown?.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={`hsl(${index * 45 + 200}, 70%, 50%)`} />
-                    ))}
-                  </Pie>
-                  <Tooltip content={<LocationPieTooltip />} />
-                  <Legend
-                    formatter={(value) => (
-                      <span className="text-card-foreground text-xs font-medium">{value}</span>
-                    )}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={stats?.locationBreakdown || []}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ location, count }) => `${location}: ${count}`}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="count"
+                      nameKey="location"
+                    >
+                      {stats?.locationBreakdown?.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={`hsl(${index * 45 + 200}, 70%, 50%)`} />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<LocationPieTooltip />} />
+                    <Legend
+                      formatter={(value) => (
+                        <span className="text-card-foreground text-xs font-medium">{value}</span>
+                      )}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
               )}
             </div>
           </CardContent>

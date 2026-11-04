@@ -429,7 +429,7 @@ const InventoryList = () => {
               Search & Filters
             </CardTitle>
           </CardHeader>
-<CardContent className="space-y-6 p-4 sm:p-8">
+          <CardContent className="space-y-6 p-4 sm:p-8">
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <Input
                 placeholder="Search by item code, name, department, category, or location..."
@@ -438,9 +438,12 @@ const InventoryList = () => {
                 onKeyDown={(e) => {
                   if (e.key === "Enter") setSearchTerm(searchInput);
                 }}
-className="flex-1 min-w-[200px] max-w-xl pl-4 py-2 text-sm rounded-full h-10 border border-slate-300 dark:border-slate-700 bg-background w-full sm:w-auto"
+                className="flex-1 min-w-[200px] max-w-xl pl-4 py-2 text-sm rounded-full h-10 border border-slate-300 dark:border-slate-700 bg-background w-full sm:w-auto"
               />
-              <Button onClick={() => setSearchTerm(searchInput)} className="h-10 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full px-6 font-semibold w-full sm:w-auto shrink-0">
+              <Button
+                onClick={() => setSearchTerm(searchInput)}
+                className="h-10 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full px-6 font-semibold w-full sm:w-auto shrink-0"
+              >
                 Search
               </Button>
             </div>
@@ -514,112 +517,127 @@ className="flex-1 min-w-[200px] max-w-xl pl-4 py-2 text-sm rounded-full h-10 bor
         </Card>
 
         <div className="overflow-x-auto rounded-xl border border-border/60 bg-card">
-              <Table className="w-full min-w-full">
-                <TableHeader className="bg-muted">
-                  <TableRow>
-                    <TableHead className="text-base font-semibold text-muted-foreground">
-                      #
-                    </TableHead>
-                    <TableHead className="text-base font-semibold text-muted-foreground">
-                      Item Code
-                    </TableHead>
-                    <TableHead className="text-base font-semibold text-muted-foreground">
-                      Item Name
-                    </TableHead>
-                    <TableHead className="text-base font-semibold text-muted-foreground">
-                      Category
-                    </TableHead>
-                    <TableHead className="text-base font-semibold text-muted-foreground">
-                      Location
-                    </TableHead>
-                    <TableHead className="text-base font-semibold text-muted-foreground">
-                      Asset Type
-                    </TableHead>
-                    <TableHead className="text-base font-semibold text-muted-foreground">
-                      Department
-                    </TableHead>
-                    <TableHead className="text-base font-semibold text-muted-foreground text-right">
-                      Quantity
-                    </TableHead>
-                    <TableHead className="text-base font-semibold text-muted-foreground text-right">
-                      Total Cost
-                    </TableHead>
-                    <TableHead className="text-base font-semibold text-muted-foreground">
-                      Status
-                    </TableHead>
-                    <TableHead className="text-base font-semibold text-muted-foreground text-right">
-                      Actions
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={11} className="py-16">
-                        <div className="flex flex-col items-center justify-center text-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="w-14 h-14 mb-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
-                          <p className="text-base font-semibold text-slate-500">No items found</p>
-                          <p className="text-sm text-slate-400 mt-1">Try adjusting your search or filters</p>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    items.map((item, index) => (
-                      <TableRow
-                        key={item.id}
-                        className="hover:bg-muted/50 animate-in slide-in-from-bottom-2 duration-500"
-                        style={{ animationDelay: `${index * 50}ms` }}
+          <Table className="w-full min-w-full">
+            <TableHeader className="bg-muted">
+              <TableRow>
+                <TableHead className="text-base font-semibold text-muted-foreground">#</TableHead>
+                <TableHead className="text-base font-semibold text-muted-foreground">
+                  Item Code
+                </TableHead>
+                <TableHead className="text-base font-semibold text-muted-foreground">
+                  Item Name
+                </TableHead>
+                <TableHead className="text-base font-semibold text-muted-foreground">
+                  Category
+                </TableHead>
+                <TableHead className="text-base font-semibold text-muted-foreground">
+                  Location
+                </TableHead>
+                <TableHead className="text-base font-semibold text-muted-foreground">
+                  Asset Type
+                </TableHead>
+                <TableHead className="text-base font-semibold text-muted-foreground">
+                  Department
+                </TableHead>
+                <TableHead className="text-base font-semibold text-muted-foreground text-right">
+                  Quantity
+                </TableHead>
+                <TableHead className="text-base font-semibold text-muted-foreground text-right">
+                  Total Cost
+                </TableHead>
+                <TableHead className="text-base font-semibold text-muted-foreground">
+                  Status
+                </TableHead>
+                <TableHead className="text-base font-semibold text-muted-foreground text-right">
+                  Actions
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {items.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={11} className="py-16">
+                    <div className="flex flex-col items-center justify-center text-center">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="w-14 h-14 mb-4 text-slate-300"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
                       >
-                        <TableCell className="text-base">{index + 1}</TableCell>
-                        <TableCell className="font-mono text-base text-foreground whitespace-nowrap">
-                          {item.item_code}
-                        </TableCell>
-                        <TableCell className="font-semibold text-base text-foreground whitespace-nowrap">
-                          {item.item_name}
-                        </TableCell>
-                        <TableCell className="text-base whitespace-nowrap">
-                          {item.categories?.name || "-"}
-                        </TableCell>
-                        <TableCell className="text-base whitespace-nowrap">
-                          {item.locations
-                            ? `${item.locations.name}${item.locations.prefix ? ` (${item.locations.prefix})` : ""}`
-                            : "-"}
-                        </TableCell>
-                        <TableCell className="text-base whitespace-nowrap">
-                          {item.asset_type === "capital"
-                            ? "Capital"
-                            : item.asset_type === "recurring"
-                              ? "Recurring/Consumables"
-                              : "-"}
-                        </TableCell>
-                        <TableCell className="text-base whitespace-nowrap">
-                          {item.department || "-"}
-                        </TableCell>
-                        <TableCell className="text-right text-base font-medium">
-                          {item.quantity_available}
-                        </TableCell>
-                        <TableCell className="text-right text-base font-semibold text-foreground">
-                          ₹{parseFloat(String(item.total_cost || 0)).toLocaleString("en-IN")}
-                        </TableCell>
-                        <TableCell>{getStatusBadge(item.status)}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-3">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => navigate({ to: `/inventory/${item.id}` })}
-                              className="text-primary hover:text-primary hover:bg-primary/10 transition-all duration-300 hover:scale-105 rounded-lg px-3 py-2"
-                            >
-                              View
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => navigate({ to: `/inventory/${item.id}/history` })}
-                              className="text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/20 transition-all duration-300 hover:scale-105 rounded-lg px-3 py-2"
-                            >
-                              History
-                            </Button>
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+                        />
+                      </svg>
+                      <p className="text-base font-semibold text-slate-500">No items found</p>
+                      <p className="text-sm text-slate-400 mt-1">
+                        Try adjusting your search or filters
+                      </p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                items.map((item, index) => (
+                  <TableRow
+                    key={item.id}
+                    className="hover:bg-muted/50 animate-in slide-in-from-bottom-2 duration-500"
+                    style={{ animationDelay: `${index * 50}ms` }}
+                  >
+                    <TableCell className="text-base">{index + 1}</TableCell>
+                    <TableCell className="font-mono text-base text-foreground whitespace-nowrap">
+                      {item.item_code}
+                    </TableCell>
+                    <TableCell className="font-semibold text-base text-foreground whitespace-nowrap">
+                      {item.item_name}
+                    </TableCell>
+                    <TableCell className="text-base whitespace-nowrap">
+                      {item.categories?.name || "-"}
+                    </TableCell>
+                    <TableCell className="text-base whitespace-nowrap">
+                      {item.locations
+                        ? `${item.locations.name}${item.locations.prefix ? ` (${item.locations.prefix})` : ""}`
+                        : "-"}
+                    </TableCell>
+                    <TableCell className="text-base whitespace-nowrap">
+                      {item.asset_type === "capital"
+                        ? "Capital"
+                        : item.asset_type === "recurring"
+                          ? "Recurring/Consumables"
+                          : "-"}
+                    </TableCell>
+                    <TableCell className="text-base whitespace-nowrap">
+                      {item.department || "-"}
+                    </TableCell>
+                    <TableCell className="text-right text-base font-medium">
+                      {item.quantity_available}
+                    </TableCell>
+                    <TableCell className="text-right text-base font-semibold text-foreground">
+                      ₹{parseFloat(String(item.total_cost || 0)).toLocaleString("en-IN")}
+                    </TableCell>
+                    <TableCell>{getStatusBadge(item.status)}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-3">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigate({ to: `/inventory/${item.id}` })}
+                          className="text-primary hover:text-primary hover:bg-primary/10 transition-all duration-300 hover:scale-105 rounded-lg px-3 py-2"
+                        >
+                          View
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => navigate({ to: `/inventory/${item.id}/history` })}
+                          className="text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/20 transition-all duration-300 hover:scale-105 rounded-lg px-3 py-2"
+                        >
+                          History
+                        </Button>
+                        {!authCtx?.isReadOnly && (
+                          <>
                             <Select
                               value={item.status || "in-use"}
                               onValueChange={(value) =>
@@ -638,11 +656,7 @@ className="flex-1 min-w-[200px] max-w-xl pl-4 py-2 text-sm rounded-full h-10 bor
                             </Select>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="destructive"
-                                  size="sm"
-                                  className="gap-1.5"
-                                >
+                                <Button variant="destructive" size="sm" className="gap-1.5">
                                   <Trash2 className="h-4 w-4" />
                                   Delete
                                 </Button>
@@ -670,14 +684,16 @@ className="flex-1 min-w-[200px] max-w-xl pl-4 py-2 text-sm rounded-full h-10 bor
                                 </AlertDialogFooter>
                               </AlertDialogContent>
                             </AlertDialog>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+                          </>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
 
         <PaginationControls
           currentPage={pagination.page}

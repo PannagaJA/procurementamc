@@ -13,6 +13,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { PaginationControls } from "@/components/PaginationControls";
+import { usePagedList } from "@/hooks/use-paged-list";
 
 const ViewerQuotations = () => {
   const { toast } = useToast();
@@ -56,6 +58,8 @@ const ViewerQuotations = () => {
     );
   }, [quotations]);
 
+  const groupsPage = usePagedList<any>(Object.values(grouped));
+
   return (
     <Layout>
       <div className="container mx-auto py-6 px-4">
@@ -74,39 +78,42 @@ const ViewerQuotations = () => {
             {Object.keys(grouped).length === 0 ? (
               <div className="text-sm text-muted-foreground">No quotations found.</div>
             ) : (
-              Object.values(grouped).map((g: any) => (
-                <div key={g.category?.id || Math.random()} className="mb-4">
-                  <h3 className="font-medium">{g.category?.name || "Uncategorized"}</h3>
-                  <div className="mt-2 space-y-2">
-                    {g.quotations.map((q: any) => (
-                      <div
-                        key={q.id}
-                        className="p-3 border rounded flex items-center justify-between"
-                      >
-                        <div>
-                          <div className="font-medium">
-                            {q.product_name} • {q.quantity}
+              <>
+                {groupsPage.pageItems.map((g: any) => (
+                  <div key={g.category?.id || Math.random()} className="mb-4">
+                    <h3 className="font-medium">{g.category?.name || "Uncategorized"}</h3>
+                    <div className="mt-2 space-y-2">
+                      {g.quotations.map((q: any) => (
+                        <div
+                          key={q.id}
+                          className="p-3 border rounded flex items-center justify-between"
+                        >
+                          <div>
+                            <div className="font-medium">
+                              {q.product_name} • {q.quantity}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              Requested: {new Date(q.created_at).toLocaleString()}
+                            </div>
                           </div>
-                          <div className="text-sm text-muted-foreground">
-                            Requested: {new Date(q.created_at).toLocaleString()}
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setSelected(q);
+                                setOpen(true);
+                              }}
+                            >
+                              View
+                            </Button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => {
-                              setSelected(q);
-                              setOpen(true);
-                            }}
-                          >
-                            View
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))
+                ))}
+                <PaginationControls {...groupsPage.controls} />
+              </>
             )}
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogContent>

@@ -54,13 +54,17 @@ export const getMyPendingApprovals = createServerFn({ method: "GET" })
     }
 
     // Nobody is shown items they raised/created themselves — another approver must decide them.
-    const prs = (isAdmin ? (prsRaw ?? []) : (prsRaw ?? []).filter((p: any) => {
-          if (p.current_approver_role === "hod") {
-            const deptId = p.department_id;
-            return deptId && hodDeptIds.has(deptId);
-          }
-          return true;
-        })).filter((p: any) => p.requested_by !== context.userId);
+    const prs = (
+      isAdmin
+        ? (prsRaw ?? [])
+        : (prsRaw ?? []).filter((p: any) => {
+            if (p.current_approver_role === "hod") {
+              const deptId = p.department_id;
+              return deptId && hodDeptIds.has(deptId);
+            }
+            return true;
+          })
+    ).filter((p: any) => p.requested_by !== context.userId);
 
     // 2. Pending Comparative Statements
     let csQuery = queryDb
@@ -103,15 +107,22 @@ export const getMyPendingApprovals = createServerFn({ method: "GET" })
       poQuery = poQuery.in("current_approver_role", held);
     }
     const { data: posRaw, error: poErr } = await poQuery;
-    const pos = (isAdmin ? (posRaw ?? []) : (posRaw ?? []).filter((p: any) => {
-          if (p.current_approver_role === "hod") {
-            const deptId = p.department_id || p.purchase_requisitions?.departments?.id || p.purchase_requisitions?.department_id;
-            // If the HOD has specific department(s) configured, filter by it.
-            // If hodDeptIds has items, match against them; if user holds HOD and no department restriction is set, allow viewing.
-            return Boolean(deptId && hodDeptIds.has(deptId));
-          }
-          return true;
-        })).filter((p: any) => p.created_by !== context.userId);
+    const pos = (
+      isAdmin
+        ? (posRaw ?? [])
+        : (posRaw ?? []).filter((p: any) => {
+            if (p.current_approver_role === "hod") {
+              const deptId =
+                p.department_id ||
+                p.purchase_requisitions?.departments?.id ||
+                p.purchase_requisitions?.department_id;
+              // If the HOD has specific department(s) configured, filter by it.
+              // If hodDeptIds has items, match against them; if user holds HOD and no department restriction is set, allow viewing.
+              return Boolean(deptId && hodDeptIds.has(deptId));
+            }
+            return true;
+          })
+    ).filter((p: any) => p.created_by !== context.userId);
 
     // 4. Pending PO Amendments
     let amQuery = queryDb
@@ -136,7 +147,7 @@ export const getMyPendingApprovals = createServerFn({ method: "GET" })
     const amendments = (amendmentsRaw ?? []).filter((a: any) => a.created_by !== context.userId);
 
     // 5. Pending Invoices (Matched & awaiting approval by Finance / Procurement Officer)
-    let invQuery = db
+    const invQuery = db
       .from("invoices")
       .select(
         `
@@ -171,7 +182,7 @@ export const getMyPendingApprovals = createServerFn({ method: "GET" })
     const invoices = [...(matchedInvoices ?? []), ...(deviations ?? [])];
 
     // 6. Pending Emergency Procurements (Awaiting EVP approval)
-    let epQuery = db
+    const epQuery = db
       .from("emergency_procurements")
       .select(
         `
@@ -247,6 +258,9 @@ export const getMyPendingApprovals = createServerFn({ method: "GET" })
     };
   });
 
+// ponytail: history is paged in the browser; page on the server if one type outgrows this.
+const HISTORY_LIMIT = 500;
+
 export const getMyApprovalHistory = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -254,7 +268,9 @@ export const getMyApprovalHistory = createServerFn({ method: "GET" })
     const { getCallerRoles } = await import("@/server/procurement/roles");
     const roles = await getCallerRoles(db, context.userId);
     const held = roles.map((r) => r.role);
-    const isAdmin = held.includes("admin");
+    // Auditor / Corporate Office see the full history, like admin (no pending queue).
+    const { canReadAll } = await import("@/lib/roleAliases");
+    const isAdmin = canReadAll(held);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const queryDb = (supabaseAdmin || db) as any;
@@ -277,7 +293,7 @@ export const getMyApprovalHistory = createServerFn({ method: "GET" })
       )
       .in("status", ["approved", "rejected", "closed"])
       .order("updated_at", { ascending: false })
-      .limit(50);
+      .limit(HISTORY_LIMIT);
 
     if (!isAdmin && held.includes("hod") && hodDeptIds.size > 0) {
       prQuery = prQuery.in("department_id", Array.from(hodDeptIds));
@@ -285,7 +301,7 @@ export const getMyApprovalHistory = createServerFn({ method: "GET" })
 
     const { data: prHistory } = await prQuery;
 
-    let csQuery = queryDb
+    const csQuery = queryDb
       .from("comparative_statements")
       .select(
         `
@@ -299,10 +315,10 @@ export const getMyApprovalHistory = createServerFn({ method: "GET" })
       )
       .in("status", ["approved", "rejected"])
       .order("updated_at", { ascending: false })
-      .limit(50);
+      .limit(HISTORY_LIMIT);
     const { data: csHistory } = await csQuery;
 
-    let poQuery = queryDb
+    const poQuery = queryDb
       .from("purchase_orders")
       .select(
         `
@@ -313,10 +329,10 @@ export const getMyApprovalHistory = createServerFn({ method: "GET" })
       )
       .in("status", ["issued", "closed", "cancelled", "rejected"])
       .order("updated_at", { ascending: false })
-      .limit(50);
+      .limit(HISTORY_LIMIT);
     const { data: poHistory } = await poQuery;
 
-    let invQuery = queryDb
+    const invQuery = queryDb
       .from("invoices")
       .select(
         `
@@ -327,10 +343,10 @@ export const getMyApprovalHistory = createServerFn({ method: "GET" })
       )
       .in("match_status", ["approved", "paid", "rejected"])
       .order("updated_at", { ascending: false })
-      .limit(50);
+      .limit(HISTORY_LIMIT);
     const { data: invHistory } = await invQuery;
 
-    let rcQuery = queryDb
+    const rcQuery = queryDb
       .from("rate_contracts")
       .select(
         `
@@ -341,7 +357,7 @@ export const getMyApprovalHistory = createServerFn({ method: "GET" })
       )
       .in("status", ["active", "rejected"])
       .order("updated_at", { ascending: false })
-      .limit(50);
+      .limit(HISTORY_LIMIT);
     const { data: rcHistory } = await rcQuery;
 
     return {
@@ -353,4 +369,3 @@ export const getMyApprovalHistory = createServerFn({ method: "GET" })
       rcHistory: rcHistory ?? [],
     };
   });
-

@@ -50,13 +50,17 @@ import {
   updateVendorContact,
 } from "@/lib/procurement/vendors.functions";
 import { useAuth } from "@/lib/auth";
+import { PaginationControls } from "@/components/PaginationControls";
+import { usePagedList } from "@/hooks/use-paged-list";
 
 export default function VendorManagement() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const auth = useAuth();
 
-  const [activeTab, setActiveTab] = useState("apply");
+  const [activeTab, setActiveTab] = useState(() =>
+    auth.isReadOnly ? "master_directory" : "apply",
+  );
   const [vendors, setVendors] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [userRoles, setUserRoles] = useState<string[]>([]);
@@ -120,45 +124,85 @@ export default function VendorManagement() {
 
     // Comprehensive mandatory field validation
     if (!name.trim()) {
-      toast({ title: "Validation Error", description: "Vendor Legal Name is required.", variant: "destructive" });
+      toast({
+        title: "Validation Error",
+        description: "Vendor Legal Name is required.",
+        variant: "destructive",
+      });
       return;
     }
     if (!contactPerson.trim()) {
-      toast({ title: "Validation Error", description: "Contact Person name is required.", variant: "destructive" });
+      toast({
+        title: "Validation Error",
+        description: "Contact Person name is required.",
+        variant: "destructive",
+      });
       return;
     }
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email.trim() || !emailPattern.test(email.trim())) {
-      toast({ title: "Validation Error", description: "A valid Email Address is required (e.g. contact@vendor.com).", variant: "destructive" });
+      toast({
+        title: "Validation Error",
+        description: "A valid Email Address is required (e.g. contact@vendor.com).",
+        variant: "destructive",
+      });
       return;
     }
     const cleanPhone = phone.trim().replace(/[\s-]/g, "");
     if (!cleanPhone || !/^\+?[0-9]{10,15}$/.test(cleanPhone)) {
-      toast({ title: "Validation Error", description: "A valid 10-digit Phone/Mobile number is required.", variant: "destructive" });
+      toast({
+        title: "Validation Error",
+        description: "A valid 10-digit Phone/Mobile number is required.",
+        variant: "destructive",
+      });
       return;
     }
     if (!address.trim()) {
-      toast({ title: "Validation Error", description: "Registered Address is required.", variant: "destructive" });
+      toast({
+        title: "Validation Error",
+        description: "Registered Address is required.",
+        variant: "destructive",
+      });
       return;
     }
     if (!gstNumber.trim() || gstNumber.trim().length < 15) {
-      toast({ title: "Validation Error", description: "A valid 15-character GSTIN is required.", variant: "destructive" });
+      toast({
+        title: "Validation Error",
+        description: "A valid 15-character GSTIN is required.",
+        variant: "destructive",
+      });
       return;
     }
     if (!panNumber.trim() || panNumber.trim().length < 10) {
-      toast({ title: "Validation Error", description: "A valid 10-character PAN number is required.", variant: "destructive" });
+      toast({
+        title: "Validation Error",
+        description: "A valid 10-character PAN number is required.",
+        variant: "destructive",
+      });
       return;
     }
     if (!bankName.trim()) {
-      toast({ title: "Validation Error", description: "Bank Name is required.", variant: "destructive" });
+      toast({
+        title: "Validation Error",
+        description: "Bank Name is required.",
+        variant: "destructive",
+      });
       return;
     }
     if (!accountNo.trim()) {
-      toast({ title: "Validation Error", description: "Bank Account Number is required.", variant: "destructive" });
+      toast({
+        title: "Validation Error",
+        description: "Bank Account Number is required.",
+        variant: "destructive",
+      });
       return;
     }
     if (!ifsc.trim() || ifsc.trim().length < 11) {
-      toast({ title: "Validation Error", description: "A valid 11-character Bank IFSC code is required.", variant: "destructive" });
+      toast({
+        title: "Validation Error",
+        description: "A valid 11-character Bank IFSC code is required.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -344,7 +388,7 @@ export default function VendorManagement() {
     try {
       setIsLoading(true);
       const res = await blacklistVendor({
-        data: { vendor_id: debarVendorId, reason: debarReason.trim() }
+        data: { vendor_id: debarVendorId, reason: debarReason.trim() },
       });
 
       if (!res.ok) {
@@ -422,9 +466,7 @@ export default function VendorManagement() {
       // Update local state
       setVendors((prev) =>
         prev.map((v) =>
-          v.id === editingVendor.id
-            ? { ...v, bank_details_json: res.updatedDetails }
-            : v,
+          v.id === editingVendor.id ? { ...v, bank_details_json: res.updatedDetails } : v,
         ),
       );
 
@@ -450,6 +492,8 @@ export default function VendorManagement() {
 
   const appliedVendors = vendors.filter((v) => v.status === "applied");
   const reviewVendors = vendors.filter((v) => v.status === "under_review");
+  const reviewPage = usePagedList(reviewVendors);
+  const vendorsPage = usePagedList(vendors);
   const empanelledVendors = vendors.filter((v) => v.status === "empanelled");
 
   return (
@@ -496,7 +540,8 @@ export default function VendorManagement() {
             <TabsList className="inline-flex w-max min-w-full sm:min-w-0 sm:w-auto h-auto p-1.5 gap-1.5 bg-slate-200/70 dark:bg-slate-800/80 rounded-xl justify-start">
               <TabsTrigger
                 value="apply"
-                className="font-semibold text-xs sm:text-sm py-2 px-3 sm:px-4 whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm shrink-0"
+                data-readonly={auth.isReadOnly}
+                className="data-[readonly=true]:hidden font-semibold text-xs sm:text-sm py-2 px-3 sm:px-4 whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm shrink-0"
               >
                 1. Apply for Empanelment
               </TabsTrigger>
@@ -576,7 +621,7 @@ export default function VendorManagement() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="vphone">
-                        Phone / Mobile Number <span className="text-destructive">*</span>
+                        WhatsApp / Mobile Number <span className="text-destructive">*</span>
                       </Label>
                       <Input
                         id="vphone"
@@ -703,11 +748,24 @@ export default function VendorManagement() {
               <CardContent className="space-y-6">
                 {appliedVendors.length === 0 ? (
                   <div className="py-12 text-center">
-                      <div className="flex flex-col items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5L12 3l9 7.5" /></svg>
-                        <p className="text-base font-semibold text-slate-500">No data found</p>
-                      </div>
+                    <div className="flex flex-col items-center justify-center">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="w-12 h-12 mb-3 text-slate-300"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5L12 3l9 7.5"
+                        />
+                      </svg>
+                      <p className="text-base font-semibold text-slate-500">No data found</p>
                     </div>
+                  </div>
                 ) : (
                   <form onSubmit={handleEvaluate} className="space-y-6">
                     <div className="space-y-2">
@@ -720,7 +778,9 @@ export default function VendorManagement() {
                           <SelectValue placeholder="Select an option" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="__none" disabled>Select an option</SelectItem>
+                          <SelectItem value="__none" disabled>
+                            Select an option
+                          </SelectItem>
                           {appliedVendors.map((v) => (
                             <SelectItem key={v.id} value={v.id}>
                               {v.name} (GST: {v.gst_number || "N/A"}, Applied:{" "}
@@ -834,7 +894,11 @@ export default function VendorManagement() {
                     </div>
 
                     <div className="flex justify-end">
-                      <Button type="submit" disabled={isLoading} className="font-semibold bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full">
+                      <Button
+                        type="submit"
+                        disabled={isLoading}
+                        className="font-semibold bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full"
+                      >
                         {isLoading
                           ? "Recording Evaluation..."
                           : "Submit Evaluation (Move to Under Review)"}
@@ -869,14 +933,27 @@ export default function VendorManagement() {
               <CardContent className="space-y-6">
                 {reviewVendors.length === 0 ? (
                   <div className="py-12 text-center">
-                      <div className="flex flex-col items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5L12 3l9 7.5" /></svg>
-                        <p className="text-base font-semibold text-slate-500">No data found</p>
-                      </div>
+                    <div className="flex flex-col items-center justify-center">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="w-12 h-12 mb-3 text-slate-300"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5L12 3l9 7.5"
+                        />
+                      </svg>
+                      <p className="text-base font-semibold text-slate-500">No data found</p>
                     </div>
+                  </div>
                 ) : (
                   <div className="space-y-4">
-                    {reviewVendors.map((v) => (
+                    {reviewPage.pageItems.map((v) => (
                       <div
                         key={v.id}
                         className="p-5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/60 space-y-4"
@@ -937,11 +1014,11 @@ export default function VendorManagement() {
                         </div>
                       </div>
                     ))}
+                    <PaginationControls {...reviewPage.controls} />
                   </div>
                 )}
               </CardContent>
             </Card>
-
           </TabsContent>
 
           {/* TAB 4: VENDOR MASTER DIRECTORY */}
@@ -949,7 +1026,8 @@ export default function VendorManagement() {
             <Card className="shadow-sm border-slate-200 dark:border-slate-800">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <Building2 className="w-5 h-5 text-slate-600 dark:text-slate-300" /> Vendor Master Directory
+                  <Building2 className="w-5 h-5 text-slate-600 dark:text-slate-300" /> Vendor Master
+                  Directory
                 </CardTitle>
                 <CardDescription>
                   Comprehensive registry of all vendors and their current statuses.
@@ -960,19 +1038,40 @@ export default function VendorManagement() {
                   {vendors.length === 0 ? (
                     <div className="py-14 text-center">
                       <div className="flex flex-col items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="w-14 h-14 mb-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="w-14 h-14 mb-4 text-slate-300"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={1.5}
+                            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"
+                          />
+                        </svg>
                         <p className="text-base font-semibold text-slate-500">No vendors found</p>
-                        <p className="text-sm text-slate-400 mt-1">No vendors registered in the system yet.</p>
+                        <p className="text-sm text-slate-400 mt-1">
+                          No vendors registered in the system yet.
+                        </p>
                       </div>
                     </div>
                   ) : (
                     <div className="divide-y divide-slate-200 dark:divide-slate-800 border-t border-slate-200 dark:border-slate-800 pt-2">
-                      {vendors.map((v) => {
+                      {vendorsPage.pageItems.map((v) => {
                         const isEmpanelled = v.status === "empanelled";
-                        const isDebarred = v.status === "debarred" || v.status === "blacklisted" || v.status === "suspended";
-                        
+                        const isDebarred =
+                          v.status === "debarred" ||
+                          v.status === "blacklisted" ||
+                          v.status === "suspended";
+
                         return (
-                          <div key={v.id} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-sm">
+                          <div
+                            key={v.id}
+                            className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-sm"
+                          >
                             <div className="space-y-1 flex-1">
                               <div className="flex items-center gap-2">
                                 <span className="font-bold text-slate-800 dark:text-slate-100 text-base">
@@ -995,16 +1094,27 @@ export default function VendorManagement() {
                                 )}
                               </div>
                               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-slate-500 text-xs">
-                                <span>GST: <span className="font-medium text-slate-700 dark:text-slate-300">{v.gst_number || "N/A"}</span></span>
-                                <span>PAN: <span className="font-medium text-slate-700 dark:text-slate-300">{v.pan_number || "N/A"}</span></span>
+                                <span>
+                                  GST:{" "}
+                                  <span className="font-medium text-slate-700 dark:text-slate-300">
+                                    {v.gst_number || "N/A"}
+                                  </span>
+                                </span>
+                                <span>
+                                  PAN:{" "}
+                                  <span className="font-medium text-slate-700 dark:text-slate-300">
+                                    {v.pan_number || "N/A"}
+                                  </span>
+                                </span>
                                 {isEmpanelled && v.empanelment_expiry && (
                                   <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
-                                    <Calendar className="w-3.5 h-3.5" /> Valid till: {v.empanelment_expiry}
+                                    <Calendar className="w-3.5 h-3.5" /> Valid till:{" "}
+                                    {v.empanelment_expiry}
                                   </span>
                                 )}
                               </div>
                             </div>
-                            
+
                             <div className="flex-shrink-0 flex items-center gap-2">
                               {(userRoles.includes("evp") || userRoles.includes("admin")) && (
                                 <Button
@@ -1016,19 +1126,20 @@ export default function VendorManagement() {
                                   <Pencil className="w-3.5 h-3.5 mr-1.5" /> Edit Contact
                                 </Button>
                               )}
-                              {(userRoles.includes("evp") || userRoles.includes("admin")) && !isDebarred && (
-                                <Button
-                                  variant="destructive"
-                                  size="sm"
-                                  className="h-8 text-xs font-medium shadow-sm"
-                                  onClick={() => setDebarVendorId(v.id)}
-                                >
-                                  <Ban className="w-3.5 h-3.5 mr-1.5" /> Debar
-                                </Button>
-                              )}
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
+                              {(userRoles.includes("evp") || userRoles.includes("admin")) &&
+                                !isDebarred && (
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    className="h-8 text-xs font-medium shadow-sm"
+                                    onClick={() => setDebarVendorId(v.id)}
+                                  >
+                                    <Ban className="w-3.5 h-3.5 mr-1.5" /> Debar
+                                  </Button>
+                                )}
+                              <Button
+                                variant="outline"
+                                size="sm"
                                 className="h-8 text-xs font-medium bg-white text-slate-800 hover:bg-slate-50 hover:text-slate-950 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-white shadow-sm"
                                 onClick={() => setViewDetailsVendor(v)}
                               >
@@ -1038,6 +1149,7 @@ export default function VendorManagement() {
                           </div>
                         );
                       })}
+                      <PaginationControls {...vendorsPage.controls} />
                     </div>
                   )}
                 </div>
@@ -1048,33 +1160,42 @@ export default function VendorManagement() {
       </div>
 
       {/* View Details Dialog */}
-      <Dialog open={!!viewDetailsVendor} onOpenChange={(open) => !open && setViewDetailsVendor(null)}>
+      <Dialog
+        open={!!viewDetailsVendor}
+        onOpenChange={(open) => !open && setViewDetailsVendor(null)}
+      >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl">
-              <Building2 className="w-5 h-5 text-blue-600" /> 
+              <Building2 className="w-5 h-5 text-blue-600" />
               {viewDetailsVendor?.name}
             </DialogTitle>
-            <DialogDescription>
-              Vendor Profile & Compliance Details
-            </DialogDescription>
+            <DialogDescription>Vendor Profile & Compliance Details</DialogDescription>
           </DialogHeader>
 
           {viewDetailsVendor && (
             <div className="space-y-6 pt-4">
               {/* Status Banner */}
               <div className="flex items-center gap-2 p-3 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800">
-                <span className="text-sm font-semibold text-slate-600 dark:text-slate-400 w-24">Status:</span>
+                <span className="text-sm font-semibold text-slate-600 dark:text-slate-400 w-24">
+                  Status:
+                </span>
                 {viewDetailsVendor.status === "empanelled" ? (
                   <div className="flex items-center gap-2">
                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 dark:bg-emerald-900/40 dark:text-emerald-300 uppercase tracking-wider">
                       <CheckCircle className="w-3.5 h-3.5" /> Empanelled
                     </span>
                     <span className="text-xs text-slate-500">
-                      (Valid till: <strong className="text-emerald-700 dark:text-emerald-400">{viewDetailsVendor.empanelment_expiry}</strong>)
+                      (Valid till:{" "}
+                      <strong className="text-emerald-700 dark:text-emerald-400">
+                        {viewDetailsVendor.empanelment_expiry}
+                      </strong>
+                      )
                     </span>
                   </div>
-                ) : (viewDetailsVendor.status === "debarred" || viewDetailsVendor.status === "blacklisted" || viewDetailsVendor.status === "suspended") ? (
+                ) : viewDetailsVendor.status === "debarred" ||
+                  viewDetailsVendor.status === "blacklisted" ||
+                  viewDetailsVendor.status === "suspended" ? (
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-200 dark:bg-rose-900/40 dark:text-rose-300 uppercase tracking-wider">
                     <Ban className="w-3.5 h-3.5" /> {viewDetailsVendor.status}
                   </span>
@@ -1125,22 +1246,31 @@ export default function VendorManagement() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-500">GSTIN</span>
-                      <span className="font-medium text-slate-900 dark:text-white">{viewDetailsVendor.gst_number || "N/A"}</span>
+                      <span className="font-medium text-slate-900 dark:text-white">
+                        {viewDetailsVendor.gst_number || "N/A"}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-500">PAN</span>
-                      <span className="font-medium text-slate-900 dark:text-white">{viewDetailsVendor.pan_number || "N/A"}</span>
+                      <span className="font-medium text-slate-900 dark:text-white">
+                        {viewDetailsVendor.pan_number || "N/A"}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-500">Address</span>
-                      <span className="font-medium text-slate-900 dark:text-white text-right max-w-[200px] truncate" title={viewDetailsVendor.registered_address}>
+                      <span
+                        className="font-medium text-slate-900 dark:text-white text-right max-w-[200px] truncate"
+                        title={viewDetailsVendor.registered_address}
+                      >
                         {viewDetailsVendor.registered_address || "N/A"}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-500">Applied On</span>
                       <span className="font-medium text-slate-900 dark:text-white">
-                        {viewDetailsVendor.created_at ? new Date(viewDetailsVendor.created_at).toLocaleDateString() : "N/A"}
+                        {viewDetailsVendor.created_at
+                          ? new Date(viewDetailsVendor.created_at).toLocaleDateString()
+                          : "N/A"}
                       </span>
                     </div>
                   </div>
@@ -1173,13 +1303,15 @@ export default function VendorManagement() {
                   </div>
                 </div>
               </div>
-              
+
               {/* Optional: Debarred Warning Note */}
-              {(viewDetailsVendor.status === "debarred" || viewDetailsVendor.status === "blacklisted") && (
+              {(viewDetailsVendor.status === "debarred" ||
+                viewDetailsVendor.status === "blacklisted") && (
                 <div className="p-3 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900 rounded-lg flex items-start gap-2">
                   <ShieldAlert className="w-5 h-5 text-rose-600 mt-0.5 shrink-0" />
                   <p className="text-xs text-rose-800 dark:text-rose-300">
-                    This vendor has been debarred/blacklisted and is strictly prohibited from participating in any procurement requests (RFQs) until further notice.
+                    This vendor has been debarred/blacklisted and is strictly prohibited from
+                    participating in any procurement requests (RFQs) until further notice.
                   </p>
                 </div>
               )}
@@ -1195,14 +1327,15 @@ export default function VendorManagement() {
               <ShieldAlert className="w-5 h-5" /> Debar Vendor
             </DialogTitle>
             <DialogDescription>
-              This is a severe disciplinary action. The vendor will be permanently blacklisted and restricted from all future RFQs.
+              This is a severe disciplinary action. The vendor will be permanently blacklisted and
+              restricted from all future RFQs.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-4">
             <div className="space-y-2">
               <Label>Reason for Debarment *</Label>
-              <Textarea 
-                placeholder="e.g. Fraud, persistent poor performance, breach of contract..." 
+              <Textarea
+                placeholder="e.g. Fraud, persistent poor performance, breach of contract..."
                 value={debarReason}
                 onChange={(e) => setDebarReason(e.target.value)}
                 className="resize-none"
@@ -1210,8 +1343,14 @@ export default function VendorManagement() {
               />
             </div>
             <div className="flex justify-end gap-3 pt-4">
-              <Button variant="outline" onClick={() => setDebarVendorId(null)}>Cancel</Button>
-              <Button variant="destructive" onClick={handleDebarVendor} disabled={isLoading || !debarReason.trim()}>
+              <Button variant="outline" onClick={() => setDebarVendorId(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDebarVendor}
+                disabled={isLoading || !debarReason.trim()}
+              >
                 {isLoading ? "Processing..." : "Confirm Debarment"}
               </Button>
             </div>
@@ -1259,7 +1398,7 @@ export default function VendorManagement() {
 
             <div className="space-y-2">
               <Label htmlFor="editPhone">
-                Phone / Mobile Number <span className="text-destructive">*</span>
+                WhatsApp / Mobile Number <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="editPhone"

@@ -38,6 +38,7 @@ import {
 import { usePagination } from "@/hooks/use-pagination";
 import { PaginationControls } from "@/components/PaginationControls";
 import { createPaginatedQuery } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
 
 interface Category {
   id: string;
@@ -58,6 +59,7 @@ const CategoryManagement = () => {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showWarningDialog, setShowWarningDialog] = useState(false);
   const { toast } = useToast();
+  const { isReadOnly } = useAuth();
 
   const { pagination, setPage, setPageSize, setTotal } = usePagination(10, 1);
 
@@ -288,7 +290,7 @@ const CategoryManagement = () => {
           </div>
         </div>
 
-        <Card>
+        <Card className={isReadOnly ? "hidden" : undefined}>
           <CardHeader>
             <CardTitle>Add New Category</CardTitle>
           </CardHeader>
@@ -387,80 +389,97 @@ const CategoryManagement = () => {
 
           <div className="overflow-x-auto rounded-xl border border-border/60 bg-card">
             <Table className="min-w-[500px]">
-                <TableHeader>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Category Name</TableHead>
+                  <TableHead>Prefix</TableHead>
+                  <TableHead>Created Date</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {categories.length === 0 ? (
                   <TableRow>
-                    <TableHead>Category Name</TableHead>
-                    <TableHead>Prefix</TableHead>
-                    <TableHead>Created Date</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableCell colSpan={3} className="py-14">
+                      <div className="flex flex-col items-center justify-center text-center">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="w-12 h-12 mb-3 text-slate-300"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={1.5}
+                            d="M4 6h16M4 10h16M4 14h16M4 18h16"
+                          />
+                        </svg>
+                        <p className="text-base font-semibold text-slate-500">
+                          No categories found
+                        </p>
+                        <p className="text-sm text-slate-400 mt-1">
+                          Add your first category above.
+                        </p>
+                      </div>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {categories.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={3} className="py-14">
-                        <div className="flex flex-col items-center justify-center text-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
-                          <p className="text-base font-semibold text-slate-500">No categories found</p>
-                          <p className="text-sm text-slate-400 mt-1">Add your first category above.</p>
+                ) : (
+                  categories.map((category) => (
+                    <TableRow key={category.id}>
+                      <TableCell className="font-medium">{category.name}</TableCell>
+                      <TableCell className="font-medium">{category.prefix || "-"}</TableCell>
+                      <TableCell>{new Date(category.created_at).toLocaleDateString()}</TableCell>
+                      <TableCell className="text-right">
+                        <div className={isReadOnly ? "hidden" : "flex justify-end gap-2"}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setEditingCategory(category);
+                              setEditName(category.name);
+                              setEditPrefix(category.prefix || "");
+                            }}
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="destructive" size="sm">
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Category</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete "{category.name}"? This action
+                                  cannot be undone. The category must not be used by any inventory
+                                  items.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => deleteCategory(category.id, category.name)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       </TableCell>
                     </TableRow>
-                  ) : (
-                    categories.map((category) => (
-                      <TableRow key={category.id}>
-                        <TableCell className="font-medium">{category.name}</TableCell>
-                        <TableCell className="font-medium">{category.prefix || "-"}</TableCell>
-                        <TableCell>{new Date(category.created_at).toLocaleDateString()}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setEditingCategory(category);
-                                setEditName(category.name);
-                                setEditPrefix(category.prefix || "");
-                              }}
-                            >
-                              <Edit className="h-4 w-4 mr-2" />
-                              Edit
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="destructive" size="sm">
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Delete
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete Category</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to delete "{category.name}"? This action
-                                    cannot be undone. The category must not be used by any inventory
-                                    items.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => deleteCategory(category.id, category.name)}
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                  >
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
 
           <PaginationControls
             currentPage={pagination.page}

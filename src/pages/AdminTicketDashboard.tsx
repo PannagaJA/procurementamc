@@ -101,7 +101,7 @@ const AdminTicketDashboard = () => {
 
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(() => Boolean(authCtx?.hasRole?.("admin")));
+  const [isAdmin, setIsAdmin] = useState(() => Boolean(authCtx?.canViewAdmin));
   const [isPrinciple, setIsPrinciple] = useState(() =>
     Boolean(authCtx?.hasRole?.("principal") || authCtx?.hasRole?.("principle")),
   );
@@ -109,10 +109,11 @@ const AdminTicketDashboard = () => {
   // Sync instantaneously whenever auth roles are ready
   useEffect(() => {
     if (authCtx?.roles && authCtx.roles.length > 0) {
-      setIsAdmin(authCtx.hasRole("admin"));
+      setIsAdmin(authCtx.canViewAdmin);
       setIsPrinciple(authCtx.hasRole("principal") || authCtx.hasRole("principle"));
     }
   }, [authCtx?.roles]);
+  const isReadOnly = Boolean(authCtx?.isReadOnly);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
   const [viewTicket, setViewTicket] = useState<Ticket | null>(null);
@@ -509,7 +510,7 @@ const AdminTicketDashboard = () => {
   const checkUserRoles = async () => {
     // Fast path: if roles are already in AuthContext (0ms), use them directly
     if (authCtx?.roles && authCtx.roles.length > 0) {
-      const adminOk = authCtx.hasRole("admin");
+      const adminOk = authCtx.canViewAdmin;
       const principalOk = authCtx.hasRole("principal") || authCtx.hasRole("principle");
       setIsAdmin(adminOk);
       setIsPrinciple(principalOk);
@@ -542,7 +543,9 @@ const AdminTicketDashboard = () => {
       }
 
       const roles = (roleRows || []).map((r: any) => r.role);
-      const adminOk = roles.includes("admin");
+      const adminOk = roles.some((r: string) =>
+        ["admin", "auditor", "corporate_office"].includes(r),
+      );
       const principalOk = roles.includes("principal") || roles.includes("principle");
 
       setIsAdmin(adminOk);
@@ -702,6 +705,7 @@ const AdminTicketDashboard = () => {
   };
 
   const openUpdateDialog = (ticket: Ticket) => {
+    if (isReadOnly) return setViewTicket(ticket);
     if (LOCKED_STATUSES.includes(ticket.status)) {
       toast({
         title: "Not editable",
@@ -925,9 +929,9 @@ const AdminTicketDashboard = () => {
                             variant="outline"
                             size="sm"
                             onClick={() => openUpdateDialog(ticket)}
-                            disabled={LOCKED_STATUSES.includes(ticket.status)}
+                            disabled={!isReadOnly && LOCKED_STATUSES.includes(ticket.status)}
                           >
-                            Update
+                            {isReadOnly ? "View" : "Update"}
                           </Button>
                         </td>
                       </tr>

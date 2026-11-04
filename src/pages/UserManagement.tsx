@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
+import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -68,6 +69,7 @@ const UserManagement = () => {
   const [departments, setDepartments] = useState<any[]>([]);
   const [selectedDepartments, setSelectedDepartments] = useState<Record<string, string>>({});
   const { toast } = useToast();
+  const { isReadOnly } = useAuth();
 
   // Add User Dialog State
   const [showAddUserModal, setShowAddUserModal] = useState(false);
@@ -256,9 +258,7 @@ const UserManagement = () => {
         insertPayload.department_id = finalDeptId;
       }
 
-      const { error: insertError } = await supabase
-        .from("user_roles")
-        .insert(insertPayload);
+      const { error: insertError } = await supabase.from("user_roles").insert(insertPayload);
 
       if (insertError) throw insertError;
 
@@ -404,22 +404,45 @@ const UserManagement = () => {
     if (!primary) return "Pending";
     // Format role into readable label
     switch (primary) {
-      case "admin": return "Admin";
+      case "admin":
+        return "Admin";
       case "principal":
-      case "principle": return "Principal";
-      case "hod": return "HOD";
-      case "librarian": return "Librarian";
-      case "viewer": return "Viewer";
-      case "faculty": return "Faculty";
-      case "requester": return "Requester";
-      case "stores": return "Stores";
-      case "finance": return "Finance";
-      case "procurement_officer": return "Procurement Officer";
-      case "procurement_executive": return "Procurement Executive";
-      case "purchase_committee": return "Purchase Committee";
-      case "evp": return "EVP";
-      case "director_admin_finance": return "Director Admin & Finance";
-      default: return primary.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      case "principle":
+        return "Principal";
+      case "hod":
+        return "HOD";
+      case "librarian":
+        return "Librarian";
+      case "viewer":
+        return "Viewer";
+      case "faculty":
+        return "Faculty";
+      case "requester":
+        return "Requester";
+      case "stores":
+        return "Stores";
+      case "finance":
+        return "Finance";
+      case "procurement_officer":
+        return "Procurement Officer";
+      case "procurement_executive":
+        return "Procurement Executive";
+      case "purchase_committee":
+        return "Purchase Committee";
+      case "evp":
+        return "EVP";
+      case "chairman":
+        return "Chairman";
+      case "vice_chairman":
+        return "Vice Chairman";
+      case "auditor":
+        return "Auditor (read-only)";
+      case "corporate_office":
+        return "Corporate Office (read-only)";
+      case "director_admin_finance":
+        return "Director Admin & Finance";
+      default:
+        return primary.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
     }
   };
 
@@ -474,7 +497,9 @@ const UserManagement = () => {
           </div>
           <Button
             onClick={() => setShowAddUserModal(true)}
-            className="gap-2 bg-[#0B1437] hover:bg-[#111f54] text-white shadow-sm"
+            className={
+              isReadOnly ? "hidden" : "gap-2 bg-[#0B1437] hover:bg-[#111f54] text-white shadow-sm"
+            }
           >
             <UserPlus className="w-4 h-4" />
             Add User
@@ -531,163 +556,179 @@ const UserManagement = () => {
 
         <div className="overflow-x-auto rounded-xl border border-border/60 bg-card">
           <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Department</TableHead>
-                    <TableHead>Registration Date</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Department</TableHead>
+                <TableHead>Registration Date</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {users.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    No users found.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                users.map((user) => (
+                  <TableRow key={user.id}>
+                    <TableCell className="font-medium">{user.full_name || "N/A"}</TableCell>
+                    <TableCell>{user.email}</TableCell>
+                    <TableCell>{getRoleBadge(user)}</TableCell>
+                    <TableCell>
+                      {(() => {
+                        const userRole = user.user_roles?.[0]?.role;
+                        const deptId = user.user_roles?.[0]?.department_id;
+                        const isAcademicRole = userRole === "hod" || userRole === "faculty";
+
+                        // Show department Select dropdown for HOD and Faculty
+                        if (
+                          !isReadOnly &&
+                          (isAcademicRole || selectedDepartments[user.id] !== undefined)
+                        ) {
+                          return (
+                            <Select
+                              value={selectedDepartments[user.id] ?? deptId ?? ""}
+                              onValueChange={(newDeptId) => {
+                                setSelectedDepartments((p) => ({ ...p, [user.id]: newDeptId }));
+                                const currentRole = userRole || "faculty";
+                                setUserRole(user.id, user.email, currentRole, newDeptId);
+                              }}
+                            >
+                              <SelectTrigger className="w-48">
+                                <SelectValue placeholder="Select dept" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {departments.map((d) => (
+                                  <SelectItem key={d.id} value={d.id}>
+                                    {d.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          );
+                        }
+
+                        // For non-HOD and non-Faculty, display their department name or default to "Management"
+                        const dept = departments.find((d) => d.id === deptId);
+                        if (dept) return dept.name;
+                        return "Management";
+                      })()}
+                    </TableCell>
+                    <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
+                    <TableCell className="text-right">
+                      <div
+                        className={isReadOnly ? "hidden" : "flex items-center justify-end gap-2"}
+                      >
+                        {getUserRole(user.user_roles) === "Pending" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => promoteToAdmin(user.id, user.email)}
+                          >
+                            Set to Admin
+                          </Button>
+                        )}
+                        {getUserRole(user.user_roles) !== "Pending" && (
+                          <Select
+                            value={user.user_roles?.[0]?.role || "viewer"}
+                            onValueChange={(value) => {
+                              const currentDept = user.user_roles?.[0]?.department_id;
+                              if (value === "hod" || value === "faculty") {
+                                setUserRole(user.id, user.email, value, currentDept || undefined);
+                                setSelectedDepartments((p) => ({
+                                  ...p,
+                                  [user.id]: p[user.id] || currentDept || "",
+                                }));
+                              } else {
+                                setSelectedDepartments((p) => {
+                                  const copy = { ...p };
+                                  delete copy[user.id];
+                                  return copy;
+                                });
+                                setUserRole(user.id, user.email, value);
+                              }
+                            }}
+                          >
+                            <SelectTrigger className="w-36">
+                              <SelectValue placeholder="Select an option" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="admin">Admin</SelectItem>
+                              <SelectItem value="principal">Principal</SelectItem>
+                              <SelectItem value="hod">HOD</SelectItem>
+                              <SelectItem value="faculty">Faculty</SelectItem>
+                              <SelectItem value="librarian">Librarian</SelectItem>
+                              <SelectItem value="procurement_officer">
+                                Procurement Officer
+                              </SelectItem>
+                              <SelectItem value="procurement_executive">
+                                Procurement Executive
+                              </SelectItem>
+                              <SelectItem value="purchase_committee">Purchase Committee</SelectItem>
+                              <SelectItem value="stores">Stores</SelectItem>
+                              <SelectItem value="finance">Finance</SelectItem>
+                              <SelectItem value="evp">EVP</SelectItem>
+                              <SelectItem value="chairman">Chairman</SelectItem>
+                              <SelectItem value="vice_chairman">Vice Chairman</SelectItem>
+                              <SelectItem value="auditor">Auditor (read-only)</SelectItem>
+                              <SelectItem value="corporate_office">
+                                Corporate Office (read-only)
+                              </SelectItem>
+                              <SelectItem value="director_admin_finance">
+                                Director (Admin & Fin)
+                              </SelectItem>
+                              <SelectItem value="requester">Requester</SelectItem>
+                              <SelectItem value="user">User</SelectItem>
+                              <SelectItem value="viewer">Viewer</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => setUserToDelete(user)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete User</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete {userToDelete?.email}? This action
+                                cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel onClick={() => setUserToDelete(null)}>
+                                Cancel
+                              </AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() =>
+                                  userToDelete && deleteUser(userToDelete.id, userToDelete.email)
+                                }
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {users.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                        No users found.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    users.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell className="font-medium">{user.full_name || "N/A"}</TableCell>
-                        <TableCell>{user.email}</TableCell>
-                        <TableCell>{getRoleBadge(user)}</TableCell>
-                        <TableCell>
-                          {(() => {
-                            const userRole = user.user_roles?.[0]?.role;
-                            const deptId = user.user_roles?.[0]?.department_id;
-                            const isAcademicRole = userRole === "hod" || userRole === "faculty";
-
-                            // Show department Select dropdown for HOD and Faculty
-                            if (isAcademicRole || selectedDepartments[user.id] !== undefined) {
-                              return (
-                                <Select
-                                  value={selectedDepartments[user.id] ?? deptId ?? ""}
-                                  onValueChange={(newDeptId) => {
-                                    setSelectedDepartments((p) => ({ ...p, [user.id]: newDeptId }));
-                                    const currentRole = userRole || "faculty";
-                                    setUserRole(user.id, user.email, currentRole, newDeptId);
-                                  }}
-                                >
-                                  <SelectTrigger className="w-48">
-                                    <SelectValue placeholder="Select dept" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {departments.map((d) => (
-                                      <SelectItem key={d.id} value={d.id}>
-                                        {d.name}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              );
-                            }
-
-                            // For non-HOD and non-Faculty, display their department name or default to "Management"
-                            const dept = departments.find((d) => d.id === deptId);
-                            if (dept) return dept.name;
-                            return "Management";
-                          })()}
-                        </TableCell>
-                        <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            {getUserRole(user.user_roles) === "Pending" && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => promoteToAdmin(user.id, user.email)}
-                              >
-                                Set to Admin
-                              </Button>
-                            )}
-                            {getUserRole(user.user_roles) !== "Pending" && (
-                              <Select
-                                value={user.user_roles?.[0]?.role || "viewer"}
-                                onValueChange={(value) => {
-                                  const currentDept = user.user_roles?.[0]?.department_id;
-                                  if (value === "hod" || value === "faculty") {
-                                    setUserRole(user.id, user.email, value, currentDept || undefined);
-                                    setSelectedDepartments((p) => ({
-                                      ...p,
-                                      [user.id]: p[user.id] || currentDept || "",
-                                    }));
-                                  } else {
-                                    setSelectedDepartments((p) => {
-                                      const copy = { ...p };
-                                      delete copy[user.id];
-                                      return copy;
-                                    });
-                                    setUserRole(user.id, user.email, value);
-                                  }
-                                }}
-                              >
-                                <SelectTrigger className="w-36">
-                                  <SelectValue placeholder="Select an option" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="admin">Admin</SelectItem>
-                                  <SelectItem value="principal">Principal</SelectItem>
-                                  <SelectItem value="hod">HOD</SelectItem>
-                                  <SelectItem value="faculty">Faculty</SelectItem>
-                                  <SelectItem value="librarian">Librarian</SelectItem>
-                                  <SelectItem value="procurement_officer">Procurement Officer</SelectItem>
-                                  <SelectItem value="procurement_executive">Procurement Executive</SelectItem>
-                                  <SelectItem value="purchase_committee">Purchase Committee</SelectItem>
-                                  <SelectItem value="stores">Stores</SelectItem>
-                                  <SelectItem value="finance">Finance</SelectItem>
-                                  <SelectItem value="evp">EVP</SelectItem>
-                                  <SelectItem value="director_admin_finance">Director (Admin & Fin)</SelectItem>
-                                  <SelectItem value="requester">Requester</SelectItem>
-                                  <SelectItem value="user">User</SelectItem>
-                                  <SelectItem value="viewer">Viewer</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            )}
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="destructive"
-                                  size="sm"
-                                  onClick={() => setUserToDelete(user)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Delete User</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to delete {userToDelete?.email}? This
-                                    action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel onClick={() => setUserToDelete(null)}>
-                                    Cancel
-                                  </AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() =>
-                                      userToDelete &&
-                                      deleteUser(userToDelete.id, userToDelete.email)
-                                    }
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                  >
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
 
         <PaginationControls
           currentPage={pagination.page}
@@ -707,7 +748,8 @@ const UserManagement = () => {
                 Add New User
               </DialogTitle>
               <DialogDescription>
-                Create a new user account in Supabase and configure their institutional role and department.
+                Create a new user account in Supabase and configure their institutional role and
+                department.
               </DialogDescription>
             </DialogHeader>
 
@@ -733,15 +775,16 @@ const UserManagement = () => {
                   required
                   placeholder="e.g. ramesh.kumar@institution.edu"
                   value={newUserForm.email}
-                  onChange={(e) =>
-                    setNewUserForm((prev) => ({ ...prev, email: e.target.value }))
-                  }
+                  onChange={(e) => setNewUserForm((prev) => ({ ...prev, email: e.target.value }))}
                 />
               </div>
 
               <div className="p-3 bg-muted/40 rounded-lg border border-border/50 text-xs text-muted-foreground flex flex-col gap-1">
                 <span className="font-semibold text-foreground">Default Credentials:</span>
-                <span>The initial password for this account will be automatically set to <strong className="text-foreground font-mono">Password@123</strong>.</span>
+                <span>
+                  The initial password for this account will be automatically set to{" "}
+                  <strong className="text-foreground font-mono">Password@123</strong>.
+                </span>
               </div>
 
               <div className="space-y-1.5">
@@ -752,7 +795,9 @@ const UserManagement = () => {
                     const role = val as AppRole;
                     // Auto-select Management department for non-academic roles if empty
                     const mgmtDept = departments.find(
-                      (d) => d.name.toLowerCase() === "management" || d.name.toLowerCase().includes("management"),
+                      (d) =>
+                        d.name.toLowerCase() === "management" ||
+                        d.name.toLowerCase().includes("management"),
                     );
                     setNewUserForm((prev) => ({
                       ...prev,
@@ -779,7 +824,15 @@ const UserManagement = () => {
                     <SelectItem value="stores">Stores / Receiving</SelectItem>
                     <SelectItem value="finance">Finance Officer</SelectItem>
                     <SelectItem value="evp">Executive Vice President (EVP)</SelectItem>
-                    <SelectItem value="director_admin_finance">Director (Admin & Finance)</SelectItem>
+                    <SelectItem value="chairman">Chairman (EVP authority)</SelectItem>
+                    <SelectItem value="vice_chairman">Vice Chairman (EVP authority)</SelectItem>
+                    <SelectItem value="auditor">Auditor (read-only admin view)</SelectItem>
+                    <SelectItem value="corporate_office">
+                      Corporate Office (read-only admin view)
+                    </SelectItem>
+                    <SelectItem value="director_admin_finance">
+                      Director (Admin & Finance)
+                    </SelectItem>
                     <SelectItem value="requester">Requester</SelectItem>
                     <SelectItem value="user">User</SelectItem>
                     <SelectItem value="viewer">Viewer</SelectItem>
@@ -789,7 +842,10 @@ const UserManagement = () => {
 
               <div className="space-y-1.5">
                 <Label htmlFor="new-department">
-                  Department {newUserForm.role === "hod" || newUserForm.role === "faculty" ? "*" : "(Defaults to Management)"}
+                  Department{" "}
+                  {newUserForm.role === "hod" || newUserForm.role === "faculty"
+                    ? "*"
+                    : "(Defaults to Management)"}
                 </Label>
                 <Select
                   value={newUserForm.departmentId}

@@ -398,7 +398,7 @@ export const listRfqs = createServerFn({ method: "GET" })
         ),
         rfq_vendors (
           id, vendor_id, sent_at, response_received_at,
-          vendors (id, name, gst_number, status)
+          vendors (id, name, gst_number, status, phone:bank_details_json->>phone)
         ),
         quotation_lines (
           id, vendor_id, description, quantity, unit, unit_price, tax_amount, total_price, rate_item_no,
@@ -418,7 +418,10 @@ export const listRfqs = createServerFn({ method: "GET" })
     if (error) return { ok: false as const, error: error.message };
 
     const { resolveApprover, isDirectPurchase } = await import("@/lib/procurement/authorityMatrix");
-    const { data: rules } = await supabaseAdmin.from("approval_matrix_rules").select("*").eq("active", true);
+    const { data: rules } = await supabaseAdmin
+      .from("approval_matrix_rules")
+      .select("*")
+      .eq("active", true);
     const withFlags = (rfqs ?? []).map((r: any) => {
       const activeCs = (r.comparative_statements ?? []).find((c: any) => c.status !== "rejected");
       return {
@@ -918,12 +921,14 @@ export const getVendorQuoteLink = createServerFn({ method: "POST" })
     if (!rv) return { ok: false as const, error: "That vendor isn't invited to this RFQ." };
     try {
       const { linkOrigin, rfqVendorLink } = await import("@/server/quoteLinks");
-      return { ok: true as const, url: rfqVendorLink(linkOrigin(data.origin), data.rfq_id, data.vendor_id) };
+      return {
+        ok: true as const,
+        url: rfqVendorLink(linkOrigin(data.origin), data.rfq_id, data.vendor_id),
+      };
     } catch (e: any) {
       return { ok: false as const, error: e.message };
     }
   });
-
 
 /** Invite a replacement empanelled vendor to maintain the mandatory 3-quote quorum (SOP §8.4). */
 export const inviteReplacementVendor = createServerFn({ method: "POST" })
@@ -935,8 +940,15 @@ export const inviteReplacementVendor = createServerFn({ method: "POST" })
     const roles = await getCallerRoles(db, context.userId);
     const held = roles.map((r) => r.role);
 
-    if (!held.includes("admin") && !held.includes("procurement_officer") && !held.includes("procurement_executive")) {
-      return { ok: false as const, error: "Only Procurement Officers can invite replacement vendors." };
+    if (
+      !held.includes("admin") &&
+      !held.includes("procurement_officer") &&
+      !held.includes("procurement_executive")
+    ) {
+      return {
+        ok: false as const,
+        error: "Only Procurement Officers can invite replacement vendors.",
+      };
     }
 
     const { assertVendorEmpanelled } = await import("@/server/procurement/guards");
@@ -961,16 +973,14 @@ export const inviteReplacementVendor = createServerFn({ method: "POST" })
     }
 
     // 2. Insert into rfq_vendors
-    const { error: insErr } = await supabaseAdmin
-      .from("rfq_vendors")
-      .upsert(
-        {
-          rfq_id: data.rfq_id,
-          vendor_id: data.vendor_id,
-          sent_at: new Date().toISOString(),
-        },
-        { onConflict: "rfq_id,vendor_id" }
-      );
+    const { error: insErr } = await supabaseAdmin.from("rfq_vendors").upsert(
+      {
+        rfq_id: data.rfq_id,
+        vendor_id: data.vendor_id,
+        sent_at: new Date().toISOString(),
+      },
+      { onConflict: "rfq_id,vendor_id" },
+    );
 
     if (insErr) return { ok: false as const, error: insErr.message };
 
@@ -993,6 +1003,8 @@ export const inviteReplacementVendor = createServerFn({ method: "POST" })
     return {
       ok: true as const,
       vendorName: vendor?.name || "Vendor",
+      vendorPhone: ((vendor?.bank_details_json as any)?.phone as string | undefined) ?? null,
+      rfqNumber: rfq.rfq_number as string,
       quoteUrl,
       message: `Replacement vendor ${vendor?.name || ""} successfully invited to RFQ ${rfq.rfq_number}.`,
     };
@@ -1009,14 +1021,21 @@ export const debarVendorForNonResponse = createServerFn({ method: "POST" })
     const held = roles.map((r) => r.role);
 
     if (!held.includes("admin") && !held.includes("procurement_officer") && !held.includes("evp")) {
-      return { ok: false as const, error: "Only Procurement Officers or EVP can debar non-responsive vendors." };
+      return {
+        ok: false as const,
+        error: "Only Procurement Officers or EVP can debar non-responsive vendors.",
+      };
     }
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // 1. Fetch RFQ and Vendor
     const [rfqRes, vendorRes] = await Promise.all([
-      supabaseAdmin.from("rfqs").select("id, rfq_number, response_deadline").eq("id", data.rfq_id).single(),
+      supabaseAdmin
+        .from("rfqs")
+        .select("id, rfq_number, response_deadline")
+        .eq("id", data.rfq_id)
+        .single(),
       supabaseAdmin.from("vendors").select("id, name, status").eq("id", data.vendor_id).single(),
     ]);
 

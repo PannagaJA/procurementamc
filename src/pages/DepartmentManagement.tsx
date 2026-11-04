@@ -25,6 +25,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { Trash2 } from "lucide-react";
+import { PaginationControls } from "@/components/PaginationControls";
+import { usePagedList } from "@/hooks/use-paged-list";
+import { useAuth } from "@/lib/auth";
 
 export default function DepartmentManagement() {
   const [locations, setLocations] = useState<any[]>([]);
@@ -36,6 +39,7 @@ export default function DepartmentManagement() {
   const [editForm, setEditForm] = useState({ name: "", prefix: "" });
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { isReadOnly } = useAuth();
 
   useEffect(() => {
     fetchLocations();
@@ -56,10 +60,12 @@ export default function DepartmentManagement() {
       const { data: roleData, error } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", user.id)
-        .maybeSingle();
+        .eq("user_id", user.id);
       if (error) throw error;
-      setIsAdmin(roleData?.role === "admin");
+      // Auditor / Corporate Office view the list read-only.
+      setIsAdmin(
+        (roleData ?? []).some((r) => ["admin", "auditor", "corporate_office"].includes(r.role)),
+      );
     } catch (err) {
       console.error("Failed to check admin role", err);
       setIsAdmin(false);
@@ -192,6 +198,8 @@ export default function DepartmentManagement() {
     fetchDepartments(form.location_id);
   };
 
+  const deptPage = usePagedList(departments);
+
   if (checkingAdmin) {
     return <PageSkeleton cards={2} rows={6} />;
   }
@@ -221,7 +229,9 @@ export default function DepartmentManagement() {
       <div className="w-full max-w-full space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight text-[#0B1437] dark:text-white">Add Department</h2>
+            <h2 className="text-3xl font-bold tracking-tight text-[#0B1437] dark:text-white">
+              {isReadOnly ? "Departments" : "Add Department"}
+            </h2>
           </div>
         </div>
 
@@ -243,7 +253,9 @@ export default function DepartmentManagement() {
                     <SelectValue placeholder="Select an option" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none" disabled>Select an option</SelectItem>
+                    <SelectItem value="__none" disabled>
+                      Select an option
+                    </SelectItem>
                     {locations.map((l) => (
                       <SelectItem key={l.id} value={l.id}>
                         {l.name}
@@ -253,29 +265,37 @@ export default function DepartmentManagement() {
                 </Select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium">Department Name</label>
-                <Input
-                  value={form.name}
-                  onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-                  placeholder="e.g. Computer Science & Engineering"
-                  className="h-10"
-                />
-              </div>
+              {!isReadOnly && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium">Department Name</label>
+                    <Input
+                      value={form.name}
+                      onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                      placeholder="e.g. Computer Science & Engineering"
+                      className="h-10"
+                    />
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium">Prefix (optional)</label>
-                <Input
-                  value={form.prefix}
-                  onChange={(e) => setForm((p) => ({ ...p, prefix: e.target.value }))}
-                  placeholder="e.g. CSE"
-                  className="h-10"
-                />
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium">Prefix (optional)</label>
+                    <Input
+                      value={form.prefix}
+                      onChange={(e) => setForm((p) => ({ ...p, prefix: e.target.value }))}
+                      placeholder="e.g. CSE"
+                      className="h-10"
+                    />
+                  </div>
+                </>
+              )}
             </div>
 
-            <div className="mt-4 flex gap-2">
-              <Button onClick={handleCreate} disabled={loading} className="bg-[#0B1437] hover:bg-[#111f54] text-white font-bold rounded-full px-6 py-2.5 shadow-sm transition-all w-full sm:w-auto">
+            <div className={isReadOnly ? "hidden" : "mt-4 flex gap-2"}>
+              <Button
+                onClick={handleCreate}
+                disabled={loading}
+                className="bg-[#0B1437] hover:bg-[#111f54] text-white font-bold rounded-full px-6 py-2.5 shadow-sm transition-all w-full sm:w-auto"
+              >
                 {loading ? "Creating..." : "Create Department"}
               </Button>
             </div>
@@ -288,8 +308,11 @@ export default function DepartmentManagement() {
                     No departments found for this location.
                   </div>
                 )}
-                {departments.map((d) => (
-                  <div key={d.id} className="p-3 border rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                {deptPage.pageItems.map((d) => (
+                  <div
+                    key={d.id}
+                    className="p-3 border rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                  >
                     <div className="flex-1">
                       {editingId === d.id ? (
                         <div className="grid grid-cols-2 gap-2">
@@ -325,7 +348,7 @@ export default function DepartmentManagement() {
                             Cancel
                           </Button>
                         </>
-                      ) : isAdmin ? (
+                      ) : isAdmin && !isReadOnly ? (
                         <>
                           <Button size="sm" onClick={() => startEdit(d)}>
                             Edit
@@ -362,6 +385,7 @@ export default function DepartmentManagement() {
                   </div>
                 ))}
               </div>
+              <PaginationControls {...deptPage.controls} />
             </div>
           </CardContent>
         </Card>
