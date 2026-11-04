@@ -17,9 +17,13 @@ export type CreateRfqInput = {
   notes?: string | null;
 };
 
+export type InviteChannel = "email" | "whatsapp";
+
 export type SendRfqInput = {
   rfq_id: string;
   vendor_ids: string[];
+  /** How each vendor is invited; missing vendors default to email. */
+  channels?: Record<string, InviteChannel>;
 };
 
 export type QuotationLineInput = {
@@ -305,6 +309,7 @@ export const sendRfq = createServerFn({ method: "POST" })
       rfq_id: data.rfq_id,
       vendor_id: vId,
       sent_at: new Date().toISOString(),
+      invite_channel: data.channels?.[vId] === "whatsapp" ? "whatsapp" : "email",
     }));
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -397,8 +402,8 @@ export const listRfqs = createServerFn({ method: "GET" })
           pr_line_items (id, description, unit, qty_required, net_qty_to_procure, est_unit_price)
         ),
         rfq_vendors (
-          id, vendor_id, sent_at, response_received_at,
-          vendors (id, name, gst_number, status, phone:bank_details_json->>phone)
+          id, vendor_id, sent_at, response_received_at, invite_channel,
+          vendors (id, name, gst_number, status, phone:bank_details_json->>phone, email:bank_details_json->>email)
         ),
         quotation_lines (
           id, vendor_id, description, quantity, unit, unit_price, tax_amount, total_price, rate_item_no,
@@ -928,6 +933,35 @@ export const getVendorQuoteLink = createServerFn({ method: "POST" })
     } catch (e: any) {
       return { ok: false as const, error: e.message };
     }
+  });
+
+/** Change how a vendor is invited to an RFQ (procurement only), e.g. after a failed email. */
+export const setInviteChannel = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: { rfq_id: string; vendor_id: string; channel: InviteChannel }) => input)
+  .handler(async ({ data, context }) => {
+    const { getCallerRoles } = await import("@/server/procurement/roles");
+    const held = (await getCallerRoles(context.supabase as any, context.userId)).map((r) => r.role);
+    if (!["admin", "procurement_officer", "procurement_executive"].some((r) => held.includes(r))) {
+      return {
+        ok: false as const,
+        error: "Only the procurement team can change how vendors are invited.",
+      };
+    }
+    if (data.channel !== "email" && data.channel !== "whatsapp") {
+      return { ok: false as const, error: "Unknown channel." };
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await supabaseAdmin
+      .from("rfq_vendors")
+      .update({ invite_channel: data.channel })
+      .eq("rfq_id", data.rfq_id)
+      .eq("vendor_id", data.vendor_id)
+      .select("id");
+    if (error) return { ok: false as const, error: error.message };
+    if (!rows?.length)
+      return { ok: false as const, error: "That vendor isn't invited to this RFQ." };
+    return { ok: true as const };
   });
 
 /** Invite a replacement empanelled vendor to maintain the mandatory 3-quote quorum (SOP §8.4). */

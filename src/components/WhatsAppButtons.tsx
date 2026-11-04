@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
-import { toWaNumber, waLink } from "@/lib/whatsapp";
+import { openWhatsApp, toWaNumber } from "@/lib/whatsapp";
 
 type Props = {
   /** The vendor's saved phone (Vendor Management). */
@@ -15,13 +15,24 @@ type Props = {
   compact?: boolean;
   /** False where no vendor phone is stored at all: only "Other number" is shown. */
   vendorButton?: boolean;
+  /** Called after WhatsApp opened (to tick a vendor off a list). */
+  onOpened?: () => void;
+  /** Label of the main button (default "WhatsApp"). */
+  label?: string;
 };
 
 /**
  * "WhatsApp" opens a chat with the vendor's number, message filled in; "Other number" sends the
  * same message to a number typed here. The tab opens before the await so popup blockers allow it.
  */
-export function WhatsAppButtons({ phone, getMessage, compact, vendorButton = true }: Props) {
+export function WhatsAppButtons({
+  phone,
+  getMessage,
+  compact,
+  vendorButton = true,
+  onOpened,
+  label = "WhatsApp",
+}: Props) {
   const { toast } = useToast();
   const [busy, setBusy] = useState(false);
   const [other, setOther] = useState("");
@@ -29,17 +40,14 @@ export function WhatsAppButtons({ phone, getMessage, compact, vendorButton = tru
   const vendorNumber = toWaNumber(phone);
 
   const send = async (to: string | null | undefined) => {
-    const tab = window.open("", "_blank");
+    const opening = openWhatsApp(to, getMessage);
     setBusy(true);
     try {
-      const text = await getMessage();
-      if (!text) return tab?.close();
-      const url = waLink(to, text);
-      if (tab) tab.location.href = url;
-      else window.location.href = url;
-      setOpen(false);
+      if (await opening) {
+        setOpen(false);
+        onOpened?.();
+      }
     } catch (e) {
-      tab?.close();
       toast({
         title: "Couldn't prepare the WhatsApp message",
         description: (e as Error)?.message,
@@ -69,7 +77,7 @@ export function WhatsAppButtons({ phone, getMessage, compact, vendorButton = tru
         }
         onClick={() => send(phone)}
       >
-        <MessageCircle className="w-3 h-3 mr-1" /> WhatsApp
+        <MessageCircle className="w-3 h-3 mr-1" /> {label}
       </Button>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>

@@ -1471,6 +1471,7 @@ export type Database = {
         Row: {
           created_at: string;
           id: string;
+          invite_channel: string;
           response_received_at: string | null;
           rfq_id: string;
           sent_at: string | null;
@@ -1479,6 +1480,7 @@ export type Database = {
         Insert: {
           created_at?: string;
           id?: string;
+          invite_channel?: string;
           response_received_at?: string | null;
           rfq_id: string;
           sent_at?: string | null;
@@ -1487,6 +1489,7 @@ export type Database = {
         Update: {
           created_at?: string;
           id?: string;
+          invite_channel?: string;
           response_received_at?: string | null;
           rfq_id?: string;
           sent_at?: string | null;

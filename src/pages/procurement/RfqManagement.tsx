@@ -2,6 +2,14 @@ import { useState, useEffect } from "react";
 import { FilterSelect, statusFilterOptions, applyFilter } from "@/components/FilterSelect";
 import Layout from "@/components/Layout";
 import { WhatsAppButtons } from "@/components/WhatsAppButtons";
+import { ChannelToggle } from "@/components/procurement/ChannelToggle";
+import {
+  InviteDeliveryDialog,
+  quoteMessage,
+  vendorQuoteMessage,
+  type DeliveryVendor,
+} from "@/components/procurement/InviteDeliveryDialog";
+import { defaultChannel } from "@/lib/whatsapp";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,6 +51,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   createRfq,
   sendRfq,
+  type InviteChannel,
   listRfqs,
   awardDirectPurchase,
   getVendorQuoteLink,
@@ -102,6 +111,14 @@ export default function RfqManagement() {
   const [activeRfq, setActiveRfq] = useState<any>(null);
   const [selectedVendorIds, setSelectedVendorIds] = useState<string[]>([]);
   const [sending, setSending] = useState(false);
+  /** Email or WhatsApp per vendor in the invite dialog. */
+  const [channels, setChannels] = useState<Record<string, InviteChannel>>({});
+  /** The Delivery step: per-vendor send / retry after inviting, or when reminding. */
+  const [delivery, setDelivery] = useState<{
+    rfq: any;
+    vendors: DeliveryVendor[];
+    title?: string;
+  } | null>(null);
 
   // Direct purchase award (no CS)
   const [awardRfq, setAwardRfq] = useState<any>(null);
@@ -148,7 +165,9 @@ export default function RfqManagement() {
           supabase.from("purchase_orders").select("pr_id"),
           supabase
             .from("vendors")
-            .select("id, name, gst_number, status, empanelment_expiry")
+            .select(
+              "id, name, gst_number, status, empanelment_expiry, email:bank_details_json->>email, phone:bank_details_json->>phone",
+            )
             .eq("status", "empanelled"),
         ]);
 
@@ -284,21 +303,25 @@ export default function RfqManagement() {
   const handleOpenSend = (rfq: any) => {
     setActiveRfq(rfq);
     setSelectedVendorIds(rfq.rfq_vendors?.map((v: any) => v.vendor_id) || []);
+    const saved: Record<string, InviteChannel> = {};
+    for (const rv of rfq.rfq_vendors ?? []) saved[rv.vendor_id] = rv.invite_channel || "email";
+    setChannels(saved);
     setSendOpen(true);
   };
 
-  /** WhatsApp text for a vendor's private quotation link (same link the email carries). */
-  const quoteMessage = (url: string, vendorName?: string, rfqNumber?: string) =>
-    `Dear ${vendorName || "Vendor"},\n\nYou are invited to quote for ${rfqNumber || "our RFQ"} (AMC Engineering College). ` +
-    `Please submit your quotation using your private link:\n${url}\n\nThank you.`;
+  const channelOf = (v: any): InviteChannel => channels[v.id] ?? defaultChannel(v);
 
-  const whatsappQuoteMessage = async (rfq: any, vendorId: string, vendorName?: string) => {
-    const res = await (getVendorQuoteLink as any)({
-      data: { rfq_id: rfq.id, vendor_id: vendorId, origin: publicAppOrigin() },
-    });
-    if (!res?.ok) throw new Error(res?.error || "Could not create the quotation link.");
-    return quoteMessage(res.url, vendorName, rfq.rfq_number);
-  };
+  /** Pending vendors of an RFQ, each with the channel they were invited by. */
+  const pendingDeliveryVendors = (rfq: any): DeliveryVendor[] =>
+    (rfq.rfq_vendors ?? [])
+      .filter((rv: any) => !rv.response_received_at)
+      .map((rv: any) => ({
+        id: rv.vendor_id,
+        name: rv.vendors?.name,
+        email: rv.vendors?.email,
+        phone: rv.vendors?.phone,
+        channel: rv.invite_channel === "whatsapp" ? "whatsapp" : "email",
+      }));
 
   const handleCopyVendorLink = async (rfqId: string, vendorId: string, vendorName?: string) => {
     try {
@@ -321,28 +344,10 @@ export default function RfqManagement() {
     }
   };
 
-  const [reemailing, setReemailing] = useState<string | null>(null);
-  const handleReemail = async (rfq: any) => {
-    const pending = (rfq.rfq_vendors ?? [])
-      .filter((rv: any) => !rv.response_received_at)
-      .map((rv: any) => ({ id: rv.vendor_id, name: rv.vendors?.name }));
-    if (!pending.length) return;
-    setReemailing(rfq.id);
-    try {
-      const { sent, notice } = await emailQuoteInvites(rfq.id, pending);
-      toast({
-        title: sent ? "Invitations emailed" : "No emails sent",
-        description: [
-          `${sent} of ${pending.length} vendor${pending.length === 1 ? "" : "s"} emailed for ${rfq.rfq_number}.`,
-          notice || null,
-        ]
-          .filter(Boolean)
-          .join(" "),
-        variant: sent ? undefined : "destructive",
-      });
-    } finally {
-      setReemailing(null);
-    }
+  /** Remind vendors who haven't quoted: each by their saved channel, sent from the dialog. */
+  const handleReemail = (rfq: any) => {
+    const pending = pendingDeliveryVendors(rfq);
+    if (pending.length) setDelivery({ rfq, vendors: pending, title: "Send / remind vendors" });
   };
 
   const handleInviteReplacement = async () => {
@@ -434,10 +439,14 @@ export default function RfqManagement() {
 
     setSending(true);
     try {
+      const chosen = empanelledVendors.filter((v) => selectedVendorIds.includes(v.id));
+      const picked: Record<string, InviteChannel> = {};
+      for (const v of chosen) picked[v.id] = channelOf(v);
       const res = await (sendRfq as any)({
         data: {
           rfq_id: activeRfq.id,
           vendor_ids: selectedVendorIds,
+          channels: picked,
         },
       });
 
@@ -446,21 +455,33 @@ export default function RfqManagement() {
         return;
       }
 
-      const { sent: emailsDispatched, notice: emailNotice } = await emailQuoteInvites(
-        res.rfqId,
-        res.vendors ?? [],
-      );
+      // Email goes out in bulk; WhatsApp needs one click per vendor (Delivery dialog).
+      const byEmail = chosen.filter((v) => picked[v.id] === "email");
+      const { sent: emailsDispatched, results } = await emailQuoteInvites(res.rfqId, byEmail);
+      const vendors: DeliveryVendor[] = chosen.map((v) => ({
+        id: v.id,
+        name: v.name,
+        email: v.email,
+        phone: v.phone,
+        channel: picked[v.id],
+        emailResult: results.find((r) => r.id === v.id),
+      }));
+      const waCount = vendors.filter((v) => v.channel === "whatsapp").length;
+      const failed = vendors.filter((v) => v.emailResult && !v.emailResult.ok).length;
 
       toast({
         title: "RFQ Dispatched",
-        description:
-          emailsDispatched > 0
-            ? `RFQ sent to ${res.sentCount} vendors. Dispatched ${emailsDispatched} invitation emails.`
-            : emailNotice
-              ? `RFQ sent to ${res.sentCount} vendors. ${emailNotice} You can copy each vendor's link from their badge.`
-              : `RFQ sent to ${res.sentCount} vendors. Quotation links generated and ready to copy.`,
+        description: [
+          `RFQ sent to ${res.sentCount} vendors.`,
+          byEmail.length ? `${emailsDispatched} of ${byEmail.length} emailed.` : null,
+          waCount ? `${waCount} to send on WhatsApp.` : null,
+        ]
+          .filter(Boolean)
+          .join(" "),
+        variant: failed ? "destructive" : undefined,
       });
       setSendOpen(false);
+      if (waCount || failed) setDelivery({ rfq: { ...activeRfq, id: res.rfqId }, vendors });
       loadData();
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
@@ -692,14 +713,11 @@ export default function RfqManagement() {
                                       <Button
                                         size="sm"
                                         onClick={() => handleReemail(rfq)}
-                                        disabled={reemailing === rfq.id}
                                         className="gap-1 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold shadow-xs"
-                                        title="Email a fresh link to every vendor who hasn't quoted yet"
+                                        title="Send or resend the invitation to every vendor who hasn't quoted yet, by email or WhatsApp"
                                       >
                                         <Send className="w-3.5 h-3.5 text-white" />
-                                        {reemailing === rfq.id
-                                          ? "Emailing..."
-                                          : "Email vendors again"}
+                                        Send / remind vendors
                                       </Button>
                                     )}
                                   {rfq.status === "sent" &&
@@ -811,6 +829,17 @@ export default function RfqManagement() {
                                         <span className="text-[11px] text-amber-600 dark:text-amber-400">
                                           <Clock className="w-3 h-3 inline mr-0.5" /> Pending
                                         </span>
+                                        <span
+                                          className={`text-[10px] font-semibold rounded px-1 ${
+                                            rv.invite_channel === "whatsapp"
+                                              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300"
+                                              : "bg-indigo-100 text-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-300"
+                                          }`}
+                                          title="How this vendor was invited"
+                                        >
+                                          via{" "}
+                                          {rv.invite_channel === "whatsapp" ? "WhatsApp" : "Email"}
+                                        </span>
                                         <Button
                                           size="sm"
                                           variant="ghost"
@@ -831,11 +860,7 @@ export default function RfqManagement() {
                                           compact
                                           phone={rv.vendors?.phone}
                                           getMessage={() =>
-                                            whatsappQuoteMessage(
-                                              rfq,
-                                              rv.vendor_id,
-                                              rv.vendors?.name,
-                                            )
+                                            vendorQuoteMessage(rfq, rv.vendor_id, rv.vendors?.name)
                                           }
                                         />
                                       </div>
@@ -988,6 +1013,18 @@ export default function RfqManagement() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+        <InviteDeliveryDialog
+          open={!!delivery}
+          onOpenChange={(o) => {
+            if (!o) {
+              setDelivery(null);
+              loadData();
+            }
+          }}
+          rfq={delivery?.rfq ?? null}
+          vendors={delivery?.vendors ?? []}
+          title={delivery?.title}
+        />
         <Dialog open={sendOpen} onOpenChange={setSendOpen}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
@@ -1011,6 +1048,18 @@ export default function RfqManagement() {
                     vendor(s) to meet the minimum quotation rule.
                   </p>
                 )}
+                {selectedVendorIds.length > 0 &&
+                  (() => {
+                    const wa = empanelledVendors.filter(
+                      (v) => selectedVendorIds.includes(v.id) && channelOf(v) === "whatsapp",
+                    ).length;
+                    return (
+                      <p className="text-slate-600 dark:text-slate-400">
+                        {selectedVendorIds.length - wa} by email (sent together)
+                        {wa ? ` · ${wa} by WhatsApp (one chat each, after you press Send)` : ""}
+                      </p>
+                    );
+                  })()}
               </div>
 
               <div className="max-h-60 overflow-y-auto space-y-2 border p-3 rounded-md">
@@ -1037,12 +1086,21 @@ export default function RfqManagement() {
                           </p>
                         </div>
                       </div>
-                      <Badge
-                        variant="outline"
-                        className="text-xs text-emerald-600 border-emerald-500"
-                      >
-                        Empanelled
-                      </Badge>
+                      {isChecked ? (
+                        <ChannelToggle
+                          value={channelOf(vendor)}
+                          email={vendor.email}
+                          phone={vendor.phone}
+                          onChange={(c) => setChannels((prev) => ({ ...prev, [vendor.id]: c }))}
+                        />
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="text-xs text-emerald-600 border-emerald-500"
+                        >
+                          Empanelled
+                        </Badge>
+                      )}
                     </div>
                   );
                 })}
