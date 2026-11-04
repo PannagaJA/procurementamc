@@ -1,4 +1,5 @@
 import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { computeTicketSLA, TICKET_SLA_RULES } from "@/lib/ticketUtils";
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,7 +13,6 @@ import { usePagination } from "@/hooks/use-pagination";
 import { PaginationControls } from "@/components/PaginationControls";
 import { createPaginatedQuery } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
-import { logAudit } from "@/lib/audit";
 import {
   Select,
   SelectContent,
@@ -60,35 +60,6 @@ const PrincipalDashboard = () => {
   const [viewTicketUpdates, setViewTicketUpdates] = useState<any[]>([]);
   const [actionNote, setActionNote] = useState("");
   const [remoteError, setRemoteError] = useState(false);
-
-  const SLA_RULES: Record<string, { respondHours: number; resolveHours: number }> = {
-    high: { respondHours: 1, resolveHours: 8 },
-    medium: { respondHours: 4, resolveHours: 48 },
-    low: { respondHours: 24, resolveHours: 168 },
-  };
-
-  const computeSLAForTicket = (ticket: any) => {
-    try {
-      const now = new Date();
-      const rule = SLA_RULES[ticket.priority] || SLA_RULES["low"];
-      const created = new Date(ticket.created_at);
-      const respondBy = new Date(created.getTime() + rule.respondHours * 60 * 60 * 1000);
-      const resolveBy = new Date(created.getTime() + rule.resolveHours * 60 * 60 * 1000);
-      const respondDiff = now.getTime() - respondBy.getTime();
-      const resolveDiff = now.getTime() - resolveBy.getTime();
-      ticket.sla = {
-        respondByISO: respondBy.toISOString(),
-        respondByDisplay: format(respondBy, "PP p"),
-        respondDaysOver: respondDiff > 0 ? Math.floor(respondDiff / (1000 * 60 * 60 * 24)) : 0,
-        resolveByISO: resolveBy.toISOString(),
-        resolveByDisplay: format(resolveBy, "PP p"),
-        resolveDaysOver: resolveDiff > 0 ? Math.floor(resolveDiff / (1000 * 60 * 60 * 24)) : 0,
-      };
-    } catch (err) {
-      console.warn("computeSLA failed", err);
-    }
-    return ticket;
-  };
 
   const getPriorityColor = (priority: string) => {
     switch (String(priority)) {
@@ -150,7 +121,7 @@ const PrincipalDashboard = () => {
       const activeStatuses = ["pending", "pending_principal", "in-progress"];
 
       const counts = await Promise.all(
-        Object.entries(SLA_RULES).map(async ([priority, rule]) => {
+        Object.entries(TICKET_SLA_RULES).map(async ([priority, rule]) => {
           const cutoff = new Date(now.getTime() - rule.resolveHours * 60 * 60 * 1000).toISOString();
           const { count } = await supabase
             .from("tickets")
@@ -228,7 +199,7 @@ const PrincipalDashboard = () => {
       query = createPaginatedQuery(query, pagination.page, pagination.pageSize);
       const { data, error, count } = await query;
       if (error) throw error;
-      const computed = (data || []).map((t: any) => computeSLAForTicket(t));
+      const computed = (data || []).map((t: any) => computeTicketSLA(t));
       const filtered = filters.overdueOnly
         ? computed.filter(
             (t: any) => (t.sla?.respondDaysOver || 0) > 0 || (t.sla?.resolveDaysOver || 0) > 0,
@@ -255,12 +226,12 @@ const PrincipalDashboard = () => {
     return () => clearInterval(interval);
   }, [fetchMetrics, fetchTickets, remoteError]);
 
-  const { userId, primaryRole, loading: authLoading, hasRole } = useAuth();
+  const { primaryRole, loading: authLoading, hasRole } = useAuth();
   const navigate = useNavigate();
 
   const openTicketDetails = async (t: any) => {
     try {
-      const ticket = computeSLAForTicket(t);
+      const ticket = computeTicketSLA(t);
       setViewTicket(ticket);
       // fetch ticket updates (admin notes / history)
       const { data, error } = await supabase
@@ -280,126 +251,14 @@ const PrincipalDashboard = () => {
     }
   };
 
-  const approveTicket = async (ticket: any, note?: string) => {
-    try {
-      const principalNotes = note || null;
-
-      // mark as approved
-      const { error: updErr } = await supabase
-        .from("tickets")
-        .update({ status: "procure-approved" })
-        .eq("id", ticket.id);
-      if (updErr) throw updErr;
-
-      // insert ticket update
-      await supabase
-        .from("ticket_updates")
-        .insert([
-          {
-            ticket_id: ticket.id,
-            status_from: ticket.status,
-            status_to: "procure-approved",
-            admin_notes: principalNotes || "Approved by Principal",
-            updated_by: userId,
-          },
-        ]);
-
-      await logAudit("approve_ticket", userId, {
-        ticket_id: ticket.id,
-        ticket_number: ticket.ticket_number,
-      });
-
-      // notify ticket owner (HOD who raised it)
-      try {
-        const ownerId = ticket.created_by;
-        const { default: sendNotification } = await import("@/lib/notify");
-        await sendNotification(
-          ownerId,
-          `Your request ${ticket.ticket_number} was approved by Principal`,
-          { ticket_id: ticket.id },
-        );
-      } catch (e) {
-        console.warn("notify owner failed", e);
-      }
-
-      // notify admins so they can pick up the approved request
-      try {
-        const { data: admins } = await supabase
-          .from("user_roles")
-          .select("user_id")
-          .eq("role", "admin");
-        const adminIds = (admins || []).map((a: any) => a.user_id).filter(Boolean);
-        if (adminIds.length > 0) {
-          const { default: sendNotification } = await import("@/lib/notify");
-          await Promise.all(
-            adminIds.map((aid: string) =>
-              sendNotification(aid, `Request ${ticket.ticket_number} approved by Principal`, {
-                ticket_id: ticket.id,
-              }),
-            ),
-          );
-        }
-      } catch (e) {
-        console.warn("notify admins failed", e);
-      }
-
-      toast({ title: "Approved", description: `Ticket ${ticket.ticket_number} approved` });
-      fetchTickets();
-    } catch (err) {
-      console.error("Approve failed", err);
-      toast({ title: "Error", description: "Failed to approve request", variant: "destructive" });
-    }
-  };
-
-  const rejectTicket = async (ticket: any, reasonNote?: string) => {
-    try {
-      const reason = reasonNote || "Rejected by Principal";
-      const { error: updErr } = await supabase
-        .from("tickets")
-        .update({ status: "procure-rejected" })
-        .eq("id", ticket.id);
-      if (updErr) throw updErr;
-
-      await supabase
-        .from("ticket_updates")
-        .insert([
-          {
-            ticket_id: ticket.id,
-            status_from: ticket.status,
-            status_to: "procure-rejected",
-            admin_notes: reason,
-            updated_by: userId,
-          },
-        ]);
-      await logAudit("reject_ticket", userId, {
-        ticket_id: ticket.id,
-        ticket_number: ticket.ticket_number,
-        reason,
-      });
-
-      try {
-        const ownerId = ticket.created_by;
-        const { default: sendNotification } = await import("@/lib/notify");
-        await sendNotification(
-          ownerId,
-          `Your request ${ticket.ticket_number} was rejected by Principal: ${reason}`,
-          { ticket_id: ticket.id },
-        );
-      } catch (e) {
-        console.warn("notify owner failed", e);
-      }
-
-      toast({ title: "Rejected", description: `Ticket ${ticket.ticket_number} rejected` });
-      fetchTickets();
-    } catch (err) {
-      console.error("Reject failed", err);
-      toast({ title: "Error", description: "Failed to reject request", variant: "destructive" });
-    }
-  };
-
   useEffect(() => {
     if (authLoading) return;
-    if (!hasRole("principal") && primaryRole !== "principle" && primaryRole !== "principal" && !hasRole("admin")) {
+    if (
+      !hasRole("principal") &&
+      primaryRole !== "principle" &&
+      primaryRole !== "principal" &&
+      !hasRole("admin")
+    ) {
       navigate({ to: "/" });
       return;
     }
@@ -415,140 +274,17 @@ const PrincipalDashboard = () => {
     fetchDepartments();
     fetchMetrics();
     fetchTickets();
-  }, [authLoading, fetchTickets, fetchDepartments, fetchMetrics, primaryRole, hasRole, navigate, remoteError, toast]);
-
-  // Actions: approve/reject/escalate/assign
-  const performAction = async (
-    type: "approve" | "reject" | "escalate" | "assign",
-    ticket: any,
-    note: string | null,
-    payload?: any,
-  ) => {
-    try {
-      if (type === "approve") {
-        const newStatus =
-          ticket.issue_category === "procure" ? "procure-approved" : "service-approved";
-        const { error } = await supabase
-          .from("tickets")
-          .update({ status: newStatus })
-          .eq("id", ticket.id);
-        if (error) throw error;
-        await supabase
-          .from("ticket_updates")
-          .insert([
-            {
-              ticket_id: ticket.id,
-              status_from: ticket.status,
-              status_to: newStatus,
-              admin_notes: note || "Approved by Principal",
-              updated_by: userId,
-            },
-          ]);
-        await logAudit("principal_approve", userId, {
-          ticket_id: ticket.id,
-          ticket_number: ticket.ticket_number,
-        });
-        try {
-          const { data: admins } = await supabase
-            .from("user_roles")
-            .select("user_id")
-            .eq("role", "admin");
-          const adminIds = (admins || []).map((a: any) => a.user_id).filter(Boolean);
-          if (adminIds.length) {
-            const { default: sendNotification } = await import("@/lib/notify");
-            await Promise.all(
-              adminIds.map((aid: string) =>
-                sendNotification(aid, `Request ${ticket.ticket_number} approved by Principal`, {
-                  ticket_id: ticket.id,
-                }),
-              ),
-            );
-          }
-        } catch (e) {
-          console.warn(e);
-        }
-      } else if (type === "reject") {
-        const reason = note || "Rejected by Principal";
-        const newStatus =
-          ticket.issue_category === "procure" ? "procure-rejected" : "service-rejected";
-        const { error } = await supabase
-          .from("tickets")
-          .update({ status: newStatus })
-          .eq("id", ticket.id);
-        if (error) throw error;
-        await supabase
-          .from("ticket_updates")
-          .insert([
-            {
-              ticket_id: ticket.id,
-              status_from: ticket.status,
-              status_to: newStatus,
-              admin_notes: reason,
-              updated_by: userId,
-            },
-          ]);
-        await logAudit("principal_reject", userId, {
-          ticket_id: ticket.id,
-          ticket_number: ticket.ticket_number,
-          reason,
-        });
-        try {
-          const { default: sendNotification } = await import("@/lib/notify");
-          await sendNotification(
-            ticket.created_by,
-            `Your request ${ticket.ticket_number} was rejected by Principal: ${reason}`,
-            { ticket_id: ticket.id },
-          );
-        } catch (e) {
-          console.warn(e);
-        }
-      } else if (type === "escalate") {
-        await supabase
-          .from("ticket_updates")
-          .insert([
-            {
-              ticket_id: ticket.id,
-              status_from: ticket.status,
-              status_to: ticket.status,
-              admin_notes: note || "Escalated by Principal",
-              updated_by: userId,
-            },
-          ]);
-        await logAudit("principal_escalate", userId, {
-          ticket_id: ticket.id,
-          ticket_number: ticket.ticket_number,
-        });
-      } else if (type === "assign") {
-        const assignee = payload?.assignee;
-        if (!assignee) throw new Error("Assignee required");
-        await supabase
-          .from("ticket_updates")
-          .insert([
-            {
-              ticket_id: ticket.id,
-              status_from: ticket.status,
-              status_to: ticket.status,
-              admin_notes: `Assigned to ${assignee}`,
-              updated_by: userId,
-            },
-          ]);
-        await supabase.from("tickets").update({ assigned_to: assignee }).eq("id", ticket.id);
-        await logAudit("principal_assign", userId, {
-          ticket_id: ticket.id,
-          ticket_number: ticket.ticket_number,
-          assignee,
-        });
-      }
-      await fetchMetrics();
-      await fetchTickets();
-      toast({ title: "Success", description: "Action completed" });
-      return true;
-    } catch (e) {
-      console.error("performAction failed", e);
-      toast({ title: "Error", description: "Action failed", variant: "destructive" });
-      return false;
-    }
-  };
+  }, [
+    authLoading,
+    fetchTickets,
+    fetchDepartments,
+    fetchMetrics,
+    primaryRole,
+    hasRole,
+    navigate,
+    remoteError,
+    toast,
+  ]);
 
   if (loading) {
     return <PageSkeleton cards={4} rows={5} />;
@@ -699,77 +435,90 @@ const PrincipalDashboard = () => {
                         <tr>
                           <td colSpan={5} className="px-4 py-12 text-center">
                             <div className="flex flex-col items-center justify-center text-center">
-                              <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 mb-3 text-slate-300 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5L12 3l9 7.5" />
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="w-12 h-12 mb-3 text-slate-300 dark:text-slate-600"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={1.5}
+                                  d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5L12 3l9 7.5"
+                                />
                               </svg>
                               <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 mb-1">
                                 No data found
                               </span>
-                              <p className="text-sm text-slate-400 mt-1">No tickets matching the selected filters.</p>
+                              <p className="text-sm text-slate-400 mt-1">
+                                No tickets matching the selected filters.
+                              </p>
                             </div>
                           </td>
                         </tr>
                       ) : (
                         tickets.map((t) => (
-                        <tr key={t.id} className="border-t">
-                          <td className="px-3 py-2 align-middle">
-                            <div className="font-mono whitespace-nowrap">{t.ticket_number}</div>
-                          </td>
-                          <td className="px-3 py-2 align-middle">
-                            <div className="whitespace-normal break-words">
-                              {(() => {
-                                const found = departments.find(
-                                  (d) =>
-                                    String(d.id) === String(t.department) ||
-                                    String(d.id) === String(t.department_id),
-                                );
-                                return found
-                                  ? found.name
-                                  : t.department_name || t.department || "—";
-                              })()}
-                            </div>
-                          </td>
-                          <td className="px-3 py-2 align-middle">
-                            <div className="whitespace-normal break-words">{t.name}</div>
-                          </td>
-                          <td className="px-3 py-2 align-middle">
-                            <div className="inline-block">
-                              <Badge className={getPriorityColor(t.priority)}>
-                                {String(t.priority || "")
-                                  .charAt(0)
-                                  .toUpperCase() + String(t.priority || "").slice(1)}
-                              </Badge>
-                            </div>
-                          </td>
-                          <td className="px-3 py-2 align-middle">
-                            <div className="truncate max-w-full">
-                              {t.sla?.respondDaysOver ? (
-                                <Badge className="bg-rose-100 text-rose-800">{`${t.sla.respondDaysOver}d overdue`}</Badge>
-                              ) : (
-                                <span className="text-sm text-muted-foreground">
-                                  {t.sla?.respondByDisplay}
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-3 py-2 align-middle text-right">
-                            <div className="inline-flex items-center justify-end gap-2">
-                              <Button size="sm" onClick={() => openTicketDetails(t)}>
-                                View
-                              </Button>
-                              <Button
-                                size="sm"
-                                onClick={() => {
-                                  openTicketDetails(t);
-                                  setActionNote("");
-                                }}
-                              >
-                                Actions
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
+                          <tr key={t.id} className="border-t">
+                            <td className="px-3 py-2 align-middle">
+                              <div className="font-mono whitespace-nowrap">{t.ticket_number}</div>
+                            </td>
+                            <td className="px-3 py-2 align-middle">
+                              <div className="whitespace-normal break-words">
+                                {(() => {
+                                  const found = departments.find(
+                                    (d) =>
+                                      String(d.id) === String(t.department) ||
+                                      String(d.id) === String(t.department_id),
+                                  );
+                                  return found
+                                    ? found.name
+                                    : t.department_name || t.department || "—";
+                                })()}
+                              </div>
+                            </td>
+                            <td className="px-3 py-2 align-middle">
+                              <div className="whitespace-normal break-words">{t.name}</div>
+                            </td>
+                            <td className="px-3 py-2 align-middle">
+                              <div className="inline-block">
+                                <Badge className={getPriorityColor(t.priority)}>
+                                  {String(t.priority || "")
+                                    .charAt(0)
+                                    .toUpperCase() + String(t.priority || "").slice(1)}
+                                </Badge>
+                              </div>
+                            </td>
+                            <td className="px-3 py-2 align-middle">
+                              <div className="truncate max-w-full">
+                                {t.sla?.respondDaysOver ? (
+                                  <Badge className="bg-rose-100 text-rose-800">{`${t.sla.respondDaysOver}d overdue`}</Badge>
+                                ) : (
+                                  <span className="text-sm text-muted-foreground">
+                                    {t.sla?.respondByDisplay}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-3 py-2 align-middle text-right">
+                              <div className="inline-flex items-center justify-end gap-2">
+                                <Button size="sm" onClick={() => openTicketDetails(t)}>
+                                  View
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    openTicketDetails(t);
+                                    setActionNote("");
+                                  }}
+                                >
+                                  Actions
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
                       )}
                     </tbody>
                   </table>

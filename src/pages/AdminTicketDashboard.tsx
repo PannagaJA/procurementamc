@@ -1,4 +1,5 @@
 import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { computeTicketSLA } from "@/lib/ticketUtils";
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "../integrations/supabase/client";
@@ -78,6 +79,18 @@ interface TicketUpdate {
   updated_by: string | null;
 }
 
+// Statuses only the Principal acts on (awaiting decision / rejected for good).
+const LOCKED_STATUSES = ["pending_principal", "procure-rejected", "service-rejected"];
+
+const BOARD_COLUMNS: { label: string; statuses: string[] }[] = [
+  { label: "New Tickets", statuses: ["pending"] },
+  { label: "In-Progress Tickets", statuses: ["in-progress", "procure-in-progress"] },
+  { label: "Awaiting Customer Response", statuses: ["waiting-for-user"] },
+  { label: "Approval Pending Tickets", statuses: ["pending_principal"] },
+  { label: "Approved (to action)", statuses: ["procure-approved", "service-approved"] },
+  { label: "Completed Tickets", statuses: ["resolved", "completed", "procure-completed"] },
+];
+
 const AdminTicketDashboard = () => {
   let authCtx: any = null;
   try {
@@ -117,12 +130,6 @@ const AdminTicketDashboard = () => {
   const [reportDateRange, setReportDateRange] = useState<number>(1);
   // reportDateRange represents number of months for the report window
   const [showReports, setShowReports] = useState(false);
-  const [showEmailDialog, setShowEmailDialog] = useState(false);
-  const [emailForm, setEmailForm] = useState({
-    to: "",
-    subject: "Ticket Report",
-    body: "Please find the attached ticket report.",
-  });
   const [showFiltersLocal, setShowFiltersLocal] = useState(true);
 
   const { toast } = useToast();
@@ -146,7 +153,9 @@ const AdminTicketDashboard = () => {
       if (error) throw error;
 
       const total = allTickets?.length || 0;
-      const pending = allTickets?.filter((t) => t.status === "pending").length || 0;
+      const pending =
+        allTickets?.filter((t) => t.status === "pending" || t.status === "pending_principal")
+          .length || 0;
       const inProgress = allTickets?.filter((t) => t.status === "in-progress").length || 0;
       const waitingForUser = allTickets?.filter((t) => t.status === "waiting-for-user").length || 0;
       const resolved =
@@ -286,7 +295,7 @@ const AdminTicketDashboard = () => {
       if (error) throw error;
 
       // compute SLA fields for each ticket before setting state
-      const withSLA = (data || []).map((t: Ticket) => computeSLAForTicket(t));
+      const withSLA = (data || []).map((t: Ticket) => computeTicketSLA(t));
       setTickets(withSLA);
       setTotal(count || 0);
     } catch (error) {
@@ -444,240 +453,6 @@ const AdminTicketDashboard = () => {
       toast({
         title: "Error",
         description: "Failed to generate report",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Create PDF and return base64 string (used for emailing)
-  const createReportPdfBase64 = async () => {
-    // replicate PDF creation logic but return base64
-    const endDate = new Date();
-    const startDate = new Date();
-    const months = Number(reportDateRange) || 1;
-    startDate.setMonth(startDate.getMonth() - months);
-
-    const { data: ticketsData } = await supabase
-      .from("tickets")
-      .select("*")
-      .gte("created_at", startDate.toISOString())
-      .lte("created_at", endDate.toISOString())
-      .order("created_at", { ascending: false });
-
-    const ticketsList = (ticketsData || []).map((t: Ticket) => computeSLAForTicket(t));
-
-    const totalTickets = ticketsList.length;
-    const resolvedTickets = ticketsList.filter(
-      (t: any) => t.status === "resolved" || t.status === "completed",
-    );
-    const avgResolutionTime =
-      resolvedTickets.length > 0
-        ? resolvedTickets.reduce((acc: number, ticket: any) => {
-            const created = new Date(ticket.created_at);
-            const resolved = new Date(ticket.updated_at);
-            return acc + (resolved.getTime() - created.getTime());
-          }, 0) /
-          resolvedTickets.length /
-          (1000 * 60 * 60)
-        : 0;
-
-    const statusBreakdown = ticketsList.reduce(
-      (acc: any, ticket: any) => {
-        acc[ticket.status] = (acc[ticket.status] || 0) + 1;
-        return acc;
-      },
-      {} as Record<string, number>,
-    );
-
-    const categoryBreakdown = ticketsList.reduce(
-      (acc: any, ticket: any) => {
-        acc[ticket.issue_category] = (acc[ticket.issue_category] || 0) + 1;
-        return acc;
-      },
-      {} as Record<string, number>,
-    );
-
-    const doc = new jsPDF();
-    doc.setFontSize(20);
-    doc.text("Ticket Resolution Report", 20, 30);
-    doc.setFontSize(12);
-    doc.text(
-      `Report Period: ${format(startDate, "MMM dd, yyyy")} - ${format(endDate, "MMM dd, yyyy")}`,
-      20,
-      45,
-    );
-    doc.text(`Generated on: ${format(new Date(), "yyyy-MM-dd HH:mm")}`, 20, 55);
-    doc.setFontSize(14);
-    doc.text("Summary Metrics", 20, 75);
-    doc.setFontSize(10);
-    doc.text(`Total Tickets: ${totalTickets}`, 20, 85);
-    doc.text(`Resolved Tickets: ${resolvedTickets.length}`, 20, 95);
-    doc.text(
-      `Resolution Rate: ${totalTickets > 0 ? ((resolvedTickets.length / totalTickets) * 100).toFixed(1) : 0}%`,
-      20,
-      105,
-    );
-    doc.text(`Average Resolution Time: ${avgResolutionTime.toFixed(1)} hours`, 20, 115);
-    doc.setFontSize(14);
-    doc.text("Status Breakdown", 20, 135);
-    let yPos = 145;
-    doc.setFontSize(10);
-    Object.entries(statusBreakdown).forEach(([status, count]) => {
-      doc.text(
-        `${status.charAt(0).toUpperCase() + status.slice(1)}: ${count} (${(((count as number) / Math.max(1, totalTickets)) * 100).toFixed(1)}%)`,
-        20,
-        yPos,
-      );
-      yPos += 10;
-    });
-    if (yPos > 250) {
-      doc.addPage();
-      yPos = 30;
-    }
-    doc.setFontSize(14);
-    doc.text("Category Breakdown", 20, yPos + 10);
-    yPos += 20;
-    doc.setFontSize(10);
-    Object.entries(categoryBreakdown).forEach(([category, count]) => {
-      doc.text(`${category}: ${count}`, 20, yPos);
-      yPos += 10;
-    });
-
-    // return base64 string
-    const arrayBuffer = doc.output("arraybuffer") as ArrayBuffer;
-    const bytes = new Uint8Array(arrayBuffer);
-    let binary = "";
-    for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-    try {
-      return btoa(binary);
-    } catch (e) {
-      // Fallback for environments where btoa may not accept large strings
-      console.warn("btoa failed, returning empty string", e);
-      return "";
-    }
-  };
-
-  // Create CSV and return base64 string
-  const createReportCsvBase64 = async () => {
-    const endDate = new Date();
-    const startDate = new Date();
-    const months = Number(reportDateRange) || 1;
-    startDate.setMonth(startDate.getMonth() - months);
-
-    const { data: ticketsData } = await supabase
-      .from("tickets")
-      .select("*")
-      .gte("created_at", startDate.toISOString())
-      .lte("created_at", endDate.toISOString())
-      .order("created_at", { ascending: false });
-
-    const rows = (ticketsData || []).map((t: any) => ({
-      ticket_number: t.ticket_number,
-      name: t.name,
-      email: t.email,
-      department: t.department || "",
-      issue_category: t.issue_category,
-      priority: t.priority,
-      status: t.status,
-      created_at: t.created_at,
-    }));
-
-    const headers = [
-      "ticket_number",
-      "name",
-      "email",
-      "department",
-      "issue_category",
-      "priority",
-      "status",
-      "created_at",
-    ];
-    const csvLines = [headers.join(",")];
-    for (const r of rows) {
-      const line = headers
-        .map((h) => `"${String((r as any)[h] ?? "").replace(/"/g, '""')}"`)
-        .join(",");
-      csvLines.push(line);
-    }
-    const csv = csvLines.join("\n");
-
-    // base64 encode safely for UTF-8
-    let base64 = "";
-    try {
-      if (typeof window !== "undefined" && window.btoa) {
-        base64 = window.btoa(unescape(encodeURIComponent(csv)));
-      } else if (typeof Buffer !== "undefined") {
-        base64 = Buffer.from(csv).toString("base64");
-      } else {
-        base64 = btoa(csv);
-      }
-    } catch (e) {
-      console.warn("CSV base64 encode failed, falling back to simple btoa", e);
-      base64 = btoa(csv);
-    }
-
-    return base64;
-  };
-
-  const sendReportByEmail = async (to: string, subject: string, body: string) => {
-    try {
-      if (!to || !/^[\w-.]+@([\w-]+\.)+[\w-]{2,}$/.test(to)) {
-        toast({
-          title: "Validation",
-          description: "Please provide a valid recipient email",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      toast({ title: "Sending", description: `Sending report to ${to}...` });
-
-      // Generate CSV and send as attachment (edge function expects base64 in pdfBase64 field)
-      const csvBase64 = await createReportCsvBase64();
-      if (!csvBase64) throw new Error("Failed to generate CSV attachment");
-
-      const payload = {
-        to,
-        subject,
-        body,
-        filename: `ticket-report-${format(new Date(), "yyyy-MM-dd")}.csv`,
-        pdfBase64: csvBase64,
-      };
-
-      // Try using Supabase Functions client first
-      const invokeRes = await supabase.functions.invoke("send-ticket-report-email", {
-        body: payload,
-      });
-      if (invokeRes.error) {
-        console.warn("supabase.functions.invoke returned error", invokeRes.error);
-        // Attempt a fetch fallback but capture server response for debugging
-        const fbUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-ticket-report-email`;
-        const apiKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-        const fetchRes = await fetch(fbUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: String(apiKey),
-            Authorization: `Bearer ${String(apiKey)}`,
-          },
-          body: JSON.stringify(payload),
-        });
-        const text = await fetchRes.text().catch(() => "no body");
-        if (!fetchRes.ok) {
-          throw new Error(
-            `Edge function fetch failed: ${fetchRes.status} ${fetchRes.statusText} - ${text}`,
-          );
-        }
-      }
-
-      toast({ title: "Success", description: `Email sent to ${to}` });
-      setShowEmailDialog(false);
-    } catch (err) {
-      console.error("Error sending report email", err);
-      const message = err instanceof Error ? err.message : String(err);
-      toast({
-        title: "Error",
-        description: `Failed to send email: ${message}`,
         variant: "destructive",
       });
     }
@@ -849,79 +624,6 @@ const AdminTicketDashboard = () => {
     }
   };
 
-  const SLA_RULES: Record<string, { respondHours: number; resolveHours: number }> = {
-    high: { respondHours: 1, resolveHours: 8 },
-    medium: { respondHours: 4, resolveHours: 48 },
-    low: { respondHours: 24, resolveHours: 168 },
-  };
-
-  const fmtDuration = (msDiff: number) => {
-    const abs = Math.abs(msDiff);
-    const days = Math.floor(abs / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((abs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    if (days > 0) return `${days}d ${hours}h`;
-    if (hours > 0) return `${hours}h`;
-    const mins = Math.floor((abs % (1000 * 60 * 60)) / (1000 * 60));
-    if (mins > 0) return `${mins}m`;
-    return "0m";
-  };
-
-  const computeSLAForTicket = (ticket: Ticket) => {
-    try {
-      const now = new Date();
-
-      // If server-side fields exist (from migration), prefer them
-      if ((ticket as any).respond_by || (ticket as any).resolve_by) {
-        const respondBy = (ticket as any).respond_by
-          ? new Date((ticket as any).respond_by)
-          : undefined;
-        const resolveBy = (ticket as any).resolve_by
-          ? new Date((ticket as any).resolve_by)
-          : undefined;
-
-        ticket.sla = {
-          respondByISO: respondBy ? respondBy.toISOString() : undefined,
-          respondByDisplay: respondBy ? format(respondBy, "PP p") : undefined,
-          respondDaysOver:
-            (ticket as any).respond_days_over ??
-            (respondBy && now > respondBy
-              ? Math.floor((now.getTime() - respondBy.getTime()) / (1000 * 60 * 60 * 24))
-              : 0),
-          resolveByISO: resolveBy ? resolveBy.toISOString() : undefined,
-          resolveByDisplay: resolveBy ? format(resolveBy, "PP p") : undefined,
-          resolveDaysOver:
-            (ticket as any).resolve_days_over ??
-            (resolveBy && now > resolveBy
-              ? Math.floor((now.getTime() - resolveBy.getTime()) / (1000 * 60 * 60 * 24))
-              : 0),
-        };
-        return ticket;
-      }
-
-      // Fallback: compute from created_at and priority (client-side)
-      const rule = SLA_RULES[ticket.priority] || SLA_RULES["low"];
-      const created = new Date(ticket.created_at);
-      if (isNaN(created.getTime())) return ticket;
-
-      const respondBy = new Date(created.getTime() + rule.respondHours * 60 * 60 * 1000);
-      const resolveBy = new Date(created.getTime() + rule.resolveHours * 60 * 60 * 1000);
-      const respondDiff = now.getTime() - respondBy.getTime(); // positive = overdue
-      const resolveDiff = now.getTime() - resolveBy.getTime();
-
-      ticket.sla = {
-        respondByISO: respondBy.toISOString(),
-        respondByDisplay: format(respondBy, "PP p"),
-        respondDaysOver: respondDiff > 0 ? Math.floor(respondDiff / (1000 * 60 * 60 * 24)) : 0,
-        resolveByISO: resolveBy.toISOString(),
-        resolveByDisplay: format(resolveBy, "PP p"),
-        resolveDaysOver: resolveDiff > 0 ? Math.floor(resolveDiff / (1000 * 60 * 60 * 24)) : 0,
-      };
-    } catch (err) {
-      console.warn("computeSLAForTicket failed", err);
-    }
-    return ticket;
-  };
-
   // SLA color coding: use simple priority-based mapping (no server-side SLA status)
   const getSLAColor = (ticket: Ticket) => {
     switch (ticket.priority) {
@@ -955,7 +657,15 @@ const AdminTicketDashboard = () => {
       } = await supabase.auth.getUser();
       if (userError || !user) throw new Error("Not authenticated");
 
-      // Insert the update record
+      // Ticket first: an RLS/trigger refusal must not leave a history row behind.
+      const { data: updated, error: ticketError } = await supabase
+        .from("tickets")
+        .update({ status: updateForm.status_to })
+        .eq("id", selectedTicket.id)
+        .select("id");
+      if (ticketError) throw ticketError;
+      if (!updated?.length) throw new Error("Ticket was not updated (no permission).");
+
       const { error: updateError } = await supabase.from("ticket_updates").insert([
         {
           ticket_id: selectedTicket.id,
@@ -965,16 +675,7 @@ const AdminTicketDashboard = () => {
           updated_by: user.id,
         },
       ]);
-
       if (updateError) throw updateError;
-
-      // Update the ticket status
-      const { error: ticketError } = await supabase
-        .from("tickets")
-        .update({ status: updateForm.status_to })
-        .eq("id", selectedTicket.id);
-
-      if (ticketError) throw ticketError;
 
       toast({
         title: "Ticket Updated",
@@ -1001,6 +702,16 @@ const AdminTicketDashboard = () => {
   };
 
   const openUpdateDialog = (ticket: Ticket) => {
+    if (LOCKED_STATUSES.includes(ticket.status)) {
+      toast({
+        title: "Not editable",
+        description:
+          ticket.status === "pending_principal"
+            ? "This request is awaiting the Principal's decision."
+            : "The Principal rejected this request.",
+      });
+      return;
+    }
     setSelectedTicket(ticket);
     setUpdateForm({
       status_to: ticket.status,
@@ -1036,14 +747,19 @@ const AdminTicketDashboard = () => {
                   Show Filters
                 </label>
                 <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
-                  <Button size="sm" onClick={() => exportCSV()} className="bg-[#0B1437] hover:bg-[#111f54] text-white font-semibold rounded-full shadow-xs text-xs sm:text-sm px-3.5 py-1.5">
+                  <Button
+                    size="sm"
+                    onClick={() => exportCSV()}
+                    className="bg-[#0B1437] hover:bg-[#111f54] text-white font-semibold rounded-full shadow-xs text-xs sm:text-sm px-3.5 py-1.5"
+                  >
                     Export to CSV
                   </Button>
-                  <Button size="sm" onClick={generateReport} className="bg-[#0B1437] hover:bg-[#111f54] text-white font-semibold rounded-full shadow-xs text-xs sm:text-sm px-3.5 py-1.5">
+                  <Button
+                    size="sm"
+                    onClick={generateReport}
+                    className="bg-[#0B1437] hover:bg-[#111f54] text-white font-semibold rounded-full shadow-xs text-xs sm:text-sm px-3.5 py-1.5"
+                  >
                     Export to PDF
-                  </Button>
-                  <Button size="sm" onClick={() => setShowEmailDialog(true)} className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold shadow-xs text-xs sm:text-sm px-3.5 py-1.5">
-                    E-mail PDF
                   </Button>
                 </div>
               </div>
@@ -1137,84 +853,86 @@ const AdminTicketDashboard = () => {
                     </tr>
                   ) : (
                     tickets.map((ticket) => (
-                    <tr key={ticket.id} className="border-t">
-                      <td className="px-3 py-2">
-                        <div className="font-semibold">{ticket.ticket_number}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {new Date(ticket.created_at).toLocaleString()}
-                        </div>
-                      </td>
-                      <td className="px-3 py-2">
-                        <span
-                          className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${getPriorityColor(ticket.priority)}`}
+                      <tr key={ticket.id} className="border-t">
+                        <td className="px-3 py-2">
+                          <div className="font-semibold">{ticket.ticket_number}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {new Date(ticket.created_at).toLocaleString()}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2">
+                          <span
+                            className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${getPriorityColor(ticket.priority)}`}
+                          >
+                            {ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1)}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2">{ticket.name}</td>
+                        <td className="px-3 py-2 text-sm text-muted-foreground">
+                          <Button variant="ghost" size="sm" onClick={() => setViewTicket(ticket)}>
+                            View
+                          </Button>
+                        </td>
+                        <td className="px-3 py-2">{ticket.sla?.respondByDisplay || "--"}</td>
+                        <td
+                          className={`px-3 py-2 ${((ticket as any).sla_status && ((ticket as any).sla_status === "overdue-respond" || (ticket as any).sla_status === "overdue-resolve")) || (ticket.sla?.respondDaysOver && ticket.sla.respondDaysOver > 0) ? "text-red-600 font-semibold" : "text-muted-foreground"}`}
                         >
-                          {ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1)}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2">{ticket.name}</td>
-                      <td className="px-3 py-2 text-sm text-muted-foreground">
-                        <Button variant="ghost" size="sm" onClick={() => setViewTicket(ticket)}>
-                          View
-                        </Button>
-                      </td>
-                      <td className="px-3 py-2">{ticket.sla?.respondByDisplay || "--"}</td>
-                      <td
-                        className={`px-3 py-2 ${((ticket as any).sla_status && ((ticket as any).sla_status === "overdue-respond" || (ticket as any).sla_status === "overdue-resolve")) || (ticket.sla?.respondDaysOver && ticket.sla.respondDaysOver > 0) ? "text-red-600 font-semibold" : "text-muted-foreground"}`}
-                      >
-                        {(() => {
-                          const svr = (ticket as any).sla_status;
-                          if (svr) {
-                            if (svr === "overdue-respond" || svr === "overdue-resolve") {
-                              const days =
-                                (ticket as any).respond_days_over ??
-                                ticket.sla?.respondDaysOver ??
-                                0;
-                              return `${days}d overdue`;
+                          {(() => {
+                            const svr = (ticket as any).sla_status;
+                            if (svr) {
+                              if (svr === "overdue-respond" || svr === "overdue-resolve") {
+                                const days =
+                                  (ticket as any).respond_days_over ??
+                                  ticket.sla?.respondDaysOver ??
+                                  0;
+                                return `${days}d overdue`;
+                              }
+                              return "On time";
                             }
-                            return "On time";
-                          }
-                          if (ticket.sla)
-                            return ticket.sla.respondDaysOver && ticket.sla.respondDaysOver > 0
-                              ? `${ticket.sla.respondDaysOver}d overdue`
-                              : "On time";
-                          return "--";
-                        })()}
-                      </td>
-                      <td className="px-3 py-2">{ticket.sla?.resolveByDisplay || "--"}</td>
-                      <td
-                        className={`px-3 py-2 ${((ticket as any).sla_status && ((ticket as any).sla_status === "overdue-resolve" || (ticket as any).sla_status === "overdue-respond")) || (ticket.sla?.resolveDaysOver && ticket.sla.resolveDaysOver > 0) ? "text-red-600 font-semibold" : "text-muted-foreground"}`}
-                      >
-                        {(() => {
-                          const svr = (ticket as any).sla_status;
-                          if (svr) {
-                            if (svr === "overdue-resolve" || svr === "overdue-respond") {
-                              const days =
-                                (ticket as any).resolve_days_over ??
-                                ticket.sla?.resolveDaysOver ??
-                                0;
-                              return `${days}d overdue`;
-                            }
-                            return "On time";
-                          }
-                          if (ticket.sla)
-                            return ticket.sla.resolveDaysOver && ticket.sla.resolveDaysOver > 0
-                              ? `${ticket.sla.resolveDaysOver}d overdue`
-                              : "On time";
-                          return "--";
-                        })()}
-                      </td>
-                      <td className="px-3 py-2">{ticket.issue_category}</td>
-                      <td className="px-3 py-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openUpdateDialog(ticket)}
+                            if (ticket.sla)
+                              return ticket.sla.respondDaysOver && ticket.sla.respondDaysOver > 0
+                                ? `${ticket.sla.respondDaysOver}d overdue`
+                                : "On time";
+                            return "--";
+                          })()}
+                        </td>
+                        <td className="px-3 py-2">{ticket.sla?.resolveByDisplay || "--"}</td>
+                        <td
+                          className={`px-3 py-2 ${((ticket as any).sla_status && ((ticket as any).sla_status === "overdue-resolve" || (ticket as any).sla_status === "overdue-respond")) || (ticket.sla?.resolveDaysOver && ticket.sla.resolveDaysOver > 0) ? "text-red-600 font-semibold" : "text-muted-foreground"}`}
                         >
-                          Update
-                        </Button>
-                      </td>
-                    </tr>
-                  )))}
+                          {(() => {
+                            const svr = (ticket as any).sla_status;
+                            if (svr) {
+                              if (svr === "overdue-resolve" || svr === "overdue-respond") {
+                                const days =
+                                  (ticket as any).resolve_days_over ??
+                                  ticket.sla?.resolveDaysOver ??
+                                  0;
+                                return `${days}d overdue`;
+                              }
+                              return "On time";
+                            }
+                            if (ticket.sla)
+                              return ticket.sla.resolveDaysOver && ticket.sla.resolveDaysOver > 0
+                                ? `${ticket.sla.resolveDaysOver}d overdue`
+                                : "On time";
+                            return "--";
+                          })()}
+                        </td>
+                        <td className="px-3 py-2">{ticket.issue_category}</td>
+                        <td className="px-3 py-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openUpdateDialog(ticket)}
+                            disabled={LOCKED_STATUSES.includes(ticket.status)}
+                          >
+                            Update
+                          </Button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1233,126 +951,26 @@ const AdminTicketDashboard = () => {
               <h3 className="text-lg font-semibold mb-3">
                 Open Tickets by Service Group Membership
               </h3>
-              <div className="grid grid-cols-2 md:grid-cols-7 gap-3">
-                <div>
-                  <div className="text-sm text-muted-foreground">New Tickets</div>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {tickets
-                      .filter((t) => t.status === "pending")
-                      .slice(0, 20)
-                      .map((t) => (
-                        <button
-                          key={t.id}
-                          onClick={() => openUpdateDialog(t)}
-                          className={`px-2 py-1 rounded text-xs ${getSLAColor(t)} cursor-pointer`}
-                        >
-                          {t.ticket_number}
-                        </button>
-                      ))}
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+                {BOARD_COLUMNS.map((col) => (
+                  <div key={col.label}>
+                    <div className="text-sm text-muted-foreground">{col.label}</div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {tickets
+                        .filter((t) => col.statuses.includes(t.status))
+                        .slice(0, 20)
+                        .map((t) => (
+                          <button
+                            key={t.id}
+                            onClick={() => openUpdateDialog(t)}
+                            className={`px-2 py-1 rounded text-xs ${getSLAColor(t)} cursor-pointer`}
+                          >
+                            {t.ticket_number}
+                          </button>
+                        ))}
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <div className="text-sm text-muted-foreground">Assigned Tickets</div>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {tickets
-                      .filter((t) => t.status === "in-progress")
-                      .slice(0, 20)
-                      .map((t) => (
-                        <button
-                          key={t.id}
-                          onClick={() => openUpdateDialog(t)}
-                          className={`px-2 py-1 rounded text-xs ${getSLAColor(t)} cursor-pointer`}
-                        >
-                          {t.ticket_number}
-                        </button>
-                      ))}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-sm text-muted-foreground">In-Progress Tickets</div>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {tickets
-                      .filter((t) => t.status === "in-progress")
-                      .slice(0, 20)
-                      .map((t) => (
-                        <button
-                          key={t.id}
-                          onClick={() => openUpdateDialog(t)}
-                          className={`px-2 py-1 rounded text-xs ${getSLAColor(t)} cursor-pointer`}
-                        >
-                          {t.ticket_number}
-                        </button>
-                      ))}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-sm text-muted-foreground">Completed Tickets</div>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {tickets
-                      .filter((t) => t.status === "completed")
-                      .slice(0, 20)
-                      .map((t) => (
-                        <button
-                          key={t.id}
-                          onClick={() => openUpdateDialog(t)}
-                          className={`px-2 py-1 rounded text-xs ${getSLAColor(t)} cursor-pointer`}
-                        >
-                          {t.ticket_number}
-                        </button>
-                      ))}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-sm text-muted-foreground">On Hold Tickets</div>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {tickets
-                      .filter((t) => t.status === "waiting-for-user")
-                      .slice(0, 20)
-                      .map((t) => (
-                        <button
-                          key={t.id}
-                          onClick={() => openUpdateDialog(t)}
-                          className={`px-2 py-1 rounded text-xs ${getSLAColor(t)} cursor-pointer`}
-                        >
-                          {t.ticket_number}
-                        </button>
-                      ))}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-sm text-muted-foreground">Awaiting Customer Response</div>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {tickets
-                      .filter((t) => t.status === "waiting-for-user")
-                      .slice(0, 20)
-                      .map((t) => (
-                        <button
-                          key={t.id}
-                          onClick={() => openUpdateDialog(t)}
-                          className={`px-2 py-1 rounded text-xs ${getSLAColor(t)} cursor-pointer`}
-                        >
-                          {t.ticket_number}
-                        </button>
-                      ))}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-sm text-muted-foreground">Approval Pending Tickets</div>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {tickets
-                      .filter((t) => t.status.startsWith("procure"))
-                      .slice(0, 20)
-                      .map((t) => (
-                        <button
-                          key={t.id}
-                          onClick={() => openUpdateDialog(t)}
-                          className={`px-2 py-1 rounded text-xs ${getSLAColor(t)} cursor-pointer`}
-                        >
-                          {t.ticket_number}
-                        </button>
-                      ))}
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
 
@@ -1366,53 +984,6 @@ const AdminTicketDashboard = () => {
             />
           </CardContent>
         </Card>
-
-        {/* Email PDF Dialog */}
-        <Dialog open={showEmailDialog} onOpenChange={setShowEmailDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>E-mail Ticket Report</DialogTitle>
-              <DialogDescription>
-                Send the generated ticket report as a PDF attachment to a recipient email address.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label>To</Label>
-                <Input
-                  value={emailForm.to}
-                  onChange={(e) => setEmailForm((prev) => ({ ...prev, to: e.target.value }))}
-                  placeholder="recipient@example.com"
-                />
-              </div>
-              <div>
-                <Label>Subject</Label>
-                <Input
-                  value={emailForm.subject}
-                  onChange={(e) => setEmailForm((prev) => ({ ...prev, subject: e.target.value }))}
-                />
-              </div>
-              <div>
-                <Label>Body</Label>
-                <Textarea
-                  value={emailForm.body}
-                  onChange={(e) => setEmailForm((prev) => ({ ...prev, body: e.target.value }))}
-                  rows={4}
-                />
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setShowEmailDialog(false)}>
-                  Cancel
-                </Button>
-                <Button
-                  onClick={() => sendReportByEmail(emailForm.to, emailForm.subject, emailForm.body)}
-                >
-                  Send Email
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
 
         {/* Update Ticket Dialog */}
         <Dialog open={showUpdateDialog} onOpenChange={setShowUpdateDialog}>
@@ -1449,7 +1020,7 @@ const AdminTicketDashboard = () => {
                         <SelectItem value="pending">Pending</SelectItem>
                         <SelectItem value="in-progress">In Progress</SelectItem>
                         <SelectItem value="waiting-for-user">Waiting for User</SelectItem>
-
+                        <SelectItem value="resolved">Resolved</SelectItem>
                         <SelectItem value="completed">Completed</SelectItem>
                       </SelectContent>
                     </Select>
