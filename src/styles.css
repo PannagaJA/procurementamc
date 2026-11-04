@@ -323,11 +323,32 @@ html {
   /* Dropdown options auto-palette: replace green with Dark Navy (#0B1437) and white text */
   [role="option"]:hover,
   [role="option"][data-highlighted],
-  [data-radix-collection-item]:hover,
-  [data-radix-collection-item][data-highlighted],
+  [role="menuitem"]:hover,
+  [role="menuitem"][data-highlighted],
+  [data-radix-select-content] [data-radix-collection-item]:hover,
+  [data-radix-select-content] [data-radix-collection-item][data-highlighted],
+  [data-radix-dropdown-menu-content] [data-radix-collection-item]:hover,
+  [data-radix-dropdown-menu-content] [data-radix-collection-item][data-highlighted],
   [cmdk-item][data-selected="true"] {
     background-color: #0B1437 !important;
     color: #ffffff !important;
+  }
+
+  /* Ensure destructive/error toasts and alerts strictly remain red when hovered */
+  [data-sonner-toast][data-type="error"],
+  [data-sonner-toast][data-type="error"]:hover,
+  [data-radix-collection-item].destructive,
+  [data-radix-collection-item].destructive:hover,
+  li[role="status"].destructive,
+  li[role="status"].destructive:hover,
+  [data-radix-toast-announce-exclude].destructive,
+  [data-radix-toast-announce-exclude].destructive:hover,
+  .destructive,
+  .destructive:hover,
+  [class*="bg-destructive"],
+  [class*="bg-destructive"]:hover {
+    background-color: hsl(var(--destructive)) !important;
+    color: hsl(var(--destructive-foreground)) !important;
   }
 
   /* Auto-enforce canonical design palette and interactive scale hover effect (matching logout button) */
@@ -377,4 +398,18 @@ html {
     background-color: #111f54 !important;
     transform: scale(1.03) !important;
   }
+}
+
+/* Global high-priority rule: Destructive error toasts always remain red on hover */
+li[role="status"].destructive,
+li[role="status"].destructive:hover,
+[data-radix-collection-item].destructive,
+[data-radix-collection-item].destructive:hover,
+div[data-sonner-toast][data-type="error"],
+div[data-sonner-toast][data-type="error"]:hover,
+.destructive,
+.destructive:hover {
+  background-color: #ef4444 !important;
+  background-image: none !important;
+  color: #ffffff !important;
 }

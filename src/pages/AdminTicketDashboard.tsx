@@ -943,17 +943,11 @@ const AdminTicketDashboard = () => {
 
             <div className="flex flex-wrap items-center gap-3 sm:gap-4 mb-4 text-xs sm:text-sm">
               <div className="h-3.5 w-3.5 rounded bg-emerald-100 border border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-700"></div>
-              <div className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-medium">
-                Under SLA Resolution
-              </div>
+              <div className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-medium">Under SLA Resolution</div>
               <div className="h-3.5 w-3.5 rounded bg-amber-100 border border-amber-300 dark:bg-amber-950/40 dark:border-amber-700 ml-2"></div>
-              <div className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-medium">
-                Within 45 minutes of SLA Resolution
-              </div>
+              <div className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-medium">Within 45 minutes of SLA Resolution</div>
               <div className="h-3.5 w-3.5 rounded bg-rose-100 border border-rose-300 dark:bg-rose-950/40 dark:border-rose-700 ml-2"></div>
-              <div className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-medium">
-                Over SLA Resolution
-              </div>
+              <div className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-medium">Over SLA Resolution</div>
             </div>
 
             {/* Table of Open Tickets by Service Group Membership */}
