@@ -370,22 +370,22 @@ const Dashboard = () => {
 
         {/* Search UI removed per request */}
 
-        <Card className="w-full bg-card border border-border/60 rounded-xl transition-all duration-300">
-          <CardHeader className="bg-slate-50/80 dark:bg-slate-900/40 rounded-t-xl border-b border-border/40 text-center py-3 px-6">
-            <CardTitle className="text-lg font-bold text-card-foreground flex items-center justify-center gap-2">
-              <ScanLine className="w-5 h-5 text-[#0B1437] dark:text-slate-200 shrink-0" />
-              <span>Scan to Get Info</span>
+        <Card className="bg-card/90 backdrop-blur-sm border border-border/60 rounded-xl transition-all duration-300 shadow-xs">
+          <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100/60 dark:from-slate-900/40 dark:to-slate-800/40 rounded-t-xl border-b border-border/40 text-center py-3.5 px-4 sm:py-4">
+            <CardTitle className="text-xl font-bold text-card-foreground flex items-center justify-center gap-2">
+              <ScanLine className="w-5 h-5 text-[#0B1437] dark:text-slate-200" />
+              Scan to Get Info
             </CardTitle>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
               Scan QR codes to quickly access item details
             </p>
           </CardHeader>
-          <CardContent className="py-6 px-6 flex flex-col items-center justify-center text-center">
+          <CardContent className="py-5 px-4 sm:py-6 flex flex-col items-center justify-center text-center">
             <Button
               onClick={() => setShowQRScanner(true)}
-              className="inline-flex items-center justify-center gap-2.5 bg-[#0B1437] hover:bg-[#111f54] text-white px-8 h-11 rounded-full font-semibold transition-all duration-300 hover:scale-105 text-sm sm:text-base mx-auto"
+              className="inline-flex items-center justify-center gap-2 bg-[#0B1437] hover:bg-[#111f54] text-white px-6 h-11 rounded-full font-bold transition-all duration-300 hover:scale-105 text-sm sm:text-base mx-auto shadow-sm"
             >
-              <ScanLine className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+              <ScanLine className="w-4 h-4 shrink-0" />
               <span>Scan QR Code</span>
             </Button>
             <p className="text-xs sm:text-sm text-muted-foreground mt-2.5">
@@ -426,30 +426,30 @@ const Dashboard = () => {
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="p-6">
+          <CardContent className="p-5 sm:p-6 pt-4 sm:pt-5">
             {/* Quick Stats Badges */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-              <div className="p-4 rounded-lg bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200/50 dark:border-blue-900/30">
-                <span className="text-xs text-muted-foreground">Total Tickets</span>
-                <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-5">
+              <div className="py-3 px-3.5 sm:px-4 rounded-xl bg-blue-50/60 dark:bg-blue-950/20 border border-blue-200/50 dark:border-blue-900/30 flex flex-col justify-between">
+                <span className="text-xs font-medium text-muted-foreground">Total Tickets</span>
+                <p className="text-2xl font-bold text-blue-700 dark:text-blue-300 mt-1">
                   {stats?.ticketStats?.total ?? 0}
                 </p>
               </div>
-              <div className="p-4 rounded-lg bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-900/30">
-                <span className="text-xs text-muted-foreground">Pending / Needs Action</span>
-                <p className="text-2xl font-bold text-amber-700 dark:text-amber-300">
+              <div className="py-3 px-3.5 sm:px-4 rounded-xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-900/30 flex flex-col justify-between">
+                <span className="text-xs font-medium text-muted-foreground">Pending / Needs Action</span>
+                <p className="text-2xl font-bold text-amber-700 dark:text-amber-300 mt-1">
                   {stats?.ticketStats?.pending ?? 0}
                 </p>
               </div>
-              <div className="p-4 rounded-lg bg-purple-50/60 dark:bg-purple-950/20 border border-purple-200/50 dark:border-purple-900/30">
-                <span className="text-xs text-muted-foreground">In Progress</span>
-                <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">
+              <div className="py-3 px-3.5 sm:px-4 rounded-xl bg-purple-50/60 dark:bg-purple-950/20 border border-purple-200/50 dark:border-purple-900/30 flex flex-col justify-between">
+                <span className="text-xs font-medium text-muted-foreground">In Progress</span>
+                <p className="text-2xl font-bold text-purple-700 dark:text-purple-300 mt-1">
                   {stats?.ticketStats?.inProgress ?? 0}
                 </p>
               </div>
-              <div className="p-4 rounded-lg bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200/50 dark:border-emerald-900/30">
-                <span className="text-xs text-muted-foreground">Resolved / Completed</span>
-                <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">
+              <div className="py-3 px-3.5 sm:px-4 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200/50 dark:border-emerald-900/30 flex flex-col justify-between">
+                <span className="text-xs font-medium text-muted-foreground">Resolved / Completed</span>
+                <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300 mt-1">
                   {stats?.ticketStats?.resolved ?? 0}
                 </p>
               </div>
