@@ -8,7 +8,7 @@ import { createJiti } from "jiti";
 const jiti = createJiti(import.meta.url, {
   alias: { "@": new URL("../src", import.meta.url).pathname },
 });
-const { toWaNumber, waLink } = await jiti.import("../src/lib/whatsapp.ts");
+const { toWaNumber, waLink, defaultChannel } = await jiti.import("../src/lib/whatsapp.ts");
 const { canonicalRole, canReadAll, isReadOnlyUser } = await jiti.import("../src/lib/roleAliases.ts");
 
 // Phone normalisation
@@ -24,6 +24,11 @@ assert.equal(toWaNumber(null), null);
 // Links
 assert.equal(waLink("9845012345", "PO & link: https://x/y?a=1"), "https://wa.me/919845012345?text=PO%20%26%20link%3A%20https%3A%2F%2Fx%2Fy%3Fa%3D1");
 assert.equal(waLink(undefined, "hi"), "https://wa.me/?text=hi");
+
+// Default invite channel
+assert.equal(defaultChannel({ email: "a@b.co", phone: "9845012345" }), "email");
+assert.equal(defaultChannel({ email: " ", phone: "9845012345" }), "whatsapp");
+assert.equal(defaultChannel({ email: null, phone: null }), "email");
 
 // Roles
 assert.equal(canonicalRole("chairman"), "evp");

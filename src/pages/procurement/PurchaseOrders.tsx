@@ -48,6 +48,13 @@ import {
   sharePoLink,
 } from "@/lib/procurement/po.functions";
 import { WhatsAppButtons } from "@/components/WhatsAppButtons";
+import { ChannelToggle } from "@/components/procurement/ChannelToggle";
+import {
+  InviteDeliveryDialog,
+  type DeliveryVendor,
+} from "@/components/procurement/InviteDeliveryDialog";
+import { defaultChannel, openWhatsApp } from "@/lib/whatsapp";
+import type { InviteChannel } from "@/lib/procurement/rfq.functions";
 import { dispatchPoEmail } from "@/lib/procurement/email.functions";
 import { createRfq, sendRfq } from "@/lib/procurement/rfq.functions";
 import { emailQuoteInvites } from "@/lib/procurement/quoteInvites";
@@ -68,6 +75,7 @@ import {
   Clock,
   FileText,
   Printer,
+  Mail,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { PoPrintPreviewModal } from "@/components/procurement/PoPrintPreviewModal";
@@ -120,6 +128,12 @@ export default function PurchaseOrders() {
   // Direct purchase: buy from one vendor now, or ask several vendors for quotes first
   const [directMode, setDirectMode] = useState<"single" | "quotes">("single");
   const [quoteVendorIds, setQuoteVendorIds] = useState<string[]>([]);
+  const [quoteChannels, setQuoteChannels] = useState<Record<string, InviteChannel>>({});
+  const quoteChannelOf = (v: any): InviteChannel => quoteChannels[v.id] ?? defaultChannel(v);
+  const [quoteDelivery, setQuoteDelivery] = useState<{
+    rfq: any;
+    vendors: DeliveryVendor[];
+  } | null>(null);
   const [quoteDeadline, setQuoteDeadline] = useState(() =>
     new Date(Date.now() + 3 * 86_400_000).toISOString().slice(0, 10),
   );
@@ -197,7 +211,9 @@ export default function PurchaseOrders() {
         supabase.from("rfqs").select("pr_id, rfq_number").in("status", ["draft", "sent"]),
         supabase
           .from("vendors")
-          .select("id, name, gst_number, status, empanelment_expiry")
+          .select(
+            "id, name, gst_number, status, empanelment_expiry, email:bank_details_json->>email, phone:bank_details_json->>phone",
+          )
           .eq("status", "empanelled")
           .or(
             `empanelment_expiry.is.null,empanelment_expiry.gte.${new Date().toISOString().split("T")[0]}`,
@@ -314,8 +330,11 @@ export default function PurchaseOrders() {
         return;
       }
       const rfqNumber = created.rfq.rfq_number;
+      const chosen = vendorsList.filter((v: any) => quoteVendorIds.includes(v.id));
+      const picked: Record<string, InviteChannel> = {};
+      for (const v of chosen) picked[v.id] = quoteChannelOf(v);
       const sent = await (sendRfq as any)({
-        data: { rfq_id: created.rfq.id, vendor_ids: quoteVendorIds },
+        data: { rfq_id: created.rfq.id, vendor_ids: quoteVendorIds, channels: picked },
       });
       if (!sent.ok) {
         toast({
@@ -327,11 +346,24 @@ export default function PurchaseOrders() {
         navigate({ to: "/procurement/rfqs" });
         return;
       }
-      const { sent: emailed, notice } = await emailQuoteInvites(sent.rfqId, sent.vendors ?? []);
+      // Email in bulk; WhatsApp vendors are sent one by one from the Delivery dialog.
+      const byEmail = chosen.filter((v: any) => picked[v.id] === "email");
+      const { sent: emailed, notice, results } = await emailQuoteInvites(sent.rfqId, byEmail);
+      const vendors: DeliveryVendor[] = chosen.map((v: any) => ({
+        id: v.id,
+        name: v.name,
+        email: v.email,
+        phone: v.phone,
+        channel: picked[v.id],
+        emailResult: results.find((r) => r.id === v.id),
+      }));
+      const waCount = vendors.filter((v) => v.channel === "whatsapp").length;
+      const failed = results.some((r) => !r.ok);
       toast({
         title: "Quote requests sent",
         description: [
           `${rfqNumber} sent to ${sent.sentCount} vendors${emailed ? `, ${emailed} by email` : ""}.`,
+          waCount ? `${waCount} to send on WhatsApp.` : null,
           notice || null,
           "When the quotes are in, award the lowest from the RFQ page.",
         ]
@@ -339,7 +371,9 @@ export default function PurchaseOrders() {
           .join(" "),
       });
       setCreateOpen(false);
-      navigate({ to: "/procurement/rfqs" });
+      if (waCount || failed)
+        setQuoteDelivery({ rfq: { id: sent.rfqId, rfq_number: rfqNumber }, vendors });
+      else navigate({ to: "/procurement/rfqs" });
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
@@ -517,17 +551,89 @@ export default function PurchaseOrders() {
   };
 
   /** WhatsApp text with a 30-day signed link to the same PO PDF the issue email attaches. */
-  const poWhatsAppMessage = async (po: any) => {
-    const doc = await buildPoPdf(po);
-    const res = await (sharePoLink as any)({
-      data: { po_id: po.id, pdf_base64: doc.output("datauristring").split(",")[1] },
-    });
+  const poWhatsAppMessage = async (po: any, pdfBase64?: string) => {
+    const b64 = pdfBase64 ?? (await buildPoPdf(po)).output("datauristring").split(",")[1];
+    const res = await (sharePoLink as any)({ data: { po_id: po.id, pdf_base64: b64 } });
     if (!res?.ok) throw new Error(res?.error || "Could not prepare the PO link.");
     const total = Number(po.total_value || 0).toLocaleString("en-IN");
     return (
       `Dear ${po.vendors?.name || "Vendor"},\n\nPlease find Purchase Order ${po.po_number} from AMC Engineering College ` +
       `(total ₹${total}).\nDownload the PO (link valid for 30 days):\n${res.url}\n\nThank you.`
     );
+  };
+
+  /** "Issue to Vendor" asks how the vendor gets the PO: email (PDF attached) or WhatsApp (link). */
+  const [issueTarget, setIssueTarget] = useState<any | null>(null);
+  const [issueChannel, setIssueChannel] = useState<InviteChannel>("email");
+  const vendorContact = (po: any) => ({
+    email: po?.vendors?.bank_details_json?.email,
+    phone: po?.vendors?.bank_details_json?.phone,
+  });
+  const openIssueDialog = (po: any) => {
+    setIssueChannel(defaultChannel(vendorContact(po)));
+    setIssueTarget(po);
+  };
+
+  // Must run straight from the click: WhatsApp's tab opens before the awaits.
+  const handleIssueWhatsApp = (po: any) => {
+    setActing(true);
+    let copiesNote = "";
+    openWhatsApp(vendorContact(po).phone, async () => {
+      const res = await (issuePo as any)({ data: { po_id: po.id } });
+      if (!res.ok) throw new Error(res.error);
+      const issued = { ...po, status: "issued" };
+      const b64 = (await buildPoPdf(issued)).output("datauristring").split(",")[1];
+      try {
+        const copies = await (dispatchPoEmail as any)({
+          data: { po_id: po.id, pdf_base64: b64, copies_only: true },
+        });
+        copiesNote = copies?.ok
+          ? copies.copiesCount
+            ? ` Copies emailed to internal stakeholders (${copies.copiesCount}).`
+            : ""
+          : ` Internal copies not emailed: ${copies?.error || "unknown error"}.`;
+      } catch (e: any) {
+        copiesNote = ` Internal copies not emailed: ${e?.message}.`;
+      }
+      try {
+        return await poWhatsAppMessage(issued, b64);
+      } catch (e: any) {
+        throw new Error(
+          `${po.po_number} is issued, but the WhatsApp link failed: ${e.message} Use the PO's WhatsApp button to retry.`,
+        );
+      }
+    })
+      .then(() =>
+        toast({
+          title: "Purchase Order Issued",
+          description: `Order ${po.po_number} issued. WhatsApp opened with the PO link.${copiesNote}`,
+        }),
+      )
+      .catch((e: any) =>
+        toast({ title: "WhatsApp not sent", description: e.message, variant: "destructive" }),
+      )
+      .finally(() => {
+        setActing(false);
+        setIssueTarget(null);
+        loadData();
+      });
+  };
+
+  const handleEmailPoAgain = async (po: any) => {
+    setActing(true);
+    try {
+      const b64 = (await buildPoPdf(po)).output("datauristring").split(",")[1];
+      const mail = await (dispatchPoEmail as any)({ data: { po_id: po.id, pdf_base64: b64 } });
+      toast(
+        mail?.ok
+          ? { title: "PO emailed", description: `${po.po_number} emailed to ${mail.to}.` }
+          : { title: "Email failed", description: mail?.error, variant: "destructive" },
+      );
+    } catch (e: any) {
+      toast({ title: "Email failed", description: e.message, variant: "destructive" });
+    } finally {
+      setActing(false);
+    }
   };
 
   const handleOpenAmend = (po: any) => {
@@ -855,7 +961,7 @@ export default function PurchaseOrders() {
                                   auth.hasRole("procurement_executive")) && (
                                   <Button
                                     size="sm"
-                                    onClick={() => handleIssuePo(po)}
+                                    onClick={() => openIssueDialog(po)}
                                     disabled={acting}
                                     className="bg-[#0B1437] hover:bg-[#111f54] text-white gap-1 text-xs rounded-full"
                                   >
@@ -867,10 +973,30 @@ export default function PurchaseOrders() {
                                 (auth.hasRole("admin") ||
                                   auth.hasRole("procurement_officer") ||
                                   auth.hasRole("procurement_executive")) && (
-                                  <WhatsAppButtons
-                                    phone={po.vendors?.bank_details_json?.phone}
-                                    getMessage={() => poWhatsAppMessage(po)}
-                                  />
+                                  <>
+                                    <WhatsAppButtons
+                                      phone={po.vendors?.bank_details_json?.phone}
+                                      getMessage={() => poWhatsAppMessage(po)}
+                                    />
+                                    {isIssued &&
+                                      (auth.hasRole("admin") ||
+                                        auth.hasRole("procurement_officer")) && (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-8 px-3 text-xs gap-1"
+                                          disabled={acting || !vendorContact(po).email}
+                                          title={
+                                            vendorContact(po).email
+                                              ? `Email the PO PDF to ${vendorContact(po).email} again`
+                                              : "No email on file (Vendor Master)"
+                                          }
+                                          onClick={() => handleEmailPoAgain(po)}
+                                        >
+                                          <Mail className="w-3.5 h-3.5" /> Email PO again
+                                        </Button>
+                                      )}
+                                  </>
                                 )}
 
                               {(isIssued || po.status === "partially_closed") &&
@@ -1215,24 +1341,36 @@ export default function PurchaseOrders() {
                           {vendorsList
                             .filter((v: any) => v.status === "empanelled")
                             .map((v: any) => (
-                              <label
+                              <div
                                 key={v.id}
-                                className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-muted/50"
+                                className="flex items-center justify-between gap-2 px-3 py-2 text-sm hover:bg-muted/50"
                               >
-                                <input
-                                  type="checkbox"
-                                  className="h-4 w-4 accent-indigo-600"
-                                  checked={quoteVendorIds.includes(v.id)}
-                                  onChange={(e) =>
-                                    setQuoteVendorIds((ids) =>
-                                      e.target.checked
-                                        ? [...ids, v.id]
-                                        : ids.filter((id) => id !== v.id),
-                                    )
-                                  }
-                                />
-                                <span className="truncate">{v.name}</span>
-                              </label>
+                                <label className="flex items-center gap-2 min-w-0 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    className="h-4 w-4 accent-indigo-600"
+                                    checked={quoteVendorIds.includes(v.id)}
+                                    onChange={(e) =>
+                                      setQuoteVendorIds((ids) =>
+                                        e.target.checked
+                                          ? [...ids, v.id]
+                                          : ids.filter((id) => id !== v.id),
+                                      )
+                                    }
+                                  />
+                                  <span className="truncate">{v.name}</span>
+                                </label>
+                                {quoteVendorIds.includes(v.id) && (
+                                  <ChannelToggle
+                                    value={quoteChannelOf(v)}
+                                    email={v.email}
+                                    phone={v.phone}
+                                    onChange={(c) =>
+                                      setQuoteChannels((prev) => ({ ...prev, [v.id]: c }))
+                                    }
+                                  />
+                                )}
+                              </div>
                             ))}
                         </div>
                       </div>
@@ -1540,6 +1678,67 @@ export default function PurchaseOrders() {
 
         {/* Formal Institutional Print Preview & PDF Modal */}
         <PoPrintPreviewModal open={printOpen} onOpenChange={setPrintOpen} po={selectedPoForPrint} />
+
+        <InviteDeliveryDialog
+          open={!!quoteDelivery}
+          onOpenChange={(o) => {
+            if (!o) {
+              setQuoteDelivery(null);
+              navigate({ to: "/procurement/rfqs" });
+            }
+          }}
+          rfq={quoteDelivery?.rfq ?? null}
+          vendors={quoteDelivery?.vendors ?? []}
+          title="Send quote requests"
+        />
+
+        <Dialog open={!!issueTarget} onOpenChange={(o) => !o && !acting && setIssueTarget(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Issue {issueTarget?.po_number} to vendor</DialogTitle>
+              <DialogDescription>
+                How should {issueTarget?.vendors?.name || "the vendor"} receive the PO? The HOD,
+                Stores and Finance copies are emailed either way.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex items-center justify-between gap-3 py-2">
+              <span className="text-sm text-slate-700 dark:text-slate-300">
+                {issueChannel === "email"
+                  ? `Email with the PDF attached${vendorContact(issueTarget).email ? ` to ${vendorContact(issueTarget).email}` : ""}`
+                  : "WhatsApp chat with a 30-day PDF link"}
+              </span>
+              <ChannelToggle
+                value={issueChannel}
+                onChange={setIssueChannel}
+                email={vendorContact(issueTarget).email}
+                phone={vendorContact(issueTarget).phone}
+                disabled={acting}
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIssueTarget(null)} disabled={acting}>
+                Cancel
+              </Button>
+              <Button
+                disabled={acting}
+                className="bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-bold gap-1"
+                onClick={() => {
+                  const po = issueTarget;
+                  if (issueChannel === "whatsapp") return handleIssueWhatsApp(po);
+                  setIssueTarget(null);
+                  handleIssuePo(po);
+                }}
+              >
+                <Send className="w-3.5 h-3.5" />
+                {acting
+                  ? "Issuing..."
+                  : issueChannel === "email"
+                    ? "Issue & email"
+                    : "Issue & send on WhatsApp"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Confirmation Modal to prevent accidental PO approval */}
         <AlertDialog open={!!poToApprove} onOpenChange={(open) => !open && setPoToApprove(null)}>

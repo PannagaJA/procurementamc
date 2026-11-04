@@ -12,6 +12,8 @@ export interface SendRfqEmailInput {
 export interface SendPoEmailInput {
   po_id: string;
   pdf_base64?: string;
+  /** The vendor was sent the PO on WhatsApp: email only the HOD / Stores / Finance copies. */
+  copies_only?: boolean;
 }
 
 /** Dispatch RFQ invitation email to a single vendor via SMTP */
@@ -61,12 +63,14 @@ export const dispatchRfqEmail = createServerFn({ method: "POST" })
     // Fetch RFQ details
     const { data: rfq, error: rfqErr } = await (supabaseAdmin as any)
       .from("rfqs")
-      .select(`
+      .select(
+        `
         id, rfq_number, response_deadline, purpose, title, category,
         purchase_requisitions (
           category, scope, justification
         )
-      `)
+      `,
+      )
       .eq("id", data.rfq_id)
       .maybeSingle();
 
@@ -118,10 +122,12 @@ export const dispatchPoEmail = createServerFn({ method: "POST" })
     // Fetch PO details
     const { data: po, error: poErr } = await (supabaseAdmin as any)
       .from("purchase_orders")
-      .select(`
+      .select(
+        `
         id, po_number, status, price, taxes, delivery_timeline, department_id,
         vendors (id, name, bank_details_json)
-      `)
+      `,
+      )
       .eq("id", data.po_id)
       .maybeSingle();
 
@@ -138,9 +144,12 @@ export const dispatchPoEmail = createServerFn({ method: "POST" })
     }
 
     const vendor = po.vendors as any;
-    const vendorEmail = vendor?.bank_details_json?.email?.trim();
-    if (!vendorEmail) {
-      return { ok: false as const, error: `No email address on file for vendor "${vendor?.name || "Vendor"}".` };
+    const vendorEmail = vendor?.bank_details_json?.email?.trim() || "";
+    if (!vendorEmail && !data.copies_only) {
+      return {
+        ok: false as const,
+        error: `No email address on file for vendor "${vendor?.name || "Vendor"}".`,
+      };
     }
 
     const totalValue = Number(po.price || 0) + Number(po.taxes || 0);
@@ -165,7 +174,8 @@ export const dispatchPoEmail = createServerFn({ method: "POST" })
     const copyEmails: string[] = (
       await Promise.all(
         relevantUserIds.map(
-          async (uid) => (await (supabaseAdmin as any).auth.admin.getUserById(uid)).data?.user?.email,
+          async (uid) =>
+            (await (supabaseAdmin as any).auth.admin.getUserById(uid)).data?.user?.email,
         ),
       )
     ).filter((e): e is string => !!e && e !== vendorEmail);
@@ -178,12 +188,13 @@ export const dispatchPoEmail = createServerFn({ method: "POST" })
       deliveryTimeline: po.delivery_timeline,
       pdfBase64: data.pdf_base64,
       internalCopies: copyEmails.length > 0 ? copyEmails : undefined,
+      copiesOnly: !!data.copies_only,
     });
 
     return result.ok
       ? {
           ok: true as const,
-          to: vendorEmail,
+          to: data.copies_only ? null : vendorEmail,
           copiesCount: copyEmails.length,
           copies: copyEmails,
         }

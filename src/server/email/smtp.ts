@@ -43,7 +43,10 @@ export async function sendMail(opts: SendMailOptions) {
   try {
     const transporter = getMailTransporter();
     if (!transporter) {
-      return { ok: false, error: "Email isn't configured: set SMTP_USER and SMTP_PASS on the server." };
+      return {
+        ok: false,
+        error: "Email isn't configured: set SMTP_USER and SMTP_PASS on the server.",
+      };
     }
     const info = await transporter.sendMail({
       from: DEFAULT_FROM,
@@ -57,9 +60,12 @@ export async function sendMail(opts: SendMailOptions) {
     console.log(`[SMTP] Email sent successfully to ${opts.to}. MessageId: ${info.messageId}`);
     return { ok: true, messageId: info.messageId };
   } catch (error: any) {
-    const isBadCreds = error?.message?.includes("535") || error?.message?.includes("BadCredentials");
+    const isBadCreds =
+      error?.message?.includes("535") || error?.message?.includes("BadCredentials");
     if (isBadCreds) {
-      console.warn("[SMTP] Notice: Email not dispatched because SMTP credentials in .env are not accepted by provider. (Continuing without email notification).");
+      console.warn(
+        "[SMTP] Notice: Email not dispatched because SMTP credentials in .env are not accepted by provider. (Continuing without email notification).",
+      );
     } else {
       console.error("[SMTP] Error sending email:", error?.message || error);
     }
@@ -140,6 +146,8 @@ export async function sendPoIssuedEmail(params: {
   deliveryTimeline?: string | null;
   pdfBase64?: string;
   internalCopies?: string[];
+  /** The vendor got the PO another way (WhatsApp): send only the internal copies. */
+  copiesOnly?: boolean;
 }) {
   const formattedTotal = Number(params.totalValue || 0).toLocaleString("en-IN");
   const content = `
@@ -166,11 +174,15 @@ export async function sendPoIssuedEmail(params: {
       ]
     : undefined;
 
-  // Send to vendor
+  const copies =
+    params.internalCopies && params.internalCopies.length > 0 ? params.internalCopies : undefined;
+  if (params.copiesOnly && !copies) return { ok: true as const };
+
+  // Send to vendor (or, when the vendor was sent the PO on WhatsApp, only the internal copies)
   const vendorResult = await sendMail({
-    to: params.vendorEmail,
-    cc: params.internalCopies && params.internalCopies.length > 0 ? params.internalCopies : undefined,
-    subject: `[Purchase Order] ${params.poNumber} — AMC Engineering College`,
+    to: params.copiesOnly ? copies! : params.vendorEmail,
+    cc: params.copiesOnly ? undefined : copies,
+    subject: `${params.copiesOnly ? "[Copy] " : ""}[Purchase Order] ${params.poNumber} — AMC Engineering College`,
     html: wrapTemplate("Official Purchase Order Notification", content),
     attachments,
   });
@@ -233,7 +245,11 @@ export async function sendDecisionNoticeEmail(params: {
 }) {
   const isApproved = params.decision === "approved";
   const badgeColor = isApproved ? "#16a34a" : "#dc2626";
-  const statusLabel = isApproved ? "APPROVED" : params.decision === "returned_for_clarification" ? "RETURNED FOR CLARIFICATION" : "REJECTED";
+  const statusLabel = isApproved
+    ? "APPROVED"
+    : params.decision === "returned_for_clarification"
+      ? "RETURNED FOR CLARIFICATION"
+      : "REJECTED";
 
   const content = `
     <p>Dear Requester / Stakeholder,</p>
@@ -298,7 +314,10 @@ export async function sendVendorEmpanelmentEmail(params: {
     subject: isEmpanelled
       ? `[Empanelment Approved] Welcome to AMC Engineering College Approved Vendor List`
       : `[Debarment Notice] Performance Review Determination — AMC Engineering College`,
-    html: wrapTemplate(isEmpanelled ? "Vendor Empanelment Confirmation" : "Vendor Debarment Notification", content),
+    html: wrapTemplate(
+      isEmpanelled ? "Vendor Empanelment Confirmation" : "Vendor Debarment Notification",
+      content,
+    ),
   });
 }
 
