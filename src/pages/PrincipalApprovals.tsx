@@ -396,16 +396,6 @@ const PrincipalApprovals = () => {
                                     Reject
                                   </Button>
                                 </>
-                              ) : r.status === "procure-approved" ||
-                                r.status === "service-approved" ? (
-                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 shrink-0">
-                                  Approved
-                                </span>
-                              ) : r.status === "procure-rejected" ||
-                                r.status === "service-rejected" ? (
-                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800 shrink-0">
-                                  Rejected
-                                </span>
                               ) : null}
                             </div>
                           </td>

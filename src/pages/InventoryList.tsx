@@ -450,7 +450,7 @@ className="flex-1 min-w-[200px] max-w-xl pl-4 py-2 text-sm rounded-full h-10 bor
                 <SelectTrigger className="h-12 text-base">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="w-[var(--radix-select-trigger-width)] max-w-[var(--radix-select-trigger-width)]">
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="in-use">In Use</SelectItem>
                   <SelectItem value="discarded">Discarded</SelectItem>
@@ -463,7 +463,7 @@ className="flex-1 min-w-[200px] max-w-xl pl-4 py-2 text-sm rounded-full h-10 bor
                 <SelectTrigger className="h-12 text-base">
                   <SelectValue placeholder="Category" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="w-[var(--radix-select-trigger-width)] max-w-[var(--radix-select-trigger-width)]">
                   <SelectItem value="all">All Categories</SelectItem>
                   {categories.map((cat) => (
                     <SelectItem key={cat.id} value={cat.id}>
@@ -477,7 +477,7 @@ className="flex-1 min-w-[200px] max-w-xl pl-4 py-2 text-sm rounded-full h-10 bor
                 <SelectTrigger className="h-12 text-base">
                   <SelectValue placeholder="Location" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="w-[var(--radix-select-trigger-width)] max-w-[var(--radix-select-trigger-width)]">
                   <SelectItem value="all">All Locations</SelectItem>
                   {locations.map((loc) => (
                     <SelectItem key={loc.id} value={loc.id}>
@@ -492,7 +492,7 @@ className="flex-1 min-w-[200px] max-w-xl pl-4 py-2 text-sm rounded-full h-10 bor
                 <SelectTrigger className="h-12 text-base">
                   <SelectValue placeholder="Department" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="w-[var(--radix-select-trigger-width)] max-w-[var(--radix-select-trigger-width)]">
                   <SelectItem value="all">All Departments</SelectItem>
                   {departments.map((d: any) => (
                     <SelectItem key={d.id} value={d.name}>
@@ -629,7 +629,7 @@ className="flex-1 min-w-[200px] max-w-xl pl-4 py-2 text-sm rounded-full h-10 bor
                               <SelectTrigger className="w-32 h-10 text-base">
                                 <SelectValue placeholder="Select an option" />
                               </SelectTrigger>
-                              <SelectContent>
+                              <SelectContent className="w-[var(--radix-select-trigger-width)] max-w-[var(--radix-select-trigger-width)]">
                                 <SelectItem value="in-use">In Use</SelectItem>
                                 <SelectItem value="discarded">Discarded</SelectItem>
                                 <SelectItem value="scrapped">Scrapped</SelectItem>

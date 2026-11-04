@@ -436,7 +436,7 @@ const AddInventory = () => {
                     <SelectTrigger className="h-12 text-base">
                       <SelectValue placeholder="Select an option" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="w-[var(--radix-select-trigger-width)] max-w-[var(--radix-select-trigger-width)]">
                       {locations.map((loc) => {
                         const lname = (loc.name || "").toLowerCase();
                         let code = loc.prefix || "";
@@ -496,7 +496,7 @@ const AddInventory = () => {
                         }
                       />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="w-[var(--radix-select-trigger-width)] max-w-[var(--radix-select-trigger-width)]">
                       {!formData.location_id ? (
                         <div className="py-3 px-3 text-sm text-center text-muted-foreground font-medium">
                           Please select location first
@@ -529,7 +529,7 @@ const AddInventory = () => {
                     <SelectTrigger className="h-12 text-base">
                       <SelectValue placeholder="Select an option" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="w-[var(--radix-select-trigger-width)] max-w-[var(--radix-select-trigger-width)]">
                       <SelectItem value="none">None</SelectItem>
                       {ASSET_TYPES.map((a) => (
                         <SelectItem key={a.id} value={a.id}>
@@ -674,7 +674,7 @@ const AddInventory = () => {
                   <SelectTrigger className="h-12 text-base">
                     <SelectValue placeholder="Select an option" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="w-[var(--radix-select-trigger-width)] max-w-[var(--radix-select-trigger-width)]">
                     <SelectItem value="none">Select an option</SelectItem>
                     {vendorsList.map((v) => (
                       <SelectItem key={v.id} value={v.id}>
@@ -840,7 +840,7 @@ onChange={(val) =>
                   <SelectTrigger className="h-12 text-base">
                     <SelectValue placeholder="Select an option" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="w-[var(--radix-select-trigger-width)] max-w-[var(--radix-select-trigger-width)]">
                     <SelectItem value="in-use">In Use</SelectItem>
                     <SelectItem value="discarded">Discarded</SelectItem>
                     <SelectItem value="scrapped">Scrapped</SelectItem>
