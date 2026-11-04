@@ -11,6 +11,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -51,6 +61,7 @@ export function GlAccountingModal({ open, onOpenChange, invoices }: GlAccounting
   const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<string[]>([]);
   const [transmitting, setTransmitting] = useState(false);
   const [webhookResponse, setWebhookResponse] = useState<any | null>(null);
+  const [showWebhookConfirm, setShowWebhookConfirm] = useState(false);
 
   // Eligible invoices: approved or paid
   const eligibleInvoices = useMemo(() => {
@@ -293,7 +304,7 @@ export function GlAccountingModal({ open, onOpenChange, invoices }: GlAccounting
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              onClick={handleWebhookHandoff}
+              onClick={() => setShowWebhookConfirm(true)}
               disabled={transmitting || activeVouchers.length === 0}
               className="gap-1.5 text-xs text-[#0B1437] dark:text-white border-slate-300 dark:border-slate-700 hover:bg-[#0B1437] hover:text-white transition-colors group"
             >
@@ -311,6 +322,31 @@ export function GlAccountingModal({ open, onOpenChange, invoices }: GlAccounting
           </div>
         </DialogFooter>
       </DialogContent>
+
+      <AlertDialog open={showWebhookConfirm} onOpenChange={setShowWebhookConfirm}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-lg font-bold text-slate-900 dark:text-white">
+              Confirm ERP Webhook Transmission
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-slate-600 dark:text-slate-400">
+              Are you sure you want to transmit {activeVouchers.length} double-entry {activeVouchers.length === 1 ? "voucher" : "vouchers"} totaling ₹{doubleEntryCheck.totalDebit.toLocaleString("en-IN")} to the ERP webhook endpoint?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowWebhookConfirm(false);
+                handleWebhookHandoff();
+              }}
+              className="bg-[#0B1437] hover:bg-[#111f54] text-white"
+            >
+              Confirm & Transmit
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
