@@ -624,17 +624,17 @@ const AdminTicketDashboard = () => {
     }
   };
 
-  // SLA color coding: use simple priority-based mapping (no server-side SLA status)
+  // SLA color coding: soft light colors matching low/medium/high priority badges
   const getSLAColor = (ticket: Ticket) => {
     switch (ticket.priority) {
       case "high":
-        return "bg-red-600 text-white";
+        return "bg-rose-100 text-rose-800 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800 hover:bg-rose-200/80";
       case "medium":
-        return "bg-yellow-400 text-black";
+        return "bg-amber-100 text-amber-900 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 hover:bg-amber-200/80";
       case "low":
-        return "bg-green-600 text-white";
+        return "bg-emerald-100 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 hover:bg-emerald-200/80";
       default:
-        return "bg-gray-200 text-gray-800";
+        return "bg-slate-100 text-slate-800 border border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 hover:bg-slate-200/80";
     }
   };
 
@@ -938,39 +938,77 @@ const AdminTicketDashboard = () => {
             </div>
 
             <div className="flex flex-wrap items-center gap-3 sm:gap-4 mb-4 text-xs sm:text-sm">
-              <div className="h-3 w-3 bg-green-600 rounded"></div>
-              <div className="text-sm">Under SLA Resolution</div>
-              <div className="h-3 w-3 bg-yellow-400 rounded ml-4"></div>
-              <div className="text-sm">Within 45 minutes of SLA Resolution</div>
-              <div className="h-3 w-3 bg-red-600 rounded ml-4"></div>
-              <div className="text-sm">Over SLA Resolution</div>
+              <div className="h-3.5 w-3.5 rounded bg-emerald-100 border border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-700"></div>
+              <div className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-medium">Under SLA Resolution</div>
+              <div className="h-3.5 w-3.5 rounded bg-amber-100 border border-amber-300 dark:bg-amber-950/40 dark:border-amber-700 ml-2"></div>
+              <div className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-medium">Within 45 minutes of SLA Resolution</div>
+              <div className="h-3.5 w-3.5 rounded bg-rose-100 border border-rose-300 dark:bg-rose-950/40 dark:border-rose-700 ml-2"></div>
+              <div className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 font-medium">Over SLA Resolution</div>
             </div>
 
-            {/* Ticket grid by status */}
-            <div className="mt-4">
-              <h3 className="text-lg font-semibold mb-3">
-                Open Tickets by Service Group Membership
+            {/* Table of Open Tickets by Service Group Membership */}
+            <div className="mt-6 mb-6">
+              <h3 className="text-base sm:text-lg font-bold text-foreground mb-3 flex items-center justify-between">
+                <span>Open Tickets by Service Group Membership</span>
               </h3>
-              <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-                {BOARD_COLUMNS.map((col) => (
-                  <div key={col.label}>
-                    <div className="text-sm text-muted-foreground">{col.label}</div>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {tickets
-                        .filter((t) => col.statuses.includes(t.status))
-                        .slice(0, 20)
-                        .map((t) => (
-                          <button
-                            key={t.id}
-                            onClick={() => openUpdateDialog(t)}
-                            className={`px-2 py-1 rounded text-xs ${getSLAColor(t)} cursor-pointer`}
+              <div className="overflow-x-auto rounded-xl border border-border/60 bg-card shadow-xs">
+                <table className="w-full text-left border-collapse min-w-[750px]">
+                  <thead>
+                    <tr className="bg-slate-50/80 dark:bg-slate-900/60 border-b border-border/60">
+                      {BOARD_COLUMNS.map((col) => {
+                        const count = tickets.filter((t) => col.statuses.includes(t.status)).length;
+                        return (
+                          <th
+                            key={col.label}
+                            className="px-3.5 py-3 text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200 border-r last:border-r-0 border-border/40"
                           >
-                            {t.ticket_number}
-                          </button>
-                        ))}
-                    </div>
-                  </div>
-                ))}
+                            <div className="flex items-center justify-between gap-1.5">
+                              <span className="truncate">{col.label}</span>
+                              <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-slate-200/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold shrink-0">
+                                {count}
+                              </span>
+                            </div>
+                          </th>
+                        );
+                      })}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      {BOARD_COLUMNS.map((col) => {
+                        const colTickets = tickets
+                          .filter((t) => col.statuses.includes(t.status))
+                          .slice(0, 20);
+
+                        return (
+                          <td
+                            key={col.label}
+                            className="align-top p-3 border-r last:border-r-0 border-border/40 bg-card/50 min-w-[130px]"
+                          >
+                            {colTickets.length === 0 ? (
+                              <div className="text-xs text-muted-foreground/60 italic py-2 text-center">
+                                No tickets
+                              </div>
+                            ) : (
+                              <div className="flex flex-col gap-2">
+                                {colTickets.map((t) => (
+                                  <button
+                                    key={t.id}
+                                    onClick={() => openUpdateDialog(t)}
+                                    className={`w-full px-2.5 py-1.5 rounded-lg text-xs font-semibold ${getSLAColor(t)} cursor-pointer transition-all duration-200 hover:scale-[1.02] shadow-xs text-center flex items-center justify-center`}
+                                    title={`Click to view/update ${t.ticket_number} (${t.priority} priority)`}
+                                  >
+                                    {t.ticket_number}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
 

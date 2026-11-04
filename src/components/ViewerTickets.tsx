@@ -83,13 +83,13 @@ const getStatusColor = (status: string) => {
 const getSLAColor = (ticket: Ticket) => {
   switch (ticket.priority) {
     case "high":
-      return "bg-red-600 text-white";
+      return "bg-rose-100 text-rose-800 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800";
     case "medium":
-      return "bg-yellow-400 text-black";
+      return "bg-amber-100 text-amber-900 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800";
     case "low":
-      return "bg-green-600 text-white";
+      return "bg-emerald-100 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800";
     default:
-      return "bg-gray-200 text-gray-800";
+      return "bg-slate-100 text-slate-800 border border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700";
   }
 };
 
@@ -386,100 +386,69 @@ const ViewerTickets = () => {
           </table>
         </div>
 
-        <div className="mt-4">
-          <h3 className="text-lg font-semibold mb-3">Open Tickets by Service Group Membership</h3>
-          <div className="grid grid-cols-2 md:grid-cols-7 gap-3">
-            <div>
-              <div className="text-sm text-muted-foreground">New Tickets</div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {tickets
-                  .filter((t) => t.status === "pending")
-                  .slice(0, 20)
-                  .map((t) => (
-                    <div key={t.id} className={`px-2 py-1 rounded text-xs ${getSLAColor(t)}`}>
-                      {t.ticket_number}
+        <div className="mt-6 mb-6">
+          <h3 className="text-base sm:text-lg font-bold text-foreground mb-3">Open Tickets by Service Group Membership</h3>
+          <div className="overflow-x-auto rounded-xl border border-border/60 bg-card shadow-xs">
+            <table className="w-full text-left border-collapse min-w-[700px]">
+              <thead>
+                <tr className="bg-slate-50/80 dark:bg-slate-900/60 border-b border-border/60">
+                  <th className="px-3.5 py-3 text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200 border-r border-border/40">New Tickets</th>
+                  <th className="px-3.5 py-3 text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200 border-r border-border/40">In-Progress Tickets</th>
+                  <th className="px-3.5 py-3 text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200 border-r border-border/40">Completed Tickets</th>
+                  <th className="px-3.5 py-3 text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200 border-r border-border/40">Awaiting Customer Response</th>
+                  <th className="px-3.5 py-3 text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200">Approval Pending Tickets</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="align-top p-3 border-r border-border/40 bg-card/50 min-w-[130px]">
+                    <div className="flex flex-col gap-2">
+                      {tickets.filter((t) => t.status === "pending").slice(0, 20).map((t) => (
+                        <div key={t.id} className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold ${getSLAColor(t)} text-center`}>
+                          {t.ticket_number}
+                        </div>
+                      ))}
                     </div>
-                  ))}
-              </div>
-            </div>
-            <div>
-              <div className="text-sm text-muted-foreground">Assigned Tickets</div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {tickets
-                  .filter((t) => t.status === "in-progress")
-                  .slice(0, 20)
-                  .map((t) => (
-                    <div key={t.id} className={`px-2 py-1 rounded text-xs ${getSLAColor(t)}`}>
-                      {t.ticket_number}
+                  </td>
+                  <td className="align-top p-3 border-r border-border/40 bg-card/50 min-w-[130px]">
+                    <div className="flex flex-col gap-2">
+                      {tickets.filter((t) => t.status === "in-progress").slice(0, 20).map((t) => (
+                        <div key={t.id} className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold ${getSLAColor(t)} text-center`}>
+                          {t.ticket_number}
+                        </div>
+                      ))}
                     </div>
-                  ))}
-              </div>
-            </div>
-            <div>
-              <div className="text-sm text-muted-foreground">In-Progress Tickets</div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {tickets
-                  .filter((t) => t.status === "in-progress")
-                  .slice(0, 20)
-                  .map((t) => (
-                    <div key={t.id} className={`px-2 py-1 rounded text-xs ${getSLAColor(t)}`}>
-                      {t.ticket_number}
+                  </td>
+                  <td className="align-top p-3 border-r border-border/40 bg-card/50 min-w-[130px]">
+                    <div className="flex flex-col gap-2">
+                      {tickets.filter((t) => t.status === "completed").slice(0, 20).map((t) => (
+                        <div key={t.id} className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold ${getSLAColor(t)} text-center`}>
+                          {t.ticket_number}
+                        </div>
+                      ))}
                     </div>
-                  ))}
-              </div>
-            </div>
-            <div>
-              <div className="text-sm text-muted-foreground">Completed Tickets</div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {tickets
-                  .filter((t) => t.status === "completed")
-                  .slice(0, 20)
-                  .map((t) => (
-                    <div key={t.id} className={`px-2 py-1 rounded text-xs ${getSLAColor(t)}`}>
-                      {t.ticket_number}
+                  </td>
+                  <td className="align-top p-3 border-r border-border/40 bg-card/50 min-w-[130px]">
+                    <div className="flex flex-col gap-2">
+                      {tickets.filter((t) => t.status === "waiting-for-user").slice(0, 20).map((t) => (
+                        <div key={t.id} className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold ${getSLAColor(t)} text-center`}>
+                          {t.ticket_number}
+                        </div>
+                      ))}
                     </div>
-                  ))}
-              </div>
-            </div>
-            <div>
-              <div className="text-sm text-muted-foreground">On Hold Tickets</div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {tickets
-                  .filter((t) => t.status === "waiting-for-user")
-                  .slice(0, 20)
-                  .map((t) => (
-                    <div key={t.id} className={`px-2 py-1 rounded text-xs ${getSLAColor(t)}`}>
-                      {t.ticket_number}
+                  </td>
+                  <td className="align-top p-3 bg-card/50 min-w-[130px]">
+                    <div className="flex flex-col gap-2">
+                      {tickets.filter((t) => t.status.startsWith("procure")).slice(0, 20).map((t) => (
+                        <div key={t.id} className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold ${getSLAColor(t)} text-center`}>
+                          {t.ticket_number}
+                        </div>
+                      ))}
                     </div>
-                  ))}
-              </div>
-            </div>
-            <div>
-              <div className="text-sm text-muted-foreground">Awaiting Customer Response</div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {tickets
-                  .filter((t) => t.status === "waiting-for-user")
-                  .slice(0, 20)
-                  .map((t) => (
-                    <div key={t.id} className={`px-2 py-1 rounded text-xs ${getSLAColor(t)}`}>
-                      {t.ticket_number}
-                    </div>
-                  ))}
-              </div>
-            </div>
-            <div>
-              <div className="text-sm text-muted-foreground">Approval Pending Tickets</div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {tickets
-                  .filter((t) => t.status.startsWith("procure"))
-                  .slice(0, 20)
-                  .map((t) => (
-                    <div key={t.id} className={`px-2 py-1 rounded text-xs ${getSLAColor(t)}`}>
-                      {t.ticket_number}
-                    </div>
-                  ))}
-              </div>
-            </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
