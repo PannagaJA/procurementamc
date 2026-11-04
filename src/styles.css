@@ -323,11 +323,24 @@ html {
   /* Dropdown options auto-palette: replace green with Dark Navy (#0B1437) and white text */
   [role="option"]:hover,
   [role="option"][data-highlighted],
-  [data-radix-collection-item]:hover,
-  [data-radix-collection-item][data-highlighted],
+  [role="menuitem"]:hover,
+  [role="menuitem"][data-highlighted],
+  [data-radix-select-content] [data-radix-collection-item]:hover,
+  [data-radix-select-content] [data-radix-collection-item][data-highlighted],
+  [data-radix-dropdown-menu-content] [data-radix-collection-item]:hover,
+  [data-radix-dropdown-menu-content] [data-radix-collection-item][data-highlighted],
   [cmdk-item][data-selected="true"] {
     background-color: #0B1437 !important;
     color: #ffffff !important;
+  }
+
+  /* Ensure destructive/error toasts and alerts strictly remain red when hovered */
+  [data-radix-collection-item].destructive:hover,
+  [data-radix-collection-item][class*="bg-destructive"]:hover,
+  .destructive:hover,
+  [class*="bg-destructive"]:hover {
+    background-color: hsl(var(--destructive)) !important;
+    color: hsl(var(--destructive-foreground)) !important;
   }
 
   /* Auto-enforce canonical design palette and interactive scale hover effect (matching logout button) */
