@@ -31,6 +31,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import Layout from "@/components/Layout";
+import { PaginationControls } from "@/components/PaginationControls";
+import { usePagedList } from "@/hooks/use-paged-list";
 
 interface Ticket {
   id: string;
@@ -281,6 +283,8 @@ const UserTickets = () => {
     }
   };
 
+  const ticketsPage = usePagedList(filteredTickets);
+
   if (loading) {
     return <PageSkeleton cards={0} rows={5} />;
   }
@@ -297,17 +301,27 @@ const UserTickets = () => {
                   View and track the status of your raised tickets
                 </p>
               </div>
-              <Button size="sm" onClick={() => navigate({ to: "/raise-ticket" })} className="w-full sm:w-auto shrink-0">Raise New Ticket</Button>
+              <Button
+                size="sm"
+                onClick={() => navigate({ to: "/raise-ticket" })}
+                className="w-full sm:w-auto shrink-0"
+              >
+                Raise New Ticket
+              </Button>
             </div>
           </CardHeader>
           <CardContent>
             {/* Filters */}
             <div className="flex flex-wrap items-center gap-4 mb-6">
               <div className="flex items-center space-x-2">
-                <label className="text-sm font-medium text-foreground whitespace-nowrap">Status:</label>
+                <label className="text-sm font-medium text-foreground whitespace-nowrap">
+                  Status:
+                </label>
                 <Select
                   value={filters.status || "all"}
-                  onValueChange={(val) => setFilters((prev) => ({ ...prev, status: val === "all" ? "" : val }))}
+                  onValueChange={(val) =>
+                    setFilters((prev) => ({ ...prev, status: val === "all" ? "" : val }))
+                  }
                 >
                   <SelectTrigger className="w-[180px] h-9 text-sm rounded-md">
                     <SelectValue placeholder="All Statuses" />
@@ -326,10 +340,14 @@ const UserTickets = () => {
                 </Select>
               </div>
               <div className="flex items-center space-x-2">
-                <label className="text-sm font-medium text-foreground whitespace-nowrap">Priority:</label>
+                <label className="text-sm font-medium text-foreground whitespace-nowrap">
+                  Priority:
+                </label>
                 <Select
                   value={filters.priority || "all"}
-                  onValueChange={(val) => setFilters((prev) => ({ ...prev, priority: val === "all" ? "" : val }))}
+                  onValueChange={(val) =>
+                    setFilters((prev) => ({ ...prev, priority: val === "all" ? "" : val }))
+                  }
                 >
                   <SelectTrigger className="w-[160px] h-9 text-sm rounded-md">
                     <SelectValue placeholder="All Priorities" />
@@ -350,7 +368,7 @@ const UserTickets = () => {
               </div>
             ) : (
               <div className="space-y-6">
-                {filteredTickets.map((ticket) => (
+                {ticketsPage.pageItems.map((ticket) => (
                   <Card key={ticket.id}>
                     <CardContent className="pt-6">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -556,6 +574,7 @@ const UserTickets = () => {
                     </CardContent>
                   </Card>
                 ))}
+                <PaginationControls {...ticketsPage.controls} />
               </div>
             )}
           </CardContent>

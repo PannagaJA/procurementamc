@@ -3,6 +3,8 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import libraryApi from "@/lib/libraryApi";
 import { useParams } from "@tanstack/react-router";
+import { PaginationControls } from "@/components/PaginationControls";
+import { usePagedList } from "@/hooks/use-paged-list";
 
 const Reports = ({ type }: { type?: "issued" | "overdue" }) => {
   const params = useParams({ strict: false }) as { type?: string };
@@ -66,6 +68,8 @@ const Reports = ({ type }: { type?: "issued" | "overdue" }) => {
     URL.revokeObjectURL(url);
   };
 
+  const issuesPage = usePagedList(issues);
+
   return (
     <LibraryLayout>
       <div className="flex items-center justify-between mb-4">
@@ -85,7 +89,7 @@ const Reports = ({ type }: { type?: "issued" | "overdue" }) => {
             </tr>
           </thead>
           <tbody>
-            {issues.map((i) => (
+            {issuesPage.pageItems.map((i) => (
               <tr key={i.id} className="border-t border-border">
                 <td>{booksMap[i.bookId] || i.bookId}</td>
                 <td>{membersMap[i.memberId] || i.memberId}</td>
@@ -95,6 +99,7 @@ const Reports = ({ type }: { type?: "issued" | "overdue" }) => {
             ))}
           </tbody>
         </table>
+        <PaginationControls {...issuesPage.controls} />
       </div>
     </LibraryLayout>
   );

@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Clock, User, FileText } from "lucide-react";
 import { format } from "date-fns";
+import { PaginationControls } from "@/components/PaginationControls";
+import { usePagedList } from "@/hooks/use-paged-list";
 
 interface HistoryItem {
   id: string;
@@ -122,6 +124,8 @@ const ItemHistory = () => {
         return "Item was updated";
     }
   };
+
+  const historyPage = usePagedList(history);
 
   if (loading) {
     return (
@@ -239,7 +243,7 @@ const ItemHistory = () => {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {history.map((historyItem) => (
+                  {historyPage.pageItems.map((historyItem) => (
                     <div
                       key={historyItem.id}
                       className="border rounded-lg p-4 bg-slate-50 dark:bg-slate-900/60 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-colors border-slate-200 dark:border-slate-800"
@@ -268,6 +272,7 @@ const ItemHistory = () => {
                       )}
                     </div>
                   ))}
+                  <PaginationControls {...historyPage.controls} />
                 </div>
               )}
             </CardContent>

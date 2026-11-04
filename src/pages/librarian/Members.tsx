@@ -8,6 +8,8 @@ import libraryApi from "@/lib/libraryApi";
 import { z } from "zod";
 import { Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { PaginationControls } from "@/components/PaginationControls";
+import { usePagedList } from "@/hooks/use-paged-list";
 
 interface Member {
   id: string;
@@ -68,7 +70,11 @@ const Members = () => {
       setOpen(false);
       toast({ title: "Saved", description: "Member record saved successfully." });
     } catch (err: any) {
-      toast({ title: "Invalid Input", description: err.message || "Please check member details.", variant: "destructive" });
+      toast({
+        title: "Invalid Input",
+        description: err.message || "Please check member details.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -83,6 +89,8 @@ const Members = () => {
       m.name.toLowerCase().includes(q.toLowerCase()) ||
       m.email.toLowerCase().includes(q.toLowerCase()),
   );
+
+  const membersPage = usePagedList(filtered);
 
   return (
     <LibraryLayout>
@@ -111,7 +119,7 @@ const Members = () => {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((m) => (
+            {membersPage.pageItems.map((m) => (
               <tr key={m.id} className="border-t border-border">
                 <td>{m.name}</td>
                 <td>{m.email}</td>
@@ -120,7 +128,12 @@ const Members = () => {
                 <td className="text-right">
                   <div className="inline-flex gap-2">
                     <Button onClick={() => openEdit(m)}>Edit</Button>
-                    <Button size="sm" variant="destructive" className="gap-1.5" onClick={() => remove(m.id)}>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="gap-1.5"
+                      onClick={() => remove(m.id)}
+                    >
                       <Trash2 className="h-4 w-4" />
                       Delete
                     </Button>
@@ -130,6 +143,7 @@ const Members = () => {
             ))}
           </tbody>
         </table>
+        <PaginationControls {...membersPage.controls} />
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
