@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import {
   Bell,
@@ -17,6 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 import {
   useApprovalNotifications,
   type PendingApprovalNotification,
@@ -27,23 +28,39 @@ export function ApprovalNotificationBell() {
   const [open, setOpen] = useState(false);
   const [filterType, setFilterType] = useState<string>("all");
 
-  const {
-    hasApprovalAccess,
-    counts,
-    totalCount,
-    items,
-    isFetching,
-    refetch,
-  } = useApprovalNotifications();
+  const { hasApprovalAccess, counts, totalCount, items, isFetching, refetch, data } =
+    useApprovalNotifications();
+
+  // Pop a toast when a refetch (realtime event, poll or focus) brings items not seen before.
+  // The bell is mounted once (Layout), so each new item is announced once; first load is silent.
+  const { toast } = useToast();
+  const seenIds = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    if (isFetching || !data) return; // wait for the first real result
+    const seen = seenIds.current;
+    seenIds.current = new Set(items.map((i) => i.id));
+    const fresh = seen ? items.filter((i) => !seen.has(i.id)) : [];
+    if (!fresh.length) return;
+    toast({
+      title:
+        fresh.length === 1 ? `New approval: ${fresh[0].title}` : `${fresh.length} new approvals`,
+      description:
+        fresh.length === 1
+          ? `${fresh[0].badgeText} · ${fresh[0].subtitle}`
+          : fresh
+              .slice(0, 3)
+              .map((i) => i.title)
+              .join(", "),
+    });
+  }, [items, isFetching, data, toast]);
 
   // If role does not have approval access, do not render the bell icon
   if (!hasApprovalAccess) {
     return null;
   }
 
-  const filteredItems = filterType === "all"
-    ? items
-    : items.filter((item) => item.type === filterType);
+  const filteredItems =
+    filterType === "all" ? items : items.filter((item) => item.type === filterType);
 
   const handleItemClick = (item: PendingApprovalNotification) => {
     setOpen(false);
@@ -95,7 +112,7 @@ export function ApprovalNotificationBell() {
             "group relative transition-all duration-300 hover:scale-105 hover:shadow-md hover:bg-[#0B1437] hover:text-white hover:border-[#0B1437]",
             totalCount > 0
               ? "border-blue-200 dark:border-blue-900 bg-blue-50/40 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400"
-              : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300"
+              : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300",
           )}
           title={totalCount > 0 ? `${totalCount} Pending Approvals` : "No pending approvals"}
           aria-label={`Pending Approvals: ${totalCount} notifications`}
@@ -105,14 +122,14 @@ export function ApprovalNotificationBell() {
               "w-4 h-4 sm:w-[1.15rem] sm:h-[1.15rem] shrink-0 transition-all duration-200 group-hover:scale-110 group-hover:!text-white group-hover:!stroke-white",
               totalCount > 0
                 ? "text-blue-600 dark:text-blue-400"
-                : "text-slate-600 dark:text-slate-300"
+                : "text-slate-600 dark:text-slate-300",
             )}
           />
           {totalCount > 0 && (
             <span
               className={cn(
                 "absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-[17px] h-[17px] px-1 text-[10px] font-bold text-white bg-red-600 rounded-full shadow-sm ring-2 ring-white dark:ring-slate-900 leading-none pointer-events-none",
-                "animate-in zoom-in-75 duration-200"
+                "animate-in zoom-in-75 duration-200",
               )}
             >
               {totalCount > 99 ? "99+" : totalCount}
@@ -156,7 +173,9 @@ export function ApprovalNotificationBell() {
               onClick={() => refetch()}
               title="Refresh notifications"
             >
-              <RefreshCw className={cn("w-3.5 h-3.5", isFetching && "animate-spin text-blue-600")} />
+              <RefreshCw
+                className={cn("w-3.5 h-3.5", isFetching && "animate-spin text-blue-600")}
+              />
             </Button>
           </div>
         </div>
@@ -170,7 +189,7 @@ export function ApprovalNotificationBell() {
                 "px-2.5 py-1 rounded-lg font-medium transition-colors shrink-0",
                 filterType === "all"
                   ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
-                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200",
               )}
             >
               All ({totalCount})
@@ -182,7 +201,7 @@ export function ApprovalNotificationBell() {
                   "px-2.5 py-1 rounded-lg font-medium transition-colors shrink-0",
                   filterType === "pr"
                     ? "bg-blue-600 text-white"
-                    : "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100"
+                    : "bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100",
                 )}
               >
                 PRs ({counts.prs})
@@ -195,7 +214,7 @@ export function ApprovalNotificationBell() {
                   "px-2.5 py-1 rounded-lg font-medium transition-colors shrink-0",
                   filterType === "po"
                     ? "bg-emerald-600 text-white"
-                    : "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100"
+                    : "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100",
                 )}
               >
                 POs ({counts.pos})
@@ -208,7 +227,7 @@ export function ApprovalNotificationBell() {
                   "px-2.5 py-1 rounded-lg font-medium transition-colors shrink-0",
                   filterType === "cs"
                     ? "bg-purple-600 text-white"
-                    : "bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 hover:bg-purple-100"
+                    : "bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 hover:bg-purple-100",
                 )}
               >
                 CS ({counts.css})
@@ -221,7 +240,7 @@ export function ApprovalNotificationBell() {
                   "px-2.5 py-1 rounded-lg font-medium transition-colors shrink-0",
                   filterType === "invoice"
                     ? "bg-amber-600 text-white"
-                    : "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100"
+                    : "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100",
                 )}
               >
                 Invoices ({counts.invoices})
@@ -234,7 +253,7 @@ export function ApprovalNotificationBell() {
                   "px-2.5 py-1 rounded-lg font-medium transition-colors shrink-0",
                   filterType === "emergency"
                     ? "bg-rose-600 text-white"
-                    : "bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 hover:bg-rose-100"
+                    : "bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 hover:bg-rose-100",
                 )}
               >
                 Emergency ({counts.emergency})
@@ -247,7 +266,7 @@ export function ApprovalNotificationBell() {
                   "px-2.5 py-1 rounded-lg font-medium transition-colors shrink-0",
                   filterType === "rateContract"
                     ? "bg-indigo-600 text-white"
-                    : "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100"
+                    : "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100",
                 )}
               >
                 Contracts ({counts.rateContracts})
@@ -260,7 +279,7 @@ export function ApprovalNotificationBell() {
                   "px-2.5 py-1 rounded-lg font-medium transition-colors shrink-0",
                   filterType === "amendment"
                     ? "bg-orange-600 text-white"
-                    : "bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 hover:bg-orange-100"
+                    : "bg-orange-50 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 hover:bg-orange-100",
                 )}
               >
                 Amendments ({counts.amendments})
@@ -296,7 +315,10 @@ export function ApprovalNotificationBell() {
                     <span className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
                       {item.title}
                     </span>
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-medium shrink-0">
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] px-1.5 py-0 font-medium shrink-0"
+                    >
                       {item.badgeText}
                     </Badge>
                   </div>

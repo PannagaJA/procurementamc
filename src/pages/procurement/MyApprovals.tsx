@@ -55,6 +55,8 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { TurnaroundWidget } from "@/components/procurement/TurnaroundWidget";
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/lib/auth";
 import { PaginationControls } from "@/components/PaginationControls";
 import { usePagedList } from "@/hooks/use-paged-list";
 import { statusLabel, roleLabel, poTypeLabel, categoryLabel } from "@/lib/procurement/labels";
@@ -142,6 +144,17 @@ export default function MyApprovals() {
       setLoading(false);
     }
   };
+
+  // Follow the bell's query (useApprovalNotifications): realtime events refetch it, and the
+  // pending lists here update with it. This observer never fetches on its own.
+  const { userId } = useAuth();
+  const { data: livePending } = useQuery<any>({
+    queryKey: ["my-pending-approvals", userId],
+    enabled: false,
+  });
+  useEffect(() => {
+    if (livePending?.ok) setData(livePending);
+  }, [livePending]);
 
   useEffect(() => {
     loadData();
