@@ -1,14 +1,15 @@
 // Tickets module: end-to-end + RLS checks against a real Supabase project.
 // Signs in as the seeded test users (local/testing/README.md) and creates tickets tagged
 // "[VT-TEST]"; they are deleted with the service-role client at the end (cascades to ticket_updates).
-// Run: node --env-file=.env scripts/verify_tickets.mjs
+// Run: TEST_PASSWORD=<test-account password> node --env-file=.env scripts/verify_tickets.mjs
 import { createClient } from "@supabase/supabase-js";
 
 const URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const ANON = process.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY;
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const PASSWORD = process.env.TEST_PASSWORD || "Password@123";
-if (!URL || !ANON || !SERVICE) throw new Error("Need SUPABASE_URL, anon key and SUPABASE_SERVICE_ROLE_KEY");
+const PASSWORD = process.env.TEST_PASSWORD;
+if (!URL || !ANON || !SERVICE || !PASSWORD)
+  throw new Error("Need SUPABASE_URL, anon key, SUPABASE_SERVICE_ROLE_KEY and TEST_PASSWORD");
 
 const TAG = "[VT-TEST]";
 const CSE = "Computer Science & Engineering";
