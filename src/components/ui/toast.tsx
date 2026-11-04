@@ -29,7 +29,7 @@ const toastVariants = cva(
       variant: {
         default: "border bg-background text-foreground",
         destructive:
-          "destructive group border-destructive bg-destructive text-destructive-foreground hover:bg-destructive",
+          "destructive group border-destructive bg-destructive text-destructive-foreground hover:bg-destructive hover:text-destructive-foreground",
       },
     },
     defaultVariants: {
@@ -45,7 +45,7 @@ const Toast = React.forwardRef<
   return (
     <ToastPrimitives.Root
       ref={ref}
-      className={cn(toastVariants({ variant }), className)}
+      className={cn(toastVariants({ variant }), variant === "destructive" && "!bg-destructive hover:!bg-destructive !text-destructive-foreground hover:!text-destructive-foreground", className)}
       {...props}
     />
   );
@@ -74,7 +74,7 @@ const ToastClose = React.forwardRef<
   <ToastPrimitives.Close
     ref={ref}
     className={cn(
-      "absolute right-2 top-2 rounded-md p-1 text-foreground/50 opacity-0 transition-opacity group-hover:opacity-100 group-[.destructive]:text-red-300 hover:text-foreground group-[.destructive]:hover:text-red-50 focus:opacity-100 focus:outline-none focus:ring-2 group-[.destructive]:focus:ring-red-400 group-[.destructive]:focus:ring-offset-red-600",
+      "absolute right-2 top-2 rounded-md p-1 text-foreground/50 opacity-0 transition-opacity group-hover:opacity-100 group-[.destructive]:text-white/80 hover:text-foreground group-[.destructive]:hover:text-white group-[.destructive]:hover:bg-destructive focus:opacity-100 focus:outline-none focus:ring-2 group-[.destructive]:focus:ring-white group-[.destructive]:focus:ring-offset-destructive",
       className,
     )}
     toast-close=""
