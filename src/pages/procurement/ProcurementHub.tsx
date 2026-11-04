@@ -81,7 +81,7 @@ export default function ProcurementHub() {
         )}
 
         {/* Workflow Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
           {/* 0. Annual Budget Card */}
           {access.budgets && (
             <Card className="hover:shadow-lg transition-all duration-200 border-2 hover:border-[#0B1437]/30 flex flex-col justify-between">
@@ -96,10 +96,12 @@ export default function ProcurementHub() {
               </CardHeader>
               <CardContent className="p-4 pt-0 space-y-3">
                 <Button
+                  size="sm"
                   onClick={() => navigate({ to: "/procurement/budgets" })}
-                  className="w-full gap-1.5 text-xs h-8 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
+                  className="w-full gap-1.5 text-xs h-8.5 px-3 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold transition-all duration-200"
                 >
-                  Manage Budgets <ArrowRight className="w-3.5 h-3.5" />
+                  <span className="truncate">Manage Budgets</span>
+                  <ArrowRight className="w-3.5 h-3.5 shrink-0" />
                 </Button>
               </CardContent>
             </Card>
@@ -119,10 +121,12 @@ export default function ProcurementHub() {
               </CardHeader>
               <CardContent className="p-4 pt-0 space-y-3">
                 <Button
+                  size="sm"
                   onClick={() => navigate({ to: "/procurement/raise-pr" })}
-                  className="w-full gap-1.5 text-xs h-8 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
+                  className="w-full gap-1.5 text-xs h-8.5 px-3 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold transition-all duration-200"
                 >
-                  Raise PR <ArrowRight className="w-3.5 h-3.5" />
+                  <span className="truncate">Raise PR</span>
+                  <ArrowRight className="w-3.5 h-3.5 shrink-0" />
                 </Button>
               </CardContent>
             </Card>
@@ -142,10 +146,12 @@ export default function ProcurementHub() {
               </CardHeader>
               <CardContent className="p-4 pt-0 space-y-3">
                 <Button
+                  size="sm"
                   onClick={() => navigate({ to: "/procurement/rfqs" })}
-                  className="w-full gap-1.5 text-xs h-8 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
+                  className="w-full gap-1.5 text-xs h-8.5 px-3 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold transition-all duration-200"
                 >
-                  Manage RFQs <ArrowRight className="w-3.5 h-3.5" />
+                  <span className="truncate">Manage RFQs</span>
+                  <ArrowRight className="w-3.5 h-3.5 shrink-0" />
                 </Button>
               </CardContent>
             </Card>
@@ -165,10 +171,12 @@ export default function ProcurementHub() {
               </CardHeader>
               <CardContent className="p-4 pt-0 space-y-3">
                 <Button
+                  size="sm"
                   onClick={() => navigate({ to: "/procurement/cs" })}
-                  className="w-full gap-1.5 text-xs h-8 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
+                  className="w-full gap-1.5 text-xs h-8.5 px-3 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold transition-all duration-200"
                 >
-                  Comparative CS <ArrowRight className="w-3.5 h-3.5" />
+                  <span className="truncate">Comparative CS</span>
+                  <ArrowRight className="w-3.5 h-3.5 shrink-0" />
                 </Button>
               </CardContent>
             </Card>
@@ -188,10 +196,12 @@ export default function ProcurementHub() {
               </CardHeader>
               <CardContent className="p-4 pt-0 space-y-3">
                 <Button
+                  size="sm"
                   onClick={() => navigate({ to: "/procurement/orders" })}
-                  className="w-full gap-1.5 text-xs h-8 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
+                  className="w-full gap-1.5 text-xs h-8.5 px-3 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold transition-all duration-200"
                 >
-                  Purchase Orders <ArrowRight className="w-3.5 h-3.5" />
+                  <span className="truncate">Purchase Orders</span>
+                  <ArrowRight className="w-3.5 h-3.5 shrink-0" />
                 </Button>
               </CardContent>
             </Card>
@@ -211,10 +221,12 @@ export default function ProcurementHub() {
               </CardHeader>
               <CardContent className="p-4 pt-0 space-y-3">
                 <Button
+                  size="sm"
                   onClick={() => navigate({ to: "/procurement/grns" })}
-                  className="w-full gap-1.5 text-xs h-8 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
+                  className="w-full gap-1.5 text-xs h-8.5 px-3 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold transition-all duration-200"
                 >
-                  Stores Receipts <ArrowRight className="w-3.5 h-3.5" />
+                  <span className="truncate">Stores Receipts</span>
+                  <ArrowRight className="w-3.5 h-3.5 shrink-0" />
                 </Button>
               </CardContent>
             </Card>
@@ -234,10 +246,12 @@ export default function ProcurementHub() {
               </CardHeader>
               <CardContent className="p-4 pt-0 space-y-3">
                 <Button
+                  size="sm"
                   onClick={() => navigate({ to: "/procurement/invoices" })}
-                  className="w-full gap-1.5 text-xs h-8 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
+                  className="w-full gap-1.5 text-xs h-8.5 px-3 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold transition-all duration-200"
                 >
-                  Invoices & Match <ArrowRight className="w-3.5 h-3.5" />
+                  <span className="truncate">Invoices & Match</span>
+                  <ArrowRight className="w-3.5 h-3.5 shrink-0" />
                 </Button>
               </CardContent>
             </Card>
@@ -257,10 +271,12 @@ export default function ProcurementHub() {
               </CardHeader>
               <CardContent className="p-4 pt-0 space-y-3">
                 <Button
+                  size="sm"
                   onClick={() => navigate({ to: "/procurement/emergency" })}
-                  className="w-full gap-1.5 text-xs h-8 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
+                  className="w-full gap-1.5 text-xs h-8.5 px-3 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold transition-all duration-200"
                 >
-                  Emergency Register <ArrowRight className="w-3.5 h-3.5" />
+                  <span className="truncate">Emergency Register</span>
+                  <ArrowRight className="w-3.5 h-3.5 shrink-0" />
                 </Button>
               </CardContent>
             </Card>
@@ -280,10 +296,12 @@ export default function ProcurementHub() {
               </CardHeader>
               <CardContent className="p-4 pt-0 space-y-3">
                 <Button
+                  size="sm"
                   onClick={() => navigate({ to: "/procurement/vendor-ratings" })}
-                  className="w-full gap-1.5 text-xs h-8 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold"
+                  className="w-full gap-1.5 text-xs h-8.5 px-3 bg-[#0B1437] hover:bg-[#111f54] text-white rounded-full font-semibold transition-all duration-200"
                 >
-                  Performance Ratings <ArrowRight className="w-3.5 h-3.5" />
+                  <span className="truncate">Performance Ratings</span>
+                  <ArrowRight className="w-3.5 h-3.5 shrink-0" />
                 </Button>
               </CardContent>
             </Card>
