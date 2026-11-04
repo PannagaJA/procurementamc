@@ -1,3 +1,4 @@
+import { format } from "date-fns";
 import { Database } from "@/integrations/supabase/types";
 
 export type TicketStatus = Database["public"]["Enums"]["ticket_status"];
@@ -70,4 +71,44 @@ export const getPriorityColor = (priority: string) => {
     default:
       return "bg-gray-100 text-gray-800";
   }
+};
+
+export const TICKET_SLA_RULES: Record<string, { respondHours: number; resolveHours: number }> = {
+  high: { respondHours: 1, resolveHours: 8 },
+  medium: { respondHours: 4, resolveHours: 48 },
+  low: { respondHours: 24, resolveHours: 168 },
+};
+
+// Closed tickets are never "overdue".
+const CLOSED_STATUSES = new Set([
+  "resolved",
+  "completed",
+  "procure-completed",
+  "procure-rejected",
+  "service-rejected",
+]);
+
+const HOUR = 60 * 60 * 1000;
+const DAY = 24 * HOUR;
+
+/** Adds `ticket.sla` (deadlines from priority + created_at) and returns the same ticket. */
+export const computeTicketSLA = <T>(ticket: T): T => {
+  const t = ticket as { created_at: string; priority: string; status: string; sla?: unknown };
+  const created = new Date(t.created_at);
+  if (isNaN(created.getTime())) return ticket;
+  const rule = TICKET_SLA_RULES[t.priority] || TICKET_SLA_RULES.low;
+  const respondBy = new Date(created.getTime() + rule.respondHours * HOUR);
+  const resolveBy = new Date(created.getTime() + rule.resolveHours * HOUR);
+  const now = Date.now();
+  const daysOver = (deadline: Date) =>
+    CLOSED_STATUSES.has(t.status) ? 0 : Math.max(0, Math.floor((now - deadline.getTime()) / DAY));
+  t.sla = {
+    respondByISO: respondBy.toISOString(),
+    respondByDisplay: format(respondBy, "PP p"),
+    respondDaysOver: daysOver(respondBy),
+    resolveByISO: resolveBy.toISOString(),
+    resolveByDisplay: format(resolveBy, "PP p"),
+    resolveDaysOver: daysOver(resolveBy),
+  };
+  return ticket;
 };
