@@ -506,9 +506,9 @@ export default function RaiseRequisition() {
           </Card>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 xl:gap-8">
           {/* Main Requisition Form */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="xl:col-span-2 space-y-6">
             <form noValidate onSubmit={handleSubmit} className="space-y-6">
               {/* Section 1: Classification & Scope */}
               <Card className="shadow-sm border-slate-200 dark:border-slate-800">
@@ -1022,12 +1022,12 @@ export default function RaiseRequisition() {
               </CardHeader>
               <CardContent className="space-y-4 pt-4 text-sm">
                 {/* Total Value */}
-                <div className="p-3 rounded-lg bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                <div className="p-3 rounded-lg bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
-                    <IndianRupee className="w-4 h-4 text-slate-500" />
+                    <IndianRupee className="w-4 h-4 text-slate-500 shrink-0" />
                     <span className="font-medium text-xs">Requisition Value:</span>
                   </div>
-                  <span className="text-lg font-black text-slate-900 dark:text-slate-100">
+                  <span className="text-base sm:text-lg font-black text-slate-900 dark:text-slate-100 shrink-0">
                     ₹{totalEstimatedValue.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
                   </span>
                 </div>
@@ -1036,9 +1036,9 @@ export default function RaiseRequisition() {
                 {!(loadingRules || matrixRules.length === 0) && (
                   <>
                     <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 space-y-2">
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-wrap items-center justify-between gap-1.5">
                         <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                          <Wallet className="w-3.5 h-3.5 text-indigo-500" />
+                          <Wallet className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
                           Up-to-Date Spend ({liveRouting.appliedScope === "department" ? "Departmental" : "Institutional"})
                         </span>
                         <Badge
@@ -1079,7 +1079,7 @@ export default function RaiseRequisition() {
                       <span className="text-xs uppercase text-indigo-100 font-semibold tracking-wider">
                         Target Approval Authority
                       </span>
-                      <div className="text-2xl font-black tracking-tight">
+                      <div className="text-xl sm:text-2xl font-black tracking-tight break-words">
                         {liveRouting.role === "hod"
                           ? `${departments.find((d) => d.id === departmentId)?.name || "Department"} HOD`
                           : formatRoleTitle(liveRouting.role)}
@@ -1099,13 +1099,13 @@ export default function RaiseRequisition() {
                     </div>
 
                     {/* Quotations & Procurement Method */}
-                    <div className="p-3 rounded-lg bg-slate-100 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 space-y-2 text-xs">
-                      <div className="flex justify-between items-center">
-                        <span className="text-slate-600 dark:text-slate-400 font-medium">
+                    <div className="p-3 rounded-lg bg-slate-100 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 space-y-2.5 text-xs">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                        <span className="text-slate-600 dark:text-slate-400 font-medium shrink-0">
                           Procurement Method:
                         </span>
                         <strong
-                          className="text-slate-900 dark:text-slate-100 text-right max-w-[200px] truncate"
+                          className="text-slate-900 dark:text-slate-100 sm:text-right font-semibold break-words"
                           title={
                             normalizeCategory(category) === "routine_consumable"
                               ? "Rate Contract with Vendors approved by EVP/Trustees (Min 3 quotes, 6 mo validity)"
@@ -1121,23 +1121,23 @@ export default function RaiseRequisition() {
                               : "Comparative Quotations (Min 3)"}
                         </strong>
                       </div>
-                      <div className="flex justify-between items-center">
+                      <div className="flex items-center justify-between gap-1">
                         <span className="text-slate-600 dark:text-slate-400 font-medium">
                           Min. Quotations:
                         </span>
-                        <strong className="text-slate-900 dark:text-slate-100 font-bold">
+                        <strong className="text-slate-900 dark:text-slate-100 font-bold shrink-0">
                           {liveRouting.minQuotations > 0
                             ? `${liveRouting.minQuotations} Quotes`
                             : "0 (Direct Purchase)"}
                         </strong>
                       </div>
-                      <div className="flex justify-between items-center">
+                      <div className="flex items-center justify-between gap-1">
                         <span className="text-slate-600 dark:text-slate-400 font-medium">
                           Rate Contract Required:
                         </span>
                         <Badge
                           variant={liveRouting.requiresRateContract ? "default" : "outline"}
-                          className="text-[10px] h-5"
+                          className="text-[10px] h-5 shrink-0 px-2 font-semibold"
                         >
                           {liveRouting.requiresRateContract ? "Yes (6 Mo Validity)" : "No"}
                         </Badge>
