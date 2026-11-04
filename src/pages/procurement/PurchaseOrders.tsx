@@ -45,7 +45,9 @@ import {
   amendPo,
   closePo,
   listPurchaseOrders,
+  sharePoLink,
 } from "@/lib/procurement/po.functions";
+import { WhatsAppButtons } from "@/components/WhatsAppButtons";
 import { dispatchPoEmail } from "@/lib/procurement/email.functions";
 import { createRfq, sendRfq } from "@/lib/procurement/rfq.functions";
 import { emailQuoteInvites } from "@/lib/procurement/quoteInvites";
@@ -366,7 +368,9 @@ export default function PurchaseOrders() {
           });
           return;
         }
-        const approvedRates = Array.isArray(chosenRc.approved_rates_json) ? chosenRc.approved_rates_json : [];
+        const approvedRates = Array.isArray(chosenRc.approved_rates_json)
+          ? chosenRc.approved_rates_json
+          : [];
         const approvedGroups = new Set(
           approvedRates.map((r: any) => r.group?.trim().toLowerCase()).filter(Boolean),
         );
@@ -378,7 +382,11 @@ export default function PurchaseOrders() {
           const descMatches = approvedRates.some((ar: any) => {
             const arDesc = (ar.description || "").trim().toLowerCase();
             const itDesc = (it.description || "").trim().toLowerCase();
-            return arDesc && itDesc && (arDesc === itDesc || itDesc.includes(arDesc) || arDesc.includes(itDesc));
+            return (
+              arDesc &&
+              itDesc &&
+              (arDesc === itDesc || itDesc.includes(arDesc) || arDesc.includes(itDesc))
+            );
           });
           return !groupMatches && !descMatches;
         });
@@ -508,6 +516,20 @@ export default function PurchaseOrders() {
     }
   };
 
+  /** WhatsApp text with a 30-day signed link to the same PO PDF the issue email attaches. */
+  const poWhatsAppMessage = async (po: any) => {
+    const doc = await buildPoPdf(po);
+    const res = await (sharePoLink as any)({
+      data: { po_id: po.id, pdf_base64: doc.output("datauristring").split(",")[1] },
+    });
+    if (!res?.ok) throw new Error(res?.error || "Could not prepare the PO link.");
+    const total = Number(po.total_value || 0).toLocaleString("en-IN");
+    return (
+      `Dear ${po.vendors?.name || "Vendor"},\n\nPlease find Purchase Order ${po.po_number} from AMC Engineering College ` +
+      `(total ₹${total}).\nDownload the PO (link valid for 30 days):\n${res.url}\n\nThank you.`
+    );
+  };
+
   const handleOpenAmend = (po: any) => {
     setActivePo(po);
     setNewPrice(Number(po.price || 0));
@@ -601,9 +623,14 @@ export default function PurchaseOrders() {
   ).length;
 
   // Part-paid orders are still open (more invoices, or Close PO to release the rest).
-  const poFilterOptions = statusFilterOptions(orders, (o: any) => o.status, ["closed", "cancelled"], {
-    partially_closed: "Part paid",
-  });
+  const poFilterOptions = statusFilterOptions(
+    orders,
+    (o: any) => o.status,
+    ["closed", "cancelled"],
+    {
+      partially_closed: "Part paid",
+    },
+  );
 
   return (
     <Layout>
@@ -655,13 +682,32 @@ export default function PurchaseOrders() {
         {/* PO List */}
         <div className="space-y-4">
           {loading ? (
-            <div className="space-y-3 p-4">{[...Array(4)].map((_, i) => (<Skeleton key={i} className="h-20 w-full rounded-xl" />))}</div>
+            <div className="space-y-3 p-4">
+              {[...Array(4)].map((_, i) => (
+                <Skeleton key={i} className="h-20 w-full rounded-xl" />
+              ))}
+            </div>
           ) : orders.length === 0 ? (
             <Card className="border-slate-100 shadow-none">
               <div className="flex flex-col items-center justify-center py-14 text-center px-8">
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-14 h-14 mb-4 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5L12 3l9 7.5" /></svg>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="w-14 h-14 mb-4 text-slate-300"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M9 17v-2m3 2v-4m3 4v-6M3 21h18M3 10.5L12 3l9 7.5"
+                  />
+                </svg>
                 <p className="text-base font-semibold text-slate-500">No data found</p>
-                <p className="text-sm text-slate-400 mt-1">No Purchase Orders created yet. Create one from an approved Comparative Statement.</p>
+                <p className="text-sm text-slate-400 mt-1">
+                  No Purchase Orders created yet. Create one from an approved Comparative Statement.
+                </p>
               </div>
             </Card>
           ) : (
@@ -670,12 +716,29 @@ export default function PurchaseOrders() {
               if (filteredOrders.length === 0)
                 return (
                   <Card className="border-slate-100 shadow-none">
-                <div className="flex flex-col items-center justify-center py-12 text-center px-8">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 mb-3 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
-                  <p className="text-sm font-semibold text-slate-500">No results match this filter</p>
-                  <p className="text-xs text-slate-400 mt-1">No purchase orders match this filter. Choose History or All to see others.</p>
-                </div>
-              </Card>
+                    <div className="flex flex-col items-center justify-center py-12 text-center px-8">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="w-10 h-10 mb-3 text-slate-300"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                        />
+                      </svg>
+                      <p className="text-sm font-semibold text-slate-500">
+                        No results match this filter
+                      </p>
+                      <p className="text-xs text-slate-400 mt-1">
+                        No purchase orders match this filter. Choose History or All to see others.
+                      </p>
+                    </div>
+                  </Card>
                 );
               const startIndex = (pagination.page - 1) * pagination.pageSize;
               const paginatedOrders = filteredOrders.slice(
@@ -707,9 +770,16 @@ export default function PurchaseOrders() {
                                 <Badge className={getStatusBadge(po.status)}>
                                   {po.status?.toUpperCase()}
                                 </Badge>
-                                {Boolean((po.po_type && po.po_type !== "regular") || (po.type && po.type !== "regular")) && (
+                                {Boolean(
+                                  (po.po_type && po.po_type !== "regular") ||
+                                  (po.type && po.type !== "regular"),
+                                ) && (
                                   <Badge variant="outline" className="text-xs capitalize">
-                                    {((po.po_type && po.po_type !== "regular" ? po.po_type : po.type) as string).replace("_", " ")}
+                                    {(
+                                      (po.po_type && po.po_type !== "regular"
+                                        ? po.po_type
+                                        : po.type) as string
+                                    ).replace("_", " ")}
                                   </Badge>
                                 )}
                                 {pr?.is_emergency && (
@@ -795,18 +865,27 @@ export default function PurchaseOrders() {
 
                               {(isIssued || po.status === "partially_closed") &&
                                 (auth.hasRole("admin") ||
-                                  auth.hasRole("procurement_officer")) && (
+                                  auth.hasRole("procurement_officer") ||
+                                  auth.hasRole("procurement_executive")) && (
+                                  <WhatsAppButtons
+                                    phone={po.vendors?.bank_details_json?.phone}
+                                    getMessage={() => poWhatsAppMessage(po)}
+                                  />
+                                )}
+
+                              {(isIssued || po.status === "partially_closed") &&
+                                (auth.hasRole("admin") || auth.hasRole("procurement_officer")) && (
                                   <>
                                     {/* Emergency orders can't be amended (DECISIONS Q16) */}
                                     {isIssued && !pr?.is_emergency && (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => handleOpenAmend(po)}
-                                      className="gap-1 text-xs border-amber-600 bg-amber-50 text-amber-800 hover:bg-amber-100 hover:text-amber-950 dark:border-amber-500/60 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/60 dark:hover:text-amber-100 transition-colors"
-                                    >
-                                      <FileEdit className="w-3.5 h-3.5" /> Amend
-                                    </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleOpenAmend(po)}
+                                        className="gap-1 text-xs border-amber-600 bg-amber-50 text-amber-800 hover:bg-amber-100 hover:text-amber-950 dark:border-amber-500/60 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/60 dark:hover:text-amber-100 transition-colors"
+                                      >
+                                        <FileEdit className="w-3.5 h-3.5" /> Amend
+                                      </Button>
                                     )}
                                     <Button
                                       size="sm"
@@ -972,7 +1051,11 @@ export default function PurchaseOrders() {
                       </SelectTrigger>
                       <SelectContent>
                         {approvedCss.length === 0 ? (
-                          <SelectItem value="_no_cs" disabled className="text-slate-700 dark:text-slate-300 font-medium text-xs py-2 text-center">
+                          <SelectItem
+                            value="_no_cs"
+                            disabled
+                            className="text-slate-700 dark:text-slate-300 font-medium text-xs py-2 text-center"
+                          >
                             No approved Comparative Statements found
                           </SelectItem>
                         ) : (
@@ -1015,7 +1098,11 @@ export default function PurchaseOrders() {
                       </SelectTrigger>
                       <SelectContent>
                         {activeRateContracts.length === 0 ? (
-                          <SelectItem value="_none" disabled className="text-slate-700 dark:text-slate-300 font-medium text-xs py-2 text-center">
+                          <SelectItem
+                            value="_none"
+                            disabled
+                            className="text-slate-700 dark:text-slate-300 font-medium text-xs py-2 text-center"
+                          >
                             No EVP-approved rate contracts in force
                           </SelectItem>
                         ) : (
@@ -1092,7 +1179,11 @@ export default function PurchaseOrders() {
                       </SelectTrigger>
                       <SelectContent>
                         {approvedPrs.filter((p) => p.category === "small_value").length === 0 ? (
-                          <SelectItem value="_none" disabled className="text-slate-700 dark:text-slate-300 font-medium text-xs py-2 text-center">
+                          <SelectItem
+                            value="_none"
+                            disabled
+                            className="text-slate-700 dark:text-slate-300 font-medium text-xs py-2 text-center"
+                          >
                             No approved small-value requisitions without a PO
                           </SelectItem>
                         ) : (
@@ -1180,7 +1271,11 @@ export default function PurchaseOrders() {
                           </SelectTrigger>
                           <SelectContent>
                             {vendorsList.length === 0 ? (
-                              <SelectItem value="_no_vendor" disabled className="text-slate-700 dark:text-slate-300 font-medium text-xs py-2 text-center">
+                              <SelectItem
+                                value="_no_vendor"
+                                disabled
+                                className="text-slate-700 dark:text-slate-300 font-medium text-xs py-2 text-center"
+                              >
                                 No empanelled vendors found
                               </SelectItem>
                             ) : (
@@ -1501,7 +1596,8 @@ export default function PurchaseOrders() {
                     <span className="font-mono font-bold text-slate-900 dark:text-white">
                       {poToClose?.po_number}
                     </span>
-                    ? Any unfulfilled lines or unused budget commitments will be automatically released back to the department.
+                    ? Any unfulfilled lines or unused budget commitments will be automatically
+                    released back to the department.
                   </p>
                 </div>
               </AlertDialogDescription>

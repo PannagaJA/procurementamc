@@ -2552,7 +2552,11 @@ export type Database = {
         | "procurement_officer"
         | "procurement_executive"
         | "stores"
-        | "finance";
+        | "finance"
+        | "chairman"
+        | "vice_chairman"
+        | "auditor"
+        | "corporate_office";
       ticket_priority: "low" | "medium" | "high";
       ticket_status:
         | "pending"

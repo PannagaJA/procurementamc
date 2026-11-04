@@ -22,6 +22,14 @@ async function rolesOf(context: any) {
   return { db, held: roles.map((r) => r.role) };
 }
 
+/** Vendor phone is mandatory: it's where WhatsApp sends the PO and quotation links. */
+function vendorPhoneError(phone: unknown): string | null {
+  const digits = String(phone ?? "").replace(/[\s-]/g, "");
+  return /^\+?[0-9]{10,15}$/.test(digits)
+    ? null
+    : "Enter the vendor's phone number (10–15 digits); it's used for WhatsApp.";
+}
+
 function deny(held: string[], allowed: string[], action: string) {
   if (held.includes("admin")) return null;
   if (allowed.some((a) => held.includes(a))) return null;
@@ -36,6 +44,11 @@ export const applyEmpanelment = createServerFn({ method: "POST" })
   .validator((input: VendorApplicationInput) => input)
   .handler(async ({ data, context }) => {
     if (!data.name?.trim()) return { ok: false as const, error: "Vendor name is required." };
+    const phoneErr = vendorPhoneError(data.phone || (data.bank_details as any)?.phone);
+    if (phoneErr) return { ok: false as const, error: phoneErr };
+    const { isReadOnlyUser } = await import("@/lib/roleAliases");
+    if (isReadOnlyUser((await rolesOf(context)).held))
+      return { ok: false as const, error: "Your role has read-only access." };
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -59,21 +72,21 @@ export const applyEmpanelment = createServerFn({ method: "POST" })
         status: "applied",
         created_by: context.userId,
       })
-      .select("id, name, status, registered_address, gst_number, pan_number, bank_details_json, created_at")
+      .select(
+        "id, name, status, registered_address, gst_number, pan_number, bank_details_json, created_at",
+      )
       .single();
 
     if (error) return { ok: false as const, error: error.message };
 
     if (data.documents?.length) {
-      await supabaseAdmin
-        .from("vendor_documents")
-        .insert(
-          data.documents.map((d) => ({
-            vendor_id: vendor.id,
-            doc_type: d.doc_type,
-            file_url: d.file_url,
-          })),
-        );
+      await supabaseAdmin.from("vendor_documents").insert(
+        data.documents.map((d) => ({
+          vendor_id: vendor.id,
+          doc_type: d.doc_type,
+          file_url: d.file_url,
+        })),
+      );
     }
     return { ok: true as const, vendor };
   });
@@ -272,7 +285,9 @@ export const listVendorsForReview = createServerFn({ method: "POST" })
     // Also fetch evaluations so UI knows if an applied vendor has been evaluated
     const { data: evals } = await supabaseAdmin
       .from("vendor_evaluations")
-      .select("id, vendor_id, technical_capability, experience_past_performance, service_support, financial_reasonableness, decision, notes, created_at, decided_at")
+      .select(
+        "id, vendor_id, technical_capability, experience_past_performance, service_support, financial_reasonableness, decision, notes, created_at, decided_at",
+      )
       .order("created_at", { ascending: false });
 
     const { getCallerRoles } = await import("@/server/procurement/roles");
@@ -288,21 +303,15 @@ export const listVendorsForReview = createServerFn({ method: "POST" })
 export const updateVendorContact = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator(
-    (input: {
-      vendor_id: string;
-      email: string;
-      phone: string;
-      contact_person?: string | null;
-    }) => input,
+    (input: { vendor_id: string; email: string; phone: string; contact_person?: string | null }) =>
+      input,
   )
   .handler(async ({ data, context }) => {
     const { held } = await rolesOf(context);
-    const d = deny(
-      held,
-      ["admin", "evp", "procurement_officer"],
-      "update vendor contact details",
-    );
+    const d = deny(held, ["admin", "evp", "procurement_officer"], "update vendor contact details");
     if (d) return d;
+    const phoneErr = vendorPhoneError(data.phone);
+    if (phoneErr) return { ok: false as const, error: phoneErr };
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -340,4 +349,3 @@ export const updateVendorContact = createServerFn({ method: "POST" })
 
     return { ok: true as const, updatedDetails };
   });
-

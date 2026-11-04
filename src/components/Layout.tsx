@@ -28,7 +28,7 @@ import {
   X,
   Workflow,
   Wallet,
-  type LucideIcon
+  type LucideIcon,
 } from "lucide-react";
 
 interface LayoutProps {
@@ -175,7 +175,9 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
   const hasAny = (roles: string[]) => roles.some((r) => isRole(r));
 
   // General / Campus permissions
-  const canSeeAdminItems = isAdmin || isRole("admin");
+  // Auditor / Corporate Office get the admin's screens, read-only (no "Add Item").
+  const canSeeAdminItems = isAdmin || isRole("admin") || Boolean(authCtx?.canViewAdmin);
+  const isReadOnly = Boolean(authCtx?.isReadOnly);
   const canSeeViewerItems = isViewer || isRole("viewer");
   const canSeeHodInventory = isHod || isRole("hod");
   const canSeeInventory =
@@ -186,6 +188,7 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
   // (finance, procurement, EVP, committee) don't raise them.
   const canRaiseTickets = Boolean(
     user &&
+    !isReadOnly &&
     (canSeeAdminItems ||
       hasAny([
         "hod",
@@ -228,8 +231,10 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
   const dashboardPath = getRoleDashboardPath(authCtx?.primaryRole ?? null);
   const campusNav: NavItem[] = [
     { label: "Dashboard", path: dashboardPath, icon: Home },
-    ...show(canSeeAdminItems, [
+    ...show(canSeeAdminItems && !isReadOnly, [
       { label: "Add Item", path: "/add", icon: PlusSquare },
+    ]),
+    ...show(canSeeAdminItems, [
       { label: "Categories", path: "/categories", icon: List },
       { label: "Departments", path: "/departments", icon: FileText },
       { label: "Users", path: "/users", icon: Users },
@@ -264,9 +269,7 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
     iconClass: "text-indigo-500",
   };
   const procurementNav: NavItem[] = [
-    ...show(proc.hub, [
-      { label: "Procurement Hub", path: "/procurement", icon: Home },
-    ]),
+    ...show(proc.hub, [{ label: "Procurement Hub", path: "/procurement", icon: Home }]),
     ...show(proc.approvals, [
       {
         label: "My Approvals",
@@ -288,9 +291,7 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
         icon: PlusSquare,
       },
     ]),
-    ...show(proc.rfqs, [
-      { label: "RFQs & Quotes", path: "/procurement/rfqs", icon: FileText },
-    ]),
+    ...show(proc.rfqs, [{ label: "RFQs & Quotes", path: "/procurement/rfqs", icon: FileText }]),
     ...show(proc.cs, [
       {
         label: "Comparative (CS)",
@@ -363,7 +364,9 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
           }`}
         >
           <span className="flex items-center gap-3 min-w-0">
-            <item.icon className={`w-4 h-4 shrink-0 ${isActive(item) ? "text-white" : (item.iconClass ?? "")}`} />
+            <item.icon
+              className={`w-4 h-4 shrink-0 ${isActive(item) ? "text-white" : (item.iconClass ?? "")}`}
+            />
             <span className="truncate">{item.label}</span>
           </span>
           {!!item.badge && (
@@ -414,7 +417,7 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
               alt="AMC Logo"
               className="h-9 w-12 sm:h-12 sm:w-16 rounded-lg object-contain shadow-md shrink-0"
             />
-<div className="min-w-0">
+            <div className="min-w-0">
               <h1 className="text-sm sm:text-lg font-bold text-gray-800 dark:text-gray-100 truncate">
                 AMC Procurement Software
               </h1>
@@ -425,7 +428,11 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
                   (authCtx?.primaryRole === "admin" && "Administrator") ||
                   (authCtx?.primaryRole === "principle" && "Principal") ||
                   (authCtx?.primaryRole === "principal" && "Principal") ||
+                  (authCtx?.primaryRole === "chairman" && "Chairman") ||
+                  (authCtx?.primaryRole === "vice_chairman" && "Vice Chairman") ||
                   (authCtx?.primaryRole === "evp" && "Executive Vice President") ||
+                  (authCtx?.primaryRole === "auditor" && "Auditor · Read-only") ||
+                  (authCtx?.primaryRole === "corporate_office" && "Corporate Office · Read-only") ||
                   (authCtx?.primaryRole === "director_admin_finance" &&
                     "Director (Admin & Finance)") ||
                   (authCtx?.primaryRole === "purchase_committee" && "Purchase Committee") ||
@@ -444,6 +451,11 @@ const Layout = ({ children, extraHeader, hideGlobalNav }: LayoutProps) => {
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {isReadOnly && (
+              <span className="hidden sm:inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+                Read-only access
+              </span>
+            )}
             <ApprovalNotificationBell />
             <Button
               variant="outline"

@@ -9,8 +9,11 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const FINANCE = ["admin", "finance", "director_admin_finance"];
 const EVP = ["admin", "evp"];
+// Who sees every department's budget (read-only for auditor / corporate_office).
 const STAFF = [
   "admin",
+  "auditor",
+  "corporate_office",
   "evp",
   "director_admin_finance",
   "purchase_committee",

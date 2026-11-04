@@ -20,7 +20,7 @@ export async function independentRole(
     .from("user_roles")
     .select("role, department_id")
     .neq("user_id", input.actorId)
-    .in("role", [...APPROVER_CHAIN, "principle"]);
+    .in("role", [...APPROVER_CHAIN, "principle", "chairman", "vice_chairman"]);
   const others = (data ?? []).map((r: any) => ({
     role: canonicalRole(String(r.role)),
     department_id: r.department_id ?? null,

@@ -58,7 +58,9 @@ export default function VendorManagement() {
   const { toast } = useToast();
   const auth = useAuth();
 
-  const [activeTab, setActiveTab] = useState("apply");
+  const [activeTab, setActiveTab] = useState(() =>
+    auth.isReadOnly ? "master_directory" : "apply",
+  );
   const [vendors, setVendors] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [userRoles, setUserRoles] = useState<string[]>([]);
@@ -538,7 +540,8 @@ export default function VendorManagement() {
             <TabsList className="inline-flex w-max min-w-full sm:min-w-0 sm:w-auto h-auto p-1.5 gap-1.5 bg-slate-200/70 dark:bg-slate-800/80 rounded-xl justify-start">
               <TabsTrigger
                 value="apply"
-                className="font-semibold text-xs sm:text-sm py-2 px-3 sm:px-4 whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm shrink-0"
+                data-readonly={auth.isReadOnly}
+                className="data-[readonly=true]:hidden font-semibold text-xs sm:text-sm py-2 px-3 sm:px-4 whitespace-nowrap rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm shrink-0"
               >
                 1. Apply for Empanelment
               </TabsTrigger>
@@ -618,7 +621,7 @@ export default function VendorManagement() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="vphone">
-                        Phone / Mobile Number <span className="text-destructive">*</span>
+                        WhatsApp / Mobile Number <span className="text-destructive">*</span>
                       </Label>
                       <Input
                         id="vphone"
@@ -1395,7 +1398,7 @@ export default function VendorManagement() {
 
             <div className="space-y-2">
               <Label htmlFor="editPhone">
-                Phone / Mobile Number <span className="text-destructive">*</span>
+                WhatsApp / Mobile Number <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="editPhone"

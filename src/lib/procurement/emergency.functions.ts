@@ -64,6 +64,11 @@ export const requestEmergencyProcurement = createServerFn({ method: "POST" })
   .validator((input: RequestEmergencyInput) => input)
   .handler(async ({ data, context }) => {
     const db = context.supabase as any;
+    const { getCallerRoles } = await import("@/server/procurement/roles");
+    const { isReadOnlyUser } = await import("@/lib/roleAliases");
+    const callerHeld = (await getCallerRoles(db, context.userId)).map((r) => r.role);
+    if (isReadOnlyUser(callerHeld))
+      return { ok: false as const, error: "Your role has read-only access.", code: "forbidden" };
     const fy = getCurrentFinancialYear();
     const cost = Number(data.estimated_cost) || 0;
 

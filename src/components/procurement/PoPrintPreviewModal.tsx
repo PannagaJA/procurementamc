@@ -284,12 +284,12 @@ export function PoPrintPreviewModal({ open, onOpenChange, po }: PoPrintPreviewMo
                       {vendor?.registered_address || "On file in Vendor Master"}
                     </span>
 
-                    {(bankDetails.contact_email || bankDetails.contact_phone) && (
+                    {(bankDetails.email || bankDetails.phone) && (
                       <>
                         <span className="text-slate-500 font-medium">Contact:</span>
                         <span className="col-span-2 text-slate-700">
                           {bankDetails.contact_person || ""}{" "}
-                          {bankDetails.contact_phone || bankDetails.contact_email || ""}
+                          {bankDetails.phone || bankDetails.email || ""}
                         </span>
                       </>
                     )}
